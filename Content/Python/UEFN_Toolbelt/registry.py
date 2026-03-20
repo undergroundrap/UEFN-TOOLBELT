@@ -202,6 +202,7 @@ class ToolRegistry:
                 "icon": e.icon,
                 "shortcut": e.shortcut,
                 "tags": e.tags,
+                "source": e.source,
             }
             for e in entries
         ]

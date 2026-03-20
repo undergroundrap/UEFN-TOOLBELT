@@ -30,17 +30,55 @@ def register_all_tools() -> None:
 
 def load_custom_plugins() -> None:
     """Load user-provided tools from Saved/UEFN_Toolbelt/Custom_Plugins."""
-    import os, sys, glob, importlib, unreal
+    import os, sys, glob, importlib, ast, unreal
     custom_plugins_dir = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "Custom_Plugins")
     if not os.path.exists(custom_plugins_dir):
         return
         
     if custom_plugins_dir not in sys.path:
         sys.path.insert(0, custom_plugins_dir)
+
+    # Dangerous modules that third-party plugins should never need
+    _BLOCKED_IMPORTS = frozenset({
+        "subprocess", "shutil", "ctypes", "socket", "http",
+        "urllib", "requests", "webbrowser", "smtplib", "ftplib",
+        "xmlrpc", "multiprocessing", "signal", "_thread",
+    })
+
+    def _scan_plugin(filepath: str) -> list:
+        """Parse a .py file via AST (without executing it) and flag dangerous imports."""
+        with open(filepath, "r", encoding="utf-8") as f:
+            try:
+                tree = ast.parse(f.read(), filename=filepath)
+            except SyntaxError as e:
+                return [f"SyntaxError: {e}"]
         
+        violations = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    root_module = alias.name.split(".")[0]
+                    if root_module in _BLOCKED_IMPORTS:
+                        violations.append(f"Blocked import: '{alias.name}' (line {node.lineno})")
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    root_module = node.module.split(".")[0]
+                    if root_module in _BLOCKED_IMPORTS:
+                        violations.append(f"Blocked import: 'from {node.module}' (line {node.lineno})")
+        return violations
+
     valid_count = 0
     for p in glob.glob(os.path.join(custom_plugins_dir, "*.py")):
         module_name = os.path.splitext(os.path.basename(p))[0]
+        
+        # Pre-screen: AST security scan before execution
+        violations = _scan_plugin(p)
+        if violations:
+            unreal.log_error(f"[SECURITY] Plugin '{module_name}.py' blocked — dangerous imports detected:")
+            for v in violations:
+                unreal.log_error(f"  • {v}")
+            continue
+        
         try:
             importlib.import_module(module_name)
             valid_count += 1

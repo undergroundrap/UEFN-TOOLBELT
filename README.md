@@ -1195,6 +1195,8 @@ Don't want to fork the repository or modify the core tools? You can drop isolate
 
 This "app-store" architecture lets you build and distribute third-party extensions for the Toolbelt without ever touching its source code. 
 
+**Security:** Every plugin is pre-screened by an AST import scanner before execution. Dangerous modules (`subprocess`, `socket`, `ctypes`, network libraries) are blocked automatically. Plugins also cannot overwrite core Toolbelt tools — namespace hijacking is rejected at registration time.
+
 **Read the full developer guide here:** [docs/plugin_dev_guide.md](docs/plugin_dev_guide.md)
 
 ---
