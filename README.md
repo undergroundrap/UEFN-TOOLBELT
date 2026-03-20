@@ -1411,14 +1411,14 @@ Or pin it permanently: **Window → UEFN Toolbelt** (registers as a dockable tab
 This project builds on the first 48 hours of real-world community testing after the
 UEFN Python v40.00 experimental drop (March 2026).
 
-**API ground truth — use this:**
+**API discovery vs. Execution: The "Superset" Architecture**
 
-> **[KirChuvakov/uefn-mcp-server](https://github.com/KirChuvakov/uefn-mcp-server)**
-> Contains `dump_uefn_api.py` (dumps 37K+ types across 30 domains),
-> `generate_uefn_stub.py` (perfect `.pyi` stubs), and `uefn_listener.py`
-> (the editor tick callback pattern that our dashboard also uses).
-> If you're writing UEFN Python and something in our code looks wrong,
-> cross-reference Kirch's dump — it's the most authoritative source available.
+> **[KirChuvakov/uefn-mcp-server](https://github.com/KirChuvakov/uefn-mcp-server)**  
+> KirChuvakov built the foundational "API Ground Truth" tools for UEFN (`dump_uefn_api.py`, `generate_uefn_stub.py`, and `uefn_listener.py`). 
+> 
+> **How UEFN Toolbelt differs:** While the standalone `uefn-mcp-server` focused purely on *Discovery* (mapping the API and teaching AI what exists), the **UEFN Toolbelt is an Execution Engine**. 
+> 
+> UEFN Toolbelt took those foundational discovery concepts and built them directly into a massive Native UI. Our `api_explorer` module handles the API parsing/stub generation internally, and our `mcp_bridge` handles the AI connection, all wrapped underneath the 117+ actual level-building tools (like the Arena Generator and Verse Syncer). You do not need to run a standalone MCP server alongside Toolbelt—Toolbelt is the all-in-one superset.
 
 **PySide6 UI approach inspired by:**
 - Early PySide6 experiments — proving out polished Qt UIs in the UEFN Python space
