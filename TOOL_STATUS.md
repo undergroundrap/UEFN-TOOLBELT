@@ -39,21 +39,21 @@ These tools require a live level. They spawn new actors or modify the environmen
 | `arena_generate` | [ ] | [ ] | | |
 | `text_wait_and_print` | [ ] | [ ] | | |
 | `text_paint_grid` | [ ] | [ ] | | |
-| `pattern_*` (Grid, Circle, Arc, etc.) | [ ] | [ ] | | |
+| `pattern_*` (Grid, Circle, Arc, etc.) | [A] | [A] | AI | 2026-03-20 |
 | `mcp_start` / `mcp_stop` | [ ] | [ ] | | |
-| `api_crawl_level_classes` | [ ] | [ ] | | |
+| `api_crawl_level_classes` | [A] | [A] | AI | 2026-03-20 |
 
 ### 🟠 Requires Manual Verification (Actor Selection Dependent)
 These tools **must** have valid actors selected in the UEFN viewport to function. Running them without a selection will result in a graceful warning, but testing actual logic requires a human.
 
 | Tool | UI Verified | AI Verified (MCP) | Tested By | Date |
 |---|---|---|---|---|
-| `material_apply_preset` | [ ] | [ ] | | |
+| `material_apply_preset` | [A] | [A] | AI | 2026-03-20 |
 | `material_bulk_swap` | [ ] | [ ] | | |
-| `bulk_align` / `distribute` / `randomize` | [ ] | [ ] | | |
+| `bulk_align` / `distribute` / `randomize` | [A] | [A] | AI | 2026-03-20 |
 | `spline_place_props` | [ ] | [ ] | | |
 | `text_label_selection` | [ ] | [ ] | | |
-| `verse_gen_device_declarations` | [ ] | [ ] | | |
+| `verse_gen_device_declarations` | [A] | [A] | AI | 2026-03-20 |
 | `screenshot_focus_selection` | [ ] | [ ] | | |
 | `api_crawl_selection` | [ ] | [ ] | | |
 
@@ -65,7 +65,7 @@ These tools require specific assets (Static Meshes, Textures, Folders) to be sel
 | `lod_auto_generate_folder` | [ ] | [ ] | | |
 | `smart_importer` tools | [ ] | [ ] | | |
 | `rename_enforce_conventions` | [ ] | [ ] | | |
-| `tag_add` / `tag_remove` | [ ] | [ ] | | |
+| `tag_add` / `tag_remove` | [A] | [A] | AI | 2026-03-20 |
 | `memory_scan_textures` | [ ] | [ ] | | |
 
 ---
