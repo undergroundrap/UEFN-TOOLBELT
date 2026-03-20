@@ -1,0 +1,161 @@
+# ============================================================
+# UEFN TOOLBELT — .gitignore
+# ============================================================
+
+# ─── Verse spec (live git clone — clone it yourself) ──────────────────────────
+# See README: git clone https://github.com/verselang/book.git verse-book
+verse-book/
+
+# ─── UEFN / Unreal Engine ─────────────────────────────────────────────────────
+Saved/
+Intermediate/
+DerivedDataCache/
+Build/
+Binaries/
+*.uasset
+*.umap
+*.uproject
+*.uplugin
+
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.pdb
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+.eggs/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.hypothesis/
+coverage.xml
+*.cover
+*.py,cover
+nosetests.xml
+
+# mypy / pyright / ruff
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+pyrightconfig.json
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# ─── MCP / Local config ───────────────────────────────────────────────────────
+# .mcp.json contains absolute paths — each user must configure their own.
+# The repo ships a template; your local copy is personal.
+.mcp.json
+
+# ─── Claude Code ──────────────────────────────────────────────────────────────
+# Personal Claude Code settings (co-author suppression, etc.) — not shared.
+.claude/settings.json
+
+# ─── OS ───────────────────────────────────────────────────────────────────────
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.stackdump
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+Icon?
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ─── Editors & IDEs ───────────────────────────────────────────────────────────
+
+# VS Code — keep settings.json and extensions.json (useful to share),
+# ignore personal workspace state
+.vscode/launch.json
+.vscode/*.code-workspace
+.vscode/history/
+.history/
+
+# JetBrains (PyCharm, Rider, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim / Neovim
+*.swp
+*.swo
+*.swn
+Session.vim
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ─── Logs & temp ──────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+
+# ─── Secrets ──────────────────────────────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+credentials.json

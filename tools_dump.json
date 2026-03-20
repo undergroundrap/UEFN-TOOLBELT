@@ -1,0 +1,698 @@
+[
+  {
+    "source_file": "api_explorer.py",
+    "name": "api_search",
+    "category": "API Explorer",
+    "description": "No description."
+  },
+  {
+    "source_file": "api_explorer.py",
+    "name": "api_inspect",
+    "category": "API Explorer",
+    "description": "No description."
+  },
+  {
+    "source_file": "api_explorer.py",
+    "name": "api_generate_stubs",
+    "category": "API Explorer",
+    "description": "No description."
+  },
+  {
+    "source_file": "api_explorer.py",
+    "name": "api_list_subsystems",
+    "category": "API Explorer",
+    "description": "No description."
+  },
+  {
+    "source_file": "api_explorer.py",
+    "name": "api_export_full",
+    "category": "API Explorer",
+    "description": "No description."
+  },
+  {
+    "source_file": "arena_generator.py",
+    "name": "arena_generate",
+    "category": "Procedural",
+    "description": "Args:"
+  },
+  {
+    "source_file": "asset_renamer.py",
+    "name": "rename_dry_run",
+    "category": "Assets",
+    "description": "Prints every asset that violates the Epic naming convention."
+  },
+  {
+    "source_file": "asset_renamer.py",
+    "name": "rename_enforce_conventions",
+    "category": "Assets",
+    "description": "Renames every violating asset. Always run rename_dry_run first to review."
+  },
+  {
+    "source_file": "asset_renamer.py",
+    "name": "rename_strip_prefix",
+    "category": "Assets",
+    "description": "Removes `prefix` from every asset in scan_path that starts with it."
+  },
+  {
+    "source_file": "asset_renamer.py",
+    "name": "rename_report",
+    "category": "Assets",
+    "description": "Full audit \u2014 doesn't rename anything, just writes a comprehensive JSON"
+  },
+  {
+    "source_file": "asset_tagger.py",
+    "name": "tag_add",
+    "category": "Asset Tagger",
+    "description": "Apply a metadata tag to all assets currently selected in the Content Browser."
+  },
+  {
+    "source_file": "asset_tagger.py",
+    "name": "tag_remove",
+    "category": "Asset Tagger",
+    "description": "Remove a tag key from all assets selected in the Content Browser."
+  },
+  {
+    "source_file": "asset_tagger.py",
+    "name": "tag_show",
+    "category": "Asset Tagger",
+    "description": "Print all TB: tags on every asset currently selected in the Content Browser."
+  },
+  {
+    "source_file": "asset_tagger.py",
+    "name": "tag_search",
+    "category": "Asset Tagger",
+    "description": "Find all assets under folder where TB:{tag_name} = value."
+  },
+  {
+    "source_file": "asset_tagger.py",
+    "name": "tag_list_all",
+    "category": "Asset Tagger",
+    "description": "Print all unique TB: tag keys used anywhere under folder, with asset counts."
+  },
+  {
+    "source_file": "asset_tagger.py",
+    "name": "tag_export",
+    "category": "Asset Tagger",
+    "description": "Scan all assets under folder, collect every TB: tag, and write the"
+  },
+  {
+    "source_file": "bulk_operations.py",
+    "name": "bulk_align",
+    "category": "Bulk Ops",
+    "description": "Args:"
+  },
+  {
+    "source_file": "bulk_operations.py",
+    "name": "bulk_distribute",
+    "category": "Bulk Ops",
+    "description": "Args:"
+  },
+  {
+    "source_file": "bulk_operations.py",
+    "name": "bulk_randomize",
+    "category": "Bulk Ops",
+    "description": "Args:"
+  },
+  {
+    "source_file": "bulk_operations.py",
+    "name": "bulk_snap_to_grid",
+    "category": "Bulk Ops",
+    "description": "Args:"
+  },
+  {
+    "source_file": "bulk_operations.py",
+    "name": "bulk_reset",
+    "category": "Bulk Ops",
+    "description": "No description."
+  },
+  {
+    "source_file": "bulk_operations.py",
+    "name": "bulk_stack",
+    "category": "Bulk Ops",
+    "description": "Args:"
+  },
+  {
+    "source_file": "bulk_operations.py",
+    "name": "bulk_mirror",
+    "category": "Bulk Ops",
+    "description": "Args:"
+  },
+  {
+    "source_file": "bulk_operations.py",
+    "name": "bulk_normalize_scale",
+    "category": "Bulk Ops",
+    "description": "Args:"
+  },
+  {
+    "source_file": "bulk_operations.py",
+    "name": "bulk_face_camera",
+    "category": "Bulk Ops",
+    "description": "No description."
+  },
+  {
+    "source_file": "foliage_tools.py",
+    "name": "scatter_props",
+    "category": "Procedural",
+    "description": "Args:"
+  },
+  {
+    "source_file": "foliage_tools.py",
+    "name": "scatter_hism",
+    "category": "Procedural",
+    "description": "Places all instances inside a single actor with a"
+  },
+  {
+    "source_file": "foliage_tools.py",
+    "name": "scatter_along_path",
+    "category": "Procedural",
+    "description": "Drops a cluster of `count_per_point` instances around each point in"
+  },
+  {
+    "source_file": "foliage_tools.py",
+    "name": "scatter_clear",
+    "category": "Procedural",
+    "description": "No description."
+  },
+  {
+    "source_file": "foliage_tools.py",
+    "name": "scatter_export_manifest",
+    "category": "Procedural",
+    "description": "Exports a JSON manifest of every actor in the scatter folder."
+  },
+  {
+    "source_file": "level_snapshot.py",
+    "name": "snapshot_save",
+    "category": "Level Snapshot",
+    "description": "Capture actor transforms and save them to a named snapshot."
+  },
+  {
+    "source_file": "level_snapshot.py",
+    "name": "snapshot_restore",
+    "category": "Level Snapshot",
+    "description": "Restore actor transforms from a saved snapshot."
+  },
+  {
+    "source_file": "level_snapshot.py",
+    "name": "snapshot_list",
+    "category": "Level Snapshot",
+    "description": "Print all saved snapshots in Saved/UEFN_Toolbelt/snapshots/."
+  },
+  {
+    "source_file": "level_snapshot.py",
+    "name": "snapshot_diff",
+    "category": "Level Snapshot",
+    "description": "Diff two snapshots and print what changed."
+  },
+  {
+    "source_file": "level_snapshot.py",
+    "name": "snapshot_delete",
+    "category": "Level Snapshot",
+    "description": "Delete a single snapshot file."
+  },
+  {
+    "source_file": "level_snapshot.py",
+    "name": "snapshot_export",
+    "category": "Level Snapshot",
+    "description": "Export a snapshot to any file path (for sharing with other creators)."
+  },
+  {
+    "source_file": "level_snapshot.py",
+    "name": "snapshot_import",
+    "category": "Level Snapshot",
+    "description": "Import a snapshot JSON from any file path."
+  },
+  {
+    "source_file": "level_snapshot.py",
+    "name": "snapshot_compare_live",
+    "category": "Level Snapshot",
+    "description": "Diff a saved snapshot against the current level \u2014 no second snapshot needed."
+  },
+  {
+    "source_file": "lod_tools.py",
+    "name": "lod_auto_generate_selection",
+    "category": "Assets",
+    "description": "Args:"
+  },
+  {
+    "source_file": "lod_tools.py",
+    "name": "lod_auto_generate_folder",
+    "category": "Assets",
+    "description": "Args:"
+  },
+  {
+    "source_file": "lod_tools.py",
+    "name": "lod_set_collision_folder",
+    "category": "Assets",
+    "description": "Args:"
+  },
+  {
+    "source_file": "lod_tools.py",
+    "name": "lod_audit_folder",
+    "category": "Assets",
+    "description": "Prints a report and saves JSON to Saved/UEFN_Toolbelt/lod_audit.json."
+  },
+  {
+    "source_file": "material_master.py",
+    "name": "material_list_presets",
+    "category": "Materials",
+    "description": "No description."
+  },
+  {
+    "source_file": "material_master.py",
+    "name": "material_apply_preset",
+    "category": "Materials",
+    "description": "Args:"
+  },
+  {
+    "source_file": "material_master.py",
+    "name": "material_randomize_colors",
+    "category": "Materials",
+    "description": "Args:"
+  },
+  {
+    "source_file": "material_master.py",
+    "name": "material_gradient_painter",
+    "category": "Materials",
+    "description": "Args:"
+  },
+  {
+    "source_file": "material_master.py",
+    "name": "material_team_color_split",
+    "category": "Materials",
+    "description": "Actors with X < midpoint \u2192 team_blue preset."
+  },
+  {
+    "source_file": "material_master.py",
+    "name": "material_pattern_painter",
+    "category": "Materials",
+    "description": "Args:"
+  },
+  {
+    "source_file": "material_master.py",
+    "name": "material_glow_pulse_preview",
+    "category": "Materials",
+    "description": "Args:"
+  },
+  {
+    "source_file": "material_master.py",
+    "name": "material_color_harmony",
+    "category": "Materials",
+    "description": "Args:"
+  },
+  {
+    "source_file": "material_master.py",
+    "name": "material_save_preset",
+    "category": "Materials",
+    "description": "Reads the current material instance parameters from the first selected actor"
+  },
+  {
+    "source_file": "material_master.py",
+    "name": "material_bulk_swap",
+    "category": "Materials",
+    "description": "Swap one material for another on all actors in scope."
+  },
+  {
+    "source_file": "mcp_bridge.py",
+    "name": "mcp_start",
+    "category": "MCP Bridge",
+    "description": "Start the UEFN Toolbelt MCP HTTP listener."
+  },
+  {
+    "source_file": "mcp_bridge.py",
+    "name": "mcp_stop",
+    "category": "MCP Bridge",
+    "description": "Stop the MCP HTTP listener. Claude Code will no longer be able to control UEFN."
+  },
+  {
+    "source_file": "mcp_bridge.py",
+    "name": "mcp_restart",
+    "category": "MCP Bridge",
+    "description": "Restart the listener \u2014 use this after hot-reloading the toolbelt."
+  },
+  {
+    "source_file": "mcp_bridge.py",
+    "name": "mcp_status",
+    "category": "MCP Bridge",
+    "description": "Print the current MCP listener status to the Output Log."
+  },
+  {
+    "source_file": "memory_profiler.py",
+    "name": "memory_scan",
+    "category": "Optimization",
+    "description": "Scans all asset types and prints a summary dashboard."
+  },
+  {
+    "source_file": "memory_profiler.py",
+    "name": "memory_scan_textures",
+    "category": "Optimization",
+    "description": "Args:"
+  },
+  {
+    "source_file": "memory_profiler.py",
+    "name": "memory_scan_meshes",
+    "category": "Optimization",
+    "description": "Args:"
+  },
+  {
+    "source_file": "memory_profiler.py",
+    "name": "memory_top_offenders",
+    "category": "Optimization",
+    "description": "Args:"
+  },
+  {
+    "source_file": "memory_profiler.py",
+    "name": "memory_autofix_lods",
+    "category": "Optimization",
+    "description": "Convenience wrapper: finds meshes with LOD count \u2264 1 and generates LODs."
+  },
+  {
+    "source_file": "project_scaffold.py",
+    "name": "scaffold_list_templates",
+    "category": "Project",
+    "description": "No description."
+  },
+  {
+    "source_file": "project_scaffold.py",
+    "name": "scaffold_preview",
+    "category": "Project",
+    "description": "Zero-change preview. Shows exactly what scaffold_generate would create."
+  },
+  {
+    "source_file": "project_scaffold.py",
+    "name": "scaffold_generate",
+    "category": "Project",
+    "description": "Creates the full folder tree for the chosen template."
+  },
+  {
+    "source_file": "project_scaffold.py",
+    "name": "scaffold_save_template",
+    "category": "Project",
+    "description": "Save a list of relative folder paths as a named template."
+  },
+  {
+    "source_file": "project_scaffold.py",
+    "name": "scaffold_delete_template",
+    "category": "Project",
+    "description": "Args:"
+  },
+  {
+    "source_file": "project_scaffold.py",
+    "name": "scaffold_organize_loose",
+    "category": "Project",
+    "description": "Scans /Game (top level only, not recursive) for assets sitting loose"
+  },
+  {
+    "source_file": "prop_patterns.py",
+    "name": "pattern_grid",
+    "category": "Prop Patterns",
+    "description": "Place a mesh in a rectangular N\u00d7M grid."
+  },
+  {
+    "source_file": "prop_patterns.py",
+    "name": "pattern_circle",
+    "category": "Prop Patterns",
+    "description": "Place props evenly spaced around a full 360\u00b0 circle."
+  },
+  {
+    "source_file": "prop_patterns.py",
+    "name": "pattern_arc",
+    "category": "Prop Patterns",
+    "description": "Place props along a partial arc."
+  },
+  {
+    "source_file": "prop_patterns.py",
+    "name": "pattern_spiral",
+    "category": "Prop Patterns",
+    "description": "Place props along an Archimedean spiral."
+  },
+  {
+    "source_file": "prop_patterns.py",
+    "name": "pattern_line",
+    "category": "Prop Patterns",
+    "description": "Place props in a straight line from `start` to `end`."
+  },
+  {
+    "source_file": "prop_patterns.py",
+    "name": "pattern_wave",
+    "category": "Prop Patterns",
+    "description": "Place props along a sine wave."
+  },
+  {
+    "source_file": "prop_patterns.py",
+    "name": "pattern_helix",
+    "category": "Prop Patterns",
+    "description": "Place props along a 3D helix (corkscrew / spiral staircase)."
+  },
+  {
+    "source_file": "prop_patterns.py",
+    "name": "pattern_radial_rows",
+    "category": "Prop Patterns",
+    "description": "Place props in concentric rings with increasing density on outer rings."
+  },
+  {
+    "source_file": "prop_patterns.py",
+    "name": "pattern_clear",
+    "category": "Prop Patterns",
+    "description": "Delete pattern actors from the level."
+  },
+  {
+    "source_file": "reference_auditor.py",
+    "name": "ref_audit_orphans",
+    "category": "Reference Auditor",
+    "description": "Print all assets under scan_path that nothing else references."
+  },
+  {
+    "source_file": "reference_auditor.py",
+    "name": "ref_audit_redirectors",
+    "category": "Reference Auditor",
+    "description": "Print all ObjectRedirector assets under scan_path."
+  },
+  {
+    "source_file": "reference_auditor.py",
+    "name": "ref_audit_duplicates",
+    "category": "Reference Auditor",
+    "description": "Find assets with the same base name living in different folders."
+  },
+  {
+    "source_file": "reference_auditor.py",
+    "name": "ref_audit_unused_textures",
+    "category": "Reference Auditor",
+    "description": "Find textures with zero referencers \u2014 prime deletion candidates."
+  },
+  {
+    "source_file": "reference_auditor.py",
+    "name": "ref_fix_redirectors",
+    "category": "Reference Auditor",
+    "description": "Resolve all ObjectRedirectors under scan_path."
+  },
+  {
+    "source_file": "reference_auditor.py",
+    "name": "ref_delete_orphans",
+    "category": "Reference Auditor",
+    "description": "Delete assets with no referencers."
+  },
+  {
+    "source_file": "reference_auditor.py",
+    "name": "ref_full_report",
+    "category": "Reference Auditor",
+    "description": "Run every audit check and write a JSON report to"
+  },
+  {
+    "source_file": "screenshot_tools.py",
+    "name": "screenshot_take",
+    "category": "Screenshot",
+    "description": "Take a high-resolution screenshot of the current editor viewport."
+  },
+  {
+    "source_file": "screenshot_tools.py",
+    "name": "screenshot_focus_selection",
+    "category": "Screenshot",
+    "description": "Automatically frame all selected actors, capture a screenshot, and"
+  },
+  {
+    "source_file": "screenshot_tools.py",
+    "name": "screenshot_timed_series",
+    "category": "Screenshot",
+    "description": "Capture a series of screenshots at regular intervals from the current camera."
+  },
+  {
+    "source_file": "screenshot_tools.py",
+    "name": "screenshot_open_folder",
+    "category": "Screenshot",
+    "description": "Print the screenshot output folder path so you can find your shots quickly."
+  },
+  {
+    "source_file": "smart_importer.py",
+    "name": "import_fbx",
+    "category": "Assets",
+    "description": "Args:"
+  },
+  {
+    "source_file": "smart_importer.py",
+    "name": "import_fbx_folder",
+    "category": "Assets",
+    "description": "Args:"
+  },
+  {
+    "source_file": "smart_importer.py",
+    "name": "organize_assets",
+    "category": "Assets",
+    "description": "Moves assets from source_path into target_base/Meshes, target_base/Materials,"
+  },
+  {
+    "source_file": "spline_prop_placer.py",
+    "name": "spline_place_props",
+    "category": "Procedural",
+    "description": "Args:"
+  },
+  {
+    "source_file": "spline_prop_placer.py",
+    "name": "spline_clear_props",
+    "category": "Procedural",
+    "description": "Args:"
+  },
+  {
+    "source_file": "spline_to_verse.py",
+    "name": "spline_to_verse_points",
+    "category": "Verse Helpers",
+    "description": "Args:"
+  },
+  {
+    "source_file": "spline_to_verse.py",
+    "name": "spline_to_verse_patrol",
+    "category": "Verse Helpers",
+    "description": "Generates a complete Verse creative_device with:"
+  },
+  {
+    "source_file": "spline_to_verse.py",
+    "name": "spline_to_verse_zone_boundary",
+    "category": "Verse Helpers",
+    "description": "Generates a Verse array of boundary points useful for custom zone detection,"
+  },
+  {
+    "source_file": "spline_to_verse.py",
+    "name": "spline_export_json",
+    "category": "Verse Helpers",
+    "description": "Exports spline data as JSON to Saved/UEFN_Toolbelt/spline_export.json."
+  },
+  {
+    "source_file": "text_painter.py",
+    "name": "text_place",
+    "category": "Text & Signs",
+    "description": "Args:"
+  },
+  {
+    "source_file": "text_painter.py",
+    "name": "text_label_selection",
+    "category": "Text & Signs",
+    "description": "Great for zone tagging, debugging actor layouts, or creating a visual"
+  },
+  {
+    "source_file": "text_painter.py",
+    "name": "text_paint_grid",
+    "category": "Text & Signs",
+    "description": "Generates grid labels like A1, A2 \u2026 D4 spaced evenly from origin."
+  },
+  {
+    "source_file": "text_painter.py",
+    "name": "text_color_cycle",
+    "category": "Text & Signs",
+    "description": "Place a row of text actors, each one a different color from the palette."
+  },
+  {
+    "source_file": "text_painter.py",
+    "name": "text_save_style",
+    "category": "Text & Signs",
+    "description": "Save a style preset to Saved/UEFN_Toolbelt/text_styles.json."
+  },
+  {
+    "source_file": "text_painter.py",
+    "name": "text_list_styles",
+    "category": "Text & Signs",
+    "description": "No description."
+  },
+  {
+    "source_file": "text_painter.py",
+    "name": "text_clear_folder",
+    "category": "Text & Signs",
+    "description": "Args:"
+  },
+  {
+    "source_file": "verse_device_editor.py",
+    "name": "verse_list_devices",
+    "category": "Verse Helpers",
+    "description": "Args:"
+  },
+  {
+    "source_file": "verse_device_editor.py",
+    "name": "verse_bulk_set_property",
+    "category": "Verse Helpers",
+    "description": "Args:"
+  },
+  {
+    "source_file": "verse_device_editor.py",
+    "name": "verse_select_by_name",
+    "category": "Verse Helpers",
+    "description": "Args:"
+  },
+  {
+    "source_file": "verse_device_editor.py",
+    "name": "verse_select_by_class",
+    "category": "Verse Helpers",
+    "description": "Args:"
+  },
+  {
+    "source_file": "verse_device_editor.py",
+    "name": "verse_export_report",
+    "category": "Verse Helpers",
+    "description": "Writes a JSON file to:"
+  },
+  {
+    "source_file": "verse_snippet_generator.py",
+    "name": "verse_gen_custom",
+    "category": "Verse Helpers",
+    "description": "Write arbitrary Verse code to the snippets folder."
+  },
+  {
+    "source_file": "verse_snippet_generator.py",
+    "name": "verse_list_snippets",
+    "category": "Verse Helpers",
+    "description": "No description."
+  },
+  {
+    "source_file": "verse_snippet_generator.py",
+    "name": "verse_open_snippets_folder",
+    "category": "Verse Helpers",
+    "description": "No description."
+  },
+  {
+    "source_file": "verse_snippet_generator.py",
+    "name": "verse_gen_device_declarations",
+    "category": "Verse Helpers",
+    "description": "Inspect the selected actors and generate typed @editable Verse declarations"
+  },
+  {
+    "source_file": "verse_snippet_generator.py",
+    "name": "verse_gen_game_skeleton",
+    "category": "Verse Helpers",
+    "description": "Args:"
+  },
+  {
+    "source_file": "verse_snippet_generator.py",
+    "name": "verse_gen_elimination_handler",
+    "category": "Verse Helpers",
+    "description": "No description."
+  },
+  {
+    "source_file": "verse_snippet_generator.py",
+    "name": "verse_gen_scoring_tracker",
+    "category": "Verse Helpers",
+    "description": "Args:"
+  },
+  {
+    "source_file": "verse_snippet_generator.py",
+    "name": "verse_gen_prop_spawner",
+    "category": "Verse Helpers",
+    "description": "No description."
+  }
+]

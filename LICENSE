@@ -1,0 +1,51 @@
+AGPL-3.0 License with Visible Attribution Requirement
+
+Copyright (c) 2026 Ocean Bennett
+
+UEFN TOOLBELT — including its Tool Registry architecture, material preset system,
+procedural generation tools, bulk operations engine, Verse workflow automation,
+performance profiler, and all source code in this repository — is licensed under
+the GNU Affero General Public License v3.0, with the additional visible
+attribution requirement below.
+
+────────────────────────────────────────────────────────────────────────────────
+ADDITIONAL TERM (permitted under AGPL-3.0 Section 7):
+────────────────────────────────────────────────────────────────────────────────
+
+Any tool, plugin, application, or service that uses, derives from, or is
+substantially built upon this codebase or its architecture must include a visible
+credit in one or more of the following locations:
+
+  - The tool's public-facing README or documentation
+  - The tool's in-editor about panel or credits screen
+  - The tool's store page, landing page, or repository description
+
+The credit must read, at minimum:
+
+  "Built on UEFN Toolbelt by Ocean Bennett
+   (https://github.com/undergroundrap/UEFN-TOOLBELT)"
+
+  or an equivalent that names Ocean Bennett and links to this repository.
+
+This requirement applies regardless of how substantially the code was modified.
+────────────────────────────────────────────────────────────────────────────────
+
+Core license terms:
+
+1. Attribution: Retain this copyright notice and the visible credit above in
+   any derivative work, fork, or project that uses this toolbelt or its
+   architecture.
+
+2. Copyleft: Derivative works must be released under AGPL-3.0. You may not
+   incorporate this code into a closed-source tool, plugin, or product.
+
+3. Network use: If you run a modified version as a hosted or networked service
+   (e.g., a web-based UEFN automation dashboard), you must make the complete
+   modified source code publicly available. Running a hosted service counts.
+
+4. Commercial use by the original author: Ocean Bennett, as copyright holder,
+   reserves the right to release commercial versions of this software under
+   separate licensing terms. This does not affect the open-source rights
+   granted to the community under this license.
+
+Full AGPL-3.0 license text: https://www.gnu.org/licenses/agpl-3.0.en.html

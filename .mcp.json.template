@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "uefn-toolbelt": {
+      "command": "python",
+      "args": ["ABSOLUTE_PATH_TO/UEFN-TOOLBELT/mcp_server.py"],
+      "env": {
+        "UEFN_MCP_PORT": "8765"
+      }
+    }
+  }
+}
