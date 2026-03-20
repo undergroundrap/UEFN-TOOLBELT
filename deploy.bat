@@ -102,7 +102,7 @@ echo.
 echo  Now open UEFN and paste ONE of these into the Python console:
 echo.
 echo  -- First time (or after git pull) --
-echo import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.launch_qt()
+echo import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
 echo.
 echo  -- Normal launch --
 echo import UEFN_Toolbelt as tb; tb.launch_qt()

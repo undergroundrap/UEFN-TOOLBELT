@@ -96,6 +96,12 @@ tb.smoke_test()
 # List everything available
 for t in tb.registry.list_tools():
     print(f"{t['category']:20s} {t['name']}")
+
+### Session Reset (Hard Reload)
+If UEFN Python cache gets stuck (NameErrors after renaming or moving code), use this "Nuclear Reload" to wipe and re-import everything fresh:
+```python
+import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
+```
 ```
 
 ---

@@ -1830,6 +1830,13 @@ We've implemented a custom reloader that lets you pick up Python code changes in
 import UEFN_Toolbelt as tb
 tb.reload()  # Re-scans all tools, resets registry, and re-imports modules
 ```
+
+#### **Troubleshooting / Hard Reset**
+If `tb.reload()` doesn't clear a specific Python `NameError` or caching issue, use this **Nuclear Reload** command in the UEFN console to completely wipe the Toolbelt from memory and re-import it fresh:
+```python
+import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
+```
+
 > [!TIP]
 > Use `tb.reload()` after editing any tool file or pulling latest changes from git to keep your session in sync.
 
