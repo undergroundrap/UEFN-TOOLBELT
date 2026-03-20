@@ -226,7 +226,7 @@ def _tool_api_search(query: str = "", category: str = "all",
         unreal.log(f"  … {len(results) - max_results} more — narrow your query.")
 
 
-def _tool_api_inspect(name: str = "") -> None:
+def _tool_api_inspect(name: str = "", **kwargs) -> None:
     """
     Print full signature and docstring for any unreal.* name.
 
@@ -286,7 +286,7 @@ def _tool_api_inspect(name: str = "") -> None:
     unreal.log(f"{'─'*60}\n")
 
 
-def _tool_api_generate_stubs(class_name: str = "") -> None:
+def _tool_api_generate_stubs(class_name: str = "", **kwargs) -> None:
     """
     Write a .pyi stub file for a single class.
 
@@ -317,7 +317,7 @@ def _tool_api_generate_stubs(class_name: str = "") -> None:
         unreal.log(f"[API Explorer] ✓ Wrote {len(classes)} stub files to {_STUB_DIR}")
 
 
-def _tool_api_list_subsystems() -> None:
+def _tool_api_list_subsystems(**kwargs) -> None:
     """Print every *Subsystem class available in this UEFN build."""
     subsystems: list[str] = []
     for name in _all_unreal_names():
@@ -443,7 +443,7 @@ def _tool_api_export_full(include_constants: bool = False) -> None:
     icon="🔍",
     tags=["api", "search", "inspect", "stubs"],
 )
-def api_search(query: str = "", category: str = "all", max_results: int = 40) -> None:
+def api_search(query: str = "", category: str = "all", max_results: int = 40, **kwargs) -> None:
     _tool_api_search(query=query, category=category, max_results=max_results)
 
 
@@ -454,7 +454,7 @@ def api_search(query: str = "", category: str = "all", max_results: int = 40) ->
     icon="🔎",
     tags=["api", "inspect", "signature", "docs"],
 )
-def api_inspect(name: str = "") -> None:
+def api_inspect(name: str = "", **kwargs) -> None:
     _tool_api_inspect(name=name)
 
 
@@ -465,7 +465,7 @@ def api_inspect(name: str = "") -> None:
     icon="📄",
     tags=["api", "stubs", "autocomplete", "pyi"],
 )
-def api_generate_stubs(class_name: str = "") -> None:
+def api_generate_stubs(class_name: str = "", **kwargs) -> None:
     _tool_api_generate_stubs(class_name=class_name)
 
 
@@ -476,7 +476,7 @@ def api_generate_stubs(class_name: str = "") -> None:
     icon="🔷",
     tags=["api", "subsystems", "list"],
 )
-def api_list_subsystems() -> None:
+def api_list_subsystems(**kwargs) -> None:
     _tool_api_list_subsystems()
 
 
@@ -487,5 +487,5 @@ def api_list_subsystems() -> None:
     icon="📦",
     tags=["api", "stubs", "export", "autocomplete", "pyi"],
 )
-def api_export_full(include_constants: bool = False) -> None:
+def api_export_full(include_constants: bool = False, **kwargs) -> None:
     _tool_api_export_full(include_constants=include_constants)

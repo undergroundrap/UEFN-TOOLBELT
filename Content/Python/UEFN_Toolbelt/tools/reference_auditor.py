@@ -365,6 +365,7 @@ def _print_summary(report: dict[str, Any]) -> None:
 def ref_audit_orphans(
     scan_path: str = "/Game",
     excluded_classes: list = None,
+**kwargs,
 ) -> None:
     """
     Print all assets under scan_path that nothing else references.
@@ -394,7 +395,7 @@ def ref_audit_orphans(
     icon="↪",
     tags=["reference", "redirector", "audit", "cleanup"],
 )
-def ref_audit_redirectors(scan_path: str = "/Game") -> None:
+def ref_audit_redirectors(scan_path: str = "/Game", **kwargs) -> None:
     """
     Print all ObjectRedirector assets under scan_path.
     These are silent performance drags — fix them with ref_fix_redirectors.
@@ -419,7 +420,7 @@ def ref_audit_redirectors(scan_path: str = "/Game") -> None:
     icon="⿻",
     tags=["reference", "duplicate", "naming", "audit"],
 )
-def ref_audit_duplicates(scan_path: str = "/Game") -> None:
+def ref_audit_duplicates(scan_path: str = "/Game", **kwargs) -> None:
     """
     Find assets with the same base name living in different folders.
     Does NOT rename or delete anything.
@@ -444,7 +445,7 @@ def ref_audit_duplicates(scan_path: str = "/Game") -> None:
     icon="🖼",
     tags=["reference", "texture", "unused", "cleanup"],
 )
-def ref_audit_unused_textures(scan_path: str = "/Game") -> None:
+def ref_audit_unused_textures(scan_path: str = "/Game", **kwargs) -> None:
     """Find textures with zero referencers — prime deletion candidates."""
     unused = _scan_unused_textures(scan_path)
 
@@ -467,6 +468,7 @@ def ref_audit_unused_textures(scan_path: str = "/Game") -> None:
 def ref_fix_redirectors(
     scan_path: str = "/Game",
     dry_run: bool = True,
+**kwargs,
 ) -> None:
     """
     Resolve all ObjectRedirectors under scan_path.
@@ -491,6 +493,7 @@ def ref_delete_orphans(
     scan_path: str = "/Game",
     dry_run: bool = True,
     excluded_classes: list = None,
+**kwargs,
 ) -> None:
     """
     Delete assets with no referencers.
@@ -518,6 +521,7 @@ def ref_delete_orphans(
 def ref_full_report(
     scan_path: str = "/Game",
     excluded_classes: list = None,
+**kwargs,
 ) -> None:
     """
     Run every audit check and write a JSON report to

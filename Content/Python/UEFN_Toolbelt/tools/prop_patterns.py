@@ -369,6 +369,7 @@ def pattern_grid(
     scale_max: float = 1.2,
     preview: bool = False,
     seed: int = 42,
+    **kwargs,
 ) -> None:
     """
     Place a mesh in a rectangular N×M grid.
@@ -422,6 +423,7 @@ def pattern_circle(
     scale_max: float = 1.2,
     preview: bool = False,
     seed: int = 42,
+**kwargs,
 ) -> None:
     """
     Place props evenly spaced around a full 360° circle.
@@ -464,6 +466,7 @@ def pattern_arc(
     scale_max: float = 1.2,
     preview: bool = False,
     seed: int = 42,
+**kwargs,
 ) -> None:
     """
     Place props along a partial arc.
@@ -505,6 +508,7 @@ def pattern_spiral(
     scale_max: float = 1.5,
     preview: bool = False,
     seed: int = 42,
+    **kwargs,
 ) -> None:
     """
     Place props along an Archimedean spiral.
@@ -545,6 +549,7 @@ def pattern_line(
     scale_max: float = 1.2,
     preview: bool = False,
     seed: int = 42,
+**kwargs,
 ) -> None:
     """
     Place props in a straight line from `start` to `end`.
@@ -578,6 +583,7 @@ def pattern_wave(
     scale_max: float = 1.2,
     preview: bool = False,
     seed: int = 42,
+    **kwargs,
 ) -> None:
     """
     Place props along a sine wave.
@@ -621,6 +627,7 @@ def pattern_helix(
     scale_max: float = 1.2,
     preview: bool = False,
     seed: int = 42,
+    **kwargs,
 ) -> None:
     """
     Place props along a 3D helix (corkscrew / spiral staircase).
@@ -664,6 +671,7 @@ def pattern_radial_rows(
     scale_max: float = 1.2,
     preview: bool = False,
     seed: int = 42,
+    **kwargs,
 ) -> None:
     """
     Place props in concentric rings with increasing density on outer rings.
@@ -695,7 +703,7 @@ def pattern_radial_rows(
     icon="✕",
     tags=["pattern", "clear", "delete", "cleanup"],
 )
-def pattern_clear(preview_only: bool = False) -> None:
+def pattern_clear(preview_only: bool = False, **kwargs) -> None:
     """
     Delete pattern actors from the level.
 

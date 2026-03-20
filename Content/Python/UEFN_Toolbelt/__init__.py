@@ -130,7 +130,7 @@ def load_custom_plugins() -> None:
         unreal.log(f"[TOOLBELT] Loaded {valid_count} custom plugins. Audit log: {audit_path}")
 
 
-def launch_qt() -> None:
+def launch_qt(**kwargs) -> None:
     """
     Open the PySide6 tabbed dashboard (recommended).
     Dark-themed floating window — no Blueprint setup required.

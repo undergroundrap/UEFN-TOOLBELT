@@ -715,6 +715,7 @@ def material_bulk_swap(
     old_material_path: str = "",
     new_material_path: str = "",
     scope: str = "selection",
+**kwargs,
 ) -> None:
     """
     Swap one material for another on all actors in scope.

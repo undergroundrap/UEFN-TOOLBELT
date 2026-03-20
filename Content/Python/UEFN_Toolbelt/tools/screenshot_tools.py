@@ -271,6 +271,7 @@ def screenshot_take(
     height: int = 1080,
     capture_hdr: bool = False,
     force_game_view: bool = False,
+    **kwargs,
 ) -> None:
     """
     Take a high-resolution screenshot of the current editor viewport.
@@ -303,6 +304,7 @@ def screenshot_focus_selection(
     height: int = 1080,
     fov_deg: float = 60.0,
     restore_camera: bool = True,
+    **kwargs,
 ) -> None:
     """
     Automatically frame all selected actors, capture a screenshot, and
@@ -341,6 +343,7 @@ def screenshot_timed_series(
     width: int = 1920,
     height: int = 1080,
     interval_sec: float = 2.0,
+    **kwargs,
 ) -> None:
     """
     Capture a series of screenshots at regular intervals from the current camera.
@@ -370,7 +373,7 @@ def screenshot_timed_series(
     icon="📁",
     tags=["screenshot", "folder", "path", "output"],
 )
-def screenshot_open_folder() -> None:
+def screenshot_open_folder(**kwargs) -> None:
     """Print the screenshot output folder path so you can find your shots quickly."""
     _ensure_dir()
     # Count existing screenshots

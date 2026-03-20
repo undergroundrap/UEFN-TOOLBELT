@@ -909,7 +909,7 @@ def get_status() -> dict:
     icon="🔌",
     tags=["mcp", "listener", "bridge", "claude", "start"],
 )
-def mcp_start(port: int = 0) -> None:
+def mcp_start(port: int = 0, **kwargs) -> None:
     """
     Start the UEFN Toolbelt MCP HTTP listener.
 
@@ -935,7 +935,7 @@ def mcp_start(port: int = 0) -> None:
     icon="🔌",
     tags=["mcp", "listener", "bridge", "stop"],
 )
-def mcp_stop() -> None:
+def mcp_stop(**kwargs) -> None:
     """Stop the MCP HTTP listener. Claude Code will no longer be able to control UEFN."""
     stop_listener()
     unreal.log("[MCP] Listener stopped.")
@@ -948,7 +948,7 @@ def mcp_stop() -> None:
     icon="🔄",
     tags=["mcp", "listener", "restart", "reload"],
 )
-def mcp_restart(port: int = 0) -> None:
+def mcp_restart(port: int = 0, **kwargs) -> None:
     """Restart the listener — use this after hot-reloading the toolbelt."""
     p = restart_listener(port)
     unreal.log(f"[MCP] ✓ Restarted on http://127.0.0.1:{p}")
@@ -961,7 +961,7 @@ def mcp_restart(port: int = 0) -> None:
     icon="📡",
     tags=["mcp", "listener", "status"],
 )
-def mcp_status() -> None:
+def mcp_status(**kwargs) -> None:
     """Print the current MCP listener status to the Output Log."""
     s = get_status()
     if s["running"]:

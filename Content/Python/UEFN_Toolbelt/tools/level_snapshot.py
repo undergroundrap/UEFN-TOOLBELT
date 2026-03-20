@@ -302,6 +302,7 @@ def snapshot_save(
     name: str = "",
     scope: str = "all",
     class_filter: str = "",
+**kwargs,
 ) -> None:
     """
     Capture actor transforms and save them to a named snapshot.
@@ -330,6 +331,7 @@ def snapshot_restore(
     restore_rotation: bool = True,
     restore_scale: bool = True,
     restore_visibility: bool = False,
+**kwargs,
 ) -> None:
     """
     Restore actor transforms from a saved snapshot.
@@ -360,7 +362,7 @@ def snapshot_restore(
     icon="📋",
     tags=["snapshot", "list"],
 )
-def snapshot_list() -> None:
+def snapshot_list(**kwargs) -> None:
     """Print all saved snapshots in Saved/UEFN_Toolbelt/snapshots/."""
     _ensure_dir()
     files = [f for f in os.listdir(_SNAP_DIR) if f.endswith(".json")]
@@ -396,7 +398,7 @@ def snapshot_list() -> None:
     icon="⇄",
     tags=["snapshot", "diff", "compare"],
 )
-def snapshot_diff(name_a: str = "", name_b: str = "") -> None:
+def snapshot_diff(name_a: str = "", name_b: str = "", **kwargs) -> None:
     """
     Diff two snapshots and print what changed.
 
@@ -459,7 +461,7 @@ def snapshot_diff(name_a: str = "", name_b: str = "") -> None:
     icon="🗑",
     tags=["snapshot", "delete"],
 )
-def snapshot_delete(name: str = "") -> None:
+def snapshot_delete(name: str = "", **kwargs) -> None:
     """Delete a single snapshot file."""
     if not name:
         unreal.log_warning("[Snapshot] Provide a snapshot name to delete.")
@@ -481,7 +483,7 @@ def snapshot_delete(name: str = "") -> None:
     icon="📤",
     tags=["snapshot", "export", "share"],
 )
-def snapshot_export(name: str = "", export_path: str = "") -> None:
+def snapshot_export(name: str = "", export_path: str = "", **kwargs) -> None:
     """
     Export a snapshot to any file path (for sharing with other creators).
 
@@ -514,7 +516,7 @@ def snapshot_export(name: str = "", export_path: str = "") -> None:
     icon="📥",
     tags=["snapshot", "import", "share"],
 )
-def snapshot_import(import_path: str = "", name: str = "") -> None:
+def snapshot_import(import_path: str = "", name: str = "", **kwargs) -> None:
     """
     Import a snapshot JSON from any file path.
 
@@ -549,7 +551,7 @@ def snapshot_import(import_path: str = "", name: str = "") -> None:
     icon="🔍",
     tags=["snapshot", "diff", "live", "compare"],
 )
-def snapshot_compare_live(name: str = "") -> None:
+def snapshot_compare_live(name: str = "", **kwargs) -> None:
     """
     Diff a saved snapshot against the current level — no second snapshot needed.
 

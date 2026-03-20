@@ -66,6 +66,28 @@ These tools require specific assets (Static Meshes, Textures, Folders) to be sel
 
 ---
 
+## What the Tests Actually Prove (and Don't)
+
+**What the smoke test (85/85) proves:**
+- All 23 modules import and register without errors
+- All 122 tools register into the registry with valid metadata
+- 9 "safe" tools execute end-to-end and return correct results
+- MCP bridge, PySide6, and Verse Book infrastructure all functional
+
+**What the API Capability Crawler proves:**
+- Read-only introspection works on live actors (41 actors → 12 classes verified)
+- Property maps, method lists, and component hierarchies are accessible
+- JSON output is valid and machine-readable for AI analysis
+
+**What still requires manual testing:**
+- The ~113 tools that need actors selected, a level loaded with content, or Content Browser assets — these are confirmed registered but not confirmed to produce correct *results* until a human runs them
+- Whether write operations (material swaps, bulk align, prop spawning) actually modify the level correctly
+- Even though the crawler maps every property, you still need to manually test individual tools with different property values to confirm they work as expected — the crawler tells you *what's available*, not *what behaves correctly when changed*
+
+> **Future potential:** In theory, an automated integration test could use the crawler data to generate validation scripts — spawn actors, apply tool operations, then verify properties changed. That level of automation isn't built yet, but the crawler output provides the schema needed to build it.
+
+---
+
 ## Contributing & Testing Protocol
 
 If you are contributing a new tool or modifying an existing one:
@@ -73,3 +95,4 @@ If you are contributing a new tool or modifying an existing one:
 1.  **If it's a "Safe Tool"**: Please ensure it handles empty states gracefully (e.g., if there are no snapshots, `snapshot_list` should just print "0 snapshots" and exit cleanly). You can add it to the execution list in `tests/smoke_test.py`.
 2.  **If it requires context**: You must manually verify the tool in a throwaway UEFN project before submitting a PR.
 3.  **Always run `smoke_test.py`** before committing to ensure you haven't broken the registry or layer imports.
+

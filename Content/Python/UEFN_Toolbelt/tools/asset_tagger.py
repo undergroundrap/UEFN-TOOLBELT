@@ -356,6 +356,7 @@ def _do_tag_export(folder: str) -> None:
 def tag_add(
     tag_name: str = "",
     value: str = "1",
+**kwargs,
 ) -> None:
     """
     Apply a metadata tag to all assets currently selected in the Content Browser.
@@ -384,7 +385,7 @@ def tag_add(
     icon="🏷",
     tags=["tag", "metadata", "remove", "cleanup"],
 )
-def tag_remove(tag_name: str = "") -> None:
+def tag_remove(tag_name: str = "", **kwargs) -> None:
     """
     Remove a tag key from all assets selected in the Content Browser.
 
@@ -404,7 +405,7 @@ def tag_remove(tag_name: str = "") -> None:
     icon="🔖",
     tags=["tag", "metadata", "inspect", "show"],
 )
-def tag_show() -> None:
+def tag_show(**kwargs) -> None:
     """
     Print all TB: tags on every asset currently selected in the Content Browser.
     Assets with no Toolbelt tags are shown with a '← no Toolbelt tags' note.
@@ -423,6 +424,7 @@ def tag_search(
     tag_name: str = "",
     value: str = "1",
     folder: str = "/Game",
+**kwargs,
 ) -> None:
     """
     Find all assets under folder where TB:{tag_name} = value.
@@ -461,7 +463,7 @@ def tag_search(
     icon="📋",
     tags=["tag", "metadata", "list", "inventory"],
 )
-def tag_list_all(folder: str = "/Game") -> None:
+def tag_list_all(folder: str = "/Game", **kwargs) -> None:
     """
     Print all unique TB: tag keys used anywhere under folder, with asset counts.
 
@@ -489,7 +491,7 @@ def tag_list_all(folder: str = "/Game") -> None:
     icon="📤",
     tags=["tag", "metadata", "export", "json", "report"],
 )
-def tag_export(folder: str = "/Game") -> None:
+def tag_export(folder: str = "/Game", **kwargs) -> None:
     """
     Scan all assets under folder, collect every TB: tag, and write the
     tag → asset mapping to Saved/UEFN_Toolbelt/tag_export.json.
