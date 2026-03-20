@@ -41,6 +41,10 @@ _results: list[dict] = []
 _start_time = time.time()
 _spawn_fixtures: list[unreal.Actor] = []
 
+def _assert_delta(val: float, expected: float, tolerance: float = 1.0) -> bool:
+    """Check if a float value is within tolerance of expected."""
+    return abs(val - expected) < tolerance
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _record(section: str, name: str, passed: bool, detail: str = "") -> None:
@@ -175,6 +179,48 @@ def _test_bulk_ops() -> None:
     except Exception as e:
         _record("Bulk Ops", "Align X", False, str(e))
 
+def _test_bulk_ops_advanced() -> None:
+    _header("2.1 Bulk Operations (Advanced)")
+    import UEFN_Toolbelt as tb
+    
+    # --- Test Distribute ---
+    a1 = _spawn_fixture(location=unreal.Vector(0, 0, 0))
+    a2 = _spawn_fixture(location=unreal.Vector(10, 0, 0))
+    a3 = _spawn_fixture(location=unreal.Vector(1000, 0, 0))
+    _select_fixture([a1, a2, a3])
+    try:
+        tb.run("bulk_distribute")
+        # a2 should now be at exactly 500.0 (halfway between 0 and 1000)
+        l2 = a2.get_actor_location()
+        passed = _assert_delta(l2.x, 500.0)
+        _record("Bulk Ops", "Distribute X", passed, f"Middle actor X: {l2.x} (Expected: 500.0)")
+    except Exception as e:
+        _record("Bulk Ops", "Distribute X", False, str(e))
+
+    # --- Test Snap to Grid ---
+    a_snap = _spawn_fixture(location=unreal.Vector(123, 456, 789))
+    _select_fixture([a_snap])
+    try:
+        tb.run("bulk_snap_to_grid", grid_size=100)
+        l = a_snap.get_actor_location()
+        # Should be (100, 500, 800)
+        passed = _assert_delta(l.x, 100) and _assert_delta(l.y, 500) and _assert_delta(l.z, 800)
+        _record("Bulk Ops", "Snap to 100", passed, f"Snapped to: {l}")
+    except Exception as e:
+        _record("Bulk Ops", "Snap to Grid", False, str(e))
+
+    # --- Test Randomize ---
+    a_rand = _spawn_fixture(location=unreal.Vector(0,0,0))
+    _select_fixture([a_rand])
+    try:
+        tb.run("bulk_randomize", rot_min=-180, rot_max=180)
+        r = a_rand.get_actor_rotation()
+        # Check if rotation is no longer (0,0,0). (Possible but unlikely to hit 0,0,0 randomly)
+        passed = abs(r.roll) > 0.1 or abs(r.pitch) > 0.1 or abs(r.yaw) > 0.1
+        _record("Bulk Ops", "Randomize (Rot)", passed, f"Rot: {r}")
+    except Exception as e:
+        _record("Bulk Ops", "Randomize", False, str(e))
+
 def _test_patterns() -> None:
     _header("3. Prop Patterns")
     import UEFN_Toolbelt as tb
@@ -196,6 +242,36 @@ def _test_patterns() -> None:
         _record("Patterns", "Clear All", len(pattern_actors_after) == 0, f"Remaining: {len(pattern_actors_after)}")
     except Exception as e:
         _record("Patterns", "Execution", False, str(e))
+
+def _test_patterns_advanced() -> None:
+    _header("3.1 Prop Patterns (Advanced)")
+    import UEFN_Toolbelt as tb
+    
+    # --- Test Circle ---
+    try:
+        radius = 1000.0
+        count = 8
+        tb.run("pattern_circle", radius=radius, count=count)
+        
+        all_actors = unreal.EditorLevelLibrary.get_all_level_actors()
+        pattern_actors = [a for a in all_actors if "TOOLBELT_PATTERN" in [str(t) for t in a.get_editor_property("tags")]]
+        
+        # Verify count
+        passed_count = len(pattern_actors) >= count
+        
+        # Verify distance from center (0,0,0)
+        passed_dist = True
+        if pattern_actors:
+            for a in pattern_actors:
+                dist = a.get_actor_location().length()
+                if not _assert_delta(dist, radius, tolerance=10.0):
+                    passed_dist = False
+                    break
+                    
+        _record("Patterns", "Circle (Radius/Count)", passed_count and passed_dist, f"Count: {len(pattern_actors)}, Dist: {radius}")
+        tb.run("pattern_clear")
+    except Exception as e:
+        _record("Patterns", "Circle", False, str(e))
 
 def _test_snapshots() -> None:
     _header("4. Level Snapshots")
@@ -317,7 +393,9 @@ def toolbelt_integration_test(**kwargs) -> None:
         try:
             _test_materials()
             _test_bulk_ops()
+            _test_bulk_ops_advanced()
             _test_patterns()
+            _test_patterns_advanced()
             _test_snapshots()
             _test_crawler()
             _test_asset_tagger()
