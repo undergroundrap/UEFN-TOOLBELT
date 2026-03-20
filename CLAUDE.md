@@ -73,6 +73,12 @@ Users can create third-party tools without forking this repository.
 3. It will auto-load on start and show up in the Dashboard.
 See `docs/plugin_dev_guide.md` for full details. You can generate plugins for the user directly into this folder when requested!
 
+**Security:** Every plugin passes through a four-gate security model:
+1. **File size limit** — rejects files > 50 KB (blocks obfuscated payloads)
+2. **AST import scanner** — parses source without executing; blocks `subprocess`, `socket`, `ctypes`, network libs
+3. **Namespace protection** — custom plugins cannot overwrite core Toolbelt tools
+4. **SHA-256 integrity hash** — every loaded plugin's fingerprint is written to `plugin_audit.json`
+
 ---
 
 ## Running Tools — The Main Interface

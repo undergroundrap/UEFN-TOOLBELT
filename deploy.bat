@@ -55,15 +55,15 @@ echo  Deploying to:  !DEST!
 echo.
 
 :: ── Copy files ────────────────────────────────────────────────────────────────
-echo  [1/3]  Copying UEFN_Toolbelt package...
+echo  [1/4]  Copying UEFN_Toolbelt package...
 xcopy /E /I /Y "%~dp0Content\Python\UEFN_Toolbelt" "!DEST!\Content\Python\UEFN_Toolbelt" >nul
 if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
 
-echo  [2/3]  Copying init_unreal.py...
+echo  [2/4]  Copying init_unreal.py...
 xcopy /Y "%~dp0init_unreal.py" "!DEST!\Content\Python\" >nul
 if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
 
-echo  [3/3]  Copying tests folder...
+echo  [3/4]  Copying tests folder...
 xcopy /E /I /Y "%~dp0tests" "!DEST!\tests" >nul
 if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
 
@@ -101,16 +101,22 @@ echo  ==========================================
 echo.
 echo  Now open UEFN and paste ONE of these into the Python console:
 echo.
-echo  -- First time (or after an update) --
+echo  -- First time (or after git pull) --
 echo import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.launch_qt()
 echo.
-echo  -- Normal launch (already loaded) --
+echo  -- Normal launch --
 echo import UEFN_Toolbelt as tb; tb.launch_qt()
 echo.
-echo  -- Run smoke test --
+echo  -- Run smoke test (6-layer health check) --
 echo import UEFN_Toolbelt as tb; tb.run("toolbelt_smoke_test")
 echo.
-echo  -- Find hidden capabilities in your level --
+echo  -- Validate your custom plugins --
+echo import UEFN_Toolbelt as tb; tb.run("plugin_validate_all")
+echo.
+echo  -- List all registered tools --
+echo import UEFN_Toolbelt as tb; print(len(tb.registry.list_tools()))
+echo.
+echo  -- Deep-scan level for hidden API capabilities --
 echo import UEFN_Toolbelt as tb; tb.run("api_crawl_level_classes")
 echo.
 echo  TIP: If UEFN is already open, restart it so init_unreal.py auto-runs.

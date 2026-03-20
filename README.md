@@ -1110,20 +1110,63 @@ Snippets also auto-copy to the Windows clipboard when generated, so you can past
 
 > **UEFN console tip:** Chain multiple statements on one line with semicolons (`;`). The console does not accept multi-line pastes, but a single line can contain as many `;`-separated statements as you need.
 
+**Dashboard & Health Check:**
 ```python
 import UEFN_Toolbelt as tb; tb.launch_qt()
 ```
 ```python
-import UEFN_Toolbelt as tb; tb.run("material_apply_preset", preset="gold")
+import UEFN_Toolbelt as tb; tb.run("toolbelt_smoke_test")
 ```
+
+**Force reload (after git pull or update):**
 ```python
-import UEFN_Toolbelt as tb; tb.run("arena_generate", size="large", apply_team_colors=True)
+import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.launch_qt()
+```
+
+**Materials & Bulk Ops:**
+```python
+import UEFN_Toolbelt as tb; tb.run("material_apply_preset", preset="gold")
 ```
 ```python
 import UEFN_Toolbelt as tb; tb.run("bulk_align", axis="Z")
 ```
 ```python
+import UEFN_Toolbelt as tb; tb.run("arena_generate", size="large", apply_team_colors=True)
+```
+
+**Plugin Management:**
+```python
+import UEFN_Toolbelt as tb; tb.run("plugin_validate_all")
+```
+```python
+import UEFN_Toolbelt as tb; tb.run("plugin_list_custom")
+```
+
+**API Explorer & Capability Crawling:**
+```python
+import UEFN_Toolbelt as tb; tb.run("api_crawl_level_classes")
+```
+```python
+import UEFN_Toolbelt as tb; tb.run("api_crawl_selection")
+```
+```python
+import UEFN_Toolbelt as tb; tb.run("api_export_full")
+```
+
+**Search & Discovery:**
+```python
 import UEFN_Toolbelt as tb; tb.registry.search("material")
+```
+```python
+import UEFN_Toolbelt as tb; print(len(tb.registry.list_tools()))
+```
+
+**Handy Combos:**
+```python
+import UEFN_Toolbelt as tb; tb.run("toolbelt_smoke_test"); tb.run("plugin_validate_all")
+```
+```python
+import UEFN_Toolbelt as tb; tb.run("snapshot_save", name="before"); tb.run("bulk_randomize", rot_range=360)
 ```
 
 ### Required Asset Setup (Material Master)

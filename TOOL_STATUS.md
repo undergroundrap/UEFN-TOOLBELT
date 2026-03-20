@@ -1,6 +1,6 @@
 # UEFN Toolbelt — Tool Status & Testing
 
-UEFN Toolbelt contains 117+ tools across 21 modules. Because many tools actively modify the viewport, spawn actors, or depend on specific Content Browser selections, **they cannot all be automatically executed in a single smoke test.**
+UEFN Toolbelt contains 117+ tools across 23 modules. Because many tools actively modify the viewport, spawn actors, or depend on specific Content Browser selections, **they cannot all be automatically executed in a single smoke test.**
 
 This document outlines the current testing status of the toolbelt and categorizes which tools are verified by the automated smoke test, and which require manual verification.
 
@@ -14,6 +14,8 @@ These tools do not require any actors to be selected or a specific level to be o
 *   `snapshot_list` (Level Snapshot)
 *   `material_list_presets` (Materials)
 *   `text_list_styles` (Text & Signs)
+*   `plugin_validate_all` (Plugin Manager)
+*   `plugin_list_custom` (Plugin Manager)
 
 *The smoke test verifies these tools complete execution without throwing exceptions.*
 
@@ -35,6 +37,7 @@ These tools require a live level. They spawn new actors or modify the environmen
 | `text_paint_grid` | [ ] | [ ] | | |
 | `pattern_*` (Grid, Circle, Arc, etc.) | [ ] | [ ] | | |
 | `mcp_start` / `mcp_stop` | [ ] | [ ] | | |
+| `api_crawl_level_classes` | [ ] | [ ] | | |
 
 ### 🟠 Requires Manual Verification (Actor Selection Dependent)
 These tools **must** have valid actors selected in the UEFN viewport to function. Running them without a selection will result in a graceful warning, but testing actual logic requires a human.
@@ -48,6 +51,7 @@ These tools **must** have valid actors selected in the UEFN viewport to function
 | `text_label_selection` | [ ] | [ ] | | |
 | `verse_gen_device_declarations` | [ ] | [ ] | | |
 | `screenshot_focus_selection` | [ ] | [ ] | | |
+| `api_crawl_selection` | [ ] | [ ] | | |
 
 ### 🔴 Requires Manual Verification (Content Browser Dependent)
 These tools require specific assets (Static Meshes, Textures, Folders) to be selected in the Content Browser or exist at a specific path.
