@@ -275,18 +275,19 @@ def _test_screenshots() -> None:
         
         # Wait for file (asynchronous in Unreal)
         # We scan the directory because direct path checks can fail due to slash/encoding quirks
+        # Increased to 120s because some machines stall for 70s+ during capture
         passed = False
         if path:
             dir_path = os.path.dirname(str(path))
             base_name = os.path.basename(str(path))
-            for _ in range(600): # Wait up to 60 seconds
+            for _ in range(1200): # Wait up to 120 seconds
                 if os.path.exists(dir_path):
                     if base_name in os.listdir(dir_path):
                         passed = True
                         break
                 time.sleep(0.1)
             
-        _record("Screenshots", "Capture", passed, f"Saved to {path}" if passed else "File missing (timeout after 60s)")
+        _record("Screenshots", "Capture", passed, f"Saved to {path}" if passed else "File missing (timeout after 120s)")
     except Exception as e:
         _record("Screenshots", "Execution", False, str(e))
 
