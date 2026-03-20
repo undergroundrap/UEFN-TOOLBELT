@@ -17,34 +17,48 @@ These tools do not require any actors to be selected or a specific level to be o
 
 *The smoke test verifies these tools complete execution without throwing exceptions.*
 
-## 🟡 Requires Manual Verification (Level State Dependent)
-These tools require a live level, but do not necessarily need actors to be selected. They spawn new actors or modify the environment globally.
+## 🛑 Priority Community Verification (Not Covered by Smoke Test)
 
-*   `arena_generate`
-*   `text_wait_and_print`
-*   `text_paint_grid`
-*   `pattern_*` (Grid, Circle, Arc, Spiral, etc.)
-*   `mcp_start` / `mcp_stop`
+The automated `smoke_test.py` covers all API discovery, registry loading, and the 🟢 Layer 3 "Safe" tools above. It **cannot** verify the tools that require actual viewport actors or Content Browser selections.
 
-## 🟠 Requires Manual Verification (Actor Selection Dependent)
-These tools **must** have valid actors selected in the UEFN viewport to function. Running them without a selection will result in a graceful warning, but testing their actual logic requires a human.
+**These core tools are the highest priority for community tracking.** 
 
-*   `material_apply_preset`
-*   `material_bulk_swap`
-*   `bulk_align` / `bulk_distribute` / `bulk_randomize`
-*   `spline_place_props` (requires a Spline actor)
-*   `text_label_selection`
-*   `verse_gen_device_declarations`
-*   `screenshot_focus_selection`
+To contribute: Test a tool against the latest UEFN version. Ensure it works via the PySide6 UI **AND** via the Claude MCP connection, and submit a PR checking the box with today's date and your GitHub username.
 
-## 🔴 Requires Manual Verification (Content Browser Dependent)
+### 🟡 Requires Manual Verification (Level State Dependent)
+These tools require a live level. They spawn new actors or modify the environment globally.
+
+| Tool | UI Verified | AI Verified (MCP) | Tested By | Date |
+|---|---|---|---|---|
+| `arena_generate` | [ ] | [ ] | | |
+| `text_wait_and_print` | [ ] | [ ] | | |
+| `text_paint_grid` | [ ] | [ ] | | |
+| `pattern_*` (Grid, Circle, Arc, etc.) | [ ] | [ ] | | |
+| `mcp_start` / `mcp_stop` | [ ] | [ ] | | |
+
+### 🟠 Requires Manual Verification (Actor Selection Dependent)
+These tools **must** have valid actors selected in the UEFN viewport to function. Running them without a selection will result in a graceful warning, but testing actual logic requires a human.
+
+| Tool | UI Verified | AI Verified (MCP) | Tested By | Date |
+|---|---|---|---|---|
+| `material_apply_preset` | [ ] | [ ] | | |
+| `material_bulk_swap` | [ ] | [ ] | | |
+| `bulk_align` / `distribute` / `randomize` | [ ] | [ ] | | |
+| `spline_place_props` | [ ] | [ ] | | |
+| `text_label_selection` | [ ] | [ ] | | |
+| `verse_gen_device_declarations` | [ ] | [ ] | | |
+| `screenshot_focus_selection` | [ ] | [ ] | | |
+
+### 🔴 Requires Manual Verification (Content Browser Dependent)
 These tools require specific assets (Static Meshes, Textures, Folders) to be selected in the Content Browser or exist at a specific path.
 
-*   `lod_auto_generate_folder`
-*   `smart_importer` tools
-*   `rename_enforce_conventions`
-*   `tag_add` / `tag_remove`
-*   `memory_scan_textures`
+| Tool | UI Verified | AI Verified (MCP) | Tested By | Date |
+|---|---|---|---|---|
+| `lod_auto_generate_folder` | [ ] | [ ] | | |
+| `smart_importer` tools | [ ] | [ ] | | |
+| `rename_enforce_conventions` | [ ] | [ ] | | |
+| `tag_add` / `tag_remove` | [ ] | [ ] | | |
+| `memory_scan_textures` | [ ] | [ ] | | |
 
 ---
 
