@@ -270,17 +270,20 @@ def _test_screenshots() -> None:
     import UEFN_Toolbelt as tb
     try:
         # Take a screenshot (tiny resolution for speed/stability in tests)
-        path = tb.run("screenshot_take", name="integration_test_shot", width=480, height=270)
+        shot_name = "integration_test_shot"
+        path = tb.run("screenshot_take", name=shot_name, width=480, height=270)
         
         # Wait for file (asynchronous in Unreal)
-        # On some machines, high-res capture can stall the engine for 30s+
+        # We scan the directory because direct path checks can fail due to slash/encoding quirks
         passed = False
         if path:
-            normalized_path = os.path.normpath(str(path))
+            dir_path = os.path.dirname(str(path))
+            base_name = os.path.basename(str(path))
             for _ in range(600): # Wait up to 60 seconds
-                if os.path.exists(normalized_path):
-                    passed = True
-                    break
+                if os.path.exists(dir_path):
+                    if base_name in os.listdir(dir_path):
+                        passed = True
+                        break
                 time.sleep(0.1)
             
         _record("Screenshots", "Capture", passed, f"Saved to {path}" if passed else "File missing (timeout after 60s)")
