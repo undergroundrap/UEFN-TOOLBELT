@@ -1620,6 +1620,16 @@ UEFN Python v40.00 experimental drop (March 2026).
 
 ---
 
+## ⚠️ Critical: The "Main Thread Lock" Quirk
+
+Because UEFN runs Python on the **main render thread**, there is a unique deadlock behavior you must avoid:
+
+*   **Async APIs**: Commands like `take_high_res_screenshot` or background asset saves are queued for the **next frame**.
+*   **The Deadlock**: If your Python script uses `time.sleep()` or a long loop to "wait" for a file to appear, you are **blocking the main thread**. Unreal cannot finish the current frame, so it will **never write the file** while your script is waiting.
+*   **The Solution**: Trigger the action and exit. Do not attempt to verify file existence in the same execution block if the engine needs to tick to produce that file.
+
+---
+
 ## Troubleshooting
 
 | Problem | Solution |

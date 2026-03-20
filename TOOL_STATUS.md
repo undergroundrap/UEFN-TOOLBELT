@@ -2,6 +2,10 @@
 
 UEFN Toolbelt contains 123+ tools across 24 modules. Because many tools actively modify the viewport, spawn actors, or depend on specific Content Browser selections, **the `integration_test.py` suite uses temporary fixtures to automate verification of context-dependent tools.**
 
+### ⚠️ Architectural Constraints
+*   **Main Thread Lock**: UEFN Python runs on the main render thread. Operations like `time.sleep` in wait loops will **deadlock** the engine, preventing async tasks (like screenshot saves) from completing. Verification logic should avoid blocking waits.
+*   **Hot-Reloading**: Use "Nuclear Reload" to clear `sys.modules` cache.
+
 This document outlines the current testing status of the toolbelt and categorizes which tools are verified by the automated smoke test, and which require manual verification.
 
 ## 🟢 Layer 3 Execution Verified (Safe Tools)
