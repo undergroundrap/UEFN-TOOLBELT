@@ -31,4 +31,5 @@ from . import level_snapshot
 from . import asset_tagger
 from . import screenshot_tools
 from . import plugin_manager
+from . import api_capability_crawler
 from . import mcp_bridge

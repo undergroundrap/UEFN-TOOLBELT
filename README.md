@@ -682,6 +682,8 @@ tb.run("snapshot_import", import_path="C:/Shared/arena_v1.json")
 Inspect and document the live UEFN Python API. Generates `.pyi` stub files so VS Code and
 PyCharm give full autocomplete on `unreal.*` calls — no official stubs required.
 
+**The Live Capability Mapper:** UEFN locks down many internal Epic properties that the official Unreal Engine 5 docs say should be accessible. The new `api_crawl_*` tools act as an automated fuzzer. They use Python reflection on live level objects to brute-force determine exactly what is exposed to you in the current patch, dumping the schema to JSON.
+
 | Tool Name | Description |
 |---|---|
 | `api_search` | Fuzzy-search class/function names across the live unreal module |
@@ -689,6 +691,8 @@ PyCharm give full autocomplete on `unreal.*` calls — no official stubs require
 | `api_generate_stubs` | Write `.pyi` stub file for one class (omit name for all classes) |
 | `api_list_subsystems` | Print every `*Subsystem` class available in this UEFN build |
 | `api_export_full` | Export monolithic `unreal.pyi` for complete IDE autocomplete |
+| `api_crawl_selection` | Deep-introspect all properties of the selected actors to JSON |
+| `api_crawl_level_classes` | Headless execution that maps out every exposed property for every unique class in the map |
 
 **Output paths:**
 - `Saved/UEFN_Toolbelt/stubs/unreal.pyi` — full module stub
@@ -710,6 +714,16 @@ tb.run("api_export_full")
 
 # Stub just one class (fast)
 tb.run("api_generate_stubs", class_name="MaterialEditingLibrary")
+
+# -- LIVE CAPABILITY MAPPERS --
+
+# Deep-scan currently selected actors
+tb.run("api_crawl_selection")
+# → Saved/UEFN_Toolbelt/api_selection_crawl.json
+
+# Headless pass across the entire level for every Fortnite device
+tb.run("api_crawl_level_classes")
+# → Saved/UEFN_Toolbelt/api_level_classes_schema.json
 ```
 
 **VS Code integration:**

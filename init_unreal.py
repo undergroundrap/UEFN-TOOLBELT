@@ -482,6 +482,16 @@ def _build_toolbelt_menu() -> None:
                "Print full signature and docs for EditorActorSubsystem",
                "import UEFN_Toolbelt as tb; tb.run('api_inspect', name='EditorActorSubsystem')")
 
+    _add_entry(tb_sub, "APIExplorer", "APICrawlSelection",
+               "API: Crawl Selected Actors (JSON)",
+               "Deep introspect all properties of selected actors and save to a JSON schema",
+               "import UEFN_Toolbelt as tb; tb.run('api_crawl_selection')")
+
+    _add_entry(tb_sub, "APIExplorer", "APICrawlLevel",
+               "API: Crawl Level Classes (JSON)",
+               "Headless dump of exposed properties for every unique class in the current map",
+               "import UEFN_Toolbelt as tb; tb.run('api_crawl_level_classes')")
+
     # ── Refresh so changes appear immediately ─────────────────────────────
     menus.refresh_all_widgets()
     unreal.log("[TOOLBELT] ✓ Menu registered — look for 'Toolbelt' in the top menu bar.")

@@ -382,6 +382,8 @@ tb.run("scaffold_generate", template="uefn_standard", project_name="MyIsland")
 | `api_generate_stubs` | `class_name=""` | Write `.pyi` for one class or all |
 | `api_list_subsystems` | — | Every `*Subsystem` in this UEFN build |
 | `api_export_full` | — | Full `unreal.pyi` for IDE autocomplete |
+| `api_crawl_selection` | — | Deep-scan properties of selected actors to JSON |
+| `api_crawl_level_classes` | — | Headless dump of exposed properties for every class in the level |
 
 ```python
 tb.run("api_export_full")

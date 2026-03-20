@@ -233,7 +233,8 @@ EXPECTED_MODULES = [
     "verse_snippet_generator", "text_painter", "asset_renamer",
     "foliage_tools", "lod_tools", "spline_to_verse", "project_scaffold",
     "memory_profiler", "api_explorer", "prop_patterns", "reference_auditor",
-    "level_snapshot", "asset_tagger", "screenshot_tools", "mcp_bridge", "plugin_manager"
+    "level_snapshot", "asset_tagger", "screenshot_tools", "mcp_bridge", "plugin_manager",
+    "api_capability_crawler"
 ]
 MIN_TOOL_COUNT = 90
 
