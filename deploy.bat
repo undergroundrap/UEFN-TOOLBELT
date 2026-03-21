@@ -111,6 +111,7 @@ echo BUNDLE: HOT-RELOAD + SMOKE TEST:
 echo import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_smoke_test")
 echo.
 echo TIP: You only need to restart UEFN if you've changed init_unreal.py.
+echo      **NOTE: If this is a new project deployment, RESTART UEFN for the Toolbelt to appear.**
 echo.
 pause
 exit /b 0

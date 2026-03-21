@@ -28,6 +28,7 @@ in the UEFN editor bar.
 - [Adding a New Tool](#adding-a-new-tool)
 - [Custom Plugins & Security](#custom-plugins--security)
 - [API Capability Crawler](#api-capability-crawler)
+- [Fortnite Device API Mapping](#fortnite-device-api-mapping)
 - [MCP / Claude Integration](#mcp--claude-integration)
 - [Spec-Accurate Verse Code Generation](#spec-accurate-verse-code-generation)
 - [CLAUDE.md — Instant AI Context](#claudemd--instant-ai-context)
@@ -1381,6 +1382,37 @@ The crawler is the **data collection engine**. Claude is the **analysis layer**.
 
 ---
 
+## Fortnite Device API Mapping
+
+While the Crawler gathers raw data, the **Device API Map** transforms it into actionable documentation for creators. 
+
+### Discovery Workflow (Real-World Example)
+
+How we mapped the Fortnite Device API using the **"Intro to UEFN"** template:
+
+1.  **Open Template**: Start a new project using the "Intro to UEFN" island template (it's packed with various devices like Triggers, Teleporters, and Lock Devices).
+2.  **Run Crawler**: Run the toolbelt's crawler to scan the entire level:
+    ```python
+    import UEFN_Toolbelt as tb; tb.run("api_crawl_level_classes")
+    ```
+3.  **Generate Map**: The toolbelt distills the hundreds of actors into unique Fortnite classes and saves a deep-introspection JSON.
+4.  **Sync Documentation**: This data is used to populate the [Master API Map](docs/DEVICE_API_MAP.md).
+
+### Master API Table (Preview)
+
+| Class | Description | Key Methods / Properties |
+| :--- | :--- | :--- |
+| `FortCreativeLockDevice` | Lock Device | `toggle_active()`, `set_owner_player()`, `is_locked` |
+| `BuildingProp` | Standard Prop | `set_health()`, `set_is_indestructible()`, `get_transform()` |
+| `FortGameplayReceiverMessageComponent` | Message Receiver | `on_gameplay_message_received()`, `set_channel_id()` |
+| `FortLocalizableMessageComponent` | Localized Text | `localize_and_set_message()`, `set_active()` |
+| `BaseBuildingStaticMeshComponent` | Visual Mesh | `set_static_mesh()`, `set_material()`, `cast_shadow` |
+
+> [!NOTE]
+> For the full, up-to-date mapping of all discovered classes, see **[docs/DEVICE_API_MAP.md](docs/DEVICE_API_MAP.md)**.
+
+---
+
 ## PySide6 Dashboard
 
 The real dashboard. One `pip install PySide6` (or just run `deploy.bat`) and you get a full floating window with a scrollable left sidebar nav, two search modes, dark theme, inline parameter inputs, and live status feedback.
@@ -1683,7 +1715,7 @@ This wipes the Python cache and re-imports every Toolbelt module instantly.
 
 | Problem | Solution |
 |---|---|
-| `ModuleNotFoundError: UEFN_Toolbelt` | Files not copied correctly. Re-run `deploy.bat`, restart UEFN, and confirm `Content/Python/UEFN_Toolbelt/` exists in your project folder. |
+| `ModuleNotFoundError: UEFN_Toolbelt` | Files not copied correctly OR this is a new project. **UEFN only scans `Content/Python` on startup.** If you just deployed to a new project, restart UEFN. |
 | `Qt dashboard is blank / doesn't open` | PySide6 not installed. Run `pip install PySide6` using the **UEFN Python exe** at `<UE_INSTALL>/Engine/Binaries/ThirdParty/Python3/Win64/python.exe`. |
 | `ImportError: No module named PySide6` | Same as above. Pip installing into your system Python won't help — must use the UE Python binary. |
 | Python settings not sticking | Enable Python in **Edit → Project Settings** (not Preferences) — UEFN only has **one** Python checkbox, not three like full UE. Tick it, restart. |

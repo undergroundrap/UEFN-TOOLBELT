@@ -117,6 +117,10 @@ If you call an asynchronous Unreal API (e.g., `unreal.AutomationLibrary.take_hig
 *   **The "Wait" Trap**: If you use `time.sleep()` to wait for a file, you are **deadlocking the engine**. Unreal needs the main thread to be free (yielded) to process its frame and write the file.
 *   **The Fix**: Do not wait for files in the same script. Trigger the action, verify the request was sent, and exit. The file will appear ~1 second after the user's console command finishes.
 
+### Common Pitfalls
+- **ModuleNotFoundError on new projects**: UEFN only scans `Content/Python` on startup. If you deploy to a new project while the editor is open, restart UEFN.
+- **Hot Reload vs Restart**: Use the "Nuclear Reload" for code changes, but a full restart for `init_unreal.py` changes.
+
 ### **Hot-Reloading (sys.modules)**
 UEFN does not natively reload modified Python modules. Use the **"Nuclear Reload"** (provided in `README.md`) to clear `sys.modules` and force a fresh import of Toolbelt logic.
 
