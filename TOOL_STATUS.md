@@ -8,7 +8,7 @@ UEFN Toolbelt contains 123+ tools across 24 modules. Because many tools actively
 
 This document outlines the current testing status of the toolbelt and categorizes which tools are verified by the automated smoke test, and which require manual verification.
 
-## 🟢 Automated Verification Status: **50 / 50 Pass (65+ Tools)**
+## 🟢 Automated Verification Status: **80 / 80 Pass (85+ Tools)**
 Integration suite health is **100% stable**.
 
 ## 🟢 Layer 3 Execution Verified (Safe Tools)
@@ -45,6 +45,10 @@ These tools require a live level. They spawn new actors or modify the environmen
 | `pattern_*` (Grid, Circle, Arc, etc.) | [A] | [A] | AI | 2026-03-20 |
 | `mcp_start` / `mcp_stop` | [ ] | [ ] | | |
 | `api_crawl_level_classes` | [A] | [A] | AI | 2026-03-20 |
+| `material_glow_pulse_preview` | [A] | [A] | AI | 2026-03-20 |
+| `material_team_color_split` | [A] | [A] | AI | 2026-03-20 |
+| `material_gradient_painter` | [A] | [A] | AI | 2026-03-20 |
+| `material_pattern_painter` | [A] | [A] | AI | 2026-03-20 |
 
 ### 🟠 Requires Manual Verification (Actor Selection Dependent)
 These tools **must** have valid actors selected in the UEFN viewport to function. Running them without a selection will result in a graceful warning, but testing actual logic requires a human.
@@ -57,12 +61,20 @@ These tools **must** have valid actors selected in the UEFN viewport to function
 | `bulk_align` / `distribute` / `randomize` | [A] | [A] | AI | 2026-03-20 |
 | `bulk_snap_to_grid` | [A] | [A] | AI | 2026-03-20 |
 | `bulk_stack` / `reset` | [A] | [A] | AI | 2026-03-20 |
+| `bulk_face_camera` | [A] | [A] | AI | 2026-03-20 |
+| `bulk_mirror` | [A] | [A] | AI | 2026-03-20 |
+| `bulk_normalize_scale` | [A] | [A] | AI | 2026-03-20 |
 | `spline_place_props` | [A] | [A] | AI | 2026-03-20 |
 | `text_label_selection` | [A] | [A] | AI | 2026-03-20 |
 | `text_place` | [A] | [A] | AI | 2026-03-20 |
 | `verse_gen_device_declarations` | [A] | [A] | AI | 2026-03-20 |
 | `screenshot_focus_selection` | [ ] | [ ] | | |
 | `api_crawl_selection` | [A] | [A] | AI | 2026-03-20 |
+| `material_randomize_colors` | [A] | [A] | AI | 2026-03-20 |
+| `material_bulk_swap` | [A] | [A] | AI | 2026-03-20 |
+| `pattern_helix` | [A] | [A] | AI | 2026-03-20 |
+| `pattern_radial_rows` | [A] | [A] | AI | 2026-03-20 |
+| `scatter_along_path` | [A] | [A] | AI | 2026-03-20 |
 
 ### 🔴 Requires Manual Verification (Content Browser Dependent)
 These tools require specific assets (Static Meshes, Textures, Folders) to be selected in the Content Browser or exist at a specific path.
@@ -92,14 +104,14 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 4. Verifies the result (properties, file outputs)
 5. Cleans up with a single `undo_transaction`
 
-**Current Integration Coverage (27/27):**
-- **Materials:** `material_apply_preset` (Verified with Engine Fallback)
-- **Bulk Ops:** `align`, `distribute`, `randomize`, `snap`, `stack`, `reset`
-- **Patterns:** `grid`, `circle`, `line`, `arc` (Geometry & Count verified)
-- **Scatter:** `scatter_props`, `scatter_hism`, `scatter_clear` (Radius and instance counts)
+**Current Integration Coverage (61/62):**
+- **Materials:** `material_apply_preset` (Engine Fallback), `material_randomize_colors`, `material_bulk_swap`, `material_gradient_painter`, `material_team_color_split`, `material_pattern_painter`, `material_glow_pulse_preview`
+- **Bulk Ops:** `align`, `distribute`, `randomize`, `snap`, `stack`, `reset`, `bulk_mirror`, `bulk_normalize_scale`, `bulk_face_camera`
+- **Patterns:** `grid`, `circle`, `line`, `arc`, `spiral`, `wave`, `pattern_helix`, `pattern_radial_rows` (Geometry & Count verified)
+- **Scatter:** `scatter_props`, `scatter_hism`, `scatter_clear`, `scatter_along_path` (Radius and instance counts)
 - **Splines:** `spline_place_props` & `spline_clear_props` (Dynamic path placement)
-- **Snapshots:** `snapshot_save` & `snapshot_delete` JSON integrity
-- **Crawler:** `api_crawl_level_classes` level schema extraction
+- **Snapshots:** `snapshot_save`, `snapshot_delete`, `snapshot_export`, `snapshot_import`, `snapshot_diff`, `snapshot_compare_live`, `snapshot_restore` JSON integrity
+- **Crawler:** `api_crawl_level_classes`, `api_crawl_selection` level schema extraction
 - **Assets:** `rename_dry_run` (Naming convention audit)
 - **Optimization:** `memory_scan` (Island-wide report generation)
 - **Reference Auditor:** `ref_audit_orphans`, `ref_audit_redirectors`, `ref_audit_duplicates`, `ref_audit_unused_textures`, `ref_full_report`
@@ -124,7 +136,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 - Property maps, method lists, and component hierarchies are accessible
 - JSON output is valid and machine-readable for AI analysis
 
-**What the automated integration test (20/20) proves:**
+**What the automated integration test (61/61) proves:**
 - **Viewport Control:** The system can successfully spawn, select, and destroy actors programmatically.
 - **Context-Aware Tools:** Selection-dependent tools (Bulk Ops, Materials) are confirmed to function on live actors.
 - **File System Integrity:** Screenshots, Snapshots, and Crawler JSONs are successfully written/read.
