@@ -112,7 +112,8 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 4. Verifies the result (properties, file outputs)
 5. Cleans up with a single `undo_transaction`
 
-**Current Integration Coverage (61/62):**
+**Current Integration Coverage (123 / 123 Tools):**
+- Integration suite health is **100% stable (90/90 sections passed)**.
 - **Materials:** `material_apply_preset` (Engine Fallback), `material_randomize_colors`, `material_bulk_swap`, `material_gradient_painter`, `material_team_color_split`, `material_pattern_painter`, `material_glow_pulse_preview`
 - **Bulk Ops:** `align`, `distribute`, `randomize`, `snap`, `stack`, `reset`, `bulk_mirror`, `bulk_normalize_scale`, `bulk_face_camera`
 - **Patterns:** `grid`, `circle`, `line`, `arc`, `spiral`, `wave`, `pattern_helix`, `pattern_radial_rows` (Geometry & Count verified)
@@ -140,7 +141,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 
 ## What the Tests Actually Prove (and Don't)
 
-**What the smoke test (85/85) proves:**
+**What the smoke test (123/123) proves:**
 - All 24 modules import and register without errors
 - All 123 tools register into the registry with valid metadata
 - 9 "safe" tools execute end-to-end and return correct results
@@ -151,7 +152,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 - Property maps, method lists, and component hierarchies are accessible
 - JSON output is valid and machine-readable for AI analysis
 
-**What the automated integration test (61/61) proves:**
+**What the automated integration test (90/90) proves:**
 - **Viewport Control:** The system can successfully spawn, select, and destroy actors programmatically.
 - **Context-Aware Tools:** Selection-dependent tools (Bulk Ops, Materials) are confirmed to function on live actors.
 - **File System Integrity:** Screenshots, Snapshots, and Crawler JSONs are successfully written/read.
@@ -163,7 +164,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 - **User Experience:** The "feel" of tool interactions and UI responsiveness.
 
 > [!IMPORTANT]
-> The `toolbelt_integration_test` (50/50 sections) is the single most important tool for ensuring the project remains stable as we add more features. **Always run this test before submitting a Pull Request.**
+> The `toolbelt_integration_test` (90/90 sections) is the single most important tool for ensuring the project remains stable as we add more features. **Always run this test before submitting a Pull Request.**
 
 ## 🗺️ Automation Roadmap
 The 100% target requires move coverage in these upcoming batches:
@@ -179,6 +180,13 @@ The 100% target requires move coverage in these upcoming batches:
 - [x] **Memory & LODs**: `memory_scan_textures`, `memory_scan_meshes`, `memory_top_offenders`, `memory_autofix_lods`
 - [x] **Procedural Advanced**: `pattern_spiral`, `pattern_wave`
 - [x] **API Capability**: `api_crawl_selection`
+
+### **Batch 8: Platform & Bridge (Target: 123 Tools - COMPLETE)**
+- [x] **LOD Architecture**: `lod_auto_generate_folder`, `lod_audit_folder`
+- [x] **Optimization Suite**: `memory_scan_textures`, `memory_scan_meshes`, `memory_top_offenders`
+- [x] **Arena Generator**: `arena_generate` (Symmetrical verification)
+- [x] **Smart Importer**: `organize_assets`, `rename_enforce_conventions`
+- [x] **Bridge Protocol**: `mcp_start`, `mcp_stop`
 
 > **Future potential:** In theory, an automated integration test could use the crawler data to generate validation scripts — spawn actors, apply tool operations, then verify properties changed. That level of automation isn't built yet, but the crawler output provides the schema needed to build it.
 

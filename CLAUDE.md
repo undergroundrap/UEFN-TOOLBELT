@@ -56,7 +56,7 @@ Then restart Claude Code — it connects automatically.
 
 ### What Claude Code can now do
 
-- Run any of the 122+ toolbelt tools by name
+- Run any of the 123+ toolbelt tools by name
 - Spawn, move, delete actors
 - List/rename/import/tag assets
 - Take screenshots, save level snapshots
@@ -447,7 +447,7 @@ When the listener is running, Claude Code can call these directly:
 |---|---|---|
 | `ping` | — | Health check + command list |
 | `execute_python` | `code` | Run Python in UEFN (pre-populated: `unreal`, `actor_sub`, `asset_sub`, `level_sub`, `tb`) |
-| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 122+ toolbelt tools |
+| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 123+ toolbelt tools |
 | `list_tools` | `category=""` | List all registered tools |
 | `batch_exec` | `commands=[{command, params}]` | Multiple commands in one tick |
 | `undo` | — | Undo last action |
