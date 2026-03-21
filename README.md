@@ -1625,7 +1625,7 @@ UEFN Python v40.00 experimental drop (March 2026).
 > 
 > **How UEFN Toolbelt differs:** While the standalone `uefn-mcp-server` focused purely on *Discovery* (mapping the API and teaching AI what exists), the **UEFN Toolbelt is an Execution Engine**. 
 > 
-> UEFN Toolbelt took those foundational discovery concepts and built them directly into a massive Native UI. Our `api_explorer` module handles the API parsing/stub generation internally, and our `mcp_bridge` handles the AI connection, all wrapped underneath the 122+ actual level-building tools (like the Arena Generator and Verse Syncer). You do not need to run a standalone MCP server alongside Toolbelt—Toolbelt is the all-in-one superset.
+> UEFN Toolbelt took those foundational discovery concepts and built them directly into a massive Native UI. Our `api_explorer` module handles the API parsing/stub generation internally, and our `mcp_bridge` handles the AI connection, all wrapped underneath the 123+ actual level-building tools (like the Arena Generator and Verse Syncer). You do not need to run a standalone MCP server alongside Toolbelt—Toolbelt is the all-in-one superset.
 
 **PySide6 UI approach inspired by:**
 - Early PySide6 experiments — proving out polished Qt UIs in the UEFN Python space
