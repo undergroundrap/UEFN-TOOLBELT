@@ -73,18 +73,19 @@ def run_entity_spawn_kit(kit_name: str = "Lobby Starter", **kwargs) -> dict:
             # Try fuzzy load
             cls = _load_uefn_class(cls_name)
             
-            # If that fails, try a few variations for Teleporter especially
-            if not cls and "Teleporter" in cls_name:
-                for alt in ["FortCreativeDevice_Teleporter", "FortTeleporterDevice", "FortTeleporter", "FortCreativeTeleporter"]:
-                    cls = _load_uefn_class(alt)
-                    if cls: break
-            
-            # Final attempt: case-insensitive search in unreal module
+            # Final attempt: fuzzy search dir(unreal) with a shortened term.
+            # Strip common UEFN class decorators so "FortItemSpawnerCreative"
+            # becomes "itemspawner" — far more likely to match a real class.
             if not cls:
-                search_term = cls_name.split(".")[-1]
-                if "Teleporter" in search_term:
-                    search_term = "Teleporter" # Broaden for variations
-                
+                search_term = cls_name
+                for pfx in ("Fort", "Fortnite"):
+                    if search_term.startswith(pfx):
+                        search_term = search_term[len(pfx):]
+                        break
+                for sfx in ("CreativeDevice", "Creative", "Device"):
+                    if search_term.endswith(sfx):
+                        search_term = search_term[: -len(sfx)]
+                        break
                 search_term = search_term.lower()
                 for attr in dir(unreal):
                     if search_term in attr.lower():
