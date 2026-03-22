@@ -19,6 +19,11 @@ from typing import Any
 
 from .registry import ToolRegistry, get_registry, register_tool
 from . import core
+from .core.config import get_config
+
+# tb.config — persistent user settings, survives install.py updates
+# Lives at Saved/UEFN_Toolbelt/config.json
+config = get_config()
 
 # ── Version ───────────────────────────────────────────────────────────────────
 # Single source of truth — used in audit logs, reload messages, and manifests.

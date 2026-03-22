@@ -487,6 +487,42 @@ tb.run("api_export_full")
 
 ---
 
+### Config
+
+Persistent user settings stored in `Saved/UEFN_Toolbelt/config.json`. Survives `install.py` updates. Never edit `config.json` directly — use these tools.
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `config_list` | — | Show all keys — current value + whether it's a custom or default |
+| `config_get` | `key` | Read one key (e.g. `"arena.fallback_mesh"`) |
+| `config_set` | `key`, `value` | Persist a value (auto-converts type to match default) |
+| `config_reset` | `key` or `"all"` | Remove override — key falls back to built-in default |
+
+```python
+tb.run("config_list")
+tb.run("config_set", key="scatter.default_folder", value="MyScatter")
+tb.run("config_set", key="arena.fallback_mesh", value="/Game/Meshes/SM_MyFloor")
+tb.run("config_reset", key="all")   # wipe all customisations
+```
+
+**Configurable keys and their defaults:**
+
+| Key | Default |
+|---|---|
+| `arena.fallback_mesh` | `/Engine/BasicShapes/Cube` |
+| `scatter.default_folder` | `Scatter` |
+| `scatter.default_radius` | `2000.0` |
+| `scatter.default_count` | `50` |
+| `text.default_folder` | `ToolbeltText` |
+| `text.default_color` | `#FFFFFF` |
+| `text.default_size` | `100.0` |
+| `screenshot.default_width` | `1920` |
+| `screenshot.default_height` | `1080` |
+| `screenshot.default_name` | `shot` |
+| `snapshot.default_scope` | `all` |
+
+---
+
 ### Plugin Management
 
 | Tool | Key Params | What it does |
@@ -616,7 +652,8 @@ tb.run("scatter_props", ...)   # N actors
 | File | Purpose |
 |---|---|
 | `init_unreal.py` (repo root — copy to `Content/Python/`) | Generic submodule loader, auto-runs on editor start. Scans `Content/Python/` for packages with `register()` and calls them. Not Toolbelt-specific — do not overwrite an existing `init_unreal.py`; merge only the discovery loop instead. |
-| `Content/Python/UEFN_Toolbelt/__init__.py` | Package root. Contains `__version__`, `register()`, `load_custom_plugins()`, `run()`. **`__version__`** is the single source of truth — bump it here when shipping a release. Propagates to audit logs, reload messages, and manifests automatically. |
+| `Content/Python/UEFN_Toolbelt/__init__.py` | Package root. Contains `__version__`, `register()`, `load_custom_plugins()`, `run()`, `config`. **`__version__`** is the single source of truth — bump it here when shipping a release. Propagates to audit logs, reload messages, and manifests automatically. |
+| `Content/Python/UEFN_Toolbelt/core/config.py` | Persistent config system. `get_config().get/set/reset()`. Reads/writes `Saved/UEFN_Toolbelt/config.json` — survives `install.py` updates. |
 | `Content/Python/UEFN_Toolbelt/tools/` | All tool modules |
 | `Content/Python/UEFN_Toolbelt/tools/mcp_bridge.py` | HTTP listener (runs inside UEFN) |
 | `mcp_server.py` | External FastMCP bridge (Claude Code connects to this) |

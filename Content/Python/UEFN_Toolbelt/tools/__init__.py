@@ -50,3 +50,4 @@ from . import project_admin
 from . import lighting_mastery
 from . import sequencer_tools
 from . import sim_device_proxy
+from . import config_tools

@@ -43,7 +43,7 @@ import unreal
 
 from ..core import (
     undo_transaction, log_info, log_warning, log_error,
-    spawn_static_mesh_actor, load_asset, ensure_folder,
+    spawn_static_mesh_actor, load_asset, ensure_folder, get_config,
 )
 from ..registry import register_tool
 
@@ -114,12 +114,13 @@ ARENA_PRESETS = {
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _resolve_mesh(preferred: str) -> str:
-    """Use preferred mesh, fall back to engine cube if it doesn't exist."""
+    """Use preferred mesh, fall back to config fallback if it doesn't exist."""
     if unreal.EditorAssetLibrary.does_asset_exist(preferred):
         return preferred
-    log_warning(f"Mesh not found: '{preferred}' — using fallback cube. "
-                f"Replace MESH_* paths in arena_generator.py with your content.")
-    return MESH_FALLBACK
+    fallback = get_config().get("arena.fallback_mesh")
+    log_warning(f"Mesh not found: '{preferred}' — using fallback '{fallback}'. "
+                f"Set a custom fallback: tb.run('config_set', key='arena.fallback_mesh', value='/Game/YourMesh')")
+    return fallback
 
 
 def _place_floor(
