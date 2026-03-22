@@ -15,16 +15,23 @@ Architecture:
                           └── register_slate_post_tick_callback
                               (drains queue on main thread, calls unreal.*)
 
+ATTRIBUTION:
+    Concept and queue+tick architecture inspired by Kirch's uefn_listener.py:
+      GitHub: https://github.com/KirChuvakov/uefn-mcp-server
+      Twitter/X: https://x.com/KirchCreator
+    Full credit to Kirch for pioneering the MCP bridge pattern for UEFN Python
+    and validating the queue + Slate tick approach as the correct threading model.
+    This implementation is an independent rewrite extended for the Toolbelt stack.
+
 Why the queue + tick pattern:
     All unreal.* calls must happen on the editor's main thread.
     The HTTP server runs on a daemon thread. Commands are queued and
-    dispatched to the main thread on every editor tick. This is the
-    same approach used by Kirch's uefn_listener.py (March 2026),
-    validated as the correct pattern for UEFN Python.
+    dispatched to the main thread on every editor tick — the same approach
+    pioneered by Kirch's uefn_listener.py (March 2026).
 
 What's new vs Kirch's original:
     • run_tool command — call any registered UEFN Toolbelt tool by name,
-      passing kwargs as JSON. Exposes all 95+ toolbelt tools to Claude Code.
+      passing kwargs as JSON. Exposes all 171 toolbelt tools to Claude Code.
     • All 31 commands: Kirch's originals (system, actors, assets, level,
       viewport) + set_actor_property, import_asset, run_tool, and more.
     • Toolbelt-aware: pre-populated globals in execute_python include `tb`.

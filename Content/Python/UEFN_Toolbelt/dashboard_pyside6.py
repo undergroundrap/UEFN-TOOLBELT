@@ -1857,25 +1857,40 @@ def _tab_about(_R=None) -> "QScrollArea":
     # ── Attributions ──────────────────────────────────────────────────────────
     g_attr = _group(L, "Attributions & Inspirations")
 
-    attr_body = QLabel(
-        "Verse Device Graph — concept inspired by ImmatureGamer's uefn-device-graph (tkinter).\n"
-        "This Toolbelt implementation is an independent PySide6 rewrite built into the\n"
-        "Toolbelt theme + config + MCP stack. Full credit for the original idea goes to:"
-    )
-    attr_body.setStyleSheet("font-size: 11px; color: #777777; padding: 4px 4px 2px 4px;")
-    attr_body.setWordWrap(True)
-    g_attr.addWidget(attr_body)
+    for name, desc, url in [
+        (
+            "ImmatureGamer",
+            "Verse Device Graph concept — uefn-device-graph (tkinter). "
+            "This Toolbelt implementation is an independent PySide6 rewrite. "
+            "Full credit for pioneering UEFN device graph tooling.",
+            "https://github.com/ImmatureGamer/uefn-device-graph",
+        ),
+        (
+            "Kirch  (KirchCreator)",
+            "MCP Bridge queue + Slate tick architecture — uefn-mcp-server. "
+            "Full credit for pioneering the MCP bridge pattern for UEFN Python "
+            "and validating the threading model.",
+            "https://github.com/KirChuvakov/uefn-mcp-server",
+        ),
+    ]:
+        attr_name = QLabel(name)
+        attr_name.setStyleSheet("font-size: 11px; font-weight: bold; color: #CCCCCC; padding: 6px 4px 2px 4px;")
+        g_attr.addWidget(attr_name)
 
-    attr_link = QPushButton("  ImmatureGamer — github.com/ImmatureGamer/uefn-device-graph")
-    attr_link.setStyleSheet(
-        "QPushButton { background: transparent; border: none; color: #8888FF;"
-        " text-align: left; font-size: 11px; padding: 2px 4px; }"
-        "QPushButton:hover { color: #AAAAFF; text-decoration: underline; }"
-    )
-    attr_link.clicked.connect(
-        lambda: QDesktopServices.openUrl(QUrl("https://github.com/ImmatureGamer/uefn-device-graph"))
-    )
-    g_attr.addWidget(attr_link)
+        attr_desc_lbl = QLabel(desc)
+        attr_desc_lbl.setStyleSheet("font-size: 11px; color: #777777; padding: 0 4px 2px 4px;")
+        attr_desc_lbl.setWordWrap(True)
+        g_attr.addWidget(attr_desc_lbl)
+
+        link_btn = QPushButton(f"  {url}")
+        link_btn.setStyleSheet(
+            "QPushButton { background: transparent; border: none; color: #8888FF;"
+            " text-align: left; font-size: 11px; padding: 2px 4px; }"
+            "QPushButton:hover { color: #AAAAFF; }"
+        )
+        _url = url
+        link_btn.clicked.connect(lambda _, u=_url: QDesktopServices.openUrl(QUrl(u)))
+        g_attr.addWidget(link_btn)
 
     btn_issue = QPushButton("  Open an Issue on GitHub")
     btn_issue.clicked.connect(

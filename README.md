@@ -1799,12 +1799,16 @@ UEFN Python v40.00 experimental drop (March 2026).
 
 **API discovery vs. Execution: The "Superset" Architecture**
 
-> **[KirChuvakov/uefn-mcp-server](https://github.com/KirChuvakov/uefn-mcp-server)**  
-> KirChuvakov built the foundational "API Ground Truth" tools for UEFN (`dump_uefn_api.py`, `generate_uefn_stub.py`, and `uefn_listener.py`). 
-> 
-> **How UEFN Toolbelt differs:** While the standalone `uefn-mcp-server` focused purely on *Discovery* (mapping the API and teaching AI what exists), the **UEFN Toolbelt is an Execution Engine**. 
-> 
-> UEFN Toolbelt took those foundational discovery concepts and built them directly into a massive Native UI. Our `api_explorer` module handles the API parsing/stub generation internally, and our `mcp_bridge` handles the AI connection, all wrapped underneath the 123+ actual level-building tools (like the Arena Generator and Verse Syncer). You do not need to run a standalone MCP server alongside Toolbelt—Toolbelt is the all-in-one superset.
+> **[KirChuvakov/uefn-mcp-server](https://github.com/KirChuvakov/uefn-mcp-server) · [@KirchCreator](https://x.com/KirchCreator)**
+> Kirch pioneered the MCP bridge pattern for UEFN Python — the queue + Slate tick
+> architecture that makes it possible to call `unreal.*` from an external process
+> without deadlocking the editor. He built the foundational "API Ground Truth" tools
+> (`dump_uefn_api.py`, `generate_uefn_stub.py`, `uefn_listener.py`). Full credit.
+>
+> **How UEFN Toolbelt differs:** Kirch's project focused on *Discovery* — mapping the API
+> and teaching AI what exists. **UEFN Toolbelt is an Execution Engine** — 171 tools for
+> actually building levels, built on top of that same bridge architecture. You don't need
+> to run a standalone MCP server alongside Toolbelt — Toolbelt is the all-in-one superset.
 
 **PySide6 UI approach inspired by:**
 - Early PySide6 experiments — proving out polished Qt UIs in the UEFN Python space
@@ -1965,7 +1969,7 @@ curl -s -X POST http://127.0.0.1:8765 \
 
 Claude is the recommended driver because it has the verse-book spec integration and the best reasoning for complex tasks — but the bridge is model-agnostic by design.
 
-MCP bridge architecture referenced from [KirChuvakov's uefn-mcp-server](https://github.com/KirChuvakov/uefn-mcp-server).
+MCP bridge architecture inspired by [Kirch's uefn-mcp-server](https://github.com/KirChuvakov/uefn-mcp-server) ([@KirchCreator](https://x.com/KirchCreator)) — full credit for the queue + Slate tick pattern.
 
 ---
 
@@ -2181,6 +2185,35 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 - **Smoke test** — 6-layer health check (Python env, UEFN API, tool registry, MCP bridge, PySide6, Verse spec)
 - **UEFN 40.00 compatibility** — tested against real UEFN API, fixed `TextRenderHorizontalAlignment`, `find_or_add_section`, `register_menu` keyword arg incompatibilities
 - **About page** — in-dashboard credits, license info, and repo links
+
+---
+
+## Why the Theme System Matters
+
+Most tools hard-code their colors. When a new window is built, the developer copy-pastes hex values and the UI slowly drifts — different shades of dark, slightly different borders, inconsistent accent colors. Community plugins make it worse because plugin authors have no reference to match.
+
+The Toolbelt theme system solves this structurally, not just with documentation:
+
+- **`core/theme.py` is the single source of truth.** `PALETTE` is a live dict. Every color in the platform — dashboard, tool windows, device graph, community plugins — reads from it. Change one value and every window updates on the next reload.
+- **`set_theme()` updates everything live.** It mutates `PALETTE` in-place, rebuilds the QSS stylesheet, and notifies every subscribed window via a callback list. No restart needed. This is exactly how Discord, VS Code, and Obsidian implement live theme switching.
+- **`ToolbeltWindow` enforces the standard automatically.** Subclassing `ToolbeltWindow` instead of `QMainWindow` means your window gets the theme applied, subscribes to future changes, and unsubscribes cleanly on close — for free. Plugin authors get platform-consistent UI without knowing how the theme system works.
+- **Community plugins inherit theming.** A plugin that subclasses `ToolbeltWindow` will switch themes with the rest of the platform automatically. The platform grows without visual fragmentation.
+- **6 built-in themes** (`toolbelt_dark`, `midnight`, `ocean`, `nord`, `forest`, `daylight`) — switchable from the Appearance tab, `tb.run("theme_set", name="ocean")`, or MCP. Persists across restarts via `config.json`.
+
+This is what separates a collection of scripts from a platform.
+
+---
+
+## Attributions
+
+The UEFN Toolbelt is built on the shoulders of community pioneers who proved these patterns work:
+
+| Contributor | Project | What they pioneered |
+|---|---|---|
+| **[Kirch](https://github.com/KirChuvakov/uefn-mcp-server)** ([@KirchCreator](https://x.com/KirchCreator)) | [uefn-mcp-server](https://github.com/KirChuvakov/uefn-mcp-server) | MCP bridge for UEFN — the queue + Slate tick pattern for calling `unreal.*` from external processes. The Toolbelt MCP bridge is an independent rewrite extending this architecture. |
+| **[ImmatureGamer](https://github.com/ImmatureGamer/uefn-device-graph)** ([@ImmatureGamer](https://x.com/ImmatureGamer)) | [uefn-device-graph](https://github.com/ImmatureGamer/uefn-device-graph) | Verse device graph concept — first tkinter implementation of a UEFN node graph tool. The Toolbelt device graph is an independent PySide6 rewrite built into the Toolbelt stack. |
+
+Both tools are independently developed and go significantly beyond their inspirations, but these creators deserve credit for proving the concepts first. Go follow them.
 
 ---
 
