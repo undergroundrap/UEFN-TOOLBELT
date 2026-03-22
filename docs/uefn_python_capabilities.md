@@ -371,7 +371,8 @@ AudioSynesthesia  # 38 types for spectral / onset / loudness analysis
 | AI | 806 | Read AI state + limited hot spot write |
 | FortniteEditor | 325 | Asset validation, bulk editing — most useful |
 
-**Toolbelt tools:** `verse_list_devices`, `verse_bulk_set_property`, `verse_export_report`
+**Toolbelt tools:** `verse_list_devices`, `verse_bulk_set_property`, `verse_export_report`,
+`verse_graph_open`, `verse_graph_scan`, `verse_graph_export`
 
 ---
 

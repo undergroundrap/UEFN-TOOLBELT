@@ -7,6 +7,7 @@ Shared helpers used by every tool module.
 from __future__ import annotations
 
 from .config import get_config, Config, DEFAULTS  # noqa: F401 — re-exported for tools
+from .theme import PALETTE, QSS, color as theme_color  # noqa: F401 — re-exported for tools
 
 import contextlib
 import math

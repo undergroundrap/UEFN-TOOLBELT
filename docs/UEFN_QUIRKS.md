@@ -125,6 +125,10 @@ Because Python and UEFN share the same thread, a PySide6 window will normally "f
 ### The Solution
 The Toolbelt uses `unreal.register_slate_post_tick_callback` to hook into the engine's frame-end. Each frame, we call `QApplication.processEvents()`. This allows the UI to stay 60fps responsive without threading, which is the only stable way to run Qt in UEFN.
 
+As of v1.5.1, this pattern is encapsulated in `core/base_window.ToolbeltWindow.show_in_uefn()`.
+Any tool window that subclasses `ToolbeltWindow` gets the Slate tick driver automatically —
+just call `win.show_in_uefn()` instead of `win.show()`. See `docs/ui_style_guide.md`.
+
 ---
 
 ## 13. Menu Persistence & "Ghost Entries"

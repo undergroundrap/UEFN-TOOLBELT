@@ -41,6 +41,8 @@ from typing import Dict, List, Optional, Set, Tuple
 import unreal
 
 from ..core import log_info, log_warning, log_error, get_config, notify
+from ..core.theme import PALETTE as _PALETTE
+from ..core.base_window import ToolbeltWindow
 from ..registry import register_tool
 
 
@@ -51,7 +53,7 @@ from ..registry import register_tool
 _PYSIDE6 = False
 try:
     from PySide6.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+        QApplication, QWidget, QVBoxLayout, QHBoxLayout,
         QSplitter, QPushButton, QLabel, QLineEdit, QTextEdit, QScrollArea,
         QFrame, QFileDialog, QGraphicsView, QGraphicsScene,
         QGraphicsItem, QGraphicsObject,
@@ -63,7 +65,7 @@ try:
     )
     _PYSIDE6 = True
 except ImportError:
-    QMainWindow = object  # so the class definition doesn't crash at import
+    pass  # ToolbeltWindow stub handles the no-PySide6 case
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -619,33 +621,9 @@ def run_verse_graph_open(verse_path: str = "", **kwargs) -> dict:
         log_error("verse_graph_open: PySide6 not installed. Run: pip install PySide6")
         return {"status": "error", "message": "PySide6 not installed."}
     try:
-        import sys
-        app  = QApplication.instance() or QApplication(sys.argv)
         path = verse_path or get_config().get("verse.project_path") or ""
         win  = _DeviceGraphWindow(verse_path=path)
-        win.show()
-        win.raise_()
-        win.activateWindow()
-
-        # Drive Qt's event loop via Slate post-tick.
-        # UEFN runs Slate's loop, not Qt's — without this the window
-        # is created but never paints or responds to input.
-        # Same pattern the main dashboard uses.
-        tick_handle: list = [None]
-
-        def _tick(dt: float) -> None:
-            try:
-                if not win.isVisible():
-                    unreal.unregister_slate_post_tick_callback(tick_handle[0])
-                    return
-                app.processEvents()
-            except Exception:
-                try:
-                    unreal.unregister_slate_post_tick_callback(tick_handle[0])
-                except Exception:
-                    pass
-
-        tick_handle[0] = unreal.register_slate_post_tick_callback(_tick)
+        win.show_in_uefn()   # applies QSS + drives Slate tick automatically
         return {"status": "ok", "message": "Verse Device Graph window opened."}
     except Exception as exc:
         log_error(f"verse_graph_open: {exc}")
@@ -658,50 +636,10 @@ def run_verse_graph_open(verse_path: str = "", **kwargs) -> dict:
 
 if _PYSIDE6:
 
-    # ── Pull the dashboard QSS so the graph window is pixel-identical ─────────
-    # Falls back to a minimal inline copy if the dashboard isn't loaded yet.
-    try:
-        from ..dashboard_pyside6 import _QSS as _DASH_QSS
-    except Exception:
-        _DASH_QSS = (
-            "QMainWindow,QDialog{background:#181818;}"
-            "QWidget{background:#181818;color:#CCCCCC;"
-            "font-family:'Segoe UI','Roboto',sans-serif;font-size:12px;}"
-            "QPushButton{background:#262626;border:1px solid #363636;"
-            "color:#CCCCCC;padding:5px 10px;border-radius:3px;min-height:28px;}"
-            "QPushButton:hover{background:#333333;border-color:#4A4A4A;color:#FFFFFF;}"
-            "QPushButton:pressed{background:#3A3AFF;border-color:#3A3AFF;color:#FFFFFF;}"
-            "QLineEdit{background:#212121;border:1px solid #363636;"
-            "color:#CCCCCC;padding:3px 7px;border-radius:3px;min-height:24px;}"
-            "QLineEdit:focus{border-color:#3A3AFF;}"
-            "QTextEdit{background:#212121;border:1px solid #2A2A2A;color:#CCCCCC;}"
-            "QScrollBar:vertical{background:#1A1A1A;width:8px;border-radius:4px;margin:2px 1px;}"
-            "QScrollBar::handle:vertical{background:#404040;border-radius:4px;min-height:32px;}"
-            "QScrollBar::handle:vertical:hover{background:#606060;}"
-            "QScrollBar::handle:vertical:pressed{background:#3A3AFF;}"
-            "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}"
-            "QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical{background:none;}"
-            "QStatusBar{background:#111111;color:#555555;font-size:11px;"
-            "border-top:1px solid #2A2A2A;}"
-        )
+    # ── Palette — derived from core/theme.PALETTE (single source of truth) ───
+    # To change colors platform-wide, edit core/theme.py — not here.
 
-    # ── Palette — exact dashboard values ─────────────────────────────────────
-
-    _P = {
-        "bg":     QColor("#181818"),
-        "panel":  QColor("#212121"),
-        "card":   QColor("#1E1E1E"),
-        "border": QColor("#2A2A2A"),
-        "border2":QColor("#363636"),
-        "text":   QColor("#CCCCCC"),
-        "muted":  QColor("#555555"),
-        "accent": QColor("#3A3AFF"),   # dashboard blue
-        "brand":  QColor("#e94560"),   # toolbelt red (used for title only)
-        "warn":   QColor("#f1c40f"),
-        "error":  QColor("#FF4444"),
-        "ok":     QColor("#44FF88"),
-        "grid":   QColor("#1A1A1A"),
-    }
+    _P = {k: QColor(v) for k, v in _PALETTE.items()}
 
     # ── NodeItem ──────────────────────────────────────────────────────────────
 
@@ -1060,13 +998,10 @@ if _PYSIDE6:
 
     # ── Main window ───────────────────────────────────────────────────────────
 
-    class _DeviceGraphWindow(QMainWindow):
+    class _DeviceGraphWindow(ToolbeltWindow):
 
         def __init__(self, verse_path: str = "") -> None:
-            super().__init__()
-            self.setWindowTitle("UEFN Toolbelt — Verse Device Graph")
-            self.resize(1400, 860)
-            self.setStyleSheet(_DASH_QSS)   # identical theme to the main dashboard
+            super().__init__(title="UEFN Toolbelt — Verse Device Graph", width=1400, height=860)
 
             self._verse_path   = verse_path
             self._graph: Optional[GraphData] = None
@@ -1399,8 +1334,5 @@ if _PYSIDE6:
 
 else:
     # Fallback stub so the module loads cleanly when PySide6 is absent
-    class _DeviceGraphWindow:  # type: ignore[no-redef]
+    class _DeviceGraphWindow(ToolbeltWindow):  # type: ignore[no-redef]
         def __init__(self, *a, **kw): pass
-        def show(self): pass
-        def raise_(self): pass
-        def activateWindow(self): pass

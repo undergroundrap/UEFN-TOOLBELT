@@ -58,60 +58,10 @@ except ImportError:
 from UEFN_Toolbelt.registry import register_tool
 
 # ─── Dark theme ───────────────────────────────────────────────────────────────
+# Sourced from core/theme.py — the single source of truth for all Toolbelt colors.
+# To change colors platform-wide, edit core/theme.PALETTE. Do not hard-code hex here.
 
-_QSS = """
-QMainWindow, QDialog { background: #181818; }
-QWidget { background: #181818; color: #CCCCCC; font-family: "Segoe UI", "Roboto", sans-serif; font-size: 12px; }
-
-
-QPushButton {
-    background: #262626; border: 1px solid #363636;
-    color: #CCCCCC; padding: 5px 10px; border-radius: 3px;
-    text-align: left; min-height: 28px;
-}
-QPushButton:hover { background: #333333; border-color: #4A4A4A; color: #FFFFFF; }
-QPushButton:pressed { background: #3A3AFF; border-color: #3A3AFF; color: #FFFFFF; }
-QPushButton[accent="true"] { background: #1A1A55; border-color: #3A3AFF; color: #8888FF; }
-QPushButton[accent="true"]:hover { background: #2A2A77; color: #AAAAFF; }
-
-QGroupBox {
-    font-weight: bold; color: #555555; border: 1px solid #2A2A2A;
-    border-radius: 4px; margin-top: 10px; padding-top: 6px;
-    font-size: 10px; letter-spacing: 1px;
-}
-QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: #555555; }
-
-QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
-    background: #212121; border: 1px solid #363636;
-    color: #CCCCCC; padding: 3px 7px; border-radius: 3px; min-height: 24px;
-}
-QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus { border-color: #3A3AFF; }
-QComboBox::drop-down { border: none; width: 20px; }
-QComboBox QAbstractItemView { background: #212121; border: 1px solid #363636; color: #CCCCCC; selection-background-color: #3A3AFF; }
-
-QScrollArea { border: none; background: transparent; }
-QScrollBar:vertical {
-    background: #1A1A1A; width: 8px; border-radius: 4px; margin: 2px 1px;
-}
-QScrollBar::handle:vertical {
-    background: #404040; border-radius: 4px; min-height: 32px;
-}
-QScrollBar::handle:vertical:hover { background: #606060; }
-QScrollBar::handle:vertical:pressed { background: #3A3AFF; }
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
-
-QCheckBox { color: #AAAAAA; }
-QCheckBox::indicator { width: 14px; height: 14px; border: 1px solid #363636; border-radius: 2px; background: #212121; }
-QCheckBox::indicator:checked { background: #3A3AFF; border-color: #3A3AFF; }
-
-QLabel[role="header"] { color: #FFFFFF; font-size: 16px; font-weight: bold; padding: 4px 0; }
-QLabel[role="section"] { color: #555555; font-size: 10px; letter-spacing: 1px; padding: 6px 0 2px 0; }
-
-QStatusBar { background: #111111; color: #555555; font-size: 11px; border-top: 1px solid #2A2A2A; }
-QStatusBar[status="ok"]    { color: #44FF88; }
-QStatusBar[status="error"] { color: #FF4444; }
-"""
+from .core.theme import QSS as _QSS  # noqa: E402 — after sys/unreal imports
 
 # ─── Widget helpers ───────────────────────────────────────────────────────────
 

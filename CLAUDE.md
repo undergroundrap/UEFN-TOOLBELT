@@ -157,8 +157,22 @@ for t in tb.registry.list_tools():
 
 ### **The "Nuclear Reload" Command**
 If you have modified the Toolbelt source code, run this in the UEFN console to refresh everything without a restart:
+
 ```python
+# Standard — reload + open dashboard
 import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
+
+# Iterating on the Verse Device Graph window
+import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("verse_graph_open")
+
+# Reload + run integration tests (use a clean template level)
+import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_integration_test")
+
+# Reload + smoke test only
+import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_smoke_test")
+
+# Reload only (no UI — useful when testing tools that don't need the dashboard)
+import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools()
 ```
 > [!IMPORTANT]
 > Always include `tb.register_all_tools()` after a pop, otherwise the tool registry will be empty!
@@ -680,7 +694,10 @@ tb.run("scatter_props", ...)   # N actors
 | `deploy.bat` | Dev workflow tool — deploy + PySide6 check + prints hot-reload command. Use this for active development. |
 | `.mcp.json` | Claude Code MCP server config — already configured |
 | `docs/uefn_python_capabilities.md` | Full UEFN Python API surface reference |
-| `docs/ui_style_guide.md` | **UI Style Guide — MANDATORY** for all windowed tools and plugins. Color palette, QSS import, Slate tick driver, widget recipes. Read this before writing any PySide6 UI. |
+| `Content/Python/UEFN_Toolbelt/core/theme.py` | **Single source of truth for all UI colors.** Edit `PALETTE` here to change the platform's appearance everywhere. |
+| `Content/Python/UEFN_Toolbelt/core/base_window.py` | `ToolbeltWindow` base class — subclass instead of `QMainWindow` for any tool window. Auto-applies theme + Slate tick. |
+| `docs/ui_style_guide.md` | **UI Style Guide — MANDATORY** for all windowed tools and plugins. Color palette, `ToolbeltWindow` API, widget recipes. Read this before writing any PySide6 UI. |
+| `docs/CHANGELOG.md` | Version history — all notable changes by release. |
 | `docs/plugin_dev_guide.md` | Plugin authorship guide — security model, audit format, version stamp |
 | `tests/smoke_test.py` | 5-layer health check — run `tb.smoke_test()` |
 | `Saved/UEFN_Toolbelt/plugin_audit.json` | Security audit of all loaded custom plugins — includes `toolbelt_version`, SHA-256 hashes, timestamps |
