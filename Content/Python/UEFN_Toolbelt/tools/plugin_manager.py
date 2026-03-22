@@ -17,7 +17,7 @@ from UEFN_Toolbelt import core
     description="Validate all registered tools against the Toolbelt schema requirements.",
     tags=["plugin", "validate", "developer", "debug"],
 )
-def validate_all(**kwargs) -> list[str]:
+def validate_all(**kwargs) -> dict:
     """Check all registered tools for schema and description requirements."""
     reg = get_registry()
     errors = reg.validate()
@@ -27,7 +27,7 @@ def validate_all(**kwargs) -> list[str]:
         core.log_warning("Found validation errors:")
         for err in errors:
             core.log_warning(err)
-    return errors
+    return {"status": "ok" if not errors else "error", "error_count": len(errors), "errors": errors}
 
 
 @register_tool(
@@ -36,12 +36,11 @@ def validate_all(**kwargs) -> list[str]:
     description="List all currently loaded third-party custom plugins.",
     tags=["plugin", "list", "developer"],
 )
-def list_custom(**kwargs) -> list[str]:
+def list_custom(**kwargs) -> dict:
     """List tools that were loaded from the Saved/UEFN_Toolbelt/Custom_Plugins directory."""
     custom_tools = []
     reg = get_registry()
     for name, entry in reg._tools.items():
-        # Normalize path separators for checking
         source_path = entry.source.replace("\\", "/")
         if "Custom_Plugins" in source_path:
             custom_tools.append(name)
@@ -52,7 +51,7 @@ def list_custom(**kwargs) -> list[str]:
         core.log_info(f"Loaded Custom Plugins ({len(custom_tools)}):")
         for name in custom_tools:
             core.log_info(f"  • {name}")
-    return custom_tools
+    return {"status": "ok", "count": len(custom_tools), "plugins": custom_tools}
 
 
 @register_tool(
