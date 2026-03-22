@@ -9,6 +9,10 @@ Public API:
     tb.run("tool_name")              # execute any tool by name
     tb.run("toolbelt_smoke_test")    # run the 6-layer health check
     tb.registry               # access the ToolRegistry directly
+
+Generic loader contract:
+    init_unreal.py calls tb.register() on every package that exposes it.
+    register() handles tool loading, custom plugins, and menu scheduling.
 """
 
 from typing import Any
@@ -18,6 +22,46 @@ from . import core
 
 # Singleton registry shared across all imports
 registry: ToolRegistry = get_registry()
+
+
+def register() -> None:
+    """
+    Generic loader entry point — called by init_unreal.py on editor startup.
+    Registers all tools, loads custom plugins, and schedules the editor menu.
+    Any Python package placed in Content/Python/ that exposes this function
+    will be picked up automatically by the generic loader.
+    """
+    import unreal
+    register_all_tools()
+    load_custom_plugins()
+    unreal.log("[TOOLBELT] ✓ All tools registered.")
+    unreal.log("[TOOLBELT]   Run 'toolbelt_integration_test' in a clean level to verify.")
+    _schedule_menu()
+
+
+def _schedule_menu() -> None:
+    """
+    Defer menu building to the first editor tick.
+    init_unreal.py runs before Slate is constructed — ToolMenus.get()
+    must not be called until the menu bar exists.
+    """
+    import unreal
+    _registered = False
+
+    def _on_tick(dt: float) -> None:
+        nonlocal _registered
+        if _registered:
+            return
+        _registered = True
+        try:
+            from .menu import build_toolbelt_menu
+            build_toolbelt_menu()
+        except Exception as _e:
+            unreal.log_warning(f"[TOOLBELT] Menu registration failed: {_e}")
+        finally:
+            unreal.unregister_slate_pre_tick_callback(_handle)
+
+    _handle = unreal.register_slate_pre_tick_callback(_on_tick)
 
 
 def register_all_tools() -> None:
