@@ -1,20 +1,7 @@
 """
 UEFN TOOLBELT — Core Utilities
 ========================================
-Shared helpers used by every tool module:
-
-    • undo_transaction(label)      — context manager wrapping ScopedEditorTransaction
-    • get_selected_actors()        — typed wrapper for EditorActorSubsystem
-    • get_selected_assets()        — selected assets from Content Browser
-    • notify(msg, duration)        — Slate viewport notification
-    • log_info / log_warning / log_error
-    • asset_tools()                — convenience accessor
-    • with_progress(items, label)  — slow-task progress bar wrapper
-    • clamp / lerp / rand_vec      — math helpers
-    • color_from_hex(hex_str)      — "#RRGGBB" → unreal.LinearColor
-
-All functions guard against None and log cleanly instead of hard-crashing,
-which is essential for a long-running creator session.
+Shared helpers used by every tool module.
 """
 
 from __future__ import annotations
@@ -53,14 +40,6 @@ def log_error(message: str) -> None:
 def undo_transaction(label: str) -> Generator[None, None, None]:
     """
     Wraps all operations inside a single named undo transaction.
-
-    Usage:
-        with undo_transaction("Move Selected Actors"):
-            for actor in get_selected_actors():
-                actor.set_actor_location(...)
-
-    If an exception occurs inside the block the transaction is still closed,
-    preventing a corrupted undo stack.
     """
     with unreal.ScopedEditorTransaction(label) as _t:
         try:
@@ -84,11 +63,6 @@ def get_selected_actors() -> List[unreal.Actor]:
 def require_selection(min_count: int = 1) -> Optional[List[unreal.Actor]]:
     """
     Return selected actors or log a warning and return None if too few.
-
-    Usage:
-        actors = require_selection(min_count=2)
-        if actors is None:
-            return
     """
     actors = get_selected_actors()
     if len(actors) < min_count:
@@ -156,14 +130,6 @@ def create_material_instance(
 ) -> Optional[unreal.MaterialInstanceConstant]:
     """
     Create a MaterialInstanceConstant from a parent material.
-
-    Args:
-        parent_path:   Content path to the parent material, e.g. "/Game/Materials/M_Base"
-        instance_name: Asset name, e.g. "MI_Chrome"
-        package_path:  Folder path, e.g. "/Game/UEFN_Toolbelt/Materials"
-
-    Returns:
-        The new MaterialInstanceConstant, or None on failure.
     """
     parent = load_asset(parent_path)
     if parent is None:
@@ -224,15 +190,6 @@ def notify(message: str, duration: float = 4.0) -> None:
 def with_progress(items: Iterable, label: str, total: Optional[int] = None):
     """
     Display a slow-task progress bar while iterating.
-
-    @contextlib.contextmanager is only allowed ONE yield — so we yield a
-    generator object that the caller iterates. The ScopedSlowTask stays alive
-    for the entire duration of the `with` block.
-
-    Usage:
-        with with_progress(my_list, "Applying materials") as bar_iter:
-            for item in bar_iter:
-                do_work(item)
     """
     items = list(items)
     count = total or len(items)
@@ -248,7 +205,7 @@ def with_progress(items: Iterable, label: str, total: Optional[int] = None):
                 task.enter_progress_frame(1)
                 yield item
 
-        yield _gen()   # ← exactly one yield from the context manager
+        yield _gen()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -274,8 +231,6 @@ def rand_vec(x_range=(-100, 100), y_range=(-100, 100), z_range=(0, 0)) -> unreal
 def color_from_hex(hex_str: str) -> unreal.LinearColor:
     """
     Parse "#RRGGBB" or "RRGGBB" hex string to LinearColor.
-
-    All channels are converted from sRGB (0-255) to linear (0.0-1.0).
     """
     hex_str = hex_str.lstrip("#")
     if len(hex_str) not in (6, 8):
@@ -298,8 +253,7 @@ def actors_bounding_box(
     actors: List[unreal.Actor],
 ) -> "tuple[unreal.Vector, unreal.Vector]":
     """
-    Return (min_point, max_point) of the axis-aligned bounding box that
-    encloses all actor origins.  Raises ValueError if actors is empty.
+    Return (min_point, max_point) of the axis-aligned bounding box.
     """
     if not actors:
         raise ValueError("actors_bounding_box requires at least one actor.")
@@ -323,15 +277,6 @@ def spawn_static_mesh_actor(
 ) -> Optional[unreal.StaticMeshActor]:
     """
     Convenience: spawn a StaticMeshActor and assign a mesh in one call.
-
-    Args:
-        mesh_path: Content path to the static mesh asset.
-        location:  World-space spawn location.
-        rotation:  Optional rotation (defaults to zero).
-        scale:     Optional scale (defaults to 1,1,1).
-
-    Returns:
-        The spawned StaticMeshActor or None on failure.
     """
     mesh = load_asset(mesh_path)
     if mesh is None or not isinstance(mesh, unreal.StaticMesh):

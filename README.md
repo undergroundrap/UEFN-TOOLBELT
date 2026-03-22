@@ -80,7 +80,7 @@ with open("path/to/script.py") as f:
 
 ## ⚠️ Automated Integration Testing
 
-The `toolbelt_integration_test` (132 tools verified) is **INVASIVE** by design. It programmatically spawns actors, modifies properties, and deletes assets to verify correctness.
+The `toolbelt_integration_test` (138 tools verified) is **INVASIVE** by design. It programmatically spawns actors, modifies properties, and deletes assets to verify correctness.
 
 > [!WARNING]
 > **DO NOT run the full integration test in a live production project.**
@@ -202,7 +202,9 @@ All heavy logic lives in Python. The optional UMG dashboard calls into it via
 │   │           ├── procedural_geometry.py    # NEW: Wire & Volumetric generators
 │   │           ├── text_voxelizer.py         # NEW: 3D Text geometry generation
 │   │           ├── smart_organizer.py        # Proprietary Heuristics Engine
-│   │           └── system_perf.py            # Background CPU Optimizer
+│   │           ├── system_perf.py            # Background CPU Optimizer
+│   │           ├── verse_schema.py           # NEW: Verse Digest IQ (Phase 14)
+│   │           └── system_build.py           # NEW: Automated Build Monitor (Phase 14)
 │   └── UEFN_Toolbelt/
 │       ├── Blueprints/
 │       │   └── WBP_ToolbeltDashboard    ← optional EUW — create in UEFN
@@ -351,6 +353,29 @@ tb.run("import_fbx_folder",
 
 Assets land in `/Game/Imported/[date]/Meshes/` with auto-generated material instances.
 An import log is appended to `Saved/UEFN_Toolbelt/import_log.json` after every run.
+
+---
+
+### 8. Advanced Project Intelligence (Phase 14)
+
+The Toolbelt now features a native "Off-Engine IQ" that understands your Verse code without needing a live actor in the level.
+
+- **Verse Schema IQ**: Parses your `.digest.verse` files to build a mapping of all Verse classes, properties, and events.
+- **Build Monitor**: Triggers a background UEFN build and scrapes the log for Verse compilation errors with file/line precision.
+- **Global Safety Gate**: A centralized protection layer (`core.safety_gate`) that all "Write" operations must pass through. It prevents accidental modification of Epic/Fortnite core assets.
+
+---
+
+### System & Safety (`category="System"`)
+
+Advanced project diagnostics and protection layers.
+
+| Tool Name | Description |
+|---|---|
+| `api_verse_get_schema` | Returns the Verse schema (props/events) for any class via digest parsing |
+| `api_verse_refresh_schemas` | Forces a re-scan of all .digest.verse files |
+| `system_build_verse` | Triggers a background UEFN build and scrapes for Verse errors |
+| `system_get_last_build_log` | Reads the most recent UEFN log file for error diagnostics |
 
 ---
 
@@ -1003,7 +1028,7 @@ LogPython:   ✓ All systems healthy — Toolbelt is ready.
 |---|---|---|
 | **Layer 1** — Python Environment | stdlib, threading, sockets, HTTP server, file I/O | 13 |
 | **Layer 2** — UEFN API Surface | `unreal` module, subsystems, AutomationLibrary, Materials | 13 |
-| **Layer 3** — Toolbelt Core | All 24 modules loaded, 123 tools registered, 9 safe tools executed | 40 |
+| **Layer 3** — Toolbelt Core | All 31 modules loaded, 138 tools registered, 9 safe tools executed | 40 |
 | **Layer 7** — Integration | **NEW:** Automated fixture-based verification of context-aware tools | 10 |
 | **Layer 4** — MCP Bridge | 31 command handlers, HTTP listener state | 4 |
 | **Layer 5** — Dashboard (PySide6) | PySide6 importable, QApplication, ToolbeltDashboard | 3 |
@@ -1873,7 +1898,7 @@ tb.run("verse_gen_custom",
 
 `CLAUDE.md` in the project root is auto-loaded by Claude Code every time you open the project. It contains:
 
-- Every tool name, parameter, and usage example for all 123 tools
+- Every tool name, parameter, and usage example for all 138 tools
 - MCP bridge command reference
 - UEFN Python critical rules (main thread, undo transactions, API gotchas)
 - Common patterns and troubleshooting
@@ -1894,7 +1919,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 | Ecosystem Moat | **Rich Plugin Hub, automatic UI generation** | Scattered, undocumented gists |
 | Security Model | **4-Gate Audit (AST scanning, SHA-256)** | Blind execution of untrusted code |
 | Verification | **Automated Integration Test Suite** | Manual testing only |
-| Tool count | **123 tools, 24 modules** | Single-purpose scripts |
+| Tool count | **138 tools, 31 modules** | Single-purpose scripts |
 | AI integration | **Full MCP bridge + model-agnostic HTTP client** | None |
 | Local model support | **LM Studio, Ollama, any HTTP agent** | None |
 | Verse code gen | **Live spec-backed (27K line reference)** | Static templates |
@@ -1909,7 +1934,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 The UEFN Toolbelt includes a professional-grade testing suite to ensure stability across UEFN updates.
 
 ### 1. Smoke Test (Healthy Schema Check)
-Verifies all 24 modules are loaded, all 123 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
+Verifies all 31 modules are loaded, all 138 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
 ```python
 import UEFN_Toolbelt as tb
 tb.run("toolbelt_smoke_test")
@@ -1954,7 +1979,7 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 ### v1.0 — March 2026 (Initial Release)
 
-- **123 tools** across 17 categories: Materials, Procedural, Bulk Ops, Text, Assets, Verse, Project, Screenshot, Tags, MCP, API Explorer, Utilities, and more
+- **138 tools** across 17 categories: Materials, Procedural, Bulk Ops, Text, Assets, Verse, Project, Screenshot, Tags, MCP, API Explorer, Utilities, and more
 - **PySide6 dashboard** — dark-themed floating window with sidebar nav, search across all tools, and per-category pages
 - **Tool Registry** — `@register_tool` decorator system, execute-by-name, tag/category search
 - **MCP bridge** — full two-process architecture letting Claude Code control UEFN over HTTP

@@ -20,6 +20,7 @@ import urllib.request
 import unreal
 
 from ..core import log_info, log_error, log_warning
+from ..core.safety_gate import SafetyGate
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -140,6 +141,9 @@ def run_import_image_from_url(
     if ext not in (".png", ".jpg", ".jpeg", ".bmp", ".tga", ".exr", ".hdr", ".webp"):
         ext = ".png"
         
+    # Phase 14: Safety Gate Validation
+    SafetyGate.enforce_safety(asset_dir)
+    
     tmp_path = os.path.join(tempfile.gettempdir(), f"uefn_fetch_{clean_name}{ext}")
     
     try:
@@ -173,6 +177,9 @@ def run_import_image_from_clipboard(
     **kwargs
 ) -> dict:
     clean_name = _sanitize_asset_name(asset_name) or _next_sequential_name(asset_dir)
+    # Phase 14: Safety Gate Validation
+    SafetyGate.enforce_safety(asset_dir)
+    
     tmp_path = os.path.join(tempfile.gettempdir(), f"uefn_clip_{clean_name}.png")
     
     if not _extract_clipboard_png(tmp_path):

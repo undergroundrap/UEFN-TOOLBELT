@@ -1,6 +1,6 @@
 # UEFN Toolbelt — Tool Status & Testing
 
-UEFN Toolbelt contains 132+ tools across 27 modules. Because many tools actively modify the viewport, spawn actors, or depend on specific Content Browser selections, **the `integration_test.py` suite uses temporary fixtures to automate verification of context-dependent tools.**
+UEFN Toolbelt contains 138+ tools across 31 modules. Because many tools actively modify the viewport, spawn actors, or depend on specific Content Browser selections, **the `integration_test.py` suite uses temporary fixtures to automate verification of context-dependent tools.**
 
 ### ⚠️ Architectural Constraints
 *   **Main Thread Lock**: UEFN Python runs on the main render thread. Operations like `time.sleep` in wait loops will **deadlock** the engine, preventing async tasks (like screenshot saves) from completing. Verification logic should avoid blocking waits.
@@ -8,7 +8,7 @@ UEFN Toolbelt contains 132+ tools across 27 modules. Because many tools actively
 
 This document outlines the current testing status of the toolbelt and categorizes which tools are verified by the automated smoke test, and which require manual verification.
 
-## 🟢 Automated Verification Status: **132 / 132 Tools (100% Coverage)**
+## 🟢 Automated Verification Status: **138 / 138 Tools (100% Coverage)**
 Integration suite health is **100% stable (90/90 sections passed)**.
 
 ## 🟢 Layer 3 Execution Verified (Safe Tools)
@@ -198,6 +198,12 @@ The 100% target requires move coverage in these upcoming batches:
 - [x] **Native Importers**: `import_image_from_url`, `import_image_from_clipboard`
 - [x] **Procedural Geo**: `procedural_wire_create`, `procedural_volume_scatter`
 - [x] **Gen-Text Voxel**: `text_voxelize_3d`, `text_render_texture`
+
+### **Batch 14: Advanced Project Parsing (Target: 138 Tools - COMPLETE)**
+- [x] **Verse Intelligence**: `api_verse_get_schema`, `api_verse_refresh_schemas`
+- [x] **System Diagnostics**: `system_build_verse`, `system_get_last_build_log`
+- [x] **Safety Intelligence**: `core_safety_audit` (Native Protection Layer)
+- [x] **Milestone**: 138 Registered Tools
 
 > **Future potential:** In theory, an automated integration test could use the crawler data to generate validation scripts — spawn actors, apply tool operations, then verify properties changed. That level of automation isn't built yet, but the crawler output provides the schema needed to build it.
 

@@ -612,6 +612,12 @@ def _tab_assets(R) -> "QScrollArea":
     _btn(g3, "Auto-Fix LODs for Meshes Missing Them",
          lambda: R("memory_autofix_lods", scan_path="/Game"))
 
+    # Master API Sync (Phase 14+)
+    g_sync = _group(L, "API Documentation Sync")
+    _btn(g_sync, "MASTER SYNC: Level + Verse IQ",
+         lambda: R("api_sync_master"),
+         "One-click sync: Crawls live actors, parses Verse digests, and updates docs/DEVICE_API_MAP.md.")
+
     # Reference Auditor
     g4 = _group(L, "Reference Auditor")
     _btn(g4, "Full Reference Audit Report  (JSON)",
@@ -649,6 +655,20 @@ def _tab_verse(R) -> "QScrollArea":
          lambda: R("verse_list_devices"))
     _btn(g, "Export Device Report (JSON)",
          lambda: R("verse_export_report"))
+    
+    # Verse Intelligence (Phase 14)
+    g_intel = _group(L, "Verse & Build Intelligence")
+    _btn(g_intel, "Compile Verse & Scrape Errors",
+         lambda: R("system_build_verse"),
+         "Triggers a background UEFN build and returns formatted Verse errors (file/line).")
+    _btn(g_intel, "Refresh Class Schema (Digest)",
+         lambda: R("api_verse_refresh_schemas"),
+         "Scans all .digest.verse files to update the Toolbelt's internal Verse brain.")
+    
+    class_inp = _inp("trigger_device", width=200)
+    _btn_inp(g_intel, "Inspect Verse Class Schema",
+             lambda: R("api_verse_get_schema", class_name=class_inp.text()),
+             class_inp, tip="Shows properties and events for any Verse class via digest parsing.")
 
     prop_inp = _inp("property name", "bIsEnabled", width=160)
     val_inp  = _inp("value", "True", width=80)
