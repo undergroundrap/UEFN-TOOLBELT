@@ -1,5 +1,17 @@
 [
   {
+    "source_file": "api_capability_crawler.py",
+    "name": "api_crawl_selection",
+    "category": "API Explorer",
+    "description": "Reads the deeply nested exposed properties of the currently selected"
+  },
+  {
+    "source_file": "api_capability_crawler.py",
+    "name": "api_crawl_level_classes",
+    "category": "API Explorer",
+    "description": "Headlessly scans every actor in the map. Aggregates them by Class."
+  },
+  {
     "source_file": "api_explorer.py",
     "name": "api_search",
     "category": "API Explorer",
@@ -178,6 +190,12 @@
     "name": "scatter_export_manifest",
     "category": "Procedural",
     "description": "Exports a JSON manifest of every actor in the scatter folder."
+  },
+  {
+    "source_file": "integration_test.py",
+    "name": "toolbelt_integration_test",
+    "category": "Tests",
+    "description": "Run the full suite of integration tests."
   },
   {
     "source_file": "level_snapshot.py",
@@ -366,6 +384,18 @@
     "description": "Convenience wrapper: finds meshes with LOD count \u2264 1 and generates LODs."
   },
   {
+    "source_file": "plugin_manager.py",
+    "name": "plugin_validate_all",
+    "category": "Utilities",
+    "description": "Check all registered tools for schema and description requirements."
+  },
+  {
+    "source_file": "plugin_manager.py",
+    "name": "plugin_list_custom",
+    "category": "Utilities",
+    "description": "List tools that were loaded from the Saved/UEFN_Toolbelt/Custom_Plugins directory."
+  },
+  {
     "source_file": "project_scaffold.py",
     "name": "scaffold_list_templates",
     "category": "Project",
@@ -538,6 +568,12 @@
     "name": "organize_assets",
     "category": "Assets",
     "description": "Moves assets from source_path into target_base/Meshes, target_base/Materials,"
+  },
+  {
+    "source_file": "smart_organizer.py",
+    "name": "organize_smart_categorize",
+    "category": "Project",
+    "description": "Scans a folder path, detects the asset type, guesses a functional category using regex keywords on the asset name,"
   },
   {
     "source_file": "spline_prop_placer.py",

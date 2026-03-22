@@ -34,3 +34,4 @@ from . import screenshot_tools
 from . import plugin_manager
 from . import api_capability_crawler
 from . import mcp_bridge
+from . import smart_organizer

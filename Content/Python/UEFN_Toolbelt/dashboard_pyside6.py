@@ -254,10 +254,10 @@ def _tab_quick_actions(R) -> "QScrollArea":
              lambda: R("scaffold_generate", template=gen_combo.currentText(), project_name=gen_inp.text()), 
              gen_combo, gen_inp, tip="Scaffolds a perfectly organized Epic-standard folder hierarchy.")
     
-    org_inp = _inp("MyProject", "Project Name", width=120)
-    _btn_inp(g_org, "Organize Loose Assets in /Game", 
-             lambda: R("scaffold_organize_loose", project_name=org_inp.text(), dry_run=False), 
-             org_inp, tip="Moves unstructured loose assets into proper typed folders.")
+    org_inp = _inp("/Game", "Scan Path", width=120)
+    _btn_inp(g_org, "Smart Auto-Categorize Assets", 
+             lambda: R("organize_smart_categorize", scan_path=org_inp.text(), organized_root="/Game/Organized", dry_run=False), 
+             org_inp, tip="Scans a generic folder, detects classes, parses keywords from names, and intelligently sorts them into functional sub-categories (e.g. Meshes/Trees, Textures/Surface).")
 
     ren_inp = _inp("/Game", "Scan Path", width=120)
     _btn_inp(g_org, "Fix Asset Naming Conventions", 
