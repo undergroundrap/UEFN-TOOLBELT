@@ -1039,46 +1039,53 @@ You only need to do this once. PySide6 stays installed across projects.
 
 ---
 
-### Step 3 — Deploy the Toolbelt to your UEFN project
+### Step 3 — Install the Toolbelt into your UEFN project
 
-**The easy way — run the deploy script:**
+**First time — run the installer:**
 
-Double-click `deploy.bat` in the repo root (or run it from a terminal). It will:
-1. Find your Fortnite Projects folder automatically
-2. List your UEFN projects and ask which one to deploy to
-3. Copy all three required directories in one shot
-4. Check if PySide6 is installed and install it if not
-5. Print exactly what to paste in UEFN when it's done
+```bash
+python install.py
+```
+
+It will find your Fortnite Projects folder automatically, let you pick a project, copy the Toolbelt in, and handle `init_unreal.py` safely — whether you already have one or not.
+
+Or point it directly at a project:
+
+```bash
+python install.py --project "C:\Users\YOURNAME\Documents\Fortnite Projects\YOURPROJECT"
+```
+
+> **Updating after a `git pull`:** Re-run `python install.py` — it overwrites only the Toolbelt package, never your project's own files.
+
+---
+
+**If you're actively developing the Toolbelt itself — use `deploy.bat` instead:**
+
+`deploy.bat` is the dev workflow tool. Double-click it or run it from a terminal. In addition to copying files it will:
+- Check and install PySide6 automatically if it's missing
+- Copy the `tests/` folder and `verse-book/` spec alongside the package
+- Print the hot-reload command to paste into UEFN so you don't need a full restart
 
 ```bat
 deploy.bat
 ```
 
-![UEFN Toolbelt CLI Deployment](docs/cli_deploy_workflow.png)
+> **Hot-reload after any code change** (no UEFN restart needed):
+> ```python
+> import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
+> ```
 
-**The manual way** (if the script doesn't work):
+---
+
+**Manual install** (if neither script works):
 
 Your UEFN project lives at `C:\Users\YOURNAME\Documents\Fortnite Projects\YOURPROJECT\`.
-Run these three commands (replace `PATH_TO_REPO` and `YOURPROJECT` with real values):
 
 ```bat
 xcopy /E /I /Y "PATH_TO_REPO\Content\Python\UEFN_Toolbelt" "C:\Users\YOURNAME\Documents\Fortnite Projects\YOURPROJECT\Content\Python\UEFN_Toolbelt"
 ```
-```bat
-xcopy /Y "PATH_TO_REPO\init_unreal.py" "C:\Users\YOURNAME\Documents\Fortnite Projects\YOURPROJECT\Content\Python\"
-```
-```bat
-xcopy /E /I /Y "PATH_TO_REPO\tests" "C:\Users\YOURNAME\Documents\Fortnite Projects\YOURPROJECT\tests"
-```
 
-> **Note on `init_unreal.py`:** This file is a **generic submodule loader** — it is not part of the `UEFN_Toolbelt/` package and contains no Toolbelt-specific code. It simply scans `Content/Python/` for packages that expose a `register()` function and calls them.
->
-> - **No existing `init_unreal.py`?** Copy it as shown above — done.
-> - **Already have your own `init_unreal.py`?** Do **not** overwrite it. Instead, open `init_unreal.py` from this repo and copy only the package-discovery `for` loop (the section under `# ── 2. Discover and load all packages`) into your existing file. It is fully self-contained and won't conflict with anything already there.
-
----
-
-> **Updating after a `git pull`:** Just re-run `deploy.bat` and restart UEFN (or paste the reload line into the console). No other steps needed.
+Then copy `init_unreal.py` into `Content\Python\` — or if you already have one, paste only the package-discovery `for` loop from it into your existing file (under `# ── 2. Discover and load all packages`). It won't conflict with anything already there.
 
 ### Step 4 — Restart UEFN
 
