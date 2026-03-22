@@ -184,6 +184,30 @@ The complete chain is: `tool()` → `registry.execute()` → `_serialize(result)
 
 ---
 
+## 18. Mesh Reduction is Not Available in UEFN Python
+
+### The Problem
+Calling `StaticMeshEditorSubsystem.set_lods_with_notification()` from Python in UEFN causes an **`EXCEPTION_ACCESS_VIOLATION` crash at address `0x0`** — a C++ null-pointer dereference inside the mesh reduction pipeline. Python `try/except` cannot catch this. The editor closes immediately with no recovery.
+
+The root cause: UEFN's sandboxed Python environment does not load the mesh reduction plugin (Simplygon or UE's built-in Quadratic Error Metrics reducer). The `StaticMeshEditorSubsystem` is accessible and appears healthy, but its internal reduction interface pointer is null. Any call that reaches it crashes the engine.
+
+### What Is Safe
+- `mesh_sub.get_lod_count(mesh)` — safe, reads metadata only
+- `mesh.get_editor_property("body_setup")` — safe
+- `lod_audit_folder` — safe, read-only
+- `lod_set_collision_folder` — safe, sets a property flag only
+
+### What Crashes
+- `set_lods_with_notification()` — crashes unconditionally
+- Any call that invokes the mesh reduction / simplification pipeline
+
+### The Solution
+Auto-LOD generation must be done manually in the Static Mesh Editor (double-click mesh → LODs tab → Auto Generate), or in a full UE5 desktop editor session where the mesh reduction plugin is loaded. The Toolbelt's `lod_auto_generate_*` and `memory_autofix_lods` tools return a clear error message instead of crashing.
+
+If Epic exposes the mesh reduction pipeline in a future UEFN Python update, re-enable `_apply_lods` in `lod_tools.py`.
+
+---
+
 ## 17. `_serialize()` Swallows Unreal Objects Silently
 
 ### The Problem
