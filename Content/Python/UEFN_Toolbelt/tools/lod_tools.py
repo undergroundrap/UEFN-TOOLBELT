@@ -120,19 +120,24 @@ def _build_lod_options(num_lods: int, quality: float = 0.5) -> unreal.EditorScri
 
 
 def _apply_lods(mesh: unreal.StaticMesh, asset_path: str, num_lods: int, quality: float) -> bool:
-    """Apply auto-generated LODs to one mesh. Returns True on success."""
-    mesh_sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
-    if mesh_sub is None:
-        log_error("StaticMeshEditorSubsystem is not available in this UEFN build. LOD tools require it.")
-        return False
-    try:
-        options = _build_lod_options(num_lods, quality)
-        mesh_sub.set_lods_with_notification(mesh, options, True)
-        unreal.EditorAssetLibrary.save_asset(asset_path)
-        return True
-    except Exception as e:
-        log_warning(f"  LOD failed on {asset_path.split('/')[-1]}: {e}")
-        return False
+    """
+    Apply auto-generated LODs to one mesh. Returns True on success.
+
+    NOTE: set_lods_with_notification calls into the mesh reduction C++ pipeline
+    (Simplygon / built-in reducer). In UEFN's sandboxed Python environment this
+    plugin is not loaded — calling it causes an EXCEPTION_ACCESS_VIOLATION crash
+    at address 0x0 that Python cannot catch. This function is therefore disabled
+    in UEFN. Use lod_audit_folder to identify meshes that need LODs, then add
+    them manually via the Static Mesh Editor.
+    """
+    log_error(
+        "[LOD Tools] Auto-LOD generation is not available in UEFN's Python environment.\n"
+        "  The mesh reduction plugin (Simplygon / built-in reducer) is not loaded in UEFN,\n"
+        "  and calling it causes an engine crash (C++ null-pointer in reduction pipeline).\n"
+        "  Use lod_audit_folder to find meshes missing LODs, then add LODs manually\n"
+        "  in the Static Mesh Editor (double-click mesh → LODs tab → Auto Generate)."
+    )
+    return False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
