@@ -86,7 +86,7 @@ with open("path/to/script.py") as f:
 
 ## ⚠️ Automated Integration Testing
 
-The `toolbelt_integration_test` (143 tools verified) is **INVASIVE** by design. It programmatically spawns actors, modifies properties, and deletes assets to verify correctness.
+The `toolbelt_integration_test` (103/103 verified) is **INVASIVE** by design. It programmatically spawns actors, modifies properties, and deletes assets to verify correctness.
 
 > [!WARNING]
 > **DO NOT run the full integration test in a live production project.**
