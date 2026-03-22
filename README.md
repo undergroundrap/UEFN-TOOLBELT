@@ -2074,6 +2074,7 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 | File | What it covers |
 |:---|:---|
+| [docs/SCHEMA_DEEP_DIVE.md](docs/SCHEMA_DEEP_DIVE.md) | **Forensic schema analysis** — type taxonomy, inheritance evidence, enum full tables, network architecture, collision mask system, naming conventions, read-only vs writable |
 | [docs/DEVICE_API_MAP.md](docs/DEVICE_API_MAP.md) | All 14 C++ actor classes — property tables, enums, automation patterns, access cheatsheet |
 | [docs/FORTNITE_DEVICES.md](docs/FORTNITE_DEVICES.md) | Fortnite Creative devices — Trigger, Score Manager, Teleporter, Guard Spawner, channel wiring |
 | [docs/SCHEMA_EXPLORER.md](docs/SCHEMA_EXPLORER.md) | How the schema system works — three layers, tool manifest, AI integration |
