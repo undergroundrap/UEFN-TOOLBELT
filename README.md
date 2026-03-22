@@ -1,5 +1,5 @@
-# UEFN TOOLBELT (Phase 21: Complete AI Return Loop)
-**165 Professional Tools for UEFN Python Integration.**
+# UEFN TOOLBELT
+**168 Professional Tools for UEFN Python Integration.**
 
 > Built by **Ocean Bennett** — 2026
 
@@ -9,7 +9,9 @@ Automate the tedious, script the impossible, and bridge the gap between Python a
 UEFN Toolbelt is a master utility designed to leverage the **2026 UEFN Python 3.11 Update**,
 allowing creators to manipulate actors, manage assets, and generate boilerplate Verse code
 through a high-level, developer-friendly interface — all from a single persistent menu entry
-in the UEFN editor bar. Reached **165 Registered Tools** in Phase 20, with **complete AI-agent readiness** (100% structured dict returns) in Phase 21.
+in the UEFN editor bar. **168 registered tools** across 30 categories, complete AI-agent
+readiness (100% structured dict returns), and a unified theme system so every window in the
+platform looks and feels identical.
 
 ## 🤖 AI-Accelerated Development (One-Click Sync + Tool Manifest)
 Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect information** about your project's unique Verse devices and custom props:
@@ -41,6 +43,7 @@ Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect 
 - [CLAUDE.md — Instant AI Context](#claudemd--instant-ai-context)
 - [Why This Is the Best UEFN Python Tool](#why-this-is-the-best-uefn-python-tool)
 - [Documentation](#documentation)
+- [Quick-Reference Command Table](#quick-reference-command-table)
 - [Patch Notes](#patch-notes)
 - [Contributing](#contributing)
 - [Tool Requests](#tool-requests)
@@ -1834,24 +1837,29 @@ The UEFN Toolbelt includes a sophisticated integration test suite that validates
 
 ## 🏎️ Optimized Development Workflow (Hot Reload)
 
-You **never need to restart UEFN** when developing for the Toolbelt. 
+You **never need to restart UEFN** when developing for the Toolbelt.
 
-1.  **Edit** your Python code in your IDE.
-2.  **Run** the `deploy.bat` script to sync files to your project.
-3.  **Reload** in UEFN by pasting the "Nuclear Reload" command into the console.
-
-### **The "Nuclear Reload" Command**
-
-Paste this into the UEFN Python console to instantly refresh the Toolbelt without a restart:
-
-```python
-import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
-```
+1. **Edit** your Python code in your IDE.
+2. **Run** `deploy.bat` to sync files to your UEFN project.
+3. **Paste** the right command from the table below into the UEFN Python console.
 
 > [!WARNING]
-> You **must** include `tb.register_all_tools()` in the command. If you skip it, the Python environment will reload but the tool registry will be empty, resulting in "Unknown Tool" errors.
+> Always include `tb.register_all_tools()` after the module pop. If you skip it the registry will be empty and every tool call will fail with "Unknown Tool".
 
-This wipes the Python cache and re-imports every Toolbelt module instantly.
+### Quick-Reference Command Table
+
+Copy the command that matches what you're doing right now:
+
+| What you're working on | Command to paste in UEFN console |
+|---|---|
+| **Standard dev — open dashboard** | `import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()` |
+| **Verse Device Graph window** | `import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("verse_graph_open")` |
+| **Run integration tests** | `import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_integration_test")` |
+| **Quick smoke test only** | `import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_smoke_test")` |
+| **Sync docs + Verse IQ** | `import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("api_sync_master")` |
+| **Headless reload (no UI)** | `import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools()` |
+
+All of these also appear in `deploy.bat` output — after deploying, just copy from the terminal.
 
 ---
 
@@ -1910,7 +1918,7 @@ import UEFN_Toolbelt as tb; tb.run("mcp_start")
 `.mcp.json` is already in the repo root — Claude Code picks it up automatically on next launch.
 
 **What Claude can do:**
-- Run any of the 123 toolbelt tools by name (`run_toolbelt_tool`)
+- Run any of the 168 toolbelt tools by name (`run_toolbelt_tool`)
 - Spawn, move, delete actors; read selected actors live
 - List, rename, duplicate, import, delete Content Browser assets
 - Execute arbitrary Python inside UEFN with full `unreal.*` access
@@ -2068,20 +2076,16 @@ tb.run("toolbelt_integration_test")
 ## Development Workflow
 
 ### Hot-Reloading (No UEFN Restart Required)
-We've implemented a custom reloader that lets you pick up Python code changes instantly without closing UEFN.
-```python
-import UEFN_Toolbelt as tb
-tb.reload()  # Re-scans all tools, resets registry, and re-imports modules
-```
 
-#### **Troubleshooting / Hard Reset**
-If `tb.reload()` doesn't clear a specific Python `NameError` or caching issue, use this **Nuclear Reload** command in the UEFN console to completely wipe the Toolbelt from memory and re-import it fresh:
+Use the Nuclear Reload command — it completely wipes the Toolbelt from Python's module cache and re-imports everything fresh. See the **Quick-Reference Command Table** above for the full set of variants (dashboard, graph window, tests, etc.).
+
 ```python
+# Standard — reload everything and open the dashboard
 import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
 ```
 
 > [!TIP]
-> Use `tb.reload()` after editing any tool file or pulling latest changes from git to keep your session in sync.
+> `deploy.bat` prints the right command for your current task after each deploy — no memorisation needed.
 
 ---
 | Open source | **AGPL-3.0, full source** | Closed or single files |
@@ -2099,12 +2103,26 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 | [docs/FORTNITE_DEVICES.md](docs/FORTNITE_DEVICES.md) | Fortnite Creative devices — Trigger, Score Manager, Teleporter, Guard Spawner, channel wiring |
 | [docs/SCHEMA_EXPLORER.md](docs/SCHEMA_EXPLORER.md) | How the schema system works — three layers, tool manifest, AI integration |
 | [docs/UEFN_QUIRKS.md](docs/UEFN_QUIRKS.md) | 17 non-obvious UEFN Python behaviors — main thread lock, MCP return loop, ghost files |
-| [docs/plugin_dev_guide.md](docs/plugin_dev_guide.md) | Custom plugin development — skeleton, return contract, security model |
+| [docs/ui_style_guide.md](docs/ui_style_guide.md) | **UI Style Guide** — color palette, `ToolbeltWindow` API, widget recipes, canvas theming, AI agent rules. Read before writing any PySide6 UI. |
+| [docs/plugin_dev_guide.md](docs/plugin_dev_guide.md) | Custom plugin development — skeleton, return contract, security model, UI style requirements |
 | [docs/uefn_python_capabilities.md](docs/uefn_python_capabilities.md) | Full UEFN Python API surface — what's scriptable, what's read-only, what's stripped |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Full version history — every feature, fix, and refactor by release |
 
 ---
 
 ## Patch Notes
+
+### v1.5.1 — March 2026 (Theme System + ToolbeltWindow)
+
+**Why this matters:** As the platform grows — more tool windows, community plugins, AI-generated features — the only way to keep everything looking professional is to make consistency *structural*, not just documented. This release does that.
+
+- **`core/theme.py`** (new): `PALETTE` dict is the single source of truth for every color in the platform. `QSS` is built dynamically from `PALETTE` — edit one hex value and the dashboard, every tool window, and every plugin updates automatically on next reload. No more hunting across files.
+- **`core/base_window.py`** (new): `ToolbeltWindow(QMainWindow)` base class. Subclass instead of `QMainWindow` directly to get: theme applied automatically, Slate tick driver via `show_in_uefn()` (required in UEFN or windows are invisible), `self.P` palette dict, `self.hex(token)`, and factory helpers for every standard widget type (`make_topbar`, `make_btn`, `make_label`, `make_divider`, `make_text_area`, `make_hbar`, `set_hbar_value`, `make_scroll_panel`). What used to be ~45 lines of boilerplate per window is now 3 lines.
+- **`dashboard_pyside6.py`**: `_QSS` now sourced from `core/theme.py` instead of defined inline. Backward-compatible.
+- **`verse_device_graph.py`**: Refactored to use `ToolbeltWindow`. ~40 lines of manual boilerplate removed.
+- **`docs/ui_style_guide.md`**: Fully rewritten — documents the new architecture, full `ToolbeltWindow` API, canvas/QGraphicsScene theming, semantic color table, and a dedicated AI agent rules section.
+- **`docs/CHANGELOG.md`** (new): Full version history.
+- **Hot-reload command table** added to README and `deploy.bat` — one command per dev task, always at hand.
 
 ### v1.5 — March 2026 (Verse Device Graph + Config Persistence)
 
