@@ -1,5 +1,5 @@
-# UEFN TOOLBELT (Phase 19: Simulation & Sequences)
-**160+ Professional Tools for UEFN Python Integration.**
+# UEFN TOOLBELT (Phase 20: AI-Agent Readiness)
+**161+ Professional Tools for UEFN Python Integration.**
 
 > Built by **Ocean Bennett** — 2026
 
@@ -9,14 +9,15 @@ Automate the tedious, script the impossible, and bridge the gap between Python a
 UEFN Toolbelt is a master utility designed to leverage the **2026 UEFN Python 3.11 Update**,
 allowing creators to manipulate actors, manage assets, and generate boilerplate Verse code
 through a high-level, developer-friendly interface — all from a single persistent menu entry
-in the UEFN editor bar. Reached **160 Registered Tools** in Phase 19.
+in the UEFN editor bar. Reached **161 Registered Tools** in Phase 20.
 
-## 🤖 AI-Accelerated Development (One-Click Sync)
+## 🤖 AI-Accelerated Development (One-Click Sync + Tool Manifest)
 Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect information** about your project's unique Verse devices and custom props:
 
 1.  **Open Dashboard**: Run `tb.launch_qt()` or use the `Toolbelt` menu.
 2.  **One-Click Sync**: Click the **"Sync Level Schema to AI"** button in **Quick Actions**.
 3.  **Instant Content**: The 1.6MB schema is automatically copied to your `docs/` folder. Your AI now knows every hidden property in your specific level.
+4.  **Export Tool Manifest**: Run `tb.run("plugin_export_manifest")` to write `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of all 161 tools with their parameter signatures, types, defaults, and categories. An AI agent can load this file and immediately know what every tool does and how to call it, without reading source code.
 
 ---
 
@@ -178,7 +179,8 @@ UEFN TOOLBELT ─── UEFN_Toolbelt/__init__.py   (launch, run, registry acces
     │                     with_progress, color_from_hex, spawn_static_mesh_actor, …
     │
     ├── registry.py       ToolRegistry singleton — @register_tool decorator,
-    │                     execute-by-name, category listing, tag search
+    │                     execute-by-name, category listing, tag search,
+    │                     to_manifest() for full parameter-introspected export
     │
     └── tools/
         ├── material_master.py        17 presets, gradient, harmony, team split, save/load
@@ -1982,8 +1984,8 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 | Ecosystem Moat | **Rich Plugin Hub, automatic UI generation** | Scattered, undocumented gists |
 | Security Model | **4-Gate Audit (AST scanning, SHA-256)** | Blind execution of untrusted code |
 | Verification | **Automated Integration Test Suite** | Manual testing only |
-| Tool count | **143 tools, 31 modules** | Single-purpose scripts |
-| AI integration | **Full MCP bridge + model-agnostic HTTP client** | None |
+| Tool count | **161 tools, 31 modules** | Single-purpose scripts |
+| AI integration | **Full MCP bridge + model-agnostic HTTP client + tool manifest** | None |
 | Local model support | **LM Studio, Ollama, any HTTP agent** | None |
 | Verse code gen | **Live spec-backed (27K line reference)** | Static templates |
 | Dashboard | **Sidebar nav, Plugin Hub, 13 pages, dark theme** | Blueprint widgets or none |
@@ -1997,7 +1999,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 The UEFN Toolbelt includes a professional-grade testing suite to ensure stability across UEFN updates.
 
 ### 1. Smoke Test (Healthy Schema Check)
-Verifies all 31 modules are loaded, all 143 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
+Verifies all 31 modules are loaded, all 161 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
 ```python
 import UEFN_Toolbelt as tb
 tb.run("toolbelt_smoke_test")
@@ -2039,6 +2041,16 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 ---
 
 ## Patch Notes
+
+### v1.2 — March 2026 (Phase 20: AI-Agent Readiness)
+
+- **161 tools** across 30 categories
+- **Tool Manifest Export** (`plugin_export_manifest`): Writes `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of every registered tool with its full parameter signature (name, type, required/optional, default). Any AI agent or automation script can load this file and know how to call every tool without reading source code. This is the key artifact for full AI-driven UEFN workflows.
+- **Structured Returns Everywhere**: 25+ tools across `verse_device_editor`, `level_snapshot`, `selection_utils`, `asset_tagger`, and `screenshot_tools` now return `{"status", "count", "data"}` dicts instead of `None`. MCP callers (Claude Code, `client.py`, scripts) can now read results programmatically — no log parsing required.
+- **Schema-Driven Property Discovery** (`schema_utils.discover_properties`): `verse_device_editor`'s property reader now queries the reference schema for each actor's class before falling back to a hardcoded list. It reads whatever properties the schema actually defines for that class, making it correct-by-construction rather than hardcoded.
+- **Registry `to_manifest()`**: New method on `ToolRegistry` that introspects every function's signature via `inspect.signature()` — captures param names, type annotations, required/optional status, and defaults. Powers `plugin_export_manifest` and exposes the full tool catalog programmatically.
+- **`schema_utils` expansion**: Added `list_classes()` (all schema class names) and `discover_properties(class_name)` (schema property dict for a class) — two new helper functions that replace hardcoded property lists with live schema lookups.
+- **Full MCP Return Loop**: The complete chain is verified: tool returns dict → `registry.execute()` → `_serialize(result)` → JSON in MCP response → readable by Claude Code. Every structured return flows end-to-end.
 
 ### v1.1 — March 2026 (Phase 19: Simulation & Sequences)
 
