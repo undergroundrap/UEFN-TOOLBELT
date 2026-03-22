@@ -514,7 +514,7 @@ def snapshot_delete(name: str = "", **kwargs) -> dict:
     icon="📤",
     tags=["snapshot", "export", "share"],
 )
-def snapshot_export(name: str = "", export_path: str = "", **kwargs) -> None:
+def snapshot_export(name: str = "", export_path: str = "", **kwargs) -> dict:
     """
     Export a snapshot to any file path (for sharing with other creators).
 
@@ -525,12 +525,12 @@ def snapshot_export(name: str = "", export_path: str = "", **kwargs) -> None:
     """
     if not name:
         unreal.log_warning("[Snapshot] Provide a snapshot name to export.")
-        return
+        return {"status": "error", "message": "No snapshot name provided."}
 
     src = _snap_path(name)
     if not os.path.exists(src):
         unreal.log_warning(f"[Snapshot] Snapshot '{name}' not found.")
-        return
+        return {"status": "error", "message": f"Snapshot '{name}' not found."}
 
     if not export_path:
         export_path = os.path.join(_SAVED, f"{name}_export.json")
@@ -538,6 +538,7 @@ def snapshot_export(name: str = "", export_path: str = "", **kwargs) -> None:
     import shutil
     shutil.copy2(src, export_path)
     unreal.log(f"[Snapshot] ✓ Exported '{name}' → {export_path}")
+    return {"status": "ok", "name": name, "path": export_path}
 
 
 @register_tool(
@@ -547,7 +548,7 @@ def snapshot_export(name: str = "", export_path: str = "", **kwargs) -> None:
     icon="📥",
     tags=["snapshot", "import", "share"],
 )
-def snapshot_import(import_path: str = "", name: str = "", **kwargs) -> None:
+def snapshot_import(import_path: str = "", name: str = "", **kwargs) -> dict:
     """
     Import a snapshot JSON from any file path.
 
@@ -558,7 +559,7 @@ def snapshot_import(import_path: str = "", name: str = "", **kwargs) -> None:
     """
     if not import_path or not os.path.exists(import_path):
         unreal.log_warning(f"[Snapshot] File not found: '{import_path}'")
-        return
+        return {"status": "error", "message": f"File not found: '{import_path}'"}
 
     with open(import_path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -573,6 +574,7 @@ def snapshot_import(import_path: str = "", name: str = "", **kwargs) -> None:
         f"[Snapshot] ✓ Imported '{snap_name}' "
         f"({data.get('actor_count', '?')} actors) → {dest}"
     )
+    return {"status": "ok", "name": snap_name, "actor_count": data.get("actor_count", 0), "path": dest}
 
 
 @register_tool(

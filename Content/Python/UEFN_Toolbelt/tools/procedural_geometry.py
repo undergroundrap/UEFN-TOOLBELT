@@ -58,7 +58,7 @@ def run_procedural_wire_create(
     selected = actor_sub.get_selected_level_actors()
     if len(selected) != 2:
         log_error("You must have exactly 2 actors selected in the Viewport to draw a wire between them.")
-        return {"error": "Requires 2 selected actors"}
+        return {"status": "error", "message": "Requires exactly 2 selected actors."}
 
     p0 = selected[0].get_actor_location()
     p2 = selected[1].get_actor_location()
@@ -66,7 +66,7 @@ def run_procedural_wire_create(
     mesh_obj = unreal.load_asset(mesh_path)
     if not mesh_obj or not isinstance(mesh_obj, unreal.StaticMesh):
         log_error(f"Fallback geometry mesh not found: {mesh_path}")
-        return {"error": "Invalid mesh shape"}
+        return {"status": "error", "message": f"Mesh not found: {mesh_path}"}
 
     bounds = mesh_obj.get_bounds().box_extent.x * 2.0
     if bounds <= 0.01: bounds = 1.0
@@ -96,7 +96,7 @@ def run_procedural_wire_create(
                     spawned.append(a)
                     
     log_info(f"Successfully drew a wire using {len(spawned)} procedural cylinders.")
-    return {"status": "success", "segments_created": len(spawned)}
+    return {"status": "ok", "segments_created": len(spawned)}
 
 
 @register_tool(
@@ -115,11 +115,13 @@ def run_procedural_volume_scatter(
     **kwargs
 ) -> dict:
     if count <= 0 or radius <= 0:
-        return {"error": "Invalid spawn limits"}
-        
+        log_error("count and radius must both be greater than 0.")
+        return {"status": "error", "message": "Invalid spawn limits: count and radius must be > 0."}
+
     asset_obj = unreal.load_asset(asset_path)
     if not asset_obj:
-        return {"error": f"Asset not found: {asset_path}"}
+        log_error(f"Asset not found: {asset_path}")
+        return {"status": "error", "message": f"Asset not found: {asset_path}"}
         
     # Attempt to center around currently selected actor, otherwise absolute zero
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -156,4 +158,4 @@ def run_procedural_volume_scatter(
                     spawned += 1
                     
     log_info(f"Successfully scattered {spawned} meshes into the {shape} volume.")
-    return {"status": "success", "count": spawned}
+    return {"status": "ok", "count": spawned}
