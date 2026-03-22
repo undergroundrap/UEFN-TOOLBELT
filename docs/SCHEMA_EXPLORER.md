@@ -167,7 +167,7 @@ The complete chain is verified end-to-end:
 
 ## 🎯 Phase 21 — 100% AI-Agent Return Loop (COMPLETE)
 
-All 168 registered tools now return `{"status": "ok"/"error", ...data}` structured dicts.
+All 171 registered tools now return `{"status": "ok"/"error", ...data}` structured dicts.
 Zero `None` returns. Zero raw `unreal.*` object returns. 103/103 integration tests passing.
 
 ### What This Unlocks

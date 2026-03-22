@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from ..core import log_info, log_warning, log_error, get_config
 from ..core.config import DEFAULTS
+from ..core import theme as _theme
 from ..registry import register_tool
 
 
@@ -166,3 +167,67 @@ def run_config_reset(key: str = "", **kwargs) -> dict:
     default_val = DEFAULTS[key]
     log_info(f"  Config reset: {key} → {default_val!r}  ({'was custom' if was_custom else 'was already default'})")
     return {"status": "ok", "key": key, "default_value": default_val, "was_custom": was_custom}
+
+
+# ── Theme tools ────────────────────────────────────────────────────────────────
+
+@register_tool(
+    name="theme_list",
+    category="Utilities",
+    description="List all available Toolbelt UI themes.",
+    tags=["theme", "appearance", "ui"],
+)
+def run_theme_list(**kwargs) -> dict:
+    """
+    Returns:
+        dict: {"status", "themes": [str], "current": str}
+    """
+    themes = _theme.list_themes()
+    current = _theme.get_current_theme()
+    log_info(f"  Available themes: {themes}  |  Active: {current}")
+    return {"status": "ok", "themes": themes, "current": current}
+
+
+@register_tool(
+    name="theme_set",
+    category="Utilities",
+    description="Switch the Toolbelt UI theme. Applies live to all open windows and persists across restarts.",
+    tags=["theme", "appearance", "ui", "set"],
+)
+def run_theme_set(name: str = "", **kwargs) -> dict:
+    """
+    Args:
+        name: Theme name. Run theme_list to see available options.
+
+    Returns:
+        dict: {"status", "theme", "previous"}
+    """
+    if not name:
+        return {"status": "error", "message": "Provide a theme name. Run theme_list to see options."}
+
+    available = _theme.list_themes()
+    if name not in available:
+        log_warning(f"theme_set: '{name}' is not a known theme. Available: {available}")
+        return {"status": "error", "message": f"Unknown theme '{name}'. Available: {available}"}
+
+    previous = _theme.get_current_theme()
+    _theme.set_theme(name)
+    get_config().set("ui.theme", name)
+    log_info(f"  Theme changed: {previous} → {name}")
+    return {"status": "ok", "theme": name, "previous": previous}
+
+
+@register_tool(
+    name="theme_get",
+    category="Utilities",
+    description="Get the name of the currently active Toolbelt UI theme.",
+    tags=["theme", "appearance", "ui", "get"],
+)
+def run_theme_get(**kwargs) -> dict:
+    """
+    Returns:
+        dict: {"status", "theme": str, "palette": dict}
+    """
+    current = _theme.get_current_theme()
+    log_info(f"  Active theme: {current}")
+    return {"status": "ok", "theme": current, "palette": dict(_theme.PALETTE)}

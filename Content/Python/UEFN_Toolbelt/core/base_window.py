@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from typing import Callable, Optional, Tuple
 
-from .theme import PALETTE, QSS
+from .theme import PALETTE, QSS, subscribe, unsubscribe
 
 # ── PySide6 availability guard ────────────────────────────────────────────────
 
@@ -85,11 +85,23 @@ if _PYSIDE6:
             # Slate tick handle — populated by show_in_uefn()
             self._slate_tick_handle: list = [None]
 
+            # Subscribe to live theme changes
+            subscribe(self._apply_theme)
+
         # ── Palette helpers ───────────────────────────────────────────────────
 
         def hex(self, token: str) -> str:
             """Return the hex string for a palette token."""
             return PALETTE.get(token, token)
+
+        def _apply_theme(self, qss: str) -> None:
+            """Called by the theme system when the active theme changes."""
+            self.setStyleSheet(qss)
+            self.P = {k: QColor(v) for k, v in PALETTE.items()}
+
+        def closeEvent(self, event) -> None:
+            unsubscribe(self._apply_theme)
+            super().closeEvent(event)
 
         # ── Slate integration ─────────────────────────────────────────────────
 

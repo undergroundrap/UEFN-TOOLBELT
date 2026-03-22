@@ -3,28 +3,26 @@ UEFN Toolbelt — Theme
 ======================
 Single source of truth for all UI colors and QSS styling.
 
-To change the entire platform's look: edit PALETTE below.
-Everything — the dashboard, every tool window, every plugin — pulls from
-here at runtime. No other file should hard-code hex color values.
+To change one color everywhere: edit PALETTE or call set_theme().
+To add a new theme: add an entry to THEMES below — nothing else needed.
 
 Usage:
-    from ..core.theme import PALETTE, QSS, color
+    from ..core.theme import PALETTE, QSS, color, set_theme, list_themes
 
-    hex_str = color("accent")          # "#3A3AFF"
-    qss     = QSS                      # full stylesheet string
-
-For QColor usage (after PySide6 is confirmed available):
-    from ..core.theme import qcolors
-    P = qcolors()                      # dict[str, QColor]
+    set_theme("ocean")              # applies live to all open windows
+    hex_str = color("accent")       # "#3A3AFF"
+    QColor palette usage:
+        from ..core.theme import PALETTE
+        _P = {k: QColor(v) for k, v in PALETTE.items()}
 """
 
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, List
 
 # ── Color Palette ──────────────────────────────────────────────────────────────
-# THIS is the single place to change colors for the entire platform.
-# Tokens map to semantic roles — use the token name, never raw hex, in tool code.
+# This dict reflects the ACTIVE theme. set_theme() updates it in-place.
+# Always read from PALETTE — never hard-code a hex value elsewhere.
 
 PALETTE: Dict[str, str] = {
     "bg":      "#181818",   # window / root background
@@ -43,27 +41,194 @@ PALETTE: Dict[str, str] = {
     "topbar":  "#111111",   # top bar / status bar background
 }
 
+# ── Theme Library ──────────────────────────────────────────────────────────────
+# Each theme is a full PALETTE override dict.
+# Add a new theme: copy an existing entry and change the values.
+
+THEMES: Dict[str, Dict[str, str]] = {
+
+    "toolbelt_dark": {  # ← Default
+        "bg":      "#181818",
+        "panel":   "#212121",
+        "card":    "#1E1E1E",
+        "border":  "#2A2A2A",
+        "border2": "#363636",
+        "text":    "#CCCCCC",
+        "muted":   "#555555",
+        "accent":  "#3A3AFF",
+        "brand":   "#e94560",
+        "warn":    "#f1c40f",
+        "error":   "#FF4444",
+        "ok":      "#44FF88",
+        "grid":    "#1A1A1A",
+        "topbar":  "#111111",
+    },
+
+    "midnight": {  # GitHub dark — deep navy black
+        "bg":      "#0D1117",
+        "panel":   "#161B22",
+        "card":    "#13181F",
+        "border":  "#21262D",
+        "border2": "#30363D",
+        "text":    "#E6EDF3",
+        "muted":   "#8B949E",
+        "accent":  "#58A6FF",
+        "brand":   "#F78166",
+        "warn":    "#D29922",
+        "error":   "#F85149",
+        "ok":      "#3FB950",
+        "grid":    "#090D12",
+        "topbar":  "#090D12",
+    },
+
+    "ocean": {  # Deep ocean blue — Ocean Bennett's personal palette
+        "bg":      "#0A1628",
+        "panel":   "#0F1F38",
+        "card":    "#0C1930",
+        "border":  "#1A3050",
+        "border2": "#1E4070",
+        "text":    "#B8D4F0",
+        "muted":   "#4A7A9B",
+        "accent":  "#00BFFF",
+        "brand":   "#00E5FF",
+        "warn":    "#FFB347",
+        "error":   "#FF4466",
+        "ok":      "#00FF88",
+        "grid":    "#081220",
+        "topbar":  "#060E1A",
+    },
+
+    "nord": {  # Arctic, north-blue — popular Nord scheme
+        "bg":      "#2E3440",
+        "panel":   "#3B4252",
+        "card":    "#343A47",
+        "border":  "#434C5E",
+        "border2": "#4C566A",
+        "text":    "#ECEFF4",
+        "muted":   "#7B88A1",
+        "accent":  "#88C0D0",
+        "brand":   "#BF616A",
+        "warn":    "#EBCB8B",
+        "error":   "#BF616A",
+        "ok":      "#A3BE8C",
+        "grid":    "#272C38",
+        "topbar":  "#252B36",
+    },
+
+    "forest": {  # Dark green — natural, focused
+        "bg":      "#0F1B12",
+        "panel":   "#162018",
+        "card":    "#121A14",
+        "border":  "#1E3020",
+        "border2": "#2A4A2C",
+        "text":    "#C8E8C8",
+        "muted":   "#4A7A4A",
+        "accent":  "#4CAF7D",
+        "brand":   "#FF6644",
+        "warn":    "#F0C040",
+        "error":   "#FF4444",
+        "ok":      "#66DD44",
+        "grid":    "#0C1610",
+        "topbar":  "#0A120C",
+    },
+
+    "daylight": {  # Light — for bright monitors and accessibility
+        "bg":      "#F5F5F5",
+        "panel":   "#FFFFFF",
+        "card":    "#EFEFEF",
+        "border":  "#DDDDDD",
+        "border2": "#CCCCCC",
+        "text":    "#1A1A2A",
+        "muted":   "#888888",
+        "accent":  "#2255CC",
+        "brand":   "#CC1A3A",
+        "warn":    "#B87800",
+        "error":   "#CC2222",
+        "ok":      "#1A8822",
+        "grid":    "#E8E8E8",
+        "topbar":  "#E0E0E0",
+    },
+}
+
+# ── Active theme ───────────────────────────────────────────────────────────────
+
+_active_theme: str = "toolbelt_dark"
+
 
 def color(token: str) -> str:
-    """Return hex string for a palette token. Returns the token itself if not found."""
+    """Return the hex string for a palette token."""
     return PALETTE.get(token, token)
 
 
-def qcolors() -> Dict[str, object]:
-    """
-    Return a dict of token -> QColor.
-    Only call after PySide6 is confirmed available.
-    """
+def get_current_theme() -> str:
+    """Return the name of the currently active theme."""
+    return _active_theme
+
+
+def list_themes() -> List[str]:
+    """Return all available theme names."""
+    return list(THEMES.keys())
+
+
+# ── Subscriber system ──────────────────────────────────────────────────────────
+# Windows subscribe to receive the new QSS string whenever set_theme() is called.
+# theme.py never imports from any other Toolbelt module — no circular imports.
+
+_listeners: list = []
+
+
+def subscribe(fn) -> None:
+    """Register a callable(qss: str) to be notified on theme changes."""
+    if fn not in _listeners:
+        _listeners.append(fn)
+
+
+def unsubscribe(fn) -> None:
+    """Remove a previously registered listener."""
     try:
-        from PySide6.QtGui import QColor  # type: ignore[import]
-        return {k: QColor(v) for k, v in PALETTE.items()}
-    except ImportError:
-        return {}
+        _listeners.remove(fn)
+    except ValueError:
+        pass
 
 
-# ── QSS ────────────────────────────────────────────────────────────────────────
-# Built dynamically from PALETTE — changing a color above updates the stylesheet
-# automatically on next import / reload.
+def _notify(qss: str) -> None:
+    dead = []
+    for fn in _listeners:
+        try:
+            fn(qss)
+        except RuntimeError:   # Qt C++ object deleted without unsubscribing
+            dead.append(fn)
+        except Exception:
+            pass
+    for fn in dead:
+        unsubscribe(fn)
+
+
+# ── set_theme ──────────────────────────────────────────────────────────────────
+
+def set_theme(name: str) -> bool:
+    """
+    Switch to a named theme. Updates PALETTE in-place, rebuilds QSS,
+    and notifies all subscribed windows so they re-apply the stylesheet live.
+
+    Returns True on success, False if name is not in THEMES.
+    Falls back to 'toolbelt_dark' if name is unknown.
+    """
+    global QSS, _active_theme
+
+    if name not in THEMES:
+        name = "toolbelt_dark"   # silent fallback
+
+    theme_data = THEMES[name]
+    PALETTE.update(theme_data)
+    QSS = _build_qss()
+    _active_theme = name
+    _notify(QSS)
+    return name in THEMES
+
+
+# ── QSS builder ────────────────────────────────────────────────────────────────
+# Built from PALETTE so a theme swap automatically produces the right stylesheet.
 
 def _build_qss() -> str:
     p = PALETTE

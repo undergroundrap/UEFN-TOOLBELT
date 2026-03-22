@@ -5,6 +5,14 @@ Interactive force-directed node graph of every Creative/Verse device in the
 current level. Shows wiring, broken links, orphans, and an Architecture Health
 Score (0–100) so you know at a glance how well-connected your island logic is.
 
+ATTRIBUTION:
+  Concept and inspiration: ImmatureGamer's uefn-device-graph (tkinter)
+    GitHub: https://github.com/ImmatureGamer/uefn-device-graph
+    Twitter/X: https://x.com/ImmatureGamer
+  This Toolbelt implementation is an independent rewrite using PySide6 /
+  QGraphicsScene, integrated into the Toolbelt theme + config + MCP stack.
+  Full credit goes to ImmatureGamer for pioneering UEFN device graph tooling.
+
 WHAT MAKES THIS DIFFERENT:
   • Force-directed layout (Fruchterman-Reingold, animated at 60fps) — nodes
     self-organize by connection topology, not a static circle.

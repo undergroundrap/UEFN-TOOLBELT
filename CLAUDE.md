@@ -9,7 +9,7 @@
 ## What This Project Is
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
-It runs inside the editor and exposes 168 tools through:
+It runs inside the editor and exposes 171 tools through:
 - A persistent top-menu entry (`Toolbelt ▾`) in the UEFN editor bar
 - An 18-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
 - An MCP HTTP bridge so Claude Code can control UEFN directly
@@ -51,7 +51,7 @@ This file contains every registered tool with its full Python parameter signatur
   }
 }
 ```
-All 168 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
+All 171 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
 
 **Schema utility functions** (`schema_utils.py`):
 - `schema_utils.validate_property(class_name, prop)` — check if a property exists and is writable
@@ -114,7 +114,7 @@ Then restart Claude Code — it connects automatically.
 
 ### What Claude Code can now do
 
-- Run any of the 168 registered tools by name
+- Run any of the 171 registered tools by name
 - Spawn, move, delete actors
 - List/rename/import/tag assets
 - Take screenshots, save level snapshots
@@ -561,7 +561,7 @@ tb.run("config_reset", key="all")   # wipe all customisations
 |---|---|---|
 | `plugin_validate_all` | — | Validate all registered tools against schema |
 | `plugin_list_custom` | — | List all loaded third-party tools from `Saved/UEFN_Toolbelt/Custom_Plugins` |
-| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 168 tools with full parameter signatures (name, type, required, default) for AI-agent and automation use |
+| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 171 tools with full parameter signatures (name, type, required, default) for AI-agent and automation use |
 
 ---
 
@@ -584,7 +584,7 @@ When the listener is running, Claude Code can call these directly:
 |---|---|---|
 | `ping` | — | Health check + command list |
 | `execute_python` | `code` | Run Python in UEFN (pre-populated: `unreal`, `actor_sub`, `asset_sub`, `level_sub`, `tb`) |
-| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 168 registered tools |
+| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 171 registered tools |
 | `list_tools` | `category=""` | List all registered tools |
 | `batch_exec` | `commands=[{command, params}]` | Multiple commands in one tick |
 | `undo` | — | Undo last action |

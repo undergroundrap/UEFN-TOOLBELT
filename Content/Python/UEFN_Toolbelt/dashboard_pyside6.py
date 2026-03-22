@@ -62,6 +62,8 @@ from UEFN_Toolbelt.registry import register_tool
 # To change colors platform-wide, edit core/theme.PALETTE. Do not hard-code hex here.
 
 from .core.theme import QSS as _QSS  # noqa: E402 — after sys/unreal imports
+from .core import theme as _theme_mod
+from .core.config import get_config as _get_config
 
 # ─── Widget helpers ───────────────────────────────────────────────────────────
 
@@ -1536,6 +1538,118 @@ def _tab_sequencer(_R=None) -> "QScrollArea":
 
 _REPO_URL = "https://github.com/undergroundrap/UEFN-TOOLBELT"
 
+def _tab_appearance(_R=None) -> "QScrollArea":
+    scroll, L = _page()
+
+    hero = QLabel("Appearance")
+    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    L.addWidget(hero)
+
+    desc = QLabel("Switch the color theme. Changes apply live to all open windows and persist across restarts.")
+    desc.setStyleSheet("font-size: 12px; color: #AAAAAA; padding-bottom: 12px;")
+    desc.setWordWrap(True)
+    L.addWidget(desc)
+
+    g = _group(L, "Color Themes")
+
+    # Grid: 2 columns of theme swatch buttons
+    grid_widget = QWidget()
+    grid = QGridLayout(grid_widget)
+    grid.setSpacing(8)
+    grid.setContentsMargins(0, 0, 0, 0)
+
+    swatch_btns: dict = {}
+
+    def _make_swatch(name: str, t: dict) -> "QPushButton":
+        display = name.replace("_", " ").title()
+        btn = QPushButton(display)
+        btn.setFixedHeight(68)
+        btn.setStyleSheet(
+            f"QPushButton {{ background: {t['bg']}; color: {t['text']}; "
+            f"border: 1px solid {t['border2']}; border-radius: 6px; "
+            f"font-size: 11px; font-weight: bold; }}"
+            f"QPushButton:hover {{ border: 2px solid #FFFFFF; }}"
+        )
+
+        # Colour strip — drawn as a sub-label showing bg + accent + brand
+        strip_html = (
+            f"<span style='color:{t['accent']}'>■</span> "
+            f"<span style='color:{t['brand']}'>■</span> "
+            f"<span style='color:{t['ok']}'>■</span> "
+            f"<span style='color:{t['muted']}'>■</span>"
+        )
+        # Embed the strip into the button as a tooltip + second line via newline trick
+        btn.setToolTip(
+            f"<b>{display}</b><br>"
+            f"Background: {t['bg']}  Accent: {t['accent']}<br>"
+            f"Brand: {t['brand']}  Text: {t['text']}"
+        )
+
+        def _apply(_, n=name):
+            if _R:
+                _R("theme_set", name=n)
+            else:
+                _theme_mod.set_theme(n)
+                try:
+                    _get_config().set("ui.theme", n)
+                except Exception:
+                    pass
+
+        btn.clicked.connect(_apply)
+        return btn
+
+    themes = _theme_mod.THEMES
+    names = list(themes.keys())
+    for i, name in enumerate(names):
+        btn = _make_swatch(name, themes[name])
+        swatch_btns[name] = btn
+        grid.addWidget(btn, i // 2, i % 2)
+
+    g.addWidget(grid_widget)
+
+    # Active-theme indicator — updates live when theme changes
+    active_lbl = QLabel()
+    active_lbl.setStyleSheet("font-size: 11px; color: #555555; padding-top: 6px;")
+    g.addWidget(active_lbl)
+
+    def _update_swatches(new_qss: str = None) -> None:
+        current = _theme_mod.get_current_theme()
+        active_lbl.setText(f"Active: {current.replace('_', ' ').title()}")
+        for n, btn in swatch_btns.items():
+            t = _theme_mod.THEMES.get(n, _theme_mod.THEMES["toolbelt_dark"])
+            active = n == current
+            border_w = "3px" if active else "1px"
+            border_col = "#FFFFFF" if active else t["border2"]
+            prefix = "✓ " if active else ""
+            display = prefix + n.replace("_", " ").title()
+            btn.setText(display)
+            btn.setStyleSheet(
+                f"QPushButton {{ background: {t['bg']}; color: {t['text']}; "
+                f"border: {border_w} solid {border_col}; border-radius: 6px; "
+                f"font-size: 11px; font-weight: bold; }}"
+                f"QPushButton:hover {{ border: 2px solid #FFFFFF; }}"
+            )
+
+    _theme_mod.subscribe(_update_swatches)
+    scroll.destroyed.connect(lambda: _theme_mod.unsubscribe(_update_swatches))
+    _update_swatches()  # set initial state
+
+    _sep(L)
+
+    # MCP / console usage
+    g2 = _group(L, "Apply a Theme via Console or MCP")
+    for name in names:
+        tip_lbl = QLabel(f'tb.run("theme_set", name="{name}")')
+        tip_lbl.setStyleSheet(
+            "font-family: monospace; font-size: 10px; color: #AAAAFF;"
+            " background: #12121A; border: 1px solid #2A2A55;"
+            " border-radius: 3px; padding: 4px 8px;"
+        )
+        g2.addWidget(tip_lbl)
+
+    return scroll
+
+
 def _tab_about(_R=None) -> "QScrollArea":
     scroll, L = _page()
 
@@ -1740,6 +1854,29 @@ def _tab_about(_R=None) -> "QScrollArea":
     community.setWordWrap(True)
     g_com.addWidget(community)
 
+    # ── Attributions ──────────────────────────────────────────────────────────
+    g_attr = _group(L, "Attributions & Inspirations")
+
+    attr_body = QLabel(
+        "Verse Device Graph — concept inspired by ImmatureGamer's uefn-device-graph (tkinter).\n"
+        "This Toolbelt implementation is an independent PySide6 rewrite built into the\n"
+        "Toolbelt theme + config + MCP stack. Full credit for the original idea goes to:"
+    )
+    attr_body.setStyleSheet("font-size: 11px; color: #777777; padding: 4px 4px 2px 4px;")
+    attr_body.setWordWrap(True)
+    g_attr.addWidget(attr_body)
+
+    attr_link = QPushButton("  ImmatureGamer — github.com/ImmatureGamer/uefn-device-graph")
+    attr_link.setStyleSheet(
+        "QPushButton { background: transparent; border: none; color: #8888FF;"
+        " text-align: left; font-size: 11px; padding: 2px 4px; }"
+        "QPushButton:hover { color: #AAAAFF; text-decoration: underline; }"
+    )
+    attr_link.clicked.connect(
+        lambda: QDesktopServices.openUrl(QUrl("https://github.com/ImmatureGamer/uefn-device-graph"))
+    )
+    g_attr.addWidget(attr_link)
+
     btn_issue = QPushButton("  Open an Issue on GitHub")
     btn_issue.clicked.connect(
         lambda: QDesktopServices.openUrl(QUrl(_REPO_URL + "/issues"))
@@ -1779,6 +1916,7 @@ class ToolbeltDashboard(QMainWindow):
         ("Sequencer",   _tab_sequencer),
         ("Verification",_tab_verification),
         ("Plugin Hub",  _tab_plugin_hub),
+        ("Appearance",  _tab_appearance),
         ("About",       _tab_about),
     ]
 
@@ -1789,6 +1927,12 @@ class ToolbeltDashboard(QMainWindow):
         self.setMinimumSize(820, 640)
         self.resize(960, 740)
         self.setStyleSheet(_QSS)
+
+        # Subscribe to live theme changes and restore saved theme
+        _theme_mod.subscribe(self._apply_theme)
+        saved_theme = _get_config().get("ui.theme", "toolbelt_dark")
+        if saved_theme != _theme_mod.get_current_theme():
+            _theme_mod.set_theme(saved_theme)
 
         self.setWindowFlags(
             Qt.Window |
@@ -2067,7 +2211,12 @@ class ToolbeltDashboard(QMainWindow):
         self._sbar.setStyleSheet(f"QStatusBar {{ color: {color}; }}")
         self._sbar.showMessage(msg, 5000)
 
+    def _apply_theme(self, qss: str) -> None:
+        """Called by the theme system when the active theme changes."""
+        self.setStyleSheet(qss)
+
     def closeEvent(self, event) -> None:
+        _theme_mod.unsubscribe(self._apply_theme)
         event.ignore()
         self.hide()
 

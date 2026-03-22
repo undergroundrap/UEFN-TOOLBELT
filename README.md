@@ -1,5 +1,5 @@
 # UEFN TOOLBELT
-**168 Professional Tools for UEFN Python Integration.**
+**171 Professional Tools for UEFN Python Integration.**
 
 > Built by **Ocean Bennett** — 2026
 
@@ -9,7 +9,7 @@ Automate the tedious, script the impossible, and bridge the gap between Python a
 UEFN Toolbelt is a master utility designed to leverage the **2026 UEFN Python 3.11 Update**,
 allowing creators to manipulate actors, manage assets, and generate boilerplate Verse code
 through a high-level, developer-friendly interface — all from a single persistent menu entry
-in the UEFN editor bar. **168 registered tools** across 30 categories, complete AI-agent
+in the UEFN editor bar. **171 registered tools** across 30 categories, complete AI-agent
 readiness (100% structured dict returns), and a unified theme system so every window in the
 platform looks and feels identical.
 
@@ -19,7 +19,7 @@ Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect 
 1.  **Open Dashboard**: Run `tb.launch_qt()` or use the `Toolbelt` menu.
 2.  **One-Click Sync**: Click the **"Sync Level Schema to AI"** button in **Quick Actions**.
 3.  **Instant Content**: The 1.6MB schema is automatically copied to your `docs/` folder. Your AI now knows every hidden property in your specific level.
-4.  **Export Tool Manifest**: Run `tb.run("plugin_export_manifest")` to write `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of all 168 tools with their parameter signatures, types, defaults, and categories. An AI agent can load this file and immediately know what every tool does and how to call it, without reading source code.
+4.  **Export Tool Manifest**: Run `tb.run("plugin_export_manifest")` to write `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of all 171 tools with their parameter signatures, types, defaults, and categories. An AI agent can load this file and immediately know what every tool does and how to call it, without reading source code.
 
 ---
 
@@ -990,7 +990,7 @@ Restart Claude Code — it connects automatically. Then ask Claude things like:
 - *"Scatter 200 props in a 4000cm spiral around the origin"*
 - *"Save a level snapshot, then mirror the selection across X"*
 
-**Available MCP commands:** ping, execute\_python, run\_tool (→ all 168 tools), list\_tools,
+**Available MCP commands:** ping, execute\_python, run\_tool (→ all 171 tools), list\_tools,
 get\_all\_actors, get\_selected\_actors, spawn\_actor, delete\_actors, set\_actor\_transform,
 list\_assets, get\_asset\_info, rename\_asset, save\_current\_level, get\_viewport\_camera,
 set\_viewport\_camera, and more.
@@ -1142,7 +1142,7 @@ After completing Step 2 (PySide6 installed), click **Toolbelt → Open Dashboard
 import UEFN_Toolbelt as tb; tb.launch_qt()
 ```
 
-A dark-themed floating window opens with a left sidebar nav and 168 tools across 31 categories (including an About page).
+A dark-themed floating window opens with a left sidebar nav and 171 tools across 31 categories (including an About page).
 
 ![Global Dashboard Search](docs/dashboard_search.png)
 
@@ -1150,7 +1150,7 @@ A dark-themed floating window opens with a left sidebar nav and 168 tools across
 
 | Search | Where | What it does |
 |---|---|---|
-| **Find any tool…** | Sidebar (top) | Global — searches all 168 tools across every category by name, description, or tag. Results show a category badge so you know where each tool lives. |
+| **Find any tool…** | Sidebar (top) | Global — searches all 171 tools across every category by name, description, or tag. Results show a category badge so you know where each tool lives. |
 | **Filter this page…** | Content header (top-right) | Within-category — hides/shows buttons on the current page as you type. Disappears during global search. |
 
 > **If the dashboard doesn't open after installing PySide6:** The module may be cached from before PySide6 was installed. Paste this single line to clear and reload:
@@ -1217,7 +1217,7 @@ Claude will call `run_toolbelt_tool("toolbelt_smoke_test")` through the bridge a
 > **Note:** The listener must be started in UEFN each session. You can also click **Dashboard → MCP → Start Listener** instead of pasting the command.
 
 **What Claude can do once connected:**
-- Run any of the 168 tools by name
+- Run any of the 171 tools by name
 - Spawn, move, delete actors directly
 - Generate spec-accurate Verse code (pulls from the live verse-book spec)
 - Execute arbitrary Python inside UEFN
@@ -1534,7 +1534,7 @@ tb.run("api_crawl_level_classes")
 
 | Layer | File | What it contains |
 |:---|:---|:---|
-| **Tool Layer** | `Saved/UEFN_Toolbelt/tool_manifest.json` | 168 tools — names, params, types, defaults |
+| **Tool Layer** | `Saved/UEFN_Toolbelt/tool_manifest.json` | 171 tools — names, params, types, defaults |
 | **C++ Layer** | `docs/uefn_reference_schema.json` | 14 actor classes, 1,031 properties with types + defaults |
 | **Verse Layer** | `docs/api_level_classes_schema.json` | Your project's `@editable` device properties (git-ignored) |
 
@@ -1918,7 +1918,7 @@ import UEFN_Toolbelt as tb; tb.run("mcp_start")
 `.mcp.json` is already in the repo root — Claude Code picks it up automatically on next launch.
 
 **What Claude can do:**
-- Run any of the 168 toolbelt tools by name (`run_toolbelt_tool`)
+- Run any of the 171 toolbelt tools by name (`run_toolbelt_tool`)
 - Spawn, move, delete actors; read selected actors live
 - List, rename, duplicate, import, delete Content Browser assets
 - Execute arbitrary Python inside UEFN with full `unreal.*` access
@@ -2042,7 +2042,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 | Ecosystem Moat | **Rich Plugin Hub, automatic UI generation** | Scattered, undocumented gists |
 | Security Model | **4-Gate Audit (AST scanning, SHA-256)** | Blind execution of untrusted code |
 | Verification | **Automated Integration Test Suite** | Manual testing only |
-| Tool count | **168 tools, 31 modules** | Single-purpose scripts |
+| Tool count | **171 tools, 31 modules** | Single-purpose scripts |
 | AI integration | **Full MCP bridge + model-agnostic HTTP client + tool manifest** | None |
 | Local model support | **LM Studio, Ollama, any HTTP agent** | None |
 | Verse code gen | **Live spec-backed (27K line reference)** | Static templates |
@@ -2112,6 +2112,14 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 ## Patch Notes
 
+### v1.5.2 — March 2026 (Live Theme Switcher + Appearance Tab)
+
+- **6 built-in themes** (`toolbelt_dark`, `midnight`, `ocean`, `nord`, `forest`, `daylight`): Switch via the new **Appearance** tab in the dashboard, `tb.run("theme_set", name="ocean")`, or MCP. Changes apply live to every open window instantly — no restart needed.
+- **Appearance tab** added to the dashboard sidebar with visual swatch buttons. Each swatch is styled with its own theme colors so you see exactly what you're choosing. Active theme shown with ✓ marker and white border.
+- **Theme tools** (`theme_list`, `theme_set`, `theme_get`): 3 new registered tools. `theme_set` persists the choice to `config.json` and notifies all subscribers. `theme_get` returns the full palette dict so AI agents can introspect current colors.
+- **Subscriber system** in `core/theme.py`: `subscribe(fn)` / `unsubscribe(fn)` — any window can register for live theme changes. `_ToolbeltDashboard` and all `ToolbeltWindow` subclasses subscribe automatically on open and unsubscribe on close. Dead Qt object callbacks cleaned up automatically via `RuntimeError` detection.
+- **Tool count: 171** (up from 168).
+
 ### v1.5.1 — March 2026 (Theme System + ToolbeltWindow)
 
 **Why this matters:** As the platform grows — more tool windows, community plugins, AI-generated features — the only way to keep everything looking professional is to make consistency *structural*, not just documented. This release does that.
@@ -2126,9 +2134,9 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 ### v1.5 — March 2026 (Verse Device Graph + Config Persistence)
 
-- **Verse Device Graph** (`verse_graph_open`, `verse_graph_scan`, `verse_graph_export`): Interactive force-directed node graph of every Creative/Verse device in the current level. Nodes self-organize using the Fruchterman-Reingold algorithm (animated at 60fps via QTimer). Edges drawn from `@editable` device refs and `.Subscribe()` calls. Architecture Health Score (0–100) based on orphan count, broken links, and unused functions. Union-Find cluster detection identifies isolated device groups. Two-pass Verse parser: fast regex scan + `schema_utils` type validation. Fully MCP-callable — `verse_graph_scan` returns the complete adjacency dict so Claude Code can reason about your island's device architecture without opening a window.
+- **Verse Device Graph** (`verse_graph_open`, `verse_graph_scan`, `verse_graph_export`): Interactive force-directed node graph of every Creative/Verse device in the current level. *(Inspired by and full credit to [ImmatureGamer's uefn-device-graph](https://github.com/ImmatureGamer/uefn-device-graph) — this is an independent PySide6 rewrite integrated into the Toolbelt stack.)* Nodes self-organize using the Fruchterman-Reingold algorithm (animated at 60fps via QTimer). Edges drawn from `@editable` device refs and `.Subscribe()` calls. Architecture Health Score (0–100) based on orphan count, broken links, and unused functions. Union-Find cluster detection identifies isolated device groups. Two-pass Verse parser: fast regex scan + `schema_utils` type validation. Fully MCP-callable — `verse_graph_scan` returns the complete adjacency dict so Claude Code can reason about your island's device architecture without opening a window.
 - **Persistent Config System** (`config_list`, `config_get`, `config_set`, `config_reset`): 12 configurable values persisted at `Saved/UEFN_Toolbelt/config.json` — survives `install.py` updates. Tools read from config instead of hardcoded defaults. `verse.project_path` lets you set your Verse root once and never type it again.
-- **Tool count: 168** (up from 165). 103/103 integration tests passing.
+- **Tool count: 171** (up from 165). 103/103 integration tests passing.
 
 ### v1.4 — March 2026 (Deep Schema Documentation)
 
@@ -2146,9 +2154,9 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 ### v1.2 — March 2026 (Phase 20: AI-Agent Readiness)
 
-- **168 tools** across 30 categories
+- **171 tools** across 30 categories
 - **Tool Manifest Export** (`plugin_export_manifest`): Writes `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of every registered tool with its full parameter signature (name, type, required/optional, default). Any AI agent or automation script can load this file and know how to call every tool without reading source code. This is the key artifact for full AI-driven UEFN workflows.
-- **Structured Returns Everywhere (Phase 21 complete)**: All 168 tools return `{"status": "ok"/"error", ...}` dicts. Zero `None` returns remain. MCP callers (Claude Code, `client.py`, scripts) can read every result programmatically — no log parsing required.
+- **Structured Returns Everywhere (Phase 21 complete)**: All 171 tools return `{"status": "ok"/"error", ...}` dicts. Zero `None` returns remain. MCP callers (Claude Code, `client.py`, scripts) can read every result programmatically — no log parsing required.
 - **Schema-Driven Property Discovery** (`schema_utils.discover_properties`): `verse_device_editor`'s property reader now queries the reference schema for each actor's class before falling back to a hardcoded list. It reads whatever properties the schema actually defines for that class, making it correct-by-construction rather than hardcoded.
 - **Registry `to_manifest()`**: New method on `ToolRegistry` that introspects every function's signature via `inspect.signature()` — captures param names, type annotations, required/optional status, and defaults. Powers `plugin_export_manifest` and exposes the full tool catalog programmatically.
 - **`schema_utils` expansion**: Added `list_classes()` (all schema class names) and `discover_properties(class_name)` (schema property dict for a class) — two new helper functions that replace hardcoded property lists with live schema lookups.

@@ -58,6 +58,9 @@ DEFAULTS: dict[str, Any] = {
 
     # Verse Device Graph
     "verse.project_path":       "",
+
+    # UI Theme
+    "ui.theme":                 "toolbelt_dark",
 }
 
 
