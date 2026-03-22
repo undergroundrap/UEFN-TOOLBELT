@@ -271,3 +271,27 @@ from UEFN_Toolbelt.core.safety_gate import SafetyGate
 # This will log an error and raise PermissionError if unsafe
 SafetyGate.enforce_safety(target_asset_path) 
 ```
+
+
+---
+
+## ✅ Testing Your Plugin Before Sharing
+
+**Never share or commit a plugin you haven't tested live in UEFN.** Syntax checks don't catch editor runtime failures.
+
+### Minimum test checklist
+
+1. Drop your `.py` file into `Saved/UEFN_Toolbelt/Custom_Plugins/`
+2. Reload the Toolbelt in the UEFN Python console:
+   ```python
+   import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
+   ```
+3. Confirm your tool appears in the Plugin Hub tab and in the sidebar search
+4. Run your tool — verify it does what it's supposed to, with and without a selection
+5. Run the smoke test to confirm you haven't broken anything:
+   ```python
+   tb.run("toolbelt_smoke_test")
+   ```
+6. Check `Saved/UEFN_Toolbelt/plugin_audit.json` — your plugin's SHA-256 hash should be listed with `"status": "LOADED"`
+
+If all six pass, your plugin is ready to share.

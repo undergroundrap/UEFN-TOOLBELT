@@ -6,6 +6,58 @@
 
 ---
 
+## ⚠️ MANDATORY: Test in UEFN Before Every Commit
+
+**Never commit code that hasn't been verified live in the UEFN editor.**
+This is the single most important rule in this project. Syntax checks and unit tests catch Python errors but cannot catch UEFN runtime failures (wrong unreal API calls, Slate tick issues, editor crashes, invisible windows, etc.).
+
+### When to ask the user to test
+
+| Change type | Required test |
+|---|---|
+| New tool or tool modification | `tb.run("tool_name")` in UEFN Python console |
+| Dashboard UI change (new tab, widget, layout) | Nuclear reload + visual inspect in UEFN |
+| Theme / styling change | Nuclear reload + switch themes in Appearance tab |
+| MCP bridge change | `tb.run("mcp_start")` + ping from Claude Code |
+| `core/` module change | Nuclear reload + `tb.run("toolbelt_smoke_test")` |
+| `install.py` / `deploy.bat` change | Run the script end-to-end |
+| Any change touching PySide6 windows | Open the window, interact with it |
+
+### Two-phase validation workflow
+
+Every code change goes through two phases before committing:
+
+**Phase 1 — Syntax check (run immediately, outside UEFN):**
+```python
+python -c "
+import ast
+files = ['Content/Python/UEFN_Toolbelt/tools/your_tool.py']
+for f in files:
+    with open(f, encoding='utf-8') as fh: ast.parse(fh.read())
+    print(f'OK  {f}')
+"
+```
+Catches Python syntax errors instantly without needing UEFN open. Always do this first — it's the fast gate.
+
+**Phase 2 — Live UEFN test (required before every commit):**
+Ask the user to run the appropriate bundle below. Syntax passing ≠ working in the editor.
+
+### The hard refresh bundle (paste into UEFN Python console)
+
+```python
+import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
+```
+
+Always ask the user to run this after UI or core changes. After a tool-only change, a simpler reload is enough:
+
+```python
+import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("tool_name")
+```
+
+**Only commit after the user confirms it works in the live editor.**
+
+---
+
 ## What This Project Is
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
@@ -80,6 +132,11 @@ All 171 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as 
 ---
 
 ## Git Etiquette (High Priority)
+
+> **STOP — did you test in UEFN?**
+> See the "MANDATORY: Test in UEFN Before Every Commit" section at the top of this file.
+> No exceptions. Syntax passing ≠ working. Only commit after the user confirms it works live.
+
 - **Format**: `type: concise description`
 - **Casing**: All lowercase. NO "Phase:", NO "Update:", NO Title Case.
 - **Types**:

@@ -2237,7 +2237,11 @@ Contributions are welcome and encouraged. This project follows a simple rule: **
 
 1. **Fork** the repo and create a branch: `git checkout -b feature/my-tool`
 2. **Follow the tool structure** — see [Adding a New Tool](#adding-a-new-tool) for the exact pattern
-3. **Test in a real UEFN project** — run `tb.run("toolbelt_smoke_test")` and confirm no regressions
+3. **Test in a live UEFN editor — this is mandatory.** Syntax checks don't catch UEFN runtime failures. Run the hard-refresh bundle in the UEFN Python console and confirm your tool works:
+   ```python
+   import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("your_tool_name")
+   ```
+   Then run the smoke test to confirm no regressions: `tb.run("toolbelt_smoke_test")`
 4. **Open a Pull Request** with a clear description of what the tool does and why it belongs here
 
 ### Guidelines

@@ -71,14 +71,26 @@ echo  [4/4]  Copying verse-book spec...
 xcopy /E /I /H /Y "%~dp0verse-book" "!DEST!\verse-book" >nul
 if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
 
-:: ── PySide6 check ─────────────────────────────────────────────────────────────
+:: ── PySide6 check — tries multiple install locations ─────────────────────────
 echo.
-set "UE_PYTHON=C:\Program Files\Epic Games\Fortnite\Engine\Binaries\ThirdParty\Python3\Win64\python.exe"
-if exist "%UE_PYTHON%" (
-    "%UE_PYTHON%" -c "import PySide6" >nul 2>&1
+set "UE_PYTHON="
+for %%P in (
+    "C:\Program Files\Epic Games\Fortnite\Engine\Binaries\ThirdParty\Python3\Win64\python.exe"
+    "C:\Program Files (x86)\Epic Games\Fortnite\Engine\Binaries\ThirdParty\Python3\Win64\python.exe"
+    "D:\Epic Games\Fortnite\Engine\Binaries\ThirdParty\Python3\Win64\python.exe"
+    "E:\Epic Games\Fortnite\Engine\Binaries\ThirdParty\Python3\Win64\python.exe"
+) do (
+    if exist %%P (
+        if "!UE_PYTHON!"=="" set "UE_PYTHON=%%~P"
+    )
+)
+
+if not "!UE_PYTHON!"=="" (
+    echo  UE Python: !UE_PYTHON!
+    "!UE_PYTHON!" -c "import PySide6" >nul 2>&1
     if errorlevel 1 (
         echo  PySide6 not installed. Installing now...
-        "%UE_PYTHON%" -m pip install PySide6 --quiet
+        "!UE_PYTHON!" -m pip install PySide6 --quiet
         if errorlevel 1 (
             echo  WARNING: PySide6 install failed. Dashboard UI may not work.
         ) else (
@@ -88,9 +100,9 @@ if exist "%UE_PYTHON%" (
         echo  PySide6 already installed.
     )
 ) else (
-    echo  NOTE: Could not find UEFN Python at expected path.
-    echo  If the dashboard doesn't open, manually run:
-    echo    "^<UE_INSTALL^>\Engine\Binaries\ThirdParty\Python3\Win64\python.exe" -m pip install PySide6
+    echo  NOTE: Could not find UE Python — tried C:, D:, E: drives.
+    echo  If the dashboard is blank, run manually in a terminal:
+    echo    "^<UE_PATH^>\Engine\Binaries\ThirdParty\Python3\Win64\python.exe" -m pip install PySide6
 )
 
 :: ── Done ──────────────────────────────────────────────────────────────────────
@@ -99,25 +111,34 @@ echo ==========================================
 echo   All files deployed successfully!
 echo ==========================================
 echo.
-echo HOT-RELOAD WORKFLOW (No UEFN Restart Required):
-echo Copy and paste this exact line into the UEFN Python console to refresh the toolbelt:
+echo HOT-RELOAD COMMANDS (paste into UEFN Python console):
 echo.
+echo [STANDARD] Reload + open dashboard:
 echo import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
 echo.
-echo BUNDLE: HOT-RELOAD + INTEGRATION TEST (WARNING: INVASIVE - Use clean template):
-echo import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_integration_test")
-echo.
-echo BUNDLE: HOT-RELOAD + SMOKE TEST:
+echo [SMOKE TEST] Reload + verify health:
 echo import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_smoke_test")
 echo.
-echo BUNDLE: HOT-RELOAD + MASTER SYNC (Sync Docs ^& Verse IQ):
+echo [INTEGRATION TEST] WARNING - invasive, use a clean template only:
+echo import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_integration_test")
+echo.
+echo [MASTER SYNC] Reload + sync docs ^& Verse IQ:
 echo import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("api_sync_master")
 echo.
-echo BUNDLE: HOT-RELOAD + VERSE DEVICE GRAPH (Iterate on graph window):
+echo [VERSE GRAPH] Reload + open device graph:
 echo import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("verse_graph_open")
 echo.
-echo TIP: You only need to restart UEFN if you've changed init_unreal.py.
-echo      **NOTE: If this is a new project deployment, RESTART UEFN for the Toolbelt to appear.**
+echo ==========================================
+echo   !! TEST IN UEFN BEFORE COMMITTING !!
+echo ==========================================
+echo   Run the SMOKE TEST command above in UEFN.
+echo   Confirm the dashboard opens and your change works.
+echo   Only run "git commit" after you see it working live.
+echo   Syntax passing != working in the editor.
+echo ==========================================
+echo.
+echo TIP: Only restart UEFN if you changed init_unreal.py.
+echo      New project deployment? RESTART UEFN for the menu to appear.
 echo.
 pause
 exit /b 0

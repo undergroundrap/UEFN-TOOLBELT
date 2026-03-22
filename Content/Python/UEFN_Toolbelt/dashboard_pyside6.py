@@ -172,6 +172,119 @@ def _sep(layout: "QVBoxLayout") -> None:
 
 # ─── Quick Actions ─────────────────────────────────────────────────────────────
 
+def _build_setup_status(L: "QVBoxLayout") -> None:
+    """
+    First-run health badge. Runs silently on dashboard open and shows a
+    compact status row for each system dependency. Green = good, yellow = warning,
+    red = broken. Zero user action required — just glance at it.
+    """
+    g = _group(L, "Setup Status")
+
+    checks = []
+
+    # ── PySide6 ───────────────────────────────────────────────────────────────
+    try:
+        import PySide6
+        checks.append(("PySide6 (dashboard UI)", "ok", PySide6.__version__))
+    except ImportError:
+        checks.append(("PySide6 (dashboard UI)", "error", "Not installed — dashboard widgets may be missing"))
+
+    # ── Tool registry ─────────────────────────────────────────────────────────
+    try:
+        import UEFN_Toolbelt as _tb
+        count = len(_tb.registry.list_tools())
+        color = "ok" if count >= 171 else "warn"
+        checks.append(("Tool registry", color, f"{count} tools registered"))
+    except Exception as e:
+        checks.append(("Tool registry", "error", str(e)))
+
+    # ── MCP bridge ────────────────────────────────────────────────────────────
+    # Check _bound_port > 0 — set only after listener is fully bound,
+    # more reliable than thread.is_alive() which can be True before bind completes.
+    try:
+        from UEFN_Toolbelt.tools import mcp_bridge as _mcpb
+        port = getattr(_mcpb, "_bound_port", 0)
+        if port and port > 0:
+            checks.append(("MCP bridge", "ok", f"Listening on port {port}"))
+        else:
+            checks.append(("MCP bridge", "warn", "Starting… refresh Quick Actions in a moment"))
+    except Exception as e:
+        checks.append(("MCP bridge", "error", str(e)))
+
+    # ── Config file ───────────────────────────────────────────────────────────
+    try:
+        from UEFN_Toolbelt.core.config import get_config
+        cfg = get_config()
+        import os
+        if os.path.exists(cfg._path):
+            checks.append(("Config file", "ok", cfg._path))
+        else:
+            checks.append(("Config file", "warn", "Not yet created (first run — will be written on first config_set)"))
+    except Exception as e:
+        checks.append(("Config file", "error", str(e)))
+
+    # ── Verse-book ────────────────────────────────────────────────────────────
+    try:
+        import UEFN_Toolbelt as _tb2
+        import os
+        vb_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(_tb2.__file__))),
+            "verse-book"
+        )
+        if os.path.isdir(vb_path):
+            chapters = [f for f in os.listdir(vb_path) if f.endswith(".md")]
+            checks.append(("Verse-book spec", "ok", f"{len(chapters)} chapters"))
+        else:
+            checks.append(("Verse-book spec", "warn", "Not cloned — Verse codegen tools use fallback mode"))
+    except Exception as e:
+        checks.append(("Verse-book spec", "warn", "Could not verify"))
+
+    # ── Render rows ───────────────────────────────────────────────────────────
+    color_map = {"ok": "#44FF88", "warn": "#f1c40f", "error": "#FF4444"}
+    icon_map  = {"ok": "✓", "warn": "⚠", "error": "✗"}
+
+    for name, status, detail in checks:
+        row = QWidget()
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(2, 1, 2, 1)
+        row_layout.setSpacing(8)
+
+        col = color_map[status]
+        icon_lbl = QLabel(icon_map[status])
+        icon_lbl.setFixedWidth(16)
+        icon_lbl.setStyleSheet(f"color: {col}; font-weight: bold; font-size: 12px; background: transparent;")
+
+        name_lbl = QLabel(name)
+        name_lbl.setFixedWidth(140)
+        name_lbl.setStyleSheet("font-size: 11px; color: #CCCCCC; background: transparent;")
+
+        detail_lbl = QLabel(detail)
+        detail_lbl.setStyleSheet(f"font-size: 10px; color: {col}; background: transparent;")
+        detail_lbl.setWordWrap(True)
+
+        row_layout.addWidget(icon_lbl)
+        row_layout.addWidget(name_lbl)
+        row_layout.addWidget(detail_lbl, 1)
+        g.addWidget(row)
+
+    # Summary line
+    n_ok   = sum(1 for _, s, _ in checks if s == "ok")
+    n_warn = sum(1 for _, s, _ in checks if s == "warn")
+    n_err  = sum(1 for _, s, _ in checks if s == "error")
+    if n_err:
+        summary_col, summary = "#FF4444", f"{n_err} issue(s) need attention — see rows above"
+    elif n_warn:
+        summary_col, summary = "#f1c40f", f"{n_ok}/{len(checks)} checks passing — {n_warn} advisory"
+    else:
+        summary_col, summary = "#44FF88", f"All {n_ok} checks passing — you're good to go"
+
+    summary_lbl = QLabel(summary)
+    summary_lbl.setStyleSheet(f"font-size: 11px; color: {summary_col}; padding: 4px 2px 0 2px; background: transparent;")
+    g.addWidget(summary_lbl)
+
+    _sep(L)
+
+
 def _tab_quick_actions(R) -> "QScrollArea":
     scroll, L = _page()
 
@@ -183,6 +296,8 @@ def _tab_quick_actions(R) -> "QScrollArea":
     desc.setStyleSheet("font-size: 12px; color: #AAAAAA; padding-bottom: 12px;")
     desc.setWordWrap(True)
     L.addWidget(desc)
+
+    _build_setup_status(L)
 
     # 1. Selection & Utility
     g_sel = _group(L, "Selection & Utility")

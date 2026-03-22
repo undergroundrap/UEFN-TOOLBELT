@@ -7,9 +7,9 @@ Run this once to install UEFN Toolbelt into any UEFN project.
     python install.py --project "C:/MyProjects/MyIsland"
 
 What it does:
-  1. Copies Content/Python/UEFN_Toolbelt/ into your project's Content/Python/
-  2. Creates init_unreal.py if one doesn't exist, or patches it if one does
-  3. Nothing else — no internet, no dependencies, no registry entries
+  1. Auto-detects the UE-embedded python.exe and installs PySide6 into it
+  2. Copies Content/Python/UEFN_Toolbelt/ into your project's Content/Python/
+  3. Creates init_unreal.py if one doesn't exist, or patches it if one does
 
 After running:
   Open UEFN. The Toolbelt menu appears automatically.
@@ -20,6 +20,7 @@ import argparse
 import os
 import re
 import shutil
+import subprocess
 import sys
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
@@ -48,6 +49,85 @@ for _name in sorted(_os.listdir(_PYTHON_DIR)):
 del _sys, _os, _importlib, _PYTHON_DIR
 # [/UEFN_TOOLBELT_LOADER]
 """
+
+# ── PySide6 auto-install ──────────────────────────────────────────────────────
+
+_UE_PYTHON_SEARCH_ROOTS = [
+    # Standard Epic Games Launcher installs
+    r"C:\Program Files\Epic Games\Fortnite\Engine\Binaries\ThirdParty\Python3\Win64\python.exe",
+    r"C:\Program Files (x86)\Epic Games\Fortnite\Engine\Binaries\ThirdParty\Python3\Win64\python.exe",
+    # Game Pass / Xbox App installs
+    r"C:\Program Files\Epic Games\UEFNFortnite\Engine\Binaries\ThirdParty\Python3\Win64\python.exe",
+    # Common custom install drives
+    r"D:\Epic Games\Fortnite\Engine\Binaries\ThirdParty\Python3\Win64\python.exe",
+    r"E:\Epic Games\Fortnite\Engine\Binaries\ThirdParty\Python3\Win64\python.exe",
+]
+
+
+def _find_ue_python() -> str | None:
+    """
+    Find the python.exe embedded in the Unreal Engine install.
+    Tries known paths first, then scans Program Files for any Epic Games install.
+    Returns the path string, or None if not found.
+    """
+    # 1. Try all known hardcoded paths
+    for path in _UE_PYTHON_SEARCH_ROOTS:
+        if os.path.exists(path):
+            return path
+
+    # 2. Scan all drives for Epic Games installs
+    if sys.platform == "win32":
+        import string
+        drives = [f"{d}:\\" for d in string.ascii_uppercase if os.path.exists(f"{d}:\\")]
+        for drive in drives:
+            for base in ["Program Files", "Program Files (x86)", "Epic Games", "Games"]:
+                candidate = os.path.join(
+                    drive, base, "Epic Games", "Fortnite",
+                    "Engine", "Binaries", "ThirdParty", "Python3", "Win64", "python.exe"
+                )
+                if os.path.exists(candidate):
+                    return candidate
+
+    return None
+
+
+def _ensure_pyside6() -> None:
+    """
+    Check if PySide6 is installed in the UE-embedded Python. Install it if not.
+    Silently skips if the UE Python can't be found (e.g. not yet installed).
+    """
+    ue_python = _find_ue_python()
+    if not ue_python:
+        print("  ⚠  Could not find UE-embedded python.exe — skipping PySide6 install.")
+        print("     If the dashboard is blank, install manually:")
+        print('     "<UE_PATH>\\Engine\\Binaries\\ThirdParty\\Python3\\Win64\\python.exe" -m pip install PySide6')
+        return
+
+    print(f"  Found UE Python: {ue_python}")
+
+    # Check if PySide6 is already installed
+    check = subprocess.run(
+        [ue_python, "-c", "import PySide6"],
+        capture_output=True,
+    )
+    if check.returncode == 0:
+        print("  ✓ PySide6 already installed — nothing to do.")
+        return
+
+    print("  Installing PySide6 into UE Python (this takes ~30 seconds)...")
+    result = subprocess.run(
+        [ue_python, "-m", "pip", "install", "PySide6", "--quiet"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        print("  ✓ PySide6 installed successfully.")
+    else:
+        print("  ✗ PySide6 install failed. Error:")
+        print(f"    {result.stderr.strip()}")
+        print("     Install manually:")
+        print(f'     "{ue_python}" -m pip install PySide6')
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -177,8 +257,14 @@ def main():
     print("\nUEFN Toolbelt Installer")
     print("═" * 40)
 
+    # Step 0: PySide6 (dashboard UI dependency)
+    print("\n[1/3] Checking PySide6...")
+    _ensure_pyside6()
+
+    # Step 1-2: Install into project
+    print("\n[2/3] Selecting UEFN project...")
     project_path = _pick_project(args.project)
-    print(f"\nInstalling into: {project_path}\n")
+    print(f"\n[3/3] Installing into: {project_path}\n")
 
     _install_toolbelt(project_path)
     _print_next_steps(project_path)
