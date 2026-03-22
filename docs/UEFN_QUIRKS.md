@@ -4,7 +4,7 @@ This document records the non-obvious, often undocumented behaviors of the UEFN 
 
 ---
 
-## 1. The "Invisiblity" of Verse Classes (Breakthrough: Phase 19)
+## 1. The "Invisibility" of Verse Classes (Breakthrough: Phase 19)
 
 ### The Problem
 When a Verse device is placed in a level, the UEFN Python API (`actor.get_class()`) often identifies it only as a generic **`VerseDevice_C`**. The link to the user's specific script (e.g., `hello_world_device`) is frequently hidden from `dir()` and `get_editor_property()`.
@@ -43,6 +43,16 @@ Running `inspect.getmembers()` on certain `unreal.*` objects (especially Bluepri
 
 ### The Solution
 Use a safe combination of `dir(obj)` and a `try-except` wrapped `getattr(obj, name)` for all property audits.
+
+---
+
+## 5. Asset Registry Path Sensitivity
+
+### The Problem
+Searching for assets in `/Game` works for standard content, but project-specific Verse assets often live in a virtual path like `/ProjectName/_Verse`.
+
+### The Solution
+Always audit the **Asset Registry** using a recursive filter on the project root package (e.g., `/TOOL_TEST`) to find the true `VerseClass` assets.
 
 ---
 
@@ -104,3 +114,44 @@ Many UEFN tutorials from 2024-2025 use `unreal.EditorLevelLibrary.get_selected_l
 
 ### The Solution
 Always migrate to **`unreal.EditorActorSubsystem`**. It provides better world-context awareness and handles the "Dirty State" and "Undo Transactions" more reliably for Verse-backed devices.
+
+---
+
+## 12. Dashboard Responsiveness: The `slate_post_tick` Pattern
+
+### The Problem
+Because Python and UEFN share the same thread, a PySide6 window will normally "freeze" (become non-interactive) as soon as it's opened, as the editor loop isn't letting the Qt event loop run.
+
+### The Solution
+The Toolbelt uses `unreal.register_slate_post_tick_callback` to hook into the engine's frame-end. Each frame, we call `QApplication.processEvents()`. This allows the UI to stay 60fps responsive without threading, which is the only stable way to run Qt in UEFN.
+
+---
+
+## 13. Menu Persistence & "Ghost Entries"
+
+### The Problem
+Menues created via `unreal.ToolMenus` are stored in the editor's memory. If you reload your script and re-register the menu, you may end up with duplicate "Toolbelt" entries or "Ghost" buttons that point to deleted Python objects.
+
+### The Solution
+The Toolbelt's `_build_menu` logic first searches for the existing `Toolbelt` menu entry and **clears its children** before rebuilding. This ensures that `tb.reload()` always results in a fresh, single menu entry.
+
+---
+
+## 14. `unreal.ScopedSlowTask` vs. Python Loops
+
+### The Problem
+A long Python loop (e.g., modifying 500 actors) will trigger Windows to think the app is "Not Responding" and show a white overlay, as the message pump is blocked.
+
+### The Solution
+Wrap heavy loops in `unreal.ScopedSlowTask`. This not only provides a native UI progress bar but also keeps the editor's heartbeat alive. 
+**Crucial Quirk**: You must call `task.enter_progress_frame()` manually inside your loop to advance the bar and process the "Cancel" button state.
+
+---
+
+## 15. The `init_unreal.py` Cold-Boot Requirement
+
+### The Problem
+UEFN only scans and executes `init_unreal.py` when the project first loads. 
+
+### The Solution
+While you can "Nuclear Reload" the Toolbelt modules while the editor is open, changes to the **Top Menu Bar structure** (adding new top-level categories) usually require a full project restart to be correctly picked up by the Slate menu system.
