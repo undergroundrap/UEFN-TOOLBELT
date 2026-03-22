@@ -1454,14 +1454,16 @@ def _tab_plugin_hub(R) -> "QScrollArea":
         return card
 
     def _refresh_hub():
-        import urllib.request
+        import urllib.request, time
         hub_status.setText("Fetching registry…")
         while hub_vbox.count():
             item = hub_vbox.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         try:
-            with urllib.request.urlopen(_REGISTRY_URL, timeout=8) as resp:
+            bust_url = f"{_REGISTRY_URL}?t={int(time.time())}"
+            req = urllib.request.Request(bust_url, headers={"Cache-Control": "no-cache", "Pragma": "no-cache"})
+            with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode())
             plugins = data.get("plugins", [])
             core = [p for p in plugins if p.get("type") == "core"]
