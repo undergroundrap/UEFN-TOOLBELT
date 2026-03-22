@@ -79,7 +79,13 @@ def _spawn_fixture(mesh_path: str = _CUBE_MESH, location: unreal.Vector = unreal
     return None
 
 def _select_fixture(actors: list[unreal.Actor]) -> None:
-    unreal.get_editor_subsystem(unreal.EditorActorSubsystem).set_selected_level_actors(actors)
+    # Quirk #6: wrap selection in a ScopedEditorTransaction so actor flags
+    # (RF_Transactional etc.) are settled before the selection call resolves.
+    # Without this, pre-existing actors with non-standard flags emit:
+    # "SelectActor: The requested operation could not be completed because the
+    #  actor has invalid flags."
+    with unreal.ScopedEditorTransaction("Test: Select Fixture"):
+        unreal.get_editor_subsystem(unreal.EditorActorSubsystem).set_selected_level_actors(actors)
 
 def _cleanup_fixtures() -> None:
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)

@@ -67,8 +67,22 @@ _DEVICE_HINTS = [
 
 
 def _is_verse_device(actor: unreal.Actor) -> bool:
-    """Heuristic check: is this actor likely a Verse/Creative device?"""
-    class_name = actor.get_class().get_name()
+    """Check whether an actor is a Verse/Creative device.
+
+    Detection order (most → least reliable):
+    1. Class path contains '_Verse.' — definitive Verse-compiled device
+       (Quirk #5: Verse assets live in virtual /ProjectName/_Verse paths)
+    2. Class path contains 'FortCreative' or 'FortniteGame' — engine devices
+    3. Class name substring hints — broad fallback for BP/C++ devices
+    """
+    cls = actor.get_class()
+    path = cls.get_path_name()
+    class_name = cls.get_name()
+
+    # Path-based detection is authoritative (Quirks #1 and #5)
+    if "_Verse." in path or "/FortCreative/" in path or "/FortniteGame/" in path:
+        return True
+
     return any(hint in class_name for hint in _DEVICE_HINTS)
 
 

@@ -73,8 +73,12 @@ def run_select_by_property(prop_name: str = "Actor Label", value: str = "", matc
             if prop_name.lower() in ["actor label", "label"]:
                 actual_val = actor.get_actor_label()
             else:
-                actual_val = actor.get_editor_property(prop_name)
-            
+                # Quirk #7: get_editor_property raises on Verse-driven properties
+                # that aren't tagged as editor properties. getattr is safe for all.
+                actual_val = getattr(actor, prop_name, None)
+                if actual_val is None:
+                    continue
+
             # Compare
             s_val = str(actual_val)
             t_val = str(value)
@@ -113,9 +117,13 @@ def run_select_by_verse_tag(tag_name: str = "", **kwargs):
     
     to_select = []
     for actor in all_actors:
-        # Actor.tags is a string array in UEFN
-        if tag_name in actor.tags:
-            to_select.append(actor)
+        try:
+            # actor.tags is a string array in UEFN; some actor types may not
+            # expose it — guard to avoid AttributeError on non-standard actors.
+            if tag_name in actor.tags:
+                to_select.append(actor)
+        except Exception:
+            continue
 
     if to_select:
         actor_sub.set_selected_level_actors(to_select)
