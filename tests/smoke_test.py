@@ -234,9 +234,9 @@ EXPECTED_MODULES = [
     "foliage_tools", "lod_tools", "spline_to_verse", "project_scaffold",
     "memory_profiler", "api_explorer", "prop_patterns", "reference_auditor",
     "level_snapshot", "asset_tagger", "screenshot_tools", "mcp_bridge", "integration_test", "plugin_manager",
-    "api_capability_crawler"
+    "api_capability_crawler", "measurement_tools", "localization_tools"
 ]
-MIN_TOOL_COUNT = 90
+MIN_TOOL_COUNT = 143
 
 
 def _layer_toolbelt() -> None:

@@ -1031,6 +1031,8 @@ def toolbelt_integration_test(**kwargs) -> None:
             _test_scatter_advanced_safe()
             _test_assets_advanced_safe()
             _test_bridge_safe()
+            _test_measurement()
+            _test_localization()
             
             # Finalize
             _cleanup_fixtures()
@@ -1164,6 +1166,78 @@ def _test_bridge_safe() -> None:
         _record("Bridge", "Stop", True)
     except Exception as e:
         _record("Bridge", "Error", False, str(e))
+
+def _test_measurement() -> None:
+    _header("9. Measurement Tools")
+    import UEFN_Toolbelt as tb
+    
+    # Setup: 2 actors at known distance
+    a1 = _spawn_fixture(location=unreal.Vector(0,0,0))
+    a2 = _spawn_fixture(location=unreal.Vector(1000,0,0))
+    _select_fixture([a1, a2])
+    
+    try:
+        # Test Distance
+        dist = tb.run("measure_distance")
+        passed_dist = _assert_delta(dist, 1000.0)
+        _record("Measurement", "Measure Distance", passed_dist, f"Dist: {dist}")
+        
+        # Test Travel Time (Run speed ~450 cm/s)
+        res = tb.run("measure_travel_time", speed_type="Run")
+        passed_time = _assert_delta(res["time_seconds"], 1000.0 / 450.0, tolerance=0.1)
+        _record("Measurement", "Travel Time (Run)", passed_time, f"Time: {res['time_seconds']:.2f}s")
+    except Exception as e:
+        _record("Measurement", "Error", False, str(e))
+    finally:
+        a1.destroy_actor()
+        a2.destroy_actor()
+
+def _test_localization() -> None:
+    _header("10. Localization Tools")
+    import UEFN_Toolbelt as tb
+    
+    # Setup: TextRenderActor
+    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    txt_actor = actor_sub.spawn_actor_from_class(unreal.TextRenderActor, unreal.Vector(0,0,0))
+    txt_actor.set_actor_label("Grok_Test_Actor")
+    txt_actor.text_render_component.set_text("Grok_Test_String")
+    
+    try:
+        # Test Export
+        out_path = tb.run("text_export_manifest", format="json")
+        passed_exp = os.path.exists(out_path)
+        _record("Localization", "Export Manifest", passed_exp)
+        
+        # Modify manifest to "Grok_Translated"
+        if passed_exp:
+            import json
+            with open(out_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            found = False
+            for entry in data:
+                if entry["original_text"] == "Grok_Test_String":
+                    entry["translated_text"] = "Grok_Translated"
+                    found = True
+            
+            if found:
+                with open(out_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f)
+                    
+                # Test Apply
+                tb.run("text_apply_translation", manifest_path=out_path)
+                # Note: set_text takes a string, but get_text might return an unreal.Text
+                current_text = str(txt_actor.text_render_component.text)
+                passed_apply = ("Grok_Translated" in current_text)
+                _record("Localization", "Apply Translation", passed_apply, f"Current: {current_text}")
+            else:
+                _record("Localization", "Apply Translation", False, "Test string not found in manifest")
+        
+    except Exception as e:
+        _record("Localization", "Error", False, str(e))
+    finally:
+        if txt_actor:
+            txt_actor.destroy_actor()
 
 if __name__ == "__main__":
     toolbelt_integration_test()

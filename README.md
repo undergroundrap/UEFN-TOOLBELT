@@ -10,7 +10,7 @@ Automate the tedious, script the impossible, and bridge the gap between Python a
 UEFN Toolbelt is a master utility designed to leverage the **2026 UEFN Python 3.11 Update**,
 allowing creators to manipulate actors, manage assets, and generate boilerplate Verse code
 through a high-level, developer-friendly interface — all from a single persistent menu entry
-in the UEFN editor bar. Reached **138 Registered Tools** in Phase 14.
+in the UEFN editor bar. Reached **143 Registered Tools** in Phase 15.
 
 ---
 
@@ -80,7 +80,7 @@ with open("path/to/script.py") as f:
 
 ## ⚠️ Automated Integration Testing
 
-The `toolbelt_integration_test` (138 tools verified) is **INVASIVE** by design. It programmatically spawns actors, modifies properties, and deletes assets to verify correctness.
+The `toolbelt_integration_test` (143 tools verified) is **INVASIVE** by design. It programmatically spawns actors, modifies properties, and deletes assets to verify correctness.
 
 > [!WARNING]
 > **DO NOT run the full integration test in a live production project.**
@@ -170,8 +170,10 @@ UEFN TOOLBELT ─── UEFN_Toolbelt/__init__.py   (launch, run, registry acces
         ├── text_painter.py           Colored 3D text actors with saved style presets
         ├── asset_renamer.py          Epic naming convention enforcer with dry-run + audit
         ├── project_scaffold.py       Professional folder structure generator (4 templates)
-        ├── verse_schema.py           Verse Digest IQ & Universal Schema Search (138th Tool)
-        └── system_build.py           Automated UEFN Build Scraper & Error Monitor
+        ├── verse_schema.py           Verse Digest IQ & Universal Schema Search (143th Tool)
+        ├── system_build.py           Automated UEFN Build Scraper & Error Monitor
+        ├── measurement_tools.py      Distance Calculator & travel time estimator (Phase 15)
+        └── localization_tools.py     Multi-language text export/import (Phase 15)
 ```
 
 All heavy logic lives in Python. The optional UMG dashboard calls into it via
@@ -206,7 +208,9 @@ All heavy logic lives in Python. The optional UMG dashboard calls into it via
 │   │           ├── smart_organizer.py        # Proprietary Heuristics Engine
 │   │           ├── system_perf.py            # Background CPU Optimizer
 │   │           ├── verse_schema.py           # NEW: Verse Digest IQ (Phase 14)
-│   │           └── system_build.py           # NEW: Automated Build Monitor (Phase 14)
+│   │           ├── system_build.py           # NEW: Automated Build Monitor (Phase 14)
+│   │           ├── measurement_tools.py      # NEW: Distance & Travel Time (Phase 15)
+│   │           └── localization_tools.py     # NEW: Text Export & Translation (Phase 15)
 │   └── UEFN_Toolbelt/
 │       ├── Blueprints/
 │       │   └── WBP_ToolbeltDashboard    ← optional EUW — create in UEFN
@@ -554,6 +558,41 @@ tb.run("memory_top_offenders", limit=10, scan_path="/Game")
 
 # Auto-fix: generate LODs for every mesh in /Game/Meshes that has none
 tb.run("memory_autofix_lods", scan_path="/Game/Meshes")
+```
+
+### Measurement (`category="Measurement"`)
+
+High-precision spatial analysis for level balancing and navigation.
+
+| Tool Name | Description |
+|---|---|
+| `measure_distance` | Total 3D distance between a chain of selected actors |
+| `measure_travel_time` | Estimate travel time in seconds (Walk/Run/Sprint) |
+| `spline_measure` | Precise world-space length of a selected spline |
+
+```python
+# Select 4 checkpoints in an obby
+tb.run("measure_distance")  # -> Total: 4500.0 cm
+
+# See how long it takes a player to run that track
+tb.run("measure_travel_time", speed_type="Run") # -> 10.0s
+```
+
+### Localization (`category="Localization"`)
+
+Translate your map text for a global audience in one click.
+
+| Tool Name | Description |
+|---|---|
+| `text_export_manifest` | Harvest all level text to CSV/JSON for translation |
+| `text_apply_translation` | Bulk-update actor text from a translated manifest |
+
+```python
+# Export everything to Saved/UEFN_Toolbelt/localization/
+tb.run("text_export_manifest", format="csv")
+
+# Send the CSV to a translator, then re-import:
+tb.run("text_apply_translation", manifest_path="C:/Translations/french.json")
 ```
 
 ### Assets (`category="Assets"`)
@@ -1030,7 +1069,7 @@ LogPython:   ✓ All systems healthy — Toolbelt is ready.
 |---|---|---|
 | **Layer 1** — Python Environment | stdlib, threading, sockets, HTTP server, file I/O | 13 |
 | **Layer 2** — UEFN API Surface | `unreal` module, subsystems, AutomationLibrary, Materials | 13 |
-| **Layer 3** — Toolbelt Core | All 31 modules loaded, 138 tools registered, 9 safe tools executed | 40 |
+| **Layer 3** — Toolbelt Core | All 31 modules loaded, 143 tools registered, 9 safe tools executed | 40 |
 | **Layer 7** — Integration | **NEW:** Automated fixture-based verification of context-aware tools | 10 |
 | **Layer 4** — MCP Bridge | 31 command handlers, HTTP listener state | 4 |
 | **Layer 5** — Dashboard (PySide6) | PySide6 importable, QApplication, ToolbeltDashboard | 3 |
@@ -1900,7 +1939,7 @@ tb.run("verse_gen_custom",
 
 `CLAUDE.md` in the project root is auto-loaded by Claude Code every time you open the project. It contains:
 
-- Every tool name, parameter, and usage example for all 138 tools
+- Every tool name, parameter, and usage example for all 143 tools
 - MCP bridge command reference
 - UEFN Python critical rules (main thread, undo transactions, API gotchas)
 - Common patterns and troubleshooting
@@ -1921,7 +1960,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 | Ecosystem Moat | **Rich Plugin Hub, automatic UI generation** | Scattered, undocumented gists |
 | Security Model | **4-Gate Audit (AST scanning, SHA-256)** | Blind execution of untrusted code |
 | Verification | **Automated Integration Test Suite** | Manual testing only |
-| Tool count | **138 tools, 31 modules** | Single-purpose scripts |
+| Tool count | **143 tools, 31 modules** | Single-purpose scripts |
 | AI integration | **Full MCP bridge + model-agnostic HTTP client** | None |
 | Local model support | **LM Studio, Ollama, any HTTP agent** | None |
 | Verse code gen | **Live spec-backed (27K line reference)** | Static templates |
@@ -1936,7 +1975,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 The UEFN Toolbelt includes a professional-grade testing suite to ensure stability across UEFN updates.
 
 ### 1. Smoke Test (Healthy Schema Check)
-Verifies all 31 modules are loaded, all 138 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
+Verifies all 31 modules are loaded, all 143 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
 ```python
 import UEFN_Toolbelt as tb
 tb.run("toolbelt_smoke_test")
@@ -1981,7 +2020,7 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 ### v1.0 — March 2026 (Initial Release)
 
-- **138 tools** across 17 categories: Materials, Procedural, Bulk Ops, Text, Assets, Verse, Project, Screenshot, Tags, MCP, API Explorer, Utilities, and more
+- **143 tools** across 13 categories: Materials, Procedural, Bulk Ops, Text, Assets, Verse, Project, Screenshot, Tags, MCP, API Explorer, Utilities, and more
 - **PySide6 dashboard** — dark-themed floating window with sidebar nav, search across all tools, and per-category pages
 - **Tool Registry** — `@register_tool` decorator system, execute-by-name, tag/category search
 - **MCP bridge** — full two-process architecture letting Claude Code control UEFN over HTTP

@@ -1361,6 +1361,57 @@ def _tab_plugin_hub(R) -> "QScrollArea":
     return scroll
 
 
+def _tab_measurement(R) -> "QScrollArea":
+    scroll, L = _page()
+
+    # Distance
+    g_dist = _group(L, "Math & Measurement")
+    _btn(g_dist, "Measure Distance (Chain Selection)", lambda: R("measure_distance"), 
+         "Calculates the total 3D distance between a chain of selected actors.")
+    
+    speed_combo = QComboBox()
+    speed_combo.addItems(["Walk", "Run", "Sprint"])
+    speed_combo.setFixedWidth(120)
+    _btn_inp(g_dist, "Measure Travel Time", 
+             lambda: R("measure_travel_time", speed_type=speed_combo.currentText()), 
+             speed_combo, tip="Estimates travel time in seconds between points at specific Fortnite speeds.")
+
+    # Spline
+    g_spline = _group(L, "Spline Analysis")
+    _btn(g_spline, "Measure Spline Length", lambda: R("spline_measure"), 
+         "Calculates the precise world-space length of the selected spline.")
+
+    return scroll
+
+
+def _tab_localization(R) -> "QScrollArea":
+    scroll, L = _page()
+
+    # Export
+    g_exp = _group(L, "Localization Export")
+    fmt_combo = QComboBox()
+    fmt_combo.addItems(["json", "csv"])
+    fmt_combo.setFixedWidth(100)
+    _btn_inp(g_exp, "Export Text Manifest", 
+             lambda: R("text_export_manifest", format=fmt_combo.currentText()), 
+             fmt_combo, tip="Harvests all level text and exports it to Saved/UEFN_Toolbelt/localization/")
+
+    _btn(g_exp, "Open Export Folder", 
+         lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "localization"))),
+         "Opens the directory where translation manifests are saved.")
+
+    # Import
+    g_imp = _group(L, "Localization Import")
+    path_inp = _inp("path/to/translated.json", width=260)
+    L.addWidget(QLabel("  Manifest JSON Path:"))
+    L.addWidget(path_inp)
+    _btn(g_imp, "Apply Translations from Manifest", 
+         lambda: R("text_apply_translation", manifest_path=path_inp.text()), 
+         "Reads a translated manifest and updates all matching actors in the level.")
+
+    return scroll
+
+
 # ─── About page ───────────────────────────────────────────────────────────────
 
 
@@ -1507,8 +1558,8 @@ def _tab_about(_R=None) -> "QScrollArea":
     g_stats = _group(L, "What's Inside")
 
     stats = [
-        ("117", "registered tools"),
-        ("11",  "categories"),
+        ("143", "registered tools"),
+        ("13",  "categories"),
         ("6",   "smoke-test layers"),
         ("0",   "network calls — fully offline"),
         ("1",   "Ctrl+Z to undo anything"),
@@ -1589,6 +1640,8 @@ class ToolbeltDashboard(QMainWindow):
         ("Quick Actions",_tab_quick_actions),
         ("Materials",   _tab_materials),
         ("Procedural",  _tab_procedural),
+        ("Measurement", _tab_measurement),
+        ("Localization",_tab_localization),
         ("Bulk Ops",    _tab_bulk_ops),
         ("Text",        _tab_text),
         ("Assets",      _tab_assets),

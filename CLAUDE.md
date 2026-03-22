@@ -9,9 +9,9 @@
 ## What This Project Is
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
-It runs inside the editor and exposes 138 tools through:
+It runs inside the editor and exposes 143 tools through:
 - A persistent top-menu entry (`Toolbelt ▾`) in the UEFN editor bar
-- An 12-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
+- An 13-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
 - An MCP HTTP bridge so Claude Code can control UEFN directly
 - A Python client library (`client.py`) for non-MCP scripts
 
@@ -56,7 +56,7 @@ Then restart Claude Code — it connects automatically.
 
 ### What Claude Code can now do
 
-- Run any of the 138 registered tools by name
+- Run any of the 143 registered tools by name
 - Spawn, move, delete actors
 - List/rename/import/tag assets
 - Take screenshots, save level snapshots
@@ -173,6 +173,21 @@ tb.run("material_bulk_swap",
 tb.run("arena_generate", size="large", apply_team_colors=True)
 tb.run("scatter_hism", asset_path="/Game/Meshes/SM_Rock", count=300, radius=5000.0)
 ```
+
+### Measurement
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `measure_distance` | — | Total 3D distance between selection |
+| `measure_travel_time` | `speed_type="Run"` | Estimated travel time in seconds |
+| `spline_measure` | — | Precise spline world-length |
+
+### Localization
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `text_export_manifest` | `format="csv"` | Harvest level text for translation |
+| `text_apply_translation` | `manifest_path` | Update actors from translated file |
 
 ---
 
@@ -451,7 +466,7 @@ When the listener is running, Claude Code can call these directly:
 |---|---|---|
 | `ping` | — | Health check + command list |
 | `execute_python` | `code` | Run Python in UEFN (pre-populated: `unreal`, `actor_sub`, `asset_sub`, `level_sub`, `tb`) |
-| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 138 registered tools |
+| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 143 registered tools |
 | `list_tools` | `category=""` | List all registered tools |
 | `batch_exec` | `commands=[{command, params}]` | Multiple commands in one tick |
 | `undo` | — | Undo last action |

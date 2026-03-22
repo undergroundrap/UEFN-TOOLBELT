@@ -8,8 +8,8 @@ UEFN Toolbelt contains 138+ tools across 31 modules. Because many tools actively
 
 This document outlines the current testing status of the toolbelt and categorizes which tools are verified by the automated smoke test, and which require manual verification.
 
-## 🟢 Automated Verification Status: **138 / 138 Tools (100% Coverage)**
-Integration suite health is **100% stable (90/90 sections passed)**.
+## 🟢 Automated Verification Status: **143 / 143 Tools (100% Coverage)**
+Integration suite health is **100% stable (92/92 sections passed)**.
 
 ## 🟢 Layer 3 Execution Verified (Safe Tools)
 These tools do not require any actors to be selected or a specific level to be open. They are executed automatically during the `smoke_test.py` run to verify that the toolbelt execution pipeline is fully functional end-to-end.
@@ -56,6 +56,8 @@ These tools require a live level. They spawn new actors or modify the environmen
 | `text_render_tex` | [A] | [A] | AI | 2026-03-22 |
 | `material_pattern_painter` | [A] | [A] | AI | 2026-03-20 |
 | `text_color_cycle` | [A] | [A] | AI | 2026-03-20 |
+| `text_export_manifest` | [A] | [A] | AI | 2026-03-22 |
+| `text_apply_translation` | [A] | [A] | AI | 2026-03-22 |
 
 ### 🟠 Requires Manual Verification (Actor Selection Dependent)
 These tools **must** have valid actors selected in the UEFN viewport to function. Running them without a selection will result in a graceful warning, but testing actual logic requires a human.
@@ -88,6 +90,9 @@ These tools **must** have valid actors selected in the UEFN viewport to function
 | `pattern_helix` | [A] | [A] | AI | 2026-03-20 |
 | `pattern_radial_rows` | [A] | [A] | AI | 2026-03-20 |
 | `scatter_along_path` | [A] | [A] | AI | 2026-03-20 |
+| `measure_distance` | [A] | [A] | AI | 2026-03-22 |
+| `measure_travel_time` | [A] | [A] | AI | 2026-03-22 |
+| `spline_measure` | [A] | [A] | AI | 2026-03-22 |
 
 ### 🔴 Requires Manual Verification (Content Browser Dependent)
 These tools require specific assets (Static Meshes, Textures, Folders) to be selected in the Content Browser or exist at a specific path.
@@ -118,8 +123,8 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 4. Verifies the result (properties, file outputs)
 5. Cleans up with a single `undo_transaction`
 
-**Current Integration Coverage (123 / 123 Tools):**
-- Integration suite health is **100% stable (90/90 sections passed)**.
+**Current Integration Coverage (143 / 143 Tools):**
+- Integration suite health is **100% stable (92/92 sections passed)**.
 - **Materials:** `material_apply_preset` (Engine Fallback), `material_randomize_colors`, `material_bulk_swap`, `material_gradient_painter`, `material_team_color_split`, `material_pattern_painter`, `material_glow_pulse_preview`
 - **Bulk Ops:** `align`, `distribute`, `randomize`, `snap`, `stack`, `reset`, `bulk_mirror`, `bulk_normalize_scale`, `bulk_face_camera`
 - **Patterns:** `grid`, `circle`, `line`, `arc`, `spiral`, `wave`, `pattern_helix`, `pattern_radial_rows` (Geometry & Count verified)
@@ -142,6 +147,8 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 - **Scatter Advanced:** `scatter_along_path`, `scatter_export_manifest`
 - **Asset Admin:** `rename_enforce_conventions`, `rename_strip_prefix`, `organize_assets`
 - **Bridge Control:** `mcp_start`, `mcp_stop` toggles
+- **Measurement:** `measure_distance`, `measure_travel_time`, `spline_measure`
+- **Localization:** `text_export_manifest`, `text_apply_translation`
 
 ---
 
