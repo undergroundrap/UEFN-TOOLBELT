@@ -5,6 +5,46 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [1.5.3] — 2026-03-22
+
+### feat: online plugin hub, describe_tool mcp command, attribution
+
+- **Plugin Hub tab** — "Browse Online Hub" section fetches `registry.json` live from GitHub.
+  Core tools (BUILT-IN badge, green cards, by Ocean Bennett) and Community Plugins (Install button)
+  render as separate sections. Cache-busted with `?t=<timestamp>` on every refresh.
+- **`registry.json`** (new) — GitHub-hosted community plugin index. 10 core tool entries,
+  community plugin entry format documented. PRs welcome to add third-party tools.
+- **`describe_toolbelt_tool`** MCP command — returns full parameter schema for any single tool
+  without loading the entire `tool_manifest.json`. AI agents use this before calling
+  `run_toolbelt_tool()` to verify parameter names, types, and defaults.
+- **Attributions** — ImmatureGamer (verse device graph concept) and Kirch/@KirchCreator
+  (MCP server concept) credited in source, README, and About tab.
+- **docs**: `README.md` Plugin Hub & Community Ecosystem section; `plugin_dev_guide.md`
+  Path A (registry listing) vs Path B (core PR) distribution guide; `CLAUDE.md` updated.
+
+---
+
+## [1.5.2] — 2026-03-22
+
+### feat: setup status panel, coverage improvements, pyside6 multi-drive detection
+
+- **Setup Status panel** — First-run health badge in Quick Actions tab. Five checks:
+  PySide6 (✓/✗), tool registry count ≥ 171 (✓/✗), MCP bridge bound port (✓/⚠),
+  config file (✓/✗), verse-book (✓/⚠). Shows on every dashboard open.
+- **`install.py`** — PySide6 auto-detect now scans C/D/E drives and known Game Pass paths
+  instead of hardcoded `C:\Program Files`. `_find_ue_python()` and `_ensure_pyside6()`
+  added. Install flow is now 3 clearly labeled steps.
+- **`deploy.bat`** — PySide6 check loops over C/D/E drives. Added
+  `!! TEST IN UEFN BEFORE COMMITTING !!` banner at end of deploy.
+- **`list_untested.py`** — Fixed repo root path (was resolving to `Content/` not repo root).
+  Broad string literal detection catches tools listed in test arrays, not just `run("name")`
+  calls. CI exit codes added (0 = full coverage, 1 = gaps). Coverage improved 69% → 78%.
+- **Two-phase validation workflow** documented in `CLAUDE.md`, `plugin_dev_guide.md`,
+  `deploy.bat`, and persistent memory: Phase 1 = `ast.parse()` syntax check; Phase 2 = live
+  UEFN test with hard refresh bundle before every commit.
+
+---
+
 ## [1.5.1] — 2026-03-22
 
 ### refactor: theme system — single source of truth for all UI colors
