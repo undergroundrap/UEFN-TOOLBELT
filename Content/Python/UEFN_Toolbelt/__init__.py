@@ -29,7 +29,7 @@ config = get_config()
 # Single source of truth — used in audit logs, reload messages, and manifests.
 # Bump this when shipping a release so plugin_audit.json records which version
 # of the platform each plugin was loaded against.
-__version__ = "1.2.0"
+__version__ = "1.5.2"
 
 # Singleton registry shared across all imports
 registry: ToolRegistry = get_registry()

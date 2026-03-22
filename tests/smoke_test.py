@@ -237,7 +237,7 @@ EXPECTED_MODULES = [
     "api_capability_crawler", "measurement_tools", "localization_tools",
     "foliage_converter", "entity_kits", "selection_utils", "project_admin", "lighting_mastery"
 ]
-MIN_TOOL_COUNT = 155
+MIN_TOOL_COUNT = 171
 
 
 def _layer_toolbelt() -> None:
@@ -287,15 +287,34 @@ def _layer_toolbelt() -> None:
 
     # Execute Safe Tools (No Actor Needed)
     safe_tools_to_test = [
+        # Core utilities
         "api_list_subsystems",
-        "verse_list_snippets",
-        "scaffold_list_templates",
+        "api_search",
+        "config_list",
+        "config_get",
         "mcp_status",
-        "snapshot_list",
-        "material_list_presets",
-        "text_list_styles",
+        "mcp_restart",
+        "plugin_export_manifest",
         "plugin_validate_all",
         "plugin_list_custom",
+        # Scaffold / project
+        "scaffold_list_templates",
+        # Snapshots
+        "snapshot_list",
+        # Materials
+        "material_list_presets",
+        # Text
+        "text_list_styles",
+        # Theme
+        "theme_list",
+        "theme_get",
+        # Verse
+        "verse_list_snippets",
+        "verse_graph_scan",
+        # Measurement
+        "spline_measure",
+        # LOD / memory (read-only scans)
+        "lod_audit_folder",
     ]
     for safe_tool in safe_tools_to_test:
         try:

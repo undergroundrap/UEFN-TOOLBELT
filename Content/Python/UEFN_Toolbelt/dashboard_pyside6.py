@@ -2283,6 +2283,14 @@ def launch_dashboard() -> None:
         _WINDOW.raise_()
         _WINDOW.activateWindow()
 
+    # Auto-start the MCP listener so Claude Code can connect immediately.
+    # Silent if already running — mcp_start is idempotent.
+    try:
+        import UEFN_Toolbelt as _tb
+        _tb.run("mcp_start")
+    except Exception:
+        pass  # never block dashboard open if MCP fails
+
     unreal.log("[TOOLBELT] ✓ Dashboard open.")
 
 
