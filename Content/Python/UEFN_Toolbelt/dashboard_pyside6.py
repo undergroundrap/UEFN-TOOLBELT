@@ -218,7 +218,40 @@ def _sep(layout: "QVBoxLayout") -> None:
     layout.addWidget(line)
 
 
-# ─── Tab builders ─────────────────────────────────────────────────────────────
+# ─── Quick Actions ─────────────────────────────────────────────────────────────
+
+def _tab_quick_actions(R) -> "QScrollArea":
+    scroll, L = _page()
+
+    hero = QLabel("Quick Actions")
+    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    L.addWidget(hero)
+
+    desc = QLabel("The most frequently used tools for daily UEFN workflow automation.")
+    desc.setStyleSheet("font-size: 12px; color: #AAAAAA; padding-bottom: 12px;")
+    desc.setWordWrap(True)
+    L.addWidget(desc)
+
+    g_snap = _group(L, "Safety & Backups")
+    _btn(g_snap, "Snapshot: Backup Current Level", lambda: R("snapshot_save"), "Saves the current transforms of all actors to a JSON backup.")
+    _btn(g_snap, "Snapshot: Restore Level", lambda: R("snapshot_restore"), "Restores actor positions from the latest snapshot.")
+
+    g_org = _group(L, "Organization")
+    _btn(g_org, "Organize Loose Assets in /Game", lambda: R("scaffold_organize_loose"), "Moves unstructured loose assets into proper typed folders (Meshes, Materials, etc).")
+    _btn(g_org, "Fix Asset Naming Conventions", lambda: R("rename_enforce_conventions"), "Scans the project and automatically fixes Epic naming convention rule violations.")
+
+    g_sel = _group(L, "Selection & Utility")
+    _btn(g_sel, "Auto-Generate LODs (Selected)", lambda: R("lod_auto_generate_selection"), "Forces bulk generation of LODs for selected static meshes.")
+    _btn(g_sel, "Create Material Instances (Selected)", lambda: R("material_save_preset"), "Extracts current materials and auto-generates instances from them.")
+
+    g_mat = _group(L, "Level Design")
+    _btn(g_mat, "Clear Unused References (Orphans)", lambda: R("ref_delete_orphans"), "Deletes assets that have zero references to free up project space.")
+    _btn(g_mat, "Replace Selected with Blueprint/Asset", lambda: R("replace_with_assets"), "Swaps all selected viewport actors with a new mesh from the Content Browser.")
+
+    L.addStretch()
+    return scroll
+
+# ─── Category Pages ───────────────────────────────────────────────────────────
 
 def _tab_materials(R) -> "QScrollArea":
     scroll, L = _page()
@@ -1460,6 +1493,7 @@ class ToolbeltDashboard(QMainWindow):
     """UEFN Toolbelt — sidebar nav + search + stacked content pages."""
 
     _CATEGORIES = [
+        ("Quick Actions",_tab_quick_actions),
         ("Materials",   _tab_materials),
         ("Procedural",  _tab_procedural),
         ("Bulk Ops",    _tab_bulk_ops),
@@ -1621,7 +1655,7 @@ class ToolbeltDashboard(QMainWindow):
         layout.addWidget(content_area, stretch=1)
         self.setCentralWidget(central)
 
-        self._select_category("Materials")
+        self._select_category("Quick Actions")
 
     # ── Navigation ────────────────────────────────────────────────────────────
 
