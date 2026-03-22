@@ -48,6 +48,11 @@ class ToolEntry:
     shortcut: str = ""                  # optional keyboard shortcut hint
     tags: List[str] = field(default_factory=list)  # searchable tags
     source: str = ""                    # filename for custom plugins; empty = core tool
+    # Extensible Metadata (for Plugin Hub)
+    author: str = ""
+    version: str = "1.0.0"
+    url: str = ""
+    last_updated: str = ""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -80,6 +85,10 @@ class ToolRegistry:
         shortcut: str = "",
         tags: Optional[List[str]] = None,
         source: str = "",
+        author: str = "",
+        version: str = "1.0.0",
+        url: str = "",
+        last_updated: str = "",
     ) -> None:
         """Register a tool, with overwrite protection for core system tools."""
         if not source:
@@ -110,6 +119,10 @@ class ToolRegistry:
             shortcut=shortcut,
             tags=tags or [],
             source=source,
+            author=author,
+            version=version,
+            url=url,
+            last_updated=last_updated,
         )
         log_info(f"  ✓ Registered: [{category}] {name}")
 
@@ -122,6 +135,10 @@ class ToolRegistry:
         shortcut: str = "",
         tags: Optional[List[str]] = None,
         source: str = "",
+        author: str = "",
+        version: str = "1.0.0",
+        url: str = "",
+        last_updated: str = "",
     ) -> Callable:
         """
         @register_tool decorator factory. Use this on the tool's entry-point.
@@ -130,7 +147,7 @@ class ToolRegistry:
             def run(**kwargs): ...
         """
         def _wrap(fn: Callable) -> Callable:
-            self.register(name, fn, category, description, icon, shortcut, tags, source)
+            self.register(name, fn, category, description, icon, shortcut, tags, source, author, version, url, last_updated)
             return fn
         return _wrap
 
@@ -203,6 +220,10 @@ class ToolRegistry:
                 "shortcut": e.shortcut,
                 "tags": e.tags,
                 "source": e.source,
+                "author": e.author,
+                "version": e.version,
+                "url": e.url,
+                "last_updated": e.last_updated,
             }
             for e in entries
         ]
@@ -256,6 +277,10 @@ def register_tool(
     icon: str = "",
     shortcut: str = "",
     tags: Optional[List[str]] = None,
+    author: str = "",
+    version: str = "1.0.0",
+    url: str = "",
+    last_updated: str = "",
 ) -> Callable:
     """
     Module-level convenience decorator that registers with the global registry.
@@ -278,4 +303,8 @@ def register_tool(
         icon=icon,
         shortcut=shortcut,
         tags=tags,
+        author=author,
+        version=version,
+        url=url,
+        last_updated=last_updated,
     )

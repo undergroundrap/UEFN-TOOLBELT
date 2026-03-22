@@ -1083,7 +1083,160 @@ def _make_icon() -> "QIcon":
     return QIcon(pm)
 
 
+# ─── Plugin Hub ───────────────────────────────────────────────────────────────
+
+def _tab_plugin_hub(R) -> "QScrollArea":
+    import os, json
+    scroll, L = _page()
+
+    # ── Header
+    hero = QLabel("Plugin Ecosystem")
+    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    L.addWidget(hero)
+
+    desc = QLabel("Discover and run third-party tools installed in your Custom_Plugins directory.")
+    desc.setStyleSheet("font-size: 12px; color: #AAAAAA; padding-bottom: 12px;")
+    desc.setWordWrap(True)
+    L.addWidget(desc)
+
+    # ── Open Folder Button
+    btn_open = QPushButton("  Open Plugins Folder")
+    btn_open.setProperty("accent", "true")
+    btn_open.setStyleSheet(btn_open.styleSheet() + "QPushButton { padding: 8px; font-weight: bold; text-align: center; }")
+    def open_plugins_folder():
+        folder = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "Custom_Plugins")
+        os.makedirs(folder, exist_ok=True)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+    btn_open.clicked.connect(open_plugins_folder)
+    L.addWidget(btn_open)
+
+    _sep(L)
+
+    # ── Load Audit Log
+    audit_data = {}
+    audit_path = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "plugin_audit.json")
+    if os.path.exists(audit_path):
+        try:
+            with open(audit_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                for p in data.get("plugins", []):
+                    audit_data[p.get("plugin")] = p
+        except Exception:
+            pass
+
+    # ── List Custom Plugins
+    from UEFN_Toolbelt.registry import get_registry
+    reg = get_registry()
+
+    custom_entries = []
+    for entry in reg._tools.values():
+        source_path = entry.source.replace("\\", "/")
+        if "Custom_Plugins" in source_path:
+            custom_entries.append(entry)
+
+    if not custom_entries:
+        lbl = QLabel("No custom plugins installed.\nDrop Python scripts into the Custom_Plugins folder to see them here.")
+        lbl.setStyleSheet("color: #777777; font-style: italic; padding: 20px 0;")
+        lbl.setAlignment(Qt.AlignCenter)
+        L.addWidget(lbl)
+        L.addStretch()
+        return scroll
+
+    g_plugins = _group(L, "Installed Plugins")
+
+    for entry in sorted(custom_entries, key=lambda e: e.name):
+        card = QFrame()
+        card.setStyleSheet("QFrame { background: #212121; border: 1px solid #363636; border-radius: 6px; margin-bottom: 6px; }")
+        c_layout = QVBoxLayout(card)
+        c_layout.setContentsMargins(12, 12, 12, 12)
+        c_layout.setSpacing(6)
+
+        # Header: Name + Version
+        header = QWidget()
+        header.setStyleSheet("border: none; background: transparent;")
+        h_layout = QHBoxLayout(header)
+        h_layout.setContentsMargins(0, 0, 0, 0)
+
+        title = QLabel(entry.name)
+        title.setStyleSheet("font-size: 14px; font-weight: bold; color: #FFFFFF;")
+        h_layout.addWidget(title)
+
+        version = QLabel(f"v{entry.version}")
+        version.setStyleSheet("font-size: 11px; color: #8888AA; font-weight: bold;")
+        h_layout.addWidget(version)
+        h_layout.addStretch()
+
+        c_layout.addWidget(header)
+
+        # Meta
+        meta_str = []
+        if entry.author: meta_str.append(f"By: {entry.author}")
+        if entry.last_updated: meta_str.append(f"Updated: {entry.last_updated}")
+        if meta_str:
+            meta = QLabel("  |  ".join(meta_str))
+            meta.setStyleSheet("font-size: 11px; color: #AAAAAA; border: none; background: transparent;")
+            c_layout.addWidget(meta)
+
+        if entry.url:
+            url_link = QLabel(f'<a href="{entry.url}" style="color: #6666DD;">{entry.url}</a>')
+            url_link.setOpenExternalLinks(True)
+            url_link.setStyleSheet("font-size: 11px; border: none; background: transparent;")
+            c_layout.addWidget(url_link)
+
+        # Description
+        desc_lbl = QLabel(entry.description)
+        desc_lbl.setWordWrap(True)
+        desc_lbl.setStyleSheet("font-size: 12px; color: #DDDDDD; padding: 4px 0; border: none; background: transparent;")
+        c_layout.addWidget(desc_lbl)
+
+        # Security Footer
+        footer = QWidget()
+        footer.setStyleSheet("border: none; background: transparent;")
+        f_layout = QHBoxLayout(footer)
+        f_layout.setContentsMargins(0, 4, 0, 0)
+        f_layout.setSpacing(6)
+
+        module_name = os.path.splitext(os.path.basename(entry.source))[0]
+        audit_info = audit_data.get(module_name, {})
+
+        def _badge(text, ok=True):
+            b = QLabel(text)
+            color = "#44FF88" if ok else "#FFAAAA"
+            bg = "#1A3322" if ok else "#331A1A"
+            b.setStyleSheet(f"color: {color}; background: {bg}; border: 1px solid {color}; border-radius: 3px; padding: 3px 6px; font-size: 10px; font-weight: bold;")
+            return b
+
+        if audit_info:
+            f_layout.addWidget(_badge("✓ AST Clean"))
+            if "sha256" in audit_info:
+                f_layout.addWidget(_badge("✓ SHA-256 Validated"))
+            size = audit_info.get("size_kb", 0)
+            f_layout.addWidget(_badge(f"Size: {size} KB"))
+        else:
+            f_layout.addWidget(_badge("No Audit Data", False))
+
+        f_layout.addStretch()
+
+        # Action button
+        run_btn = QPushButton("Run Tool")
+        run_btn.setStyleSheet(
+            "QPushButton { background: #2D2D2D; border: 1px solid #444444; color: #FFFFFF;"
+            " padding: 4px 12px; border-radius: 3px; font-weight: bold; margin-left: 10px; }"
+            "QPushButton:hover { background: #3A3AFF; border-color: #5555FF; }"
+            "QPushButton:pressed { background: #5555FF; }"
+        )
+        run_btn.clicked.connect(lambda _, n=entry.name: R(n))
+        f_layout.addWidget(run_btn)
+
+        c_layout.addWidget(footer)
+        g_plugins.addWidget(card)
+
+    L.addStretch()
+    return scroll
+
+
 # ─── About page ───────────────────────────────────────────────────────────────
+
 
 _REPO_URL = "https://github.com/undergroundrap/UEFN-TOOLBELT"
 
@@ -1303,6 +1456,7 @@ class ToolbeltDashboard(QMainWindow):
         ("MCP",         _tab_mcp),
         ("API",         _tab_api),
         ("Verification",_tab_verification),
+        ("Plugin Hub",  _tab_plugin_hub),
         ("About",       _tab_about),
     ]
 

@@ -23,9 +23,14 @@ from UEFN_Toolbelt import core
     name="my_custom_renamer",
     category="My Custom Tools",
     description="Renames all selected actors to have a cool prefix.",
-    tags=["rename", "custom", "fun"]
+    tags=["rename", "custom", "fun"],
+    author="John Doe",
+    version="1.0.0",
+    url="https://github.com/johndoe/my_custom_renamer",
+    last_updated="2026-03-22"
 )
 def run(**kwargs):
+
     # 1. Ask the toolbelt core for the current viewport selection
     actors = core.require_selection()
     if not actors:

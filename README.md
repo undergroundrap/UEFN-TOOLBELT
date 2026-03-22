@@ -1880,13 +1880,21 @@ Any Claude session in this project starts fully briefed — no prompting require
 
 ## Why This Is the Best UEFN Python Tool
 
+UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** for the UEFN community. It is the definitive way to **add, test, update, verify, and document** UEFN Python tools:
+- **Adding & Updating**: Drop any Python script into the `Custom_Plugins` folder and it instantly acquires a beautiful UI card in the PySide6 Dashboard with its author, version, and external documentation links.
+- **Security Verification**: Every plugin passes through a 4-Gate strict security audit (Size constraints, AST malicious import scanning, Namespace protection, and SHA-256 hashing) before it can ever execute. You can see the health of every script live in the UI.
+- **Testing**: A 90-step programmatic `integration_test.py` validates that your tools work perfectly against the live UEFN C++ API, giving developers total confidence after engine updates.
+
 | Feature | UEFN Toolbelt | Everyone else |
 |---|---|---|
+| Ecosystem Moat | **Rich Plugin Hub, automatic UI generation** | Scattered, undocumented gists |
+| Security Model | **4-Gate Audit (AST scanning, SHA-256)** | Blind execution of untrusted code |
+| Verification | **Automated Integration Test Suite** | Manual testing only |
 | Tool count | **123 tools, 24 modules** | Single-purpose scripts |
 | AI integration | **Full MCP bridge + model-agnostic HTTP client** | None |
 | Local model support | **LM Studio, Ollama, any HTTP agent** | None |
 | Verse code gen | **Live spec-backed (27K line reference)** | Static templates |
-| Dashboard | **Sidebar nav, dual search, 12 pages, dark theme** | Blueprint widgets or none |
+| Dashboard | **Sidebar nav, Plugin Hub, 13 pages, dark theme** | Blueprint widgets or none |
 | Architecture | **Registry + decorators, undo-safe, extensible** | Monolithic scripts |
 | Day-1 release | **Shipped UEFN 40.00 launch day (March 2026)** | |
 
