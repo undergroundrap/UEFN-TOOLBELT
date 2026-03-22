@@ -183,11 +183,65 @@ Point-to-point instant travel.
 - `activation_method` — `PLAYER_ENTER` or `CHANNEL_ACTIVATED`
 - `team` — which team can use it
 
-**Pairing teleporters via Python:**
+**C++ group system (exposed to Python as `FortCreativeTeleporter`):**
+
+| Property | Type | What it controls |
+|:---|:---|:---|
+| `knob_teleporter_group` | `FortCreativeTeleporterGroup` | Which group this teleporter *belongs to* (receives) |
+| `knob_target_teleporter_group` | `FortCreativeTeleporterGroup` | Which group this teleporter *sends to* |
+| `teleport_to_when_received` | `FortGameplayReceiverMessageComponent` | Channel-message trigger (the "Receive Channel" knob in C++) |
+
+**`FortCreativeTeleporterGroup` — full 27-value enum:**
+```
+GROUP_A=0  GROUP_B=1  GROUP_C=2  GROUP_D=3  GROUP_E=4  GROUP_F=5
+GROUP_G=6  GROUP_H=7  GROUP_I=8  GROUP_J=9  GROUP_K=10 GROUP_L=11
+GROUP_M=12 GROUP_N=13 GROUP_O=14 GROUP_P=15 GROUP_Q=16 GROUP_R=17
+GROUP_S=18 GROUP_T=19 GROUP_U=20 GROUP_V=21 GROUP_W=22 GROUP_X=23
+GROUP_Y=24 GROUP_Z=25 GROUP_NONE=26
+```
+
+26 active groups (A–Z). A teleporter with `knob_teleporter_group=GROUP_A` receives any
+player sent by a teleporter with `knob_target_teleporter_group=GROUP_A`. Multiple
+teleporters can share a group — creating **random destination pools**.
+
+**Configuring a teleporter network via Python:**
 ```python
-# Select two teleporter actors, get their labels
-teleporters = [a for a in selected if "Teleporter" in a.get_class().get_name()]
-# They wire to each other via their Verse @editable references in UEFN editor
+teleporters = [a for a in unreal.EditorActorSubsystem().get_all_level_actors()
+               if "Teleporter" in a.get_class().get_name()]
+
+# First half sends to GROUP_A, second half receives GROUP_A
+mid = len(teleporters) // 2
+for t in teleporters[:mid]:
+    t.set_editor_property("knob_target_teleporter_group", 0)  # GROUP_A
+for t in teleporters[mid:]:
+    t.set_editor_property("knob_teleporter_group", 0)  # GROUP_A
+```
+
+---
+
+## Audio Mixer Device (`CreativeAudioMixerDevice`)
+
+The only audio device with a Python-writable volume fader. This is not the same as the
+basic Audio Player — the Audio Mixer controls overall sound mix via a bus system.
+
+**Key C++ properties (from `unreal.pyi`):**
+
+| Property | Type | Access | What it controls |
+|:---|:---|:---|:---|
+| `fader_value` | `float` | **Read-Write** | Volume level (0.0 = silent, 1.0 = full) |
+| `activate_in_edit_mode` | `bool` | Read-Write | Play audio during editor preview |
+| `activate_on_game_start` | `bool` | Read-Write | Auto-activate on game begin |
+| `can_be_heard_by` | `enum` | Read-Write | Team filter (all teams, specific team) |
+| `bus` | `SoundControlBus` | Read-Only | Connected audio control bus |
+| `mix` | `SoundControlBusMix` | Read-Only | The bus mix applied |
+
+```python
+# Set all audio mixers to 80% volume
+for a in unreal.EditorActorSubsystem().get_all_level_actors():
+    cls = a.get_class().get_name()
+    if "AudioMixer" in cls:
+        a.set_editor_property("fader_value", 0.8)
+        a.set_editor_property("activate_on_game_start", True)
 ```
 
 ---
@@ -225,6 +279,27 @@ Zone control — teams score by holding the zone.
 - `count_direction` — `UP` or `DOWN`
 - `auto_start` — start on game begin
 - `channel` — channel triggered when timer expires
+
+**Runtime client state (readable from Python during Play mode):**
+
+| Property | Type | What it shows |
+|:---|:---|:---|
+| `client_current_state` | `TimerDeviceState` | Current operational state |
+| `client_current_time` | `int32` | Current timer value in seconds |
+| `client_show_on_hud` | `bool` | Whether timer is on HUD now |
+| `client_current_secondary_text` | `str` | Secondary display label |
+| `server_display_update_rate` | `float` | How often display is pushed (writable) |
+
+**`TimerDeviceState` values:** `ACTIVATED`, `COMPLETED`, `DISABLED`, `ENABLED`, `PAUSED`
+
+```python
+# Read live timer state (use during Simulate/Play mode)
+for a in unreal.EditorActorSubsystem().get_all_level_actors():
+    if "Timer" in a.get_class().get_name():
+        state = getattr(a, "client_current_state", None)
+        time_val = getattr(a, "client_current_time", None)
+        print(f"Timer: {state} @ {time_val}s")
+```
 
 ---
 
@@ -299,6 +374,42 @@ tb.run("verse_bulk_set_property", property_name="max_score", value=25)
 # Step 5: Save the level
 tb.run("save_current_level")
 ```
+
+---
+
+## `CreativeBlueprintLibrary` — Island-Level Python API
+
+A static library accessible as `unreal.CreativeBlueprintLibrary`. No instance needed.
+These are Epic's officially bridged Blueprint Function Library methods for Creative automation.
+
+| Method | Returns | What it does |
+|:---|:---|:---|
+| `get_creative_island_code()` | `str` | Published island code (e.g. `"1234-5678-9012"`) |
+| `get_gravity_z()` | `float` | Current gravity in cm/s² (default: -980.0) |
+| `is_actor_locked(actor)` | `bool` | True if locked via Lock Device |
+| `get_minigame_stats_comp(actor)` | `MinigameStatsComponent` | Returns scoring stats component |
+| `get_creative_island_matchmaking_max_players()` | `int` | Matchmaking player cap |
+| `get_all_creative_island_actors()` | `Array[Actor]` | All actors on island |
+| `try_get_creative_island_code(out_code)` | `bool` | Non-raising code check |
+
+```python
+lib = unreal.CreativeBlueprintLibrary
+
+# Read island metadata
+code = lib.get_creative_island_code()
+gravity = lib.get_gravity_z()
+max_players = lib.get_creative_island_matchmaking_max_players()
+
+print(f"Island: {code} | Gravity: {gravity} cm/s² | Max players: {max_players}")
+
+# Check if specific actor is locked
+for a in unreal.EditorActorSubsystem().get_selected_level_actors():
+    locked = lib.is_actor_locked(a)
+    print(f"{a.get_actor_label()}: locked={locked}")
+```
+
+> **Zero-gravity detection**: `get_gravity_z() == 0.0` reliably identifies zero-G maps.
+> The default is -980.0 (Earth-like). Many custom Fortnite experiences use 0 or positive values.
 
 ---
 
