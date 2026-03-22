@@ -45,3 +45,6 @@ from . import measurement_tools
 from . import localization_tools
 from . import foliage_converter
 from . import entity_kits
+from . import selection_utils
+from . import project_admin
+from . import lighting_mastery

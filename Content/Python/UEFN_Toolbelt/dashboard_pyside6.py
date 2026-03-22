@@ -1411,6 +1411,72 @@ def _tab_localization(R) -> "QScrollArea":
 
     return scroll
 
+def _tab_selection(R) -> "QScrollArea":
+    scroll, L = _page()
+    hero = QLabel("Advanced Selection")
+    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    L.addWidget(hero)
+    
+    g = _group(L, "Proximity & Filtering")
+    
+    rad_s = _spin(1000, 10, 50000, width=100)
+    cls_inp = _inp("StaticMeshActor", "StaticMeshActor", width=160)
+    _btn_inp(g, "Select in Radius", 
+             lambda: R("select_in_radius", radius=rad_s.value(), actor_class_name=cls_inp.text()), 
+             rad_s, cls_inp, tip="Selects all actors of a specific class within a radius of the current selection.")
+    
+    prop_inp = _inp("Actor Label", "Actor Label", width=120)
+    val_inp = _inp("Value", "", width=140)
+    _btn_inp(g, "Select by Property", 
+             lambda: R("select_by_property", prop_name=prop_inp.text(), value=val_inp.text()), 
+             prop_inp, val_inp, tip="Selects actors where an editor property matches a specific value.")
+             
+    tag_inp = _inp("my_tag", "", width=160)
+    _btn_inp(g, "Select by Verse Tag", 
+             lambda: R("select_by_verse_tag", tag_name=tag_inp.text()), 
+             tag_inp, tip="Selects all actors with the specified Verse tag.")
+             
+    L.addStretch()
+    return scroll
+
+def _tab_lighting(R) -> "QScrollArea":
+    scroll, L = _page()
+    hero = QLabel("Cinematic Lighting")
+    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    L.addWidget(hero)
+    
+    g = _group(L, "Atmospheric Presets")
+    
+    mood_combo = QComboBox()
+    mood_combo.addItems(["Star Wars", "Cyberpunk", "Vibrant"])
+    mood_combo.setFixedWidth(160)
+    _btn_inp(g, "Apply Lighting Preset", 
+             lambda: R("light_cinematic_preset", mood=mood_combo.currentText()), 
+             mood_combo, tip="Sets Directional Light and Atmosphere for a specific cinematic mood.")
+             
+    _btn(g, "Randomize Sun Orientation", lambda: R("light_randomize_sky"), 
+         "Randomly shifts sun position for environmental look-dev.")
+         
+    L.addStretch()
+    return scroll
+
+def _tab_project_admin(R) -> "QScrollArea":
+    scroll, L = _page()
+    hero = QLabel("Project Administration")
+    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    L.addWidget(hero)
+
+    g = _group(L, "Maintenance & Safety")
+    
+    _btn(g, "Full Project Backup (.zip)", lambda: R("system_backup_project"), 
+         "Creates a timestamped .zip of the Content folder in Saved/UEFN_Toolbelt/backups/")
+    
+    _btn(g, "Level Performance Audit", lambda: R("system_perf_audit"), 
+         "Fast scan of level for excessive actors or lights.")
+         
+    L.addStretch()
+    return scroll
+
 def _tab_environmental(L: QVBoxLayout) -> None:
     _title(L, "Environmental Mastery", "leaf", "Prop-to-Foliage conversion and brush auditing.")
     
@@ -1580,8 +1646,8 @@ def _tab_about(_R=None) -> "QScrollArea":
     g_stats = _group(L, "What's Inside")
 
     stats = [
-        ("147", "registered tools"),
-        ("15",  "categories"),
+        ("155", "registered tools"),
+        ("18",  "categories"),
         ("6",   "smoke-test layers"),
         ("0",   "network calls — fully offline"),
         ("1",   "Ctrl+Z to undo anything"),
@@ -1660,8 +1726,10 @@ class ToolbeltDashboard(QMainWindow):
 
     _CATEGORIES = [
         ("Quick Actions",_tab_quick_actions),
+        ("Selection",   _tab_selection),
         ("Materials",   _tab_materials),
         ("Procedural",  _tab_procedural),
+        ("Lighting",    _tab_lighting),
         ("Measurement", _tab_measurement),
         ("Localization",_tab_localization),
         ("Environmental",_tab_environmental),
@@ -1670,6 +1738,7 @@ class ToolbeltDashboard(QMainWindow):
         ("Text",        _tab_text),
         ("Assets",      _tab_assets),
         ("Verse",       _tab_verse),
+        ("Project Admin", _tab_project_admin),
         ("Project",     _tab_project),
         ("Screenshot",  _tab_screenshot),
         ("Tags",        _tab_tags),

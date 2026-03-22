@@ -9,9 +9,9 @@
 ## What This Project Is
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
-It runs inside the editor and exposes 147 tools through:
+It runs inside the editor and exposes 155 tools through:
 - A persistent top-menu entry (`Toolbelt ▾`) in the UEFN editor bar
-- An 15-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
+- An 18-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
 - An MCP HTTP bridge so Claude Code can control UEFN directly
 - A Python client library (`client.py`) for non-MCP scripts
 

@@ -15,7 +15,7 @@ Usage:
 """
 
 from __future__ import annotations
-VERSION = "V10-ULTIMATE-100"
+VERSION = "V11-ULTIMATE-155"
 import os
 import time
 from datetime import datetime
@@ -1035,6 +1035,9 @@ def toolbelt_integration_test(**kwargs) -> None:
             _test_localization()
             _test_environmental()
             _test_entities()
+            _test_selection()
+            _test_lighting_integration()
+            _test_project_admin_integration()
             
             # Finalize
             _cleanup_fixtures()
@@ -1279,6 +1282,57 @@ def _test_entities() -> None:
                 
     except Exception as e:
         _record("Entities", "Error", False, str(e))
+
+def _test_selection() -> None:
+    _header("13. Selection Utils")
+    import UEFN_Toolbelt as tb
+    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    a1 = _spawn_fixture(location=unreal.Vector(0,0,0))
+    a2 = _spawn_fixture(location=unreal.Vector(500,0,0))
+    a3 = _spawn_fixture(location=unreal.Vector(2000,0,0))
+    
+    try:
+        # Test Radius Selection
+        actor_sub.set_selected_level_actors([a1])
+        tb.run("select_in_radius", radius=600.0, actor_class_name="StaticMeshActor")
+        selected = actor_sub.get_selected_level_actors()
+        # Should be a1 and a2
+        passed_rad = (a1 in selected and a2 in selected and a3 not in selected)
+        _record("Selection", "Select in Radius", passed_rad, f"Selected {len(selected)} (Expected a1, a2)")
+
+        # Test Property Selection
+        a1.set_actor_label("INTEGRATION_TEST_TARGET")
+        tb.run("select_by_property", prop_name="Actor Label", value="TARGET")
+        selected = actor_sub.get_selected_level_actors()
+        passed_prop = (a1 in selected and len(selected) == 1)
+        _record("Selection", "Select by Property", passed_prop)
+    except Exception as e:
+        _record("Selection", "Error", False, str(e))
+    finally:
+        for a in [a1, a2, a3]: 
+            if a: actor_sub.destroy_actor(a)
+
+def _test_lighting_integration() -> None:
+    _header("14. Lighting Mastery")
+    import UEFN_Toolbelt as tb
+    try:
+        # Just test execution path (hard to verify visual state without complex property checks)
+        tb.run("light_cinematic_preset", mood="Cyberpunk")
+        _record("Lighting", "Apply Preset (Cyberpunk)", True)
+        tb.run("light_randomize_sky")
+        _record("Lighting", "Randomize Sky", True)
+    except Exception as e:
+        _record("Lighting", "Error", False, str(e))
+
+def _test_project_admin_integration() -> None:
+    _header("15. Project Admin")
+    import UEFN_Toolbelt as tb
+    try:
+        # Perf Audit
+        tb.run("system_perf_audit")
+        _record("Project Admin", "Perf Audit", True)
+    except Exception as e:
+        _record("Project Admin", "Error", False, str(e))
 
 if __name__ == "__main__":
     toolbelt_integration_test()
