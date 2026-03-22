@@ -10,17 +10,21 @@ This document maps the Python API for common Fortnite devices and level actors, 
 | Class | Description | Key Methods / Properties |
 | :--- | :--- | :--- |
 | `FortCreativeLockDevice` | Lock Device | `toggle_active()`, `set_owner_player()`, `allow_interact`, `is_locked` |
-| `BuildingDeco` | Prop / Decoration | `actor_has_tag()`, `destroy_actor()`, `static_mesh` |
-| `BuildingProp` | Standard Prop | `set_health()`, `set_is_indestructible()`, `get_transform()` |
+| `BuildingDeco` | Prop / Decoration | Inherits from `BuildingProp`. Use `static_mesh`, `actor_has_tag()`. |
+| `BuildingProp` | Standard Prop | `health (float)`, `max_health (float)`, `player_placed (bool)`, `allow_interact (bool)`, `static_mesh` |
 | `FortGameplayReceiverMessageComponent` | Message Receiver | `on_gameplay_message_received()`, `set_channel_id()`, `filter_tags` |
 | `FortLocalizableMessageComponent` | Localized Text | `localize_and_set_message()`, `set_active()` |
-| `BaseBuildingStaticMeshComponent` | Visual Mesh | `set_static_mesh()`, `set_material()`, `cast_shadow` |
-| `Actor` | Base Class | `get_actor_location()`, `set_actor_rotation()`, `tags` |
+| `BaseBuildingStaticMeshComponent` | Visual Mesh | `set_static_mesh()`, `set_material()`, `cast_shadow`, `relative_location (Vector)` |
+| `Actor` | Base Class | `hidden (bool)`, `tags (Array)`, `get_actor_location()`, `get_actor_label()`, `root_component` |
+| `SceneComponent` | Transform Component | `relative_location (Vector)`, `relative_rotation (Rotator)`, `visible (bool)`, `mobility` |
 
 ## Technical Details
 
-The full schema is available in your local saved directory after running the crawler:
-`%LOCALAPPDATA%\UnrealEditorFortnite\Saved\UEFN_Toolbelt\api_level_classes_schema.json`
+The full schema is available in the repository as the **Source of Truth**:
+[uefn_reference_schema.json](file:///c:/Users/ocean/AntigravityProjects/UEFN-TOOLBELT/docs/uefn_reference_schema.json)
+
+> [!IMPORTANT]
+> The **Reference Schema** provides standard UEFN API data. For project-specific context (your unique Verse devices), run the crawler and check your git-ignored `docs/api_level_classes_schema.json`.
 
 ### Example Usage
 

@@ -9,7 +9,14 @@ Automate the tedious, script the impossible, and bridge the gap between Python a
 UEFN Toolbelt is a master utility designed to leverage the **2026 UEFN Python 3.11 Update**,
 allowing creators to manipulate actors, manage assets, and generate boilerplate Verse code
 through a high-level, developer-friendly interface — all from a single persistent menu entry
-in the UEFN editor bar. Reached **147 Registered Tools** in Phase 16.
+in the UEFN editor bar. Reached **155 Registered Tools** in Phase 17.
+
+## 🤖 AI-Accelerated Development (The Schema)
+Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect information** about your project's unique Verse devices and custom props:
+
+1.  **Generate a Schema**: Run `tb.run("api_crawl_level_classes")` in the UEFN Python console.
+2.  **Save as Source of Truth**: Move the generated `api_level_classes_schema.json` to your `docs/` folder.
+3.  **Perfect Context**: Your AI will now know the exact property names and types in your specific level, eliminating guessing and code errors.
 
 ---
 

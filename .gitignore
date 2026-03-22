@@ -159,3 +159,6 @@ Session.vim
 *.pfx
 secrets.json
 credentials.json
+
+# ─── UEFN Toolbelt Local Data ─────────────────────────────────────────────────
+docs/api_level_classes_schema.json

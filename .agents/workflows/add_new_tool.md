@@ -4,7 +4,10 @@ description: How to add a new UEFN Toolbelt tool with automated verification
 
 Follow these steps to add a new tool to the UEFN Toolbelt and ensure it is properly verified.
 
-## 1. Create the Tool Logic
+## 1. Consult the High-Fidelity Schema
+Before writing logic, consult `docs/api_level_classes_schema.json` to find the exact property names and methods for your target UEFN classes (e.g., `BuildingProp`). This is the **Source of Truth** for the project.
+
+## 2. Create the Tool Logic
 Create or edit a `.py` file in `Content/Python/UEFN_Toolbelt/tools/`.
 
 ```python
