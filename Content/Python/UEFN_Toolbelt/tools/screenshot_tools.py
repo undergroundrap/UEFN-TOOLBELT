@@ -186,17 +186,17 @@ def _do_focus_selection(
     height: int,
     fov_deg: float,
     restore_camera: bool,
-) -> None:
+) -> str:
     actors = get_selected_actors()
     if not actors:
         unreal.log_warning("[Screenshot] Nothing selected. Select actors first.")
-        return
+        return ""
 
     try:
         center, extent = actors_bounding_box(actors)
     except ValueError as e:
         unreal.log_warning(f"[Screenshot] {e}")
-        return
+        return ""
 
     # Half-extents as Vector
     half = unreal.Vector(extent.x / 2.0, extent.y / 2.0, extent.z / 2.0)
@@ -206,6 +206,7 @@ def _do_focus_selection(
 
     _ensure_dir()
     out = _timestamped(name, width, height)
+    result = ""
 
     try:
         _set_camera(cam_loc, cam_rot)
@@ -214,12 +215,15 @@ def _do_focus_selection(
         ok = _take_shot(out, width, height)
         if ok:
             unreal.log(f"[Screenshot] ✓  {out}")
+            result = out
         else:
             unreal.log_warning(f"[Screenshot] ✗  Capture may have failed — check {_SHOT_DIR}")
     finally:
         if restore_camera:
             _set_camera(saved_loc, saved_rot)
             unreal.log("[Screenshot]   Camera restored.")
+
+    return result
 
 
 def _do_timed_series(
@@ -274,7 +278,7 @@ def screenshot_take(
     capture_hdr: bool = False,
     force_game_view: bool = False,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Take a high-resolution screenshot of the current editor viewport.
 
@@ -287,10 +291,14 @@ def screenshot_take(
         capture_hdr:     Also write a 16-bit EXR alongside the PNG.
         force_game_view: Hide editor UI gizmos (cleaner output).
 
+    Returns:
+        dict: {"status", "path"} — path is the output file (queued, ~1s to appear).
+
     Output:
         Saved/UEFN_Toolbelt/screenshots/{name}_{YYYYMMDD_HHMMSS}_{W}x{H}.png
     """
-    return _do_take(name, width, height, capture_hdr, force_game_view)
+    path = _do_take(name, width, height, capture_hdr, force_game_view)
+    return {"status": "ok" if path else "error", "path": path}
 
 
 @register_tool(
@@ -307,7 +315,7 @@ def screenshot_focus_selection(
     fov_deg: float = 60.0,
     restore_camera: bool = True,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Automatically frame all selected actors, capture a screenshot, and
     (optionally) restore the camera to its pre-shot position.
@@ -328,8 +336,12 @@ def screenshot_focus_selection(
                         position after the capture. Set False for manual
                         fine-tuning: position stays where the auto-framer
                         put it so you can adjust from there.
+
+    Returns:
+        dict: {"status", "path"} — path is queued output file (~1s to appear).
     """
-    _do_focus_selection(name, width, height, fov_deg, restore_camera)
+    path = _do_focus_selection(name, width, height, fov_deg, restore_camera)
+    return {"status": "ok" if path else "error", "path": path}
 
 
 @register_tool(
@@ -375,10 +387,14 @@ def screenshot_timed_series(
     icon="📁",
     tags=["screenshot", "folder", "path", "output"],
 )
-def screenshot_open_folder(**kwargs) -> None:
-    """Print the screenshot output folder path so you can find your shots quickly."""
+def screenshot_open_folder(**kwargs) -> dict:
+    """
+    Print the screenshot output folder path so you can find your shots quickly.
+
+    Returns:
+        dict: {"status", "path", "file_count"}
+    """
     _ensure_dir()
-    # Count existing screenshots
     try:
         files = [f for f in os.listdir(_SHOT_DIR) if f.endswith((".png", ".exr"))]
     except Exception:
@@ -386,3 +402,4 @@ def screenshot_open_folder(**kwargs) -> None:
 
     unreal.log(f"\n[Screenshot] Output folder: {_SHOT_DIR}")
     unreal.log(f"  {len(files)} file(s) saved so far.\n")
+    return {"status": "ok", "path": _SHOT_DIR, "file_count": len(files)}

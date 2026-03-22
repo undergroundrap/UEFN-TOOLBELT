@@ -297,7 +297,7 @@ def _do_tag_list_all(folder: str) -> dict[str, int]:
     return counts
 
 
-def _do_tag_export(folder: str) -> None:
+def _do_tag_export(folder: str) -> int:
     """
     Export the full tag → asset mapping to JSON.
 
@@ -342,6 +342,7 @@ def _do_tag_export(folder: str) -> None:
         else:
             unreal.log(f"  TB:{tag:30s}  {total} assets  ({len(values)} distinct values)")
     unreal.log(f"\n  Full report → {_EXPORT_PATH}\n")
+    return len(index)
 
 
 # ─── Registered tools ─────────────────────────────────────────────────────────
@@ -426,7 +427,7 @@ def tag_search(
     value: str = "1",
     folder: str = "/Game",
 **kwargs,
-) -> None:
+) -> dict:
     """
     Find all assets under folder where TB:{tag_name} = value.
 
@@ -434,6 +435,9 @@ def tag_search(
         tag_name: Tag key to search for.
         value:    Expected tag value. Default "1" matches boolean/flag tags.
         folder:   Content path to scan (recursive). Default "/Game".
+
+    Returns:
+        dict: {"status", "count", "matches": [asset_path]}
 
     Example:
         tb.run('tag_search', tag_name='biome', value='desert', folder='/Game/Environment')
@@ -443,18 +447,19 @@ def tag_search(
             "[AssetTagger] Provide a tag_name to search for. "
             "Example: tb.run('tag_search', tag_name='hero_prop')"
         )
-        return
+        return {"status": "error", "message": "tag_name is required."}
 
     matches = _do_tag_search(tag_name, value, folder)
 
     if not matches:
         unreal.log(f"[AssetTagger] No assets found with TB:{tag_name} = {value!r} under {folder}.")
-        return
+        return {"status": "ok", "count": 0, "matches": []}
 
     unreal.log(f"\n[AssetTagger] TB:{tag_name} = {value!r} — {len(matches)} match(es) in {folder}:\n")
     for path in matches:
         unreal.log(f"  🏷  {path}")
     unreal.log("")
+    return {"status": "ok", "count": len(matches), "matches": matches}
 
 
 @register_tool(
@@ -464,12 +469,15 @@ def tag_search(
     icon="📋",
     tags=["tag", "metadata", "list", "inventory"],
 )
-def tag_list_all(folder: str = "/Game", **kwargs) -> None:
+def tag_list_all(folder: str = "/Game", **kwargs) -> dict:
     """
     Print all unique TB: tag keys used anywhere under folder, with asset counts.
 
     Args:
         folder: Content path to scan (recursive). Default "/Game".
+
+    Returns:
+        dict: {"status", "count", "tags": {key: asset_count}}
     """
     unreal.log(f"[AssetTagger] Scanning tags under {folder}…")
     counts = _do_tag_list_all(folder)
@@ -477,12 +485,13 @@ def tag_list_all(folder: str = "/Game", **kwargs) -> None:
     if not counts:
         unreal.log(f"[AssetTagger] No Toolbelt tags found under {folder}.")
         unreal.log(f"  Apply tags with: tb.run('tag_add', tag_name='my_tag')")
-        return
+        return {"status": "ok", "count": 0, "tags": {}}
 
     unreal.log(f"\n[AssetTagger] {len(counts)} tag key(s) under {folder}:\n")
     for key, count in sorted(counts.items(), key=lambda x: -x[1]):
         unreal.log(f"  TB:{key:30s}  {count:4d} assets")
     unreal.log("")
+    return {"status": "ok", "count": len(counts), "tags": counts}
 
 
 @register_tool(
@@ -492,12 +501,16 @@ def tag_list_all(folder: str = "/Game", **kwargs) -> None:
     icon="📤",
     tags=["tag", "metadata", "export", "json", "report"],
 )
-def tag_export(folder: str = "/Game", **kwargs) -> None:
+def tag_export(folder: str = "/Game", **kwargs) -> dict:
     """
     Scan all assets under folder, collect every TB: tag, and write the
     tag → asset mapping to Saved/UEFN_Toolbelt/tag_export.json.
 
     Args:
         folder: Content path to scan (recursive). Default "/Game".
+
+    Returns:
+        dict: {"status", "path", "unique_tags": int}
     """
-    _do_tag_export(folder)
+    unique_tags = _do_tag_export(folder)
+    return {"status": "ok", "path": _EXPORT_PATH, "unique_tags": unique_tags}
