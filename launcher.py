@@ -15,14 +15,14 @@ Paste ONE of these into the UEFN Python REPL (Tools → Execute Python Script):
 The launcher:
   1. Adds Content/Python/ to sys.path
   2. Hot-reloads all toolbelt modules (safe to run repeatedly during development)
-  3. Registers all 21 tool modules (~117 tools)
+  3. Registers all 21 tool modules (138 tools)
   4. Opens the PySide6 tabbed dashboard (falls back gracefully if PySide6 missing)
 
 Install PySide6 (one-time, run OUTSIDE UEFN in a regular terminal):
   & "C:\\Program Files\\Epic Games\\Fortnite\\Engine\\Binaries\\ThirdParty\\Python3\\Win64\\python.exe" -m pip install PySide6
 
 Compatible with UEFN Python 3.11 experimental (v40.00+, March 2026)
-API ground truth: https://github.com/KirChuvakov/uefn-mcp-server (37K+ type dump)
+API ground truth: Built-in API Explorer: tb.run("api_export_full") for IDE autocomplete stubs.
 """
 
 import sys
