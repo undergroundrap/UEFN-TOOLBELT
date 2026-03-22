@@ -113,6 +113,21 @@ The toolbelt is designed for three creator personas:
 
 ---
 
+## 🏗️ Solving Soul-Crushing Repetition (The 8 Pillars)
+
+The UEFN Toolbelt exists because manual work doesn't scale, but scripts do. We solve 90% of the repetitive tasks reported by the UEFN community:
+
+1. **Manual Placement & Spacing**: Procedural spawners, align/distribute scripts, and spline-based distribution.
+2. **Asset Organization**: Bulk import pipelines, smart renaming, and auto-folder scaffolding.
+3. **Material Batch Edits**: Parameter randomization, team-color splitters, and bulk texture swaps.
+4. **Structural Elements**: High-performance cable, wire, fence, and rail generators.
+5. **Layout Math**: Instant 3D distance and travel-time (Walk/Run/Sprint) estimation.
+6. **Bulk Optimization**: Automated LOD generation, memory audits, and cooking pre-flight checks.
+7. **Verse Boilerplate**: Selection-to-code generation and spec-accurate device stubs.
+8. **Component Spam**: Scripted "Quick-Add" macros for entity sets and Niagara effects.
+
+---
+
 ## The Workflow Loop — Efficiency Mechanic
 
 This is the core philosophy. We solve the **"Iteration Tax"** — the time lost between an
