@@ -3,6 +3,10 @@
 
 > Built by **Ocean Bennett** — 2026
 
+[![CI](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/workflows/ci.yml/badge.svg)](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.5.3-green.svg)](docs/CHANGELOG.md)
+
 ![UEFN Toolbelt Dashboard](docs/dashboard_hero.png)
 
 Automate the tedious, script the impossible, and bridge the gap between Python and Verse.
