@@ -346,12 +346,16 @@ def run_gen_custom(
     description="List all generated snippet files in the Saved/UEFN_Toolbelt/snippets/ folder.",
     tags=["verse", "snippet", "list"],
 )
-def run_list_snippets(**kwargs) -> None:
+def run_list_snippets(**kwargs) -> dict:
+    """
+    Returns:
+        dict: {"status", "count", "snippets": [{"subcat", "filename", "size_bytes"}]}
+    """
     if not os.path.isdir(SNIPPETS_DIR):
         log_info("No snippets generated yet. Run a verse_gen_* tool first.")
-        return
+        return {"status": "ok", "count": 0, "snippets": []}
     lines = [f"\n=== Verse Snippet Library ({SNIPPETS_DIR}) ==="]
-    total = 0
+    all_snippets = []
     for subcat in sorted(os.listdir(SNIPPETS_DIR)):
         subdir = os.path.join(SNIPPETS_DIR, subcat)
         if not os.path.isdir(subdir):
@@ -363,9 +367,10 @@ def run_list_snippets(**kwargs) -> None:
         for f in files:
             size = os.path.getsize(os.path.join(subdir, f))
             lines.append(f"    {f:44s}  {size:>6} bytes")
-            total += 1
-    lines.append(f"\n  {total} snippet(s) total")
+            all_snippets.append({"subcat": subcat, "filename": f, "size_bytes": size})
+    lines.append(f"\n  {len(all_snippets)} snippet(s) total")
     log_info("\n".join(lines))
+    return {"status": "ok", "count": len(all_snippets), "snippets": all_snippets}
 
 
 @register_tool(
@@ -374,11 +379,16 @@ def run_list_snippets(**kwargs) -> None:
     description="Open the Verse snippet library folder in Windows Explorer.",
     tags=["verse", "snippet", "folder", "open", "explore"],
 )
-def run_open_snippets_folder(**kwargs) -> None:
+def run_open_snippets_folder(**kwargs) -> dict:
+    """
+    Returns:
+        dict: {"status", "path"}
+    """
     os.makedirs(SNIPPETS_DIR, exist_ok=True)
     import subprocess
     subprocess.Popen(["explorer", os.path.normpath(SNIPPETS_DIR)])
     log_info(f"Opened snippet library: {SNIPPETS_DIR}")
+    return {"status": "ok", "path": SNIPPETS_DIR}
 
 
 @register_tool(
@@ -387,15 +397,18 @@ def run_open_snippets_folder(**kwargs) -> None:
     description="Generate Verse @editable device declarations from the current selection.",
     tags=["verse", "snippet", "device", "generate", "boilerplate"],
 )
-def run_gen_device_declarations(**kwargs) -> None:
+def run_gen_device_declarations(**kwargs) -> dict:
     """
     Inspect the selected actors and generate typed @editable Verse declarations
     ready to paste into a creative_device class body.
+
+    Returns:
+        dict: {"status", "path", "code", "device_count"}
     """
     actors = get_selected_actors()
     if not actors:
         log_warning("Select Verse device actors in the viewport first.")
-        return
+        return {"status": "error", "path": "", "code": "", "device_count": 0}
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
@@ -420,6 +433,7 @@ def run_gen_device_declarations(**kwargs) -> None:
     path = _write_snippet("device_declarations.verse", snippet, SUBCAT_DEVICE_WIRING)
     _try_clipboard(snippet)
     log_info(f"Device declarations generated → {path}\n\n{snippet}")
+    return {"status": "ok", "path": path, "code": snippet, "device_count": len(actors)}
 
 
 @register_tool(
@@ -428,10 +442,13 @@ def run_gen_device_declarations(**kwargs) -> None:
     description="Generate a full game manager device skeleton in Verse.",
     tags=["verse", "snippet", "game", "skeleton", "boilerplate"],
 )
-def run_gen_game_skeleton(device_name: str = "MyGameManager", **kwargs) -> None:
+def run_gen_game_skeleton(device_name: str = "MyGameManager", **kwargs) -> dict:
     """
     Args:
         device_name: The Verse class name for the generated device.
+
+    Returns:
+        dict: {"status", "path", "device_name"}
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     content = _GAME_SKELETON.format(device_name=device_name, timestamp=timestamp)
@@ -440,6 +457,7 @@ def run_gen_game_skeleton(device_name: str = "MyGameManager", **kwargs) -> None:
     _try_clipboard(content)
     log_info(f"Game skeleton generated → {path}")
     log_info(f"\n{'='*60}\n{content}\n{'='*60}")
+    return {"status": "ok", "path": path, "device_name": device_name}
 
 
 @register_tool(
@@ -448,13 +466,15 @@ def run_gen_game_skeleton(device_name: str = "MyGameManager", **kwargs) -> None:
     description="Generate a Verse elimination event handler skeleton.",
     tags=["verse", "snippet", "elimination", "event", "kill"],
 )
-def run_gen_elimination_handler(**kwargs) -> None:
+def run_gen_elimination_handler(**kwargs) -> dict:
+    """Returns: dict: {"status", "path"}"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     content = f"# Generated {timestamp}\n" + _ELIMINATION_HANDLER
     path = _write_snippet("elimination_handler.verse", content, SUBCAT_GAME_SYSTEMS)
     _try_clipboard(content)
     log_info(f"Elimination handler generated → {path}")
     log_info(f"\n{'='*60}\n{content}\n{'='*60}")
+    return {"status": "ok", "path": path}
 
 
 @register_tool(
@@ -463,10 +483,13 @@ def run_gen_elimination_handler(**kwargs) -> None:
     description="Generate a Verse scoring tracker zone device skeleton.",
     tags=["verse", "snippet", "score", "tracker", "zone"],
 )
-def run_gen_scoring_tracker(max_score: int = 10, **kwargs) -> None:
+def run_gen_scoring_tracker(max_score: int = 10, **kwargs) -> dict:
     """
     Args:
         max_score: The target score to win the round.
+
+    Returns:
+        dict: {"status", "path"}
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     content = f"# Generated {timestamp}\n" + _SCORING_TRACKER.format(max_score=max_score)
@@ -474,6 +497,7 @@ def run_gen_scoring_tracker(max_score: int = 10, **kwargs) -> None:
     _try_clipboard(content)
     log_info(f"Scoring tracker generated → {path}")
     log_info(f"\n{'='*60}\n{content}\n{'='*60}")
+    return {"status": "ok", "path": path}
 
 
 @register_tool(
@@ -482,10 +506,12 @@ def run_gen_scoring_tracker(max_score: int = 10, **kwargs) -> None:
     description="Generate a trigger-controlled prop spawn/despawn Verse skeleton.",
     tags=["verse", "snippet", "prop", "spawn", "trigger"],
 )
-def run_gen_prop_spawner(**kwargs) -> None:
+def run_gen_prop_spawner(**kwargs) -> dict:
+    """Returns: dict: {"status", "path"}"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     content = f"# Generated {timestamp}\n" + _PROP_SPAWN
     path = _write_snippet("prop_spawner_controller.verse", content, SUBCAT_DEVICE_WIRING)
     _try_clipboard(content)
     log_info(f"Prop spawner skeleton generated → {path}")
     log_info(f"\n{'='*60}\n{content}\n{'='*60}")
+    return {"status": "ok", "path": path}

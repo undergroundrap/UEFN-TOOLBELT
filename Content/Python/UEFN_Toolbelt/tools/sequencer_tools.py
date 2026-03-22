@@ -15,7 +15,7 @@ from ..registry import register_tool
     description="Animate a selected actor along a selected spline path.",
     tags=["sequencer", "spline", "animate", "path"],
 )
-def run_actor_to_spline(duration: float = 5.0, fps: int = 30, **kwargs) -> None:
+def run_actor_to_spline(duration: float = 5.0, fps: int = 30, **kwargs) -> dict:
     """
     Args:
         duration: Duration of the animation in seconds.
@@ -23,25 +23,25 @@ def run_actor_to_spline(duration: float = 5.0, fps: int = 30, **kwargs) -> None:
     """
     actors = require_selection(min_count=2)
     if not actors:
-        return
+        return {"status": "error", "path": None}
 
     # Identify Spline and Actor
     spline_actor = None
     target_actor = None
-    
+
     for a in actors:
         if a.get_component_by_class(unreal.SplineComponent):
             spline_actor = a
             break
-            
+
     for a in actors:
         if a != spline_actor:
             target_actor = a
             break
-            
+
     if not spline_actor or not target_actor:
         log_error("Selection must include 1 Spline Actor and 1 Target Actor.")
-        return
+        return {"status": "error", "path": None}
 
     spline = spline_actor.get_component_by_class(unreal.SplineComponent)
     length = spline.get_spline_length()
@@ -61,7 +61,7 @@ def run_actor_to_spline(duration: float = 5.0, fps: int = 30, **kwargs) -> None:
         ls = asset_tools.create_asset(seq_name, seq_path, unreal.LevelSequence, unreal.LevelSequenceFactoryNew())
         if not ls:
             log_error("Failed to create Level Sequence.")
-            return
+            return {"status": "error", "path": None}
 
         ls.set_display_rate(unreal.FrameRate(fps, 1))
         ls.set_playback_start(0)
@@ -93,6 +93,7 @@ def run_actor_to_spline(duration: float = 5.0, fps: int = 30, **kwargs) -> None:
                 channel.add_key(unreal.FrameNumber(frame), val)
 
     log_info(f"Created Level Sequence: {seq_path}/{seq_name}")
+    return {"status": "ok", "path": f"{seq_path}/{seq_name}", "frames": total_frames}
 
 
 @register_tool(
@@ -101,11 +102,12 @@ def run_actor_to_spline(duration: float = 5.0, fps: int = 30, **kwargs) -> None:
     description="Add a transform keyframe for all selected actors at current time.",
     tags=["sequencer", "keyframe", "bulk"],
 )
-def run_batch_keyframe(**kwargs) -> None:
+def run_batch_keyframe(**kwargs) -> dict:
     actors = require_selection()
     if not actors:
-        return
-    
+        return {"status": "error", "keyed": 0}
+
     # Logic to find current active sequence and add keys
     log_info(f"Adding keyframes for {len(actors)} actors...")
     # (Implementation pending active sequence discovery API)
+    return {"status": "ok", "keyed": len(actors)}

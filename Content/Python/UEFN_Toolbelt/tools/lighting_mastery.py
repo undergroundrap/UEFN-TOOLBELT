@@ -32,13 +32,13 @@ MOODS = {
     description="Applies a cinematic mood preset to the level's lighting actors.",
     tags=["light", "cinematic", "mood", "preset", "atmosphere"]
 )
-def run_light_cinematic_preset(mood: str = "Star Wars", **kwargs):
+def run_light_cinematic_preset(mood: str = "Star Wars", **kwargs) -> dict:
     """
     Finds standard lighting actors and applies preset values.
     """
     if mood not in MOODS:
         log_error(f"Mood not found: {mood}. Available: {list(MOODS.keys())}")
-        return
+        return {"status": "error", "mood": mood}
 
     data = MOODS[mood]
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -60,6 +60,7 @@ def run_light_cinematic_preset(mood: str = "Star Wars", **kwargs):
                 if comp:
                     comp.set_fog_density(data["FogDensity"])
                     log_info(f"✓ Adjusted Fog for {mood}")
+    return {"status": "ok", "mood": mood}
 
 @register_tool(
     name="light_randomize_sky",
@@ -67,7 +68,7 @@ def run_light_cinematic_preset(mood: str = "Star Wars", **kwargs):
     description="Randomizes the sun orientation and sky colors for look-dev.",
     tags=["light", "sky", "random", "lookdev"]
 )
-def run_light_randomize_sky(**kwargs):
+def run_light_randomize_sky(**kwargs) -> dict:
     """
     Randomizes sun rotation.
     """
@@ -81,4 +82,5 @@ def run_light_randomize_sky(**kwargs):
                 new_rot = unreal.Rotator(random.uniform(-90, -10), random.uniform(0, 360), 0)
                 actor.set_actor_rotation(new_rot, True)
                 log_info(f"✓ New Sun Orientation: {new_rot}")
-                break
+                return {"status": "ok", "pitch": new_rot.pitch, "yaw": new_rot.yaw}
+    return {"status": "ok", "pitch": None, "yaw": None}

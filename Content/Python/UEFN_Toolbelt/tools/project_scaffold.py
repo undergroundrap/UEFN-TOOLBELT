@@ -335,16 +335,23 @@ def _write_log(records: list, project_name: str) -> str:
     description="List all available project scaffold templates (built-in + saved).",
     tags=["scaffold", "folder", "template", "list", "project"],
 )
-def run_list_templates(**kwargs) -> None:
+def run_list_templates(**kwargs) -> dict:
+    """
+    Returns:
+        dict: {"status", "count", "templates": {name: {"folder_count", "source"}}}
+    """
     templates = _all_templates()
     lines = ["\n=== Scaffold Templates ==="]
+    result_templates = {}
     for name, folders in templates.items():
         source = "built-in" if name in BUILTIN_TEMPLATES else "custom"
         lines.append(f"  {name:20s}  ({len(folders)} folders)  [{source}]")
+        result_templates[name] = {"folder_count": len(folders), "source": source}
     lines.append(
         "\nUsage: tb.run('scaffold_generate', template='<name>', project_name='MyProject')"
     )
     log_info("\n".join(lines))
+    return {"status": "ok", "count": len(templates), "templates": result_templates}
 
 
 @register_tool(
@@ -358,7 +365,7 @@ def run_scaffold_preview(
     project_name: str = "MyProject",
     base: str = "/Game",
     **kwargs,
-) -> None:
+) -> dict:
     """
     Zero-change preview. Shows exactly what scaffold_generate would create.
 
@@ -370,7 +377,7 @@ def run_scaffold_preview(
     all_t = _all_templates()
     if template not in all_t:
         log_error(f"Unknown template '{template}'. Run scaffold_list_templates to see options.")
-        return
+        return {"status": "error", "paths": [], "new_count": 0, "exists_count": 0}
 
     paths = _resolve_paths(all_t[template], project_name, base)
     root  = f"{base}/{project_name}" if project_name else base
@@ -393,6 +400,8 @@ def run_scaffold_preview(
     lines.append("  Run scaffold_generate to create.")
 
     log_info("\n".join(lines))
+    return {"status": "ok", "paths": paths, "new_count": new_count,
+            "exists_count": len(paths) - new_count}
 
 
 @register_tool(
@@ -407,7 +416,7 @@ def run_scaffold_generate(
     project_name: str = "MyProject",
     base: str = "/Game",
     **kwargs,
-) -> None:
+) -> dict:
     """
     Creates the full folder tree for the chosen template.
     Existing folders are silently skipped — nothing is overwritten or deleted.
@@ -427,7 +436,7 @@ def run_scaffold_generate(
     all_t = _all_templates()
     if template not in all_t:
         log_error(f"Unknown template '{template}'. Run scaffold_list_templates.")
-        return
+        return {"status": "error", "created": 0, "skipped": 0, "failed": 0, "log_path": ""}
 
     paths   = _resolve_paths(all_t[template], project_name, base)
     root    = f"{base}/{project_name}" if project_name else base
@@ -461,6 +470,8 @@ def run_scaffold_generate(
         f"  Log → {log_path}\n"
         f"  Refresh Content Browser: right-click any folder → Refresh"
     )
+    return {"status": "ok", "created": created, "skipped": skipped,
+            "failed": failed, "log_path": log_path}
 
 
 @register_tool(
@@ -473,7 +484,7 @@ def run_scaffold_save_template(
     template_name: str = "MyTemplate",
     folders: Optional[List[str]] = None,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Save a list of relative folder paths as a named template.
     The template is stored in Saved/UEFN_Toolbelt/scaffold_templates.json
@@ -497,16 +508,17 @@ def run_scaffold_save_template(
     """
     if not folders:
         log_error("scaffold_save_template: 'folders' list is required.")
-        return
+        return {"status": "error", "name": template_name, "folder_count": 0}
 
     if template_name in BUILTIN_TEMPLATES:
         log_error(f"'{template_name}' is a built-in template name — choose a different name.")
-        return
+        return {"status": "error", "name": template_name, "folder_count": 0}
 
     customs = _load_custom_templates()
     customs[template_name] = folders
     _save_custom_templates(customs)
     log_info(f"Template '{template_name}' saved ({len(folders)} folders) → {TEMPLATES_FILE}")
+    return {"status": "ok", "name": template_name, "folder_count": len(folders)}
 
 
 @register_tool(
@@ -515,7 +527,7 @@ def run_scaffold_save_template(
     description="Delete a saved custom scaffold template by name.",
     tags=["scaffold", "template", "delete", "custom"],
 )
-def run_scaffold_delete_template(template_name: str = "", **kwargs) -> None:
+def run_scaffold_delete_template(template_name: str = "", **kwargs) -> dict:
     """
     Args:
         template_name: Name of the custom template to remove.
@@ -523,20 +535,21 @@ def run_scaffold_delete_template(template_name: str = "", **kwargs) -> None:
     """
     if not template_name:
         log_error("scaffold_delete_template: template_name is required.")
-        return
+        return {"status": "error", "name": template_name}
 
     if template_name in BUILTIN_TEMPLATES:
         log_error(f"'{template_name}' is a built-in template — cannot be deleted.")
-        return
+        return {"status": "error", "name": template_name}
 
     customs = _load_custom_templates()
     if template_name not in customs:
         log_warning(f"Template '{template_name}' not found.")
-        return
+        return {"status": "error", "name": template_name}
 
     del customs[template_name]
     _save_custom_templates(customs)
     log_info(f"Template '{template_name}' deleted.")
+    return {"status": "ok", "name": template_name}
 
 
 @register_tool(
@@ -550,7 +563,7 @@ def run_scaffold_organize_loose(
     base: str = "/Game",
     dry_run: bool = True,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Scans /Game (top level only, not recursive) for assets sitting loose
     in the root and moves them into the appropriate subfolder of your project.
@@ -579,7 +592,7 @@ def run_scaffold_organize_loose(
             f"Project root '{root}' does not exist. "
             f"Run scaffold_generate first."
         )
-        return
+        return {"status": "error", "moved": 0, "failed": 0, "dry_run": dry_run}
 
     # Scan only the immediate /Game level (not recursive) for loose assets
     loose_paths = unreal.EditorAssetLibrary.list_assets(
@@ -588,7 +601,7 @@ def run_scaffold_organize_loose(
 
     if not loose_paths:
         log_info("No loose assets found in /Game root.")
-        return
+        return {"status": "ok", "moved": 0, "failed": 0, "dry_run": dry_run}
 
     moves: list[tuple[str, str]] = []
     unmatched: list[str] = []
@@ -608,7 +621,7 @@ def run_scaffold_organize_loose(
 
     if not moves:
         log_info("No loose assets matched a destination folder.")
-        return
+        return {"status": "ok", "moved": 0, "failed": 0, "dry_run": dry_run}
 
     prefix = "[DRY RUN] " if dry_run else ""
     log_info(f"{prefix}Found {len(moves)} loose assets to organize:")
@@ -620,7 +633,7 @@ def run_scaffold_organize_loose(
 
     if dry_run:
         log_info("Dry run — no changes made. Pass dry_run=False to execute moves.")
-        return
+        return {"status": "ok", "moved": len(moves), "failed": 0, "dry_run": True}
 
     done = failed = 0
     for src, dst in moves:
@@ -632,3 +645,4 @@ def run_scaffold_organize_loose(
             failed += 1
 
     log_info(f"Organized {done} assets, {failed} failed.")
+    return {"status": "ok", "moved": done, "failed": failed, "dry_run": False}

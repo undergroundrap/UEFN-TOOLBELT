@@ -270,7 +270,7 @@ def _c_execute_python(code: str) -> dict:
 def _c_run_tool(tool_name: str, kwargs: dict | None = None) -> dict:
     """
     Run any registered UEFN Toolbelt tool by name.
-    This exposes all 95+ toolbelt tools to Claude Code in one command.
+    This exposes all 161 toolbelt tools to Claude Code in one command.
 
     Args:
         tool_name: The registered tool name (e.g. "material_apply_preset").
@@ -294,6 +294,28 @@ def _c_list_tools(category: str = "") -> dict:
     import UEFN_Toolbelt as _tb
     tools = _tb.registry.list_tools(category=category or None)
     return {"tools": tools, "count": len(tools)}
+
+
+@_cmd("describe_tool")
+def _c_describe_tool(tool_name: str) -> dict:
+    """
+    Return the full manifest entry for a single tool — name, description,
+    category, tags, and complete parameter signatures.
+
+    Useful for AI agents that need to know a tool's exact contract before
+    calling it, without loading the full tool_manifest.json.
+
+    Args:
+        tool_name: The registered tool name (e.g. "scatter_hism").
+
+    Example:
+        {"command": "describe_tool", "params": {"tool_name": "scatter_hism"}}
+    """
+    import UEFN_Toolbelt as _tb
+    manifest = _tb.registry.to_manifest()
+    if tool_name not in manifest:
+        return {"status": "error", "error": f"No tool named '{tool_name}'"}
+    return {"status": "ok", "tool": manifest[tool_name]}
 
 
 @_cmd("batch_exec")

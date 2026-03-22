@@ -189,7 +189,7 @@ def run_smart_categorize(
     dry_run: bool = True,
     include_unused: bool = True,
     **kwargs
-) -> None:
+) -> dict:
     """
     Scans a folder path, detects the asset type, guesses a functional category using regex keywords on the asset name,
     and moves them to a structured destination.
@@ -206,14 +206,14 @@ def run_smart_categorize(
     eal = unreal.EditorAssetLibrary
     if not eal.does_directory_exist(scan_path):
         log_error(f"Scan path does not exist: {scan_path}")
-        return
+        return {"status": "error", "moved": 0, "failed": 0, "dry_run": dry_run}
 
     log_info(f"Scanning {scan_path} for smart organization...")
     asset_paths = eal.list_assets(scan_path, recursive=True, include_folder=False)
-    
+
     if not asset_paths:
         log_info("No assets found.")
-        return
+        return {"status": "ok", "moved": 0, "failed": 0, "dry_run": dry_run}
 
     level_refs = None
     if not include_unused:
@@ -266,10 +266,10 @@ def run_smart_categorize(
 
     if not plan:
         log_info(f"No valid assets remaining to organize. (Skipped {skipped})")
-        return
+        return {"status": "ok", "moved": 0, "failed": 0, "dry_run": dry_run}
 
     log_info(f"{'[DRY RUN] ' if dry_run else ''}Found {len(plan)} assets to smartly group (Skipped: {skipped}).")
-    
+
     # Print the first 10 for preview
     for row in plan[:10]:
         log_info(f"  {row['name']:30s} -> {row['dest_dir']}")
@@ -278,7 +278,7 @@ def run_smart_categorize(
 
     if dry_run:
         log_info("\nDry run complete. Pass dry_run=False to execute moves.")
-        return
+        return {"status": "ok", "moved": 0, "failed": 0, "planned": len(plan), "dry_run": True}
 
     moved = 0
     failed = 0
@@ -298,3 +298,4 @@ def run_smart_categorize(
                 log_warning(f"Failed to move {row['name']}: {e}")
 
     log_info(f"Smart Organization complete. Moved: {moved}, Failed: {failed}.")
+    return {"status": "ok", "moved": moved, "failed": failed, "dry_run": False}

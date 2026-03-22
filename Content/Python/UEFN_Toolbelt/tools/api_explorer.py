@@ -443,8 +443,18 @@ def _tool_api_export_full(include_constants: bool = False) -> None:
     icon="🔍",
     tags=["api", "search", "inspect", "stubs"],
 )
-def api_search(query: str = "", category: str = "all", max_results: int = 40, **kwargs) -> None:
+def api_search(query: str = "", category: str = "all", max_results: int = 40, **kwargs) -> dict:
+    """Returns: dict: {"status", "query", "result_count"}"""
+    query_lower = query.lower()
+    results = [
+        (name, _classify_member(getattr(unreal, name, None)))
+        for name in _all_unreal_names()
+        if (not query_lower or query_lower in name.lower())
+        and getattr(unreal, name, None) is not None
+        and (category == "all" or _classify_member(getattr(unreal, name, None)) == category)
+    ]
     _tool_api_search(query=query, category=category, max_results=max_results)
+    return {"status": "ok", "query": query, "result_count": len(results)}
 
 
 @register_tool(
@@ -454,8 +464,11 @@ def api_search(query: str = "", category: str = "all", max_results: int = 40, **
     icon="🔎",
     tags=["api", "inspect", "signature", "docs"],
 )
-def api_inspect(name: str = "", **kwargs) -> None:
+def api_inspect(name: str = "", **kwargs) -> dict:
+    """Returns: dict: {"status", "name", "found"}"""
+    found = name and getattr(unreal, name, None) is not None
     _tool_api_inspect(name=name)
+    return {"status": "ok" if found else "error", "name": name, "found": found}
 
 
 @register_tool(
@@ -465,8 +478,12 @@ def api_inspect(name: str = "", **kwargs) -> None:
     icon="📄",
     tags=["api", "stubs", "autocomplete", "pyi"],
 )
-def api_generate_stubs(class_name: str = "", **kwargs) -> None:
+def api_generate_stubs(class_name: str = "", **kwargs) -> dict:
+    """Returns: dict: {"status", "path"}"""
+    _ensure_dirs()
     _tool_api_generate_stubs(class_name=class_name)
+    path = os.path.join(_STUB_DIR, f"{class_name}.pyi") if class_name else _STUB_DIR
+    return {"status": "ok", "path": path}
 
 
 @register_tool(
@@ -476,8 +493,15 @@ def api_generate_stubs(class_name: str = "", **kwargs) -> None:
     icon="🔷",
     tags=["api", "subsystems", "list"],
 )
-def api_list_subsystems(**kwargs) -> None:
+def api_list_subsystems(**kwargs) -> dict:
+    """Returns: dict: {"status", "count", "subsystems": [name]}"""
+    subsystems = sorted(
+        name for name in _all_unreal_names()
+        if "subsystem" in name.lower()
+        and inspect.isclass(getattr(unreal, name, None))
+    )
     _tool_api_list_subsystems()
+    return {"status": "ok", "count": len(subsystems), "subsystems": subsystems}
 
 
 @register_tool(
@@ -487,5 +511,10 @@ def api_list_subsystems(**kwargs) -> None:
     icon="📦",
     tags=["api", "stubs", "export", "autocomplete", "pyi"],
 )
-def api_export_full(include_constants: bool = False, **kwargs) -> None:
+def api_export_full(include_constants: bool = False, **kwargs) -> dict:
+    """Returns: dict: {"status", "path", "size_kb"}"""
+    _ensure_dirs()
     _tool_api_export_full(include_constants=include_constants)
+    out_path = os.path.join(_STUB_DIR, "unreal.pyi")
+    size_kb = os.path.getsize(out_path) // 1024 if os.path.exists(out_path) else 0
+    return {"status": "ok", "path": out_path, "size_kb": size_kb}

@@ -290,7 +290,8 @@ def _apply_preset_to_actor(actor: unreal.Actor, preset: Dict[str, Any], instance
     description="Print all available material presets (builtin + custom).",
     tags=["material", "preset", "list"],
 )
-def run_list_presets(**kwargs) -> None:
+def run_list_presets(**kwargs) -> dict:
+    """Returns: dict: {"status", "count", "presets": [name]}"""
     presets = _all_presets()
     lines = ["\n=== Material Master — Presets ==="]
     for name, data in sorted(presets.items()):
@@ -298,6 +299,7 @@ def run_list_presets(**kwargs) -> None:
         lines.append(f"  {name:20s}  {desc}")
     lines.append(f"\nTotal: {len(presets)} presets")
     log_info("\n".join(lines))
+    return {"status": "ok", "count": len(presets), "presets": sorted(presets.keys())}
 
 
 @register_tool(
@@ -307,19 +309,22 @@ def run_list_presets(**kwargs) -> None:
     shortcut="Ctrl+Alt+M",
     tags=["material", "preset", "apply", "chrome", "gold", "neon"],
 )
-def run_apply_preset(preset: str = "chrome", **kwargs) -> None:
+def run_apply_preset(preset: str = "chrome", **kwargs) -> dict:
     """
     Args:
         preset: Preset name (e.g. "chrome", "gold", "neon"). See list_presets.
+
+    Returns:
+        dict: {"status", "preset", "applied", "failed"}
     """
     actors = require_selection()
     if actors is None:
-        return
+        return {"status": "error", "preset": preset, "applied": 0, "failed": 0}
 
     all_p = _all_presets()
     if preset not in all_p:
         log_error(f"Unknown preset '{preset}'. Run material_list_presets to see options.")
-        return
+        return {"status": "error", "preset": preset, "applied": 0, "failed": 0}
 
     preset_data = all_p[preset]
     log_info(f"Applying preset '{preset}' to {len(actors)} actor(s)…")
@@ -330,10 +335,12 @@ def run_apply_preset(preset: str = "chrome", **kwargs) -> None:
             if not _apply_preset_to_actor(actor, preset_data, preset):
                 failed += 1
 
+    applied = len(actors) - failed
     if failed:
         log_warning(f"Failed on {failed} actor(s). Check PARENT_MATERIAL_PATH is set correctly.")
     else:
         log_info(f"Preset '{preset}' applied successfully to {len(actors)} actor(s).")
+    return {"status": "ok", "preset": preset, "applied": applied, "failed": failed}
 
 
 @register_tool(
@@ -342,14 +349,17 @@ def run_apply_preset(preset: str = "chrome", **kwargs) -> None:
     description="Randomize the base color of all selected actors' materials.",
     tags=["material", "random", "color"],
 )
-def run_randomize_colors(saturation: float = 0.8, **kwargs) -> None:
+def run_randomize_colors(saturation: float = 0.8, **kwargs) -> dict:
     """
     Args:
         saturation: Controls how vivid random colors are (0=grey, 1=full).
+
+    Returns:
+        dict: {"status", "count"}
     """
     actors = require_selection()
     if actors is None:
-        return
+        return {"status": "error", "count": 0}
 
     log_info(f"Randomizing colors on {len(actors)} actor(s)…")
 
@@ -374,6 +384,7 @@ def run_randomize_colors(saturation: float = 0.8, **kwargs) -> None:
             _apply_preset_to_actor(actor, preset, "Random")
 
     log_info("Color randomization complete.")
+    return {"status": "ok", "count": len(actors)}
 
 
 @register_tool(
@@ -387,7 +398,7 @@ def run_gradient_painter(
     color_b: str = "#FF2200",
     axis: str = "X",
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         color_a: Hex color at the start of the axis (e.g. "#0044FF").
@@ -396,12 +407,12 @@ def run_gradient_painter(
     """
     actors = require_selection(min_count=2)
     if actors is None:
-        return
+        return {"status": "error", "count": 0}
 
     axis = axis.upper()
     if axis not in ("X", "Y", "Z"):
         log_error("axis must be 'X', 'Y', or 'Z'.")
-        return
+        return {"status": "error", "count": 0}
 
     ca = color_from_hex(color_a)
     cb = color_from_hex(color_b)
@@ -430,6 +441,7 @@ def run_gradient_painter(
             _apply_preset_to_actor(actor, preset, "Gradient")
 
     log_info("Gradient paint complete.")
+    return {"status": "ok", "count": len(actors)}
 
 
 @register_tool(
@@ -438,14 +450,17 @@ def run_gradient_painter(
     description="Split selected actors into Red/Blue teams based on world X position.",
     tags=["material", "team", "red", "blue", "split"],
 )
-def run_team_color_split(**kwargs) -> None:
+def run_team_color_split(**kwargs) -> dict:
     """
     Actors with X < midpoint → team_blue preset.
     Actors with X ≥ midpoint → team_red  preset.
+
+    Returns:
+        dict: {"status", "red", "blue"}
     """
     actors = require_selection(min_count=2)
     if actors is None:
-        return
+        return {"status": "error", "red": 0, "blue": 0}
 
     xs = [a.get_actor_location().x for a in actors]
     mid = (min(xs) + max(xs)) / 2.0
@@ -467,6 +482,7 @@ def run_team_color_split(**kwargs) -> None:
                 b_count += 1
 
     log_info(f"Team split done: {r_count} Red, {b_count} Blue.")
+    return {"status": "ok", "red": r_count, "blue": b_count}
 
 
 @register_tool(
@@ -480,7 +496,7 @@ def run_pattern_painter(
     preset_a: str = "chrome",
     preset_b: str = "rubber",
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         pattern:  "checkerboard" or "stripes"
@@ -489,12 +505,12 @@ def run_pattern_painter(
     """
     actors = require_selection()
     if actors is None:
-        return
+        return {"status": "error", "count": 0}
 
     all_p = _all_presets()
     if preset_a not in all_p or preset_b not in all_p:
         log_error(f"One or both presets not found: '{preset_a}', '{preset_b}'")
-        return
+        return {"status": "error", "count": 0}
 
     data_a, data_b = all_p[preset_a], all_p[preset_b]
 
@@ -513,6 +529,7 @@ def run_pattern_painter(
                                    f"{pattern}_A" if use_a else f"{pattern}_B")
 
     log_info(f"{pattern.capitalize()} pattern applied to {len(actors)} actors.")
+    return {"status": "ok", "count": len(actors)}
 
 
 @register_tool(
@@ -525,7 +542,7 @@ def run_glow_pulse_preview(
     base_preset: str = "neon",
     intensity: float = 8.0,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         base_preset: Starting preset to apply.
@@ -533,7 +550,7 @@ def run_glow_pulse_preview(
     """
     actors = require_selection()
     if actors is None:
-        return
+        return {"status": "error", "count": 0}
 
     all_p = _all_presets()
     preset_data = dict(all_p.get(base_preset, all_p["neon"]))
@@ -544,6 +561,7 @@ def run_glow_pulse_preview(
             _apply_preset_to_actor(actor, preset_data, "GlowPulse")
 
     log_info(f"Glow pulse preview applied (intensity={intensity}). Use Animate slider in Blueprint for live pulse.")
+    return {"status": "ok", "count": len(actors)}
 
 
 @register_tool(
@@ -556,7 +574,7 @@ def run_color_harmony(
     base_hex: str = "#FF6600",
     harmony: str = "complementary",
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         base_hex: Starting hex color, e.g. "#FF6600".
@@ -564,7 +582,7 @@ def run_color_harmony(
     """
     actors = require_selection()
     if actors is None:
-        return
+        return {"status": "error", "count": 0, "harmony": harmony}
 
     # Convert hex → HSV
     lc = color_from_hex(base_hex)
@@ -610,6 +628,7 @@ def run_color_harmony(
             _apply_preset_to_actor(actor, preset, f"Harmony_{harmony}")
 
     log_info("Color harmony applied.")
+    return {"status": "ok", "count": len(actors), "harmony": harmony}
 
 
 @register_tool(
@@ -618,7 +637,7 @@ def run_color_harmony(
     description="Save a new custom preset from the first selected actor's current material params.",
     tags=["material", "preset", "save", "custom"],
 )
-def run_save_preset(preset_name: str = "MyPreset", **kwargs) -> None:
+def run_save_preset(preset_name: str = "MyPreset", **kwargs) -> dict:
     """
     Reads the current material instance parameters from the first selected actor
     and saves them as a named custom preset.
@@ -628,19 +647,19 @@ def run_save_preset(preset_name: str = "MyPreset", **kwargs) -> None:
     """
     actors = require_selection()
     if actors is None:
-        return
+        return {"status": "error", "name": preset_name}
 
     actor = actors[0]
     smc_class = unreal.StaticMeshComponent.static_class()
     comps = actor.get_components_by_class(smc_class)
     if not comps:
         log_warning("First selected actor has no StaticMeshComponent.")
-        return
+        return {"status": "error", "name": preset_name}
 
     mat = comps[0].get_material(0)
     if not isinstance(mat, unreal.MaterialInstanceConstant):
         log_warning("Material is not a MaterialInstanceConstant — cannot read parameters.")
-        return
+        return {"status": "error", "name": preset_name}
 
     mel = unreal.MaterialEditingLibrary
 
@@ -665,6 +684,7 @@ def run_save_preset(preset_name: str = "MyPreset", **kwargs) -> None:
     customs[preset_name] = new_preset
     _save_custom_presets(customs)
     log_info(f"Custom preset '{preset_name}' saved.")
+    return {"status": "ok", "name": preset_name}
 
 
 # ─── Bulk Material Swap ────────────────────────────────────────────────────────
@@ -722,7 +742,7 @@ def material_bulk_swap(
     new_material_path: str = "",
     scope: str = "selection",
 **kwargs,
-) -> None:
+) -> dict:
     """
     Swap one material for another on all actors in scope.
 
@@ -745,17 +765,17 @@ def material_bulk_swap(
     """
     if not old_material_path or not new_material_path:
         log_warning("[MatSwap] Provide both old_material_path and new_material_path.")
-        return
+        return {"status": "error", "actors_touched": 0, "total_slots": 0}
 
     old_mat = load_asset(old_material_path)
     if old_mat is None:
         log_warning(f"[MatSwap] Could not load old material: {old_material_path}")
-        return
+        return {"status": "error", "actors_touched": 0, "total_slots": 0}
 
     new_mat = load_asset(new_material_path)
     if new_mat is None:
         log_warning(f"[MatSwap] Could not load new material: {new_material_path}")
-        return
+        return {"status": "error", "actors_touched": 0, "total_slots": 0}
 
     if scope == "all":
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -764,7 +784,7 @@ def material_bulk_swap(
         actors = get_selected_actors()
         if not actors:
             log_warning("[MatSwap] Nothing selected. Select actors or use scope='all'.")
-            return
+            return {"status": "error", "actors_touched": 0, "total_slots": 0}
 
     total_slots = 0
     actors_touched = 0
@@ -788,3 +808,4 @@ def material_bulk_swap(
             f"[MatSwap]   No slots matched '{old_name}'. "
             "Check the exact path — use the Content Browser's 'Copy Reference' option."
         )
+    return {"status": "ok", "actors_touched": actors_touched, "total_slots": total_slots}

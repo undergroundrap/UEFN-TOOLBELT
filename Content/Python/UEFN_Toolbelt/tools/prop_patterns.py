@@ -370,7 +370,7 @@ def pattern_grid(
     preview: bool = False,
     seed: int = 42,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Place a mesh in a rectangular N×M grid.
 
@@ -398,9 +398,10 @@ def pattern_grid(
             origin = sel_origin
 
     pts, center = _points_grid(cols, rows, spacing_x, spacing_y, origin, center_origin)
-    _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
-                   scale, scale_min, scale_max, preview, seed,
-                   f"Grid {cols}×{rows}")
+    spawned = _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
+                             scale, scale_min, scale_max, preview, seed,
+                             f"Grid {cols}×{rows}")
+    return {"status": "ok", "spawned": spawned}
 
 
 @register_tool(
@@ -424,7 +425,7 @@ def pattern_circle(
     preview: bool = False,
     seed: int = 42,
 **kwargs,
-) -> None:
+) -> dict:
     """
     Place props evenly spaced around a full 360° circle.
 
@@ -440,9 +441,10 @@ def pattern_circle(
             origin = sel_origin
 
     pts, center = _points_circle(count, radius, origin, start_angle_deg)
-    _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
-                   scale, scale_min, scale_max, preview, seed,
-                   f"Circle r={radius:.0f} n={count}")
+    spawned = _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
+                             scale, scale_min, scale_max, preview, seed,
+                             f"Circle r={radius:.0f} n={count}")
+    return {"status": "ok", "spawned": spawned}
 
 
 @register_tool(
@@ -481,9 +483,10 @@ def pattern_arc(
             origin = sel_origin
 
     pts, center = _points_arc(count, radius, origin, start_angle_deg, end_angle_deg)
-    _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
-                   scale, scale_min, scale_max, preview, seed,
-                   f"Arc {start_angle_deg:.0f}°→{end_angle_deg:.0f}° r={radius:.0f}")
+    spawned = _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
+                             scale, scale_min, scale_max, preview, seed,
+                             f"Arc {start_angle_deg:.0f}°→{end_angle_deg:.0f}° r={radius:.0f}")
+    return {"status": "ok", "spawned": spawned}
 
 
 @register_tool(
@@ -509,7 +512,7 @@ def pattern_spiral(
     preview: bool = False,
     seed: int = 42,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Place props along an Archimedean spiral.
 
@@ -525,9 +528,10 @@ def pattern_spiral(
 
     pts, center = _points_spiral(count, turns, radius_start, radius_end,
                                   origin, start_angle_deg)
-    _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
-                   scale, scale_min, scale_max, preview, seed,
-                   f"Spiral {turns:.1f} turns")
+    spawned = _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
+                             scale, scale_min, scale_max, preview, seed,
+                             f"Spiral {turns:.1f} turns")
+    return {"status": "ok", "spawned": spawned}
 
 
 @register_tool(
@@ -556,9 +560,10 @@ def pattern_line(
     Both endpoints are included.
     """
     pts, center = _points_line(count, start, end)
-    _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
-                   scale, scale_min, scale_max, preview, seed,
-                   f"Line n={count}")
+    spawned = _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
+                             scale, scale_min, scale_max, preview, seed,
+                             f"Line n={count}")
+    return {"status": "ok", "spawned": spawned}
 
 
 @register_tool(
@@ -584,7 +589,7 @@ def pattern_wave(
     preview: bool = False,
     seed: int = 42,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Place props along a sine wave.
 
@@ -600,9 +605,10 @@ def pattern_wave(
             origin = sel_origin
 
     pts, center = _points_wave(count, length, amplitude, frequency, origin, axis)
-    _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
-                   scale, scale_min, scale_max, preview, seed,
-                   f"Wave axis={axis} freq={frequency:.1f}")
+    spawned = _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
+                             scale, scale_min, scale_max, preview, seed,
+                             f"Wave axis={axis} freq={frequency:.1f}")
+    return {"status": "ok", "spawned": spawned}
 
 
 @register_tool(
@@ -628,7 +634,7 @@ def pattern_helix(
     preview: bool = False,
     seed: int = 42,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Place props along a 3D helix (corkscrew / spiral staircase).
 
@@ -644,9 +650,10 @@ def pattern_helix(
 
     pts, center = _points_helix(count, radius, turns, rise_per_turn,
                                  origin, start_angle_deg)
-    _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
-                   scale, scale_min, scale_max, preview, seed,
-                   f"Helix {turns:.1f} turns r={radius:.0f}")
+    spawned = _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
+                             scale, scale_min, scale_max, preview, seed,
+                             f"Helix {turns:.1f} turns r={radius:.0f}")
+    return {"status": "ok", "spawned": spawned}
 
 
 @register_tool(
@@ -672,7 +679,7 @@ def pattern_radial_rows(
     preview: bool = False,
     seed: int = 42,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Place props in concentric rings with increasing density on outer rings.
 
@@ -690,10 +697,10 @@ def pattern_radial_rows(
 
     pts, center = _points_radial_rows(rings, props_per_ring, radius_step,
                                        origin, start_angle_deg, include_center)
-    total = len(pts)
-    _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
-                   scale, scale_min, scale_max, preview, seed,
-                   f"Radial rows {rings} rings ({total} props)")
+    spawned = _spawn_pattern(pts, center, mesh_path, rotation_mode, scale_mode,
+                             scale, scale_min, scale_max, preview, seed,
+                             f"Radial rows {rings} rings ({len(pts)} props)")
+    return {"status": "ok", "spawned": spawned}
 
 
 @register_tool(
@@ -703,7 +710,7 @@ def pattern_radial_rows(
     icon="✕",
     tags=["pattern", "clear", "delete", "cleanup"],
 )
-def pattern_clear(preview_only: bool = False, **kwargs) -> None:
+def pattern_clear(preview_only: bool = False, **kwargs) -> dict:
     """
     Delete pattern actors from the level.
 
@@ -729,7 +736,7 @@ def pattern_clear(preview_only: bool = False, **kwargs) -> None:
     if not to_delete:
         label = "preview" if preview_only else "pattern"
         unreal.log(f"[Patterns] No {label} actors found to clear.")
-        return
+        return {"status": "ok", "deleted": 0}
 
     with undo_transaction("Clear Pattern Actors"):
         for actor in to_delete:
@@ -737,3 +744,4 @@ def pattern_clear(preview_only: bool = False, **kwargs) -> None:
 
     label = "preview" if preview_only else "all pattern"
     unreal.log(f"[Patterns] ✓ Cleared {len(to_delete)} {label} actors.")
+    return {"status": "ok", "deleted": len(to_delete)}

@@ -17,7 +17,7 @@ from ..registry import register_tool
     description="Converts the selected Static Mesh Actors into actual Foliage Actors in the level.",
     tags=["foliage", "convert", "environment", "mesh"]
 )
-def run_foliage_convert_selected_to_actor(**kwargs) -> int:
+def run_foliage_convert_selected_to_actor(**kwargs) -> dict:
     """
     Takes all selected StaticMeshActors and replaces them with Foliage instances 
     of their respective meshes. This is a one-way conversion to flatten level actors.
@@ -25,12 +25,12 @@ def run_foliage_convert_selected_to_actor(**kwargs) -> int:
     selected = get_selected_actors()
     if not selected:
         log_warning("Select at least one StaticMeshActor to convert to foliage.")
-        return 0
+        return {"status": "error", "converted": 0}
 
     sm_actors = [a for a in selected if isinstance(a, unreal.StaticMeshActor)]
     if not sm_actors:
         log_warning("No StaticMeshActors found in your selection.")
-        return 0
+        return {"status": "error", "converted": 0}
 
     converted_count = 0
     with undo_transaction(f"Convert {len(sm_actors)} Actors to Foliage"):
@@ -66,7 +66,7 @@ def run_foliage_convert_selected_to_actor(**kwargs) -> int:
             converted_count += 1
             
     log_info(f"✓ Successfully converted {converted_count} actors to environmental placeholders.")
-    return converted_count
+    return {"status": "ok", "converted": converted_count}
 
 @register_tool(
     name="foliage_audit_brushes",
@@ -74,7 +74,7 @@ def run_foliage_convert_selected_to_actor(**kwargs) -> int:
     description="Audits all current foliage brushes and returns the mesh paths they use.",
     tags=["foliage", "audit", "brush", "mesh"]
 )
-def run_foliage_audit_brushes(**kwargs) -> list[str]:
+def run_foliage_audit_brushes(**kwargs) -> dict:
     """
     Returns a list of all mesh paths currently assigned to foliage types in the project.
     """
@@ -86,4 +86,4 @@ def run_foliage_audit_brushes(**kwargs) -> list[str]:
     
     paths = [str(a.package_name) for a in assets]
     log_info(f"Found {len(paths)} Foliage Types in project.")
-    return paths
+    return {"status": "ok", "count": len(paths), "meshes": paths}

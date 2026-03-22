@@ -260,7 +260,7 @@ def run_text_place(
     style: Optional[str] = None,
     folder: str = TEXT_FOLDER,
     **kwargs,
-) -> Optional[unreal.TextRenderActor]:
+) -> dict:
     """
     Args:
         text:         The string to display in world space.
@@ -292,7 +292,7 @@ def run_text_place(
 
     if actor:
         log_info(f"Placed text '{text}' at {location}.")
-    return actor
+    return {"status": "ok" if actor else "error", "text": text, "location": list(location)}
 
 
 @register_tool(
@@ -308,7 +308,7 @@ def run_text_label_selection(
     style: Optional[str] = None,
     rotation_yaw: float = 0.0,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Great for zone tagging, debugging actor layouts, or creating a visual
     reference of your level's actor names.
@@ -322,7 +322,7 @@ def run_text_label_selection(
     """
     actors = require_selection()
     if actors is None:
-        return
+        return {"status": "error", "count": 0}
 
     style_data = _resolve_style(style, {"color": color, "world_size": world_size})
     rot = unreal.Rotator(0, rotation_yaw, 0)
@@ -341,6 +341,7 @@ def run_text_label_selection(
             )
 
     log_info(f"Placed {len(actors)} label actors.")
+    return {"status": "ok", "count": len(actors)}
 
 
 @register_tool(
@@ -360,7 +361,7 @@ def run_text_paint_grid(
     rotation_yaw: float = 0.0,
     folder: str = TEXT_FOLDER,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Generates grid labels like A1, A2 … D4 spaced evenly from origin.
     Useful for callout zones on competitive maps.
@@ -377,7 +378,7 @@ def run_text_paint_grid(
     """
     if cols > 26:
         log_error("text_paint_grid: max 26 columns (A–Z).")
-        return
+        return {"status": "error", "placed": 0}
 
     style_data = _resolve_style(style, {"color": color, "world_size": world_size})
     rot = unreal.Rotator(0, rotation_yaw, 0)
@@ -402,6 +403,7 @@ def run_text_paint_grid(
                 )
 
     log_info(f"Grid complete: {cols * rows} zone labels placed.")
+    return {"status": "ok", "placed": cols * rows}
 
 
 @register_tool(
@@ -417,7 +419,7 @@ def run_text_color_cycle(
     world_size: float = 100.0,
     rotation_yaw: float = 0.0,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Place a row of text actors, each one a different color from the palette.
     Useful for team labels, callout banners, or quick color reference.
@@ -450,6 +452,7 @@ def run_text_color_cycle(
             )
 
     log_info("Color cycle complete.")
+    return {"status": "ok", "placed": len(texts)}
 
 
 @register_tool(
@@ -469,7 +472,7 @@ def run_text_save_style(
     horiz_spacing: float = 0.0,
     vert_spacing: float = 0.0,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Save a style preset to Saved/UEFN_Toolbelt/text_styles.json.
     Load it later with  style="MyStyle"  in any text_* tool.
@@ -496,6 +499,7 @@ def run_text_save_style(
     }
     _save_styles(styles)
     log_info(f"Text style '{style_name}' saved → {STYLES_FILE}")
+    return {"status": "ok", "name": style_name}
 
 
 @register_tool(
@@ -504,11 +508,11 @@ def run_text_save_style(
     description="Print all saved text style presets.",
     tags=["text", "style", "list"],
 )
-def run_text_list_styles(**kwargs) -> None:
+def run_text_list_styles(**kwargs) -> dict:
     styles = _load_styles()
     if not styles:
         log_info("No saved text styles yet. Use text_save_style to create one.")
-        return
+        return {"status": "ok", "count": 0, "styles": []}
     lines = ["\n=== Text Painter — Saved Styles ==="]
     for name, s in styles.items():
         lines.append(
@@ -517,6 +521,7 @@ def run_text_list_styles(**kwargs) -> None:
             f"align={s.get('h_align','center')}/{s.get('v_align','center')}"
         )
     log_info("\n".join(lines))
+    return {"status": "ok", "count": len(styles), "styles": list(styles.keys())}
 
 
 @register_tool(
@@ -525,7 +530,7 @@ def run_text_list_styles(**kwargs) -> None:
     description="Delete all TextRenderActors in the Toolbelt text folder (undoable).",
     tags=["text", "clear", "delete", "cleanup"],
 )
-def run_text_clear_folder(folder: str = TEXT_FOLDER, **kwargs) -> None:
+def run_text_clear_folder(folder: str = TEXT_FOLDER, **kwargs) -> dict:
     """
     Args:
         folder: World Outliner folder to clear (default: ToolbeltText).
@@ -541,9 +546,10 @@ def run_text_clear_folder(folder: str = TEXT_FOLDER, **kwargs) -> None:
 
     if not to_delete:
         log_info(f"No text actors found in folder '/{folder}'.")
-        return
+        return {"status": "ok", "deleted": 0, "folder": folder}
 
     with undo_transaction(f"Text Painter: Clear {folder}"):
         actor_sub.destroy_actors(to_delete)
 
     log_info(f"Deleted {len(to_delete)} text actors from '/{folder}'.")
+    return {"status": "ok", "deleted": len(to_delete), "folder": folder}

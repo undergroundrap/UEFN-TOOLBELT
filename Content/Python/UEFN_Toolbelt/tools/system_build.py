@@ -99,19 +99,18 @@ def system_build_verse():
         return {"status": "success", "message": "Verse compiled with 0 errors."}
 
 @register_tool(name="system_get_last_build_log", category="System")
-def system_get_last_build_log():
+def system_get_last_build_log() -> dict:
     """Reads the most recent UEFN log file for error analysis."""
     log_dir = os.path.join(unreal.Paths.project_saved_dir(), "Logs")
     if not os.path.exists(log_dir):
-        return "Log directory not found."
-        
+        return {"status": "error", "path": None, "tail": "Log directory not found."}
+
     logs = [os.path.join(log_dir, f) for f in os.listdir(log_dir) if f.endswith(".log")]
     if not logs:
-        return "No log files found."
-        
+        return {"status": "error", "path": None, "tail": "No log files found."}
+
     latest_log = max(logs, key=os.path.getmtime)
     with open(latest_log, 'r', encoding='utf-8', errors='ignore') as f:
         content = f.read().splitlines()
-        
-    # Get last 100 lines
-    return "\n".join(content[-100:])
+
+    return {"status": "ok", "path": latest_log, "tail": "\n".join(content[-100:])}

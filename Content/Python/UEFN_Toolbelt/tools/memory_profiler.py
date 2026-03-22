@@ -197,13 +197,16 @@ def _write_report(data: dict) -> str:
     description="Full island memory scan — textures, meshes, sounds. Saves JSON report.",
     tags=["memory", "profiler", "scan", "optimize", "performance"],
 )
-def run_memory_scan(scan_path: str = "/Game", **kwargs) -> None:
+def run_memory_scan(scan_path: str = "/Game", **kwargs) -> dict:
     """
     Scans all asset types and prints a summary dashboard.
     Full results saved to Saved/UEFN_Toolbelt/memory_report.json.
 
     Args:
         scan_path: Content Browser folder to scan.
+
+    Returns:
+        dict: {"status", "path", "summary": {counts, warnings, criticals}}
     """
     log_info(f"Memory scan: {scan_path} …")
 
@@ -297,6 +300,7 @@ def run_memory_scan(scan_path: str = "/Game", **kwargs) -> None:
 
     report_path = _write_report(report)
     log_info(f"Full report → {report_path}")
+    return {"status": "ok", "path": report_path, "summary": report["summary"]}
 
 
 @register_tool(
@@ -309,31 +313,35 @@ def run_memory_scan_textures(
     scan_path: str = "/Game",
     max_size_px: int = 2048,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         scan_path:   Content Browser folder to scan.
         max_size_px: Flag textures larger than this (width or height).
+
+    Returns:
+        dict: {"status", "count", "offenders": [{"path", "width", "height",
+               "max_dim", "estimated_vram_kb", "severity"}]}
     """
     tex_assets = _list_assets_of_class(scan_path, "Texture2D")
     if not tex_assets:
         log_info("No Texture2D assets found.")
-        return
+        return {"status": "ok", "count": 0, "offenders": []}
 
-    offenders = []
+    raw_offenders = []
     for path, asset in tex_assets:
         info = _texture_info(asset)
         if info["max_dim"] > max_size_px:
-            offenders.append((path, info))
+            raw_offenders.append((path, info))
 
-    offenders.sort(key=lambda x: x[1]["max_dim"], reverse=True)
+    raw_offenders.sort(key=lambda x: x[1]["max_dim"], reverse=True)
 
-    if not offenders:
+    if not raw_offenders:
         log_info(f"All textures are ≤{max_size_px}px. ")
-        return
+        return {"status": "ok", "count": 0, "offenders": []}
 
-    lines = [f"\n⚠ {len(offenders)} textures exceed {max_size_px}px:\n"]
-    for path, info in offenders:
+    lines = [f"\n⚠ {len(raw_offenders)} textures exceed {max_size_px}px:\n"]
+    for path, info in raw_offenders:
         icon = _severity_icon(info["severity"])
         lines.append(
             f"  {icon} {path.split('/')[-1]:40s}  "
@@ -342,6 +350,9 @@ def run_memory_scan_textures(
         )
     log_info("\n".join(lines))
 
+    offenders = [{"path": p, **info} for p, info in raw_offenders]
+    return {"status": "ok", "count": len(offenders), "offenders": offenders}
+
 
 @register_tool(
     name="memory_scan_meshes",
@@ -349,28 +360,33 @@ def run_memory_scan_textures(
     description="Audit all static meshes — polygon count, LODs, collision.",
     tags=["memory", "mesh", "lod", "polygon", "optimize"],
 )
-def run_memory_scan_meshes(scan_path: str = "/Game", **kwargs) -> None:
+def run_memory_scan_meshes(scan_path: str = "/Game", **kwargs) -> dict:
     """
     Args:
         scan_path: Content Browser folder to scan.
+
+    Returns:
+        dict: {"status", "count", "offenders": [{"path", "lod_count",
+               "approx_verts", "missing_lods", "severity"}]}
     """
     mesh_assets = _list_assets_of_class(scan_path, "StaticMesh")
     if not mesh_assets:
         log_info("No StaticMesh assets found.")
-        return
+        return {"status": "ok", "count": 0, "offenders": []}
 
-    offenders = [
-        (p, _mesh_info(a)) for p, a in mesh_assets
-        if _mesh_info(a)["severity"] != "ok" or _mesh_info(a)["missing_lods"]
-    ]
-    offenders.sort(key=lambda x: x[1]["approx_verts"], reverse=True)
+    raw_offenders = []
+    for p, a in mesh_assets:
+        info = _mesh_info(a)
+        if info["severity"] != "ok" or info["missing_lods"]:
+            raw_offenders.append((p, info))
+    raw_offenders.sort(key=lambda x: x[1]["approx_verts"], reverse=True)
 
-    if not offenders:
+    if not raw_offenders:
         log_info("All meshes look good (reasonable vertex count + LODs present).")
-        return
+        return {"status": "ok", "count": 0, "offenders": []}
 
-    lines = [f"\n⚠ {len(offenders)} mesh issues:\n"]
-    for path, info in offenders:
+    lines = [f"\n⚠ {len(raw_offenders)} mesh issues:\n"]
+    for path, info in raw_offenders:
         icon     = _severity_icon(info["severity"])
         lod_flag = " [NO LODs]" if info["missing_lods"] else f" [{info['lod_count']} LODs]"
         lines.append(
@@ -379,6 +395,9 @@ def run_memory_scan_meshes(scan_path: str = "/Game", **kwargs) -> None:
         )
     log_info("\n".join(lines))
     log_info("Run memory_autofix_lods to automatically add LODs to meshes missing them.")
+
+    offenders = [{"path": p, **info} for p, info in raw_offenders]
+    return {"status": "ok", "count": len(offenders), "offenders": offenders}
 
 
 @register_tool(
@@ -391,11 +410,14 @@ def run_memory_top_offenders(
     scan_path: str = "/Game",
     top_n: int = 10,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         scan_path: Content Browser folder to scan.
         top_n:     Number of top offenders to list per category.
+
+    Returns:
+        dict: {"status", "textures": [{"path", ...}], "meshes": [{"path", ...}]}
     """
     tex_assets = _list_assets_of_class(scan_path, "Texture2D")
     tex_sorted = sorted(
@@ -429,6 +451,10 @@ def run_memory_top_offenders(
 
     log_info("\n".join(lines))
 
+    textures = [{"path": p, **info} for p, info in tex_sorted]
+    meshes   = [{"path": p, **info} for p, info in mesh_sorted]
+    return {"status": "ok", "textures": textures, "meshes": meshes}
+
 
 @register_tool(
     name="memory_autofix_lods",
@@ -440,7 +466,7 @@ def run_memory_autofix_lods(
     scan_path: str = "/Game",
     num_lods: int = 3,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Convenience wrapper: finds meshes with LOD count ≤ 1 and generates LODs.
     Equivalent to lod_auto_generate_folder with skip_existing=True.
@@ -448,9 +474,13 @@ def run_memory_autofix_lods(
     Args:
         scan_path: Content Browser folder to scan.
         num_lods:  Number of LODs to generate.
+
+    Returns:
+        dict: Passes through the structured return from lod_auto_generate_folder.
     """
     import UEFN_Toolbelt as tb
-    tb.run("lod_auto_generate_folder",
-           folder_path=scan_path,
-           num_lods=num_lods,
-           skip_existing=True)
+    result = tb.run("lod_auto_generate_folder",
+                    folder_path=scan_path,
+                    num_lods=num_lods,
+                    skip_existing=True)
+    return result if isinstance(result, dict) else {"status": "ok"}

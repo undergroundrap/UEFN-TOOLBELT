@@ -130,7 +130,7 @@ class VerseSchemaParser:
 _parser = VerseSchemaParser()
 
 @register_tool(name="api_verse_get_schema", category="Verse Helpers")
-def api_verse_get_schema(class_name: str):
+def api_verse_get_schema(class_name: str) -> dict:
     """
     Returns the Verse schema (properties, events, functions) for a given class.
     Derived from .digest.verse intelligence.
@@ -140,16 +140,16 @@ def api_verse_get_schema(class_name: str):
         # Try fuzzy match
         normalized = class_name.replace("_C", "").replace("BP_", "")
         schema = _parser.get_schema(normalized)
-        
+
     if schema:
         log_info(f"Schema for {class_name}: {len(schema['properties'])} props, {len(schema['events'])} events.")
-        return schema
-    
+        return {"status": "ok", "class_name": class_name, "schema": schema}
+
     log_warning(f"No Verse schema found for {class_name}. Ensure Verse is compiled.")
-    return None
+    return {"status": "error", "class_name": class_name, "schema": None}
 
 @register_tool(name="api_verse_refresh_schemas", category="Verse Helpers")
-def api_verse_refresh_schemas():
+def api_verse_refresh_schemas() -> dict:
     """Forces a re-scan of all Verse digest files for schema intelligence."""
     _parser.load_digests()
-    return f"Loaded {len(_parser.device_schemas)} Verse class definitions."
+    return {"status": "ok", "loaded": len(_parser.device_schemas)}

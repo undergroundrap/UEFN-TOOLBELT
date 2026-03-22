@@ -174,7 +174,7 @@ def run_spline_to_verse_points(
     sample_count: int = 0,          # 0 = use control points only
     use_control_points: bool = True,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         var_name:           Name of the Verse variable to generate.
@@ -184,7 +184,7 @@ def run_spline_to_verse_points(
     """
     result = _require_spline()
     if result is None:
-        return
+        return {"status": "error", "path": "", "point_count": 0}
 
     actor, spline = result
 
@@ -212,6 +212,7 @@ def run_spline_to_verse_points(
     path = _write_snippet(f"spline_{var_name}.verse", content)
     _try_clipboard(content)
     log_info(f"Spline → Verse array ({len(pts)} points) → {path}\n\n{content}")
+    return {"status": "ok", "path": path, "point_count": len(pts)}
 
 
 @register_tool(
@@ -226,7 +227,7 @@ def run_spline_to_verse_patrol(
     speed: float = 300.0,
     loop_patrol: bool = True,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Generates a complete Verse creative_device with:
       - The spline points baked in as a vector3 array
@@ -242,7 +243,7 @@ def run_spline_to_verse_patrol(
     """
     result = _require_spline()
     if result is None:
-        return
+        return {"status": "error", "path": "", "device_name": device_name}
 
     actor, spline = result
 
@@ -302,6 +303,7 @@ using {{ /UnrealEngine.com/Temporary/Diagnostics }}
     _try_clipboard(content)
     log_info(f"Patrol skeleton → {path}")
     log_info(f"\n{'='*60}\n{content}\n{'='*60}")
+    return {"status": "ok", "path": path, "device_name": device_name}
 
 
 @register_tool(
@@ -314,7 +316,7 @@ def run_spline_to_verse_zone_boundary(
     zone_name: str = "ZoneBoundary",
     sample_count: int = 20,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Generates a Verse array of boundary points useful for custom zone detection,
     minimap zones, or mutator area logic.
@@ -325,7 +327,7 @@ def run_spline_to_verse_zone_boundary(
     """
     result = _require_spline()
     if result is None:
-        return
+        return {"status": "error", "path": "", "point_count": 0}
 
     actor, spline = result
     pts = _sample_spline_world(spline, sample_count)
@@ -372,6 +374,7 @@ using {{ /UnrealEngine.com/Temporary/Diagnostics }}
     _try_clipboard(content)
     log_info(f"Zone boundary ({len(pts)} pts, ~{max_r:.0f}cm radius) → {path}")
     log_info(f"\n{'='*60}\n{content}\n{'='*60}")
+    return {"status": "ok", "path": path, "point_count": len(pts)}
 
 
 @register_tool(
@@ -384,7 +387,7 @@ def run_spline_export_json(
     sample_count: int = 0,
     include_tangents: bool = False,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Exports spline data as JSON to Saved/UEFN_Toolbelt/spline_export.json.
     The point list can be fed directly to scatter_along_path:
@@ -401,7 +404,7 @@ def run_spline_export_json(
     """
     result = _require_spline()
     if result is None:
-        return
+        return {"status": "error", "path": "", "count": 0}
 
     actor, spline = result
     cs = unreal.SplineCoordinateSpace.WORLD
@@ -438,3 +441,4 @@ def run_spline_export_json(
 
     log_info(f"Exported {len(records)} spline points → {out_path}")
     log_info("Feed points into scatter_along_path using the pattern in the docstring.")
+    return {"status": "ok", "path": out_path, "count": len(records)}

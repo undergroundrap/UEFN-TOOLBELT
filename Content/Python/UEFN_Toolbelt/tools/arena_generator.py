@@ -259,7 +259,7 @@ def run_generate(
     origin: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     apply_team_colors: bool = True,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         size:              "small", "medium", or "large".
@@ -269,7 +269,7 @@ def run_generate(
     """
     if size not in ARENA_PRESETS:
         log_error(f"Unknown arena size '{size}'. Choose from: {list(ARENA_PRESETS.keys())}")
-        return
+        return {"status": "error", "placed": 0, "red_spawns": 0, "blue_spawns": 0}
 
     cfg = ARENA_PRESETS[size]
     origin_vec = unreal.Vector(*origin)
@@ -312,3 +312,4 @@ def run_generate(
     # Restore empty selection
     unreal.get_editor_subsystem(unreal.EditorActorSubsystem).set_selected_level_actors([])
     log_info("Arena generation complete. Undo with Ctrl+Z to remove everything.")
+    return {"status": "ok", "placed": len(all_placed), "red_spawns": len(red_actors), "blue_spawns": len(blue_actors)}

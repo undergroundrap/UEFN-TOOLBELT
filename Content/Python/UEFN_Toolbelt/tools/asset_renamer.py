@@ -225,7 +225,7 @@ def run_dry_run(
     scan_path: str = "/Game",
     class_filter: Optional[str] = None,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Prints every asset that violates the Epic naming convention.
     Zero changes are made — safe to run on any project.
@@ -258,6 +258,7 @@ def run_dry_run(
 
     report_path = _write_report(records, "dry_run")
     log_info(f"Full report → {report_path}")
+    return {"status": "ok", "violations": len(violations), "ok": ok, "path": report_path}
 
 
 @register_tool(
@@ -271,7 +272,7 @@ def run_enforce_conventions(
     class_filter: Optional[str] = None,
     dry_run: bool = False,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Renames every violating asset. Always run rename_dry_run first to review.
 
@@ -281,8 +282,7 @@ def run_enforce_conventions(
         dry_run:      If True, print changes without applying (safety override).
     """
     if dry_run:
-        run_dry_run(scan_path=scan_path, class_filter=class_filter)
-        return
+        return run_dry_run(scan_path=scan_path, class_filter=class_filter)
 
     log_info(f"Scanning {scan_path} for naming violations…")
     entries = _scan_folder(scan_path, class_filter)
@@ -290,7 +290,7 @@ def run_enforce_conventions(
 
     if not violations:
         log_info("No naming violations found. Nothing to rename.")
-        return
+        return {"status": "ok", "renamed": 0, "failed": 0, "path": None}
 
     log_info(f"Renaming {len(violations)} assets…")
 
@@ -317,6 +317,7 @@ def run_enforce_conventions(
         f"Done: {renamed} renamed, {failed} failed. "
         f"Report → {report_path}"
     )
+    return {"status": "ok", "renamed": renamed, "failed": failed, "path": report_path}
 
 
 @register_tool(
@@ -330,7 +331,7 @@ def run_strip_prefix(
     prefix: str = "T_",
     dry_run: bool = True,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Removes `prefix` from every asset in scan_path that starts with it.
     Defaults to dry_run=True for safety — set dry_run=False to commit.
@@ -354,7 +355,7 @@ def run_strip_prefix(
 
     if not targets:
         log_info(f"No assets found starting with '{prefix}' in {scan_path}.")
-        return
+        return {"status": "ok", "done": 0, "total": 0, "dry_run": dry_run}
 
     log_info(f"{'[DRY RUN] ' if dry_run else ''}Stripping '{prefix}' from {len(targets)} assets:")
     for path, old, folder, new in targets:
@@ -362,7 +363,7 @@ def run_strip_prefix(
 
     if dry_run:
         log_info("Dry run — no changes made. Pass dry_run=False to apply.")
-        return
+        return {"status": "ok", "done": 0, "total": len(targets), "dry_run": True}
 
     done = 0
     for path, old, folder, new in targets:
@@ -373,6 +374,7 @@ def run_strip_prefix(
             log_warning(f"  Failed: {old} — {e}")
 
     log_info(f"Stripped prefix from {done}/{len(targets)} assets.")
+    return {"status": "ok", "done": done, "total": len(targets), "dry_run": False}
 
 
 @register_tool(
@@ -381,7 +383,7 @@ def run_strip_prefix(
     description="Generate a full naming convention audit report for a folder.",
     tags=["rename", "report", "audit", "convention", "scan"],
 )
-def run_rename_report(scan_path: str = "/Game", **kwargs) -> None:
+def run_rename_report(scan_path: str = "/Game", **kwargs) -> dict:
     """
     Full audit — doesn't rename anything, just writes a comprehensive JSON
     report to Saved/UEFN_Toolbelt/rename_report.json.
@@ -411,3 +413,4 @@ def run_rename_report(scan_path: str = "/Game", **kwargs) -> None:
         f"{violations} violations, {len(records) - violations} compliant.\n"
         f"Report → {report_path}"
     )
+    return {"status": "ok", "path": report_path, "violations": violations, "total": len(records)}

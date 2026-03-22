@@ -41,11 +41,15 @@ def _get_distance(p1: unreal.Vector, p2: unreal.Vector) -> float:
     description="Measure the 3D distance between two selected actors or the total length of a chain of actors.",
     tags=["measure", "distance", "math", "layout"],
 )
-def run_measure_distance(**kwargs) -> float:
+def run_measure_distance(**kwargs) -> dict:
+    """
+    Returns:
+        dict: {"status", "distance_cm", "segment_count"}
+    """
     actors = get_selected_actors()
     if len(actors) < 2:
         log_warning("Select at least 2 actors to measure distance.")
-        return 0.0
+        return {"status": "error", "distance_cm": 0.0, "segment_count": 0}
 
     total_dist = 0.0
     for i in range(len(actors) - 1):
@@ -54,7 +58,7 @@ def run_measure_distance(**kwargs) -> float:
         total_dist += _get_distance(p1, p2)
 
     log_info(f"Total Distance: {total_dist:.2f} cm")
-    return total_dist
+    return {"status": "ok", "distance_cm": total_dist, "segment_count": len(actors) - 1}
 
 
 @register_tool(
@@ -69,7 +73,8 @@ def run_measure_travel_time(speed_type: str = "Run", custom_speed: float = 0.0, 
         log_warning("Select at least 2 actors to measure travel time.")
         return {}
 
-    dist = run_measure_distance()
+    dist_result = run_measure_distance()
+    dist = dist_result.get("distance_cm", 0.0) if isinstance(dist_result, dict) else float(dist_result)
     actual_speed = custom_speed if custom_speed > 0 else SPEEDS.get(speed_type, SPEEDS["Run"])
 
     time_sec = dist / actual_speed
@@ -89,11 +94,15 @@ def run_measure_travel_time(speed_type: str = "Run", custom_speed: float = 0.0, 
     description="Get the total world-space length of a selected spline actor.",
     tags=["spline", "measure", "length"],
 )
-def run_spline_measure(**kwargs) -> float:
+def run_spline_measure(**kwargs) -> dict:
+    """
+    Returns:
+        dict: {"status", "length_cm"}
+    """
     actors = get_selected_actors()
     if not actors:
         log_warning("Select a spline actor.")
-        return 0.0
+        return {"status": "error", "length_cm": 0.0}
 
     spline = None
     for actor in actors:
@@ -104,8 +113,8 @@ def run_spline_measure(**kwargs) -> float:
 
     if not spline:
         log_error("No SplineComponent found on selection.")
-        return 0.0
+        return {"status": "error", "length_cm": 0.0}
 
     length = spline.get_spline_length()
     log_info(f"Spline Length: {length:.2f} cm")
-    return length
+    return {"status": "ok", "length_cm": length}

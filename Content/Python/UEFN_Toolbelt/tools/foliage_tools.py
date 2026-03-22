@@ -185,7 +185,7 @@ def run_scatter_props(
     seed: int = 0,                    # 0 = truly random; any other = deterministic
     folder: str = DEFAULT_SCATTER_FOLDER,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         mesh_path:        Content path to the static mesh.
@@ -234,6 +234,7 @@ def run_scatter_props(
                 placed += 1
 
     log_info(f"Scatter complete: {placed} actors placed in '/{folder}'.")
+    return {"status": "ok", "placed": placed, "folder": folder}
 
 
 @register_tool(
@@ -253,7 +254,7 @@ def run_scatter_hism(
     seed: int = 0,
     folder: str = DEFAULT_SCATTER_FOLDER,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Places all instances inside a single actor with a
     HierarchicalInstancedStaticMeshComponent — one draw call, GPU-instanced,
@@ -274,7 +275,7 @@ def run_scatter_hism(
     mesh = load_asset(mesh_path)
     if not isinstance(mesh, unreal.StaticMesh):
         log_error(f"scatter_hism: '{mesh_path}' is not a valid StaticMesh.")
-        return
+        return {"status": "error", "count": 0, "folder": folder}
 
     rng  = random.Random(seed if seed != 0 else None)
     cx, cy, cz = center
@@ -292,7 +293,7 @@ def run_scatter_hism(
         )
         if host_actor is None:
             log_error("scatter_hism: failed to spawn host actor.")
-            return
+            return {"status": "error", "count": 0, "folder": folder}
 
         host_actor.set_folder_path(f"/{folder}")
         host_actor.set_actor_label(f"HISM_Scatter_{mesh_path.split('/')[-1]}")
@@ -317,6 +318,7 @@ def run_scatter_hism(
             hism.add_instance(transform)
 
     log_info(f"HISM scatter complete: {count} instances in one actor.")
+    return {"status": "ok", "count": count, "folder": folder}
 
 
 @register_tool(
@@ -335,7 +337,7 @@ def run_scatter_along_path(
     seed: int = 0,
     folder: str = DEFAULT_SCATTER_FOLDER,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Drops a cluster of `count_per_point` instances around each point in
     `path_points`. Pair with spline_to_verse.py to get path points from
@@ -352,7 +354,7 @@ def run_scatter_along_path(
     """
     if not path_points:
         log_warning("scatter_along_path: no path_points provided.")
-        return
+        return {"status": "error", "placed": 0}
 
     rng = random.Random(seed if seed != 0 else None)
     total = len(path_points) * count_per_point
@@ -378,6 +380,7 @@ def run_scatter_along_path(
                     actor.set_actor_label(f"PathScatter_{pi:03d}_{ci}")
 
     log_info(f"Path scatter complete: {total} props placed.")
+    return {"status": "ok", "placed": total}
 
 
 @register_tool(
@@ -386,7 +389,11 @@ def run_scatter_along_path(
     description="Delete all scatter actors in a named World Outliner folder (undoable).",
     tags=["scatter", "clear", "delete", "cleanup"],
 )
-def run_scatter_clear(folder: str = DEFAULT_SCATTER_FOLDER, **kwargs) -> None:
+def run_scatter_clear(folder: str = DEFAULT_SCATTER_FOLDER, **kwargs) -> dict:
+    """
+    Returns:
+        dict: {"status", "deleted", "folder"}
+    """
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     all_actors = actor_sub.get_all_level_actors()
 
@@ -397,12 +404,13 @@ def run_scatter_clear(folder: str = DEFAULT_SCATTER_FOLDER, **kwargs) -> None:
 
     if not to_delete:
         log_info(f"No actors found in folder '/{folder}'.")
-        return
+        return {"status": "ok", "deleted": 0, "folder": folder}
 
     with undo_transaction(f"Scatter: Clear {folder}"):
         actor_sub.destroy_actors(to_delete)
 
     log_info(f"Cleared {len(to_delete)} scatter actors from '/{folder}'.")
+    return {"status": "ok", "deleted": len(to_delete), "folder": folder}
 
 
 @register_tool(
@@ -411,10 +419,13 @@ def run_scatter_clear(folder: str = DEFAULT_SCATTER_FOLDER, **kwargs) -> None:
     description="Export positions/rotations of all scatter actors in a folder to JSON.",
     tags=["scatter", "export", "manifest", "json"],
 )
-def run_scatter_export_manifest(folder: str = DEFAULT_SCATTER_FOLDER, **kwargs) -> None:
+def run_scatter_export_manifest(folder: str = DEFAULT_SCATTER_FOLDER, **kwargs) -> dict:
     """
     Exports a JSON manifest of every actor in the scatter folder.
     Useful for recreating a scatter in another level or sharing with teammates.
+
+    Returns:
+        dict: {"status", "path", "count"}
     """
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     actors = [
@@ -424,7 +435,7 @@ def run_scatter_export_manifest(folder: str = DEFAULT_SCATTER_FOLDER, **kwargs) 
 
     if not actors:
         log_info(f"No actors found in '/{folder}'.")
-        return
+        return {"status": "ok", "path": "", "count": 0}
 
     records = []
     for a in actors:
@@ -448,3 +459,4 @@ def run_scatter_export_manifest(folder: str = DEFAULT_SCATTER_FOLDER, **kwargs) 
                   f, indent=2)
 
     log_info(f"Manifest exported: {len(records)} actors → {out_path}")
+    return {"status": "ok", "path": out_path, "count": len(records)}

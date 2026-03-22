@@ -132,7 +132,7 @@ def run_place_props(
     scale_max: float = 1.0,
     folder_name: str = "SplineProps",
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         mesh_path:        Content path to the static mesh to instance.
@@ -147,7 +147,7 @@ def run_place_props(
     """
     result = _get_spline_actor()
     if result is None:
-        return
+        return {"status": "error", "placed": 0, "folder": folder_name}
 
     actor, spline = result
     log_info(f"Placing props along spline on '{actor.get_actor_label()}'…")
@@ -160,7 +160,7 @@ def run_place_props(
 
     if not distances:
         log_error("No distances computed — check count/spacing values.")
-        return
+        return {"status": "error", "placed": 0, "folder": folder_name}
 
     placed: List[unreal.Actor] = []
     offset_vec = unreal.Vector(offset_x, offset_y, offset_z)
@@ -194,6 +194,7 @@ def run_place_props(
                 placed.append(prop)
 
     log_info(f"Placed {len(placed)} props along spline. Undo with Ctrl+Z.")
+    return {"status": "ok", "placed": len(placed), "folder": folder_name}
 
 
 @register_tool(
@@ -202,7 +203,7 @@ def run_place_props(
     description="Delete all actors in the SplineProps folder (undoable).",
     tags=["spline", "prop", "clear", "delete"],
 )
-def run_clear_props(folder_name: str = "SplineProps", **kwargs) -> None:
+def run_clear_props(folder_name: str = "SplineProps", **kwargs) -> dict:
     """
     Args:
         folder_name: World Outliner folder to clear.
@@ -217,9 +218,10 @@ def run_clear_props(folder_name: str = "SplineProps", **kwargs) -> None:
 
     if not to_delete:
         log_info(f"No actors found in folder '/{folder_name}'.")
-        return
+        return {"status": "ok", "deleted": 0, "folder": folder_name}
 
     with undo_transaction(f"Spline Prop Placer: Clear {folder_name}"):
         actor_sub.destroy_actors(to_delete)
 
     log_info(f"Deleted {len(to_delete)} actors from '/{folder_name}'.")
+    return {"status": "ok", "deleted": len(to_delete), "folder": folder_name}

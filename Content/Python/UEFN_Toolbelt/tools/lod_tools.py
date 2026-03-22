@@ -146,16 +146,19 @@ def run_lod_auto_generate_selection(
     num_lods: int = 3,
     quality: float = 0.5,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         num_lods: Number of additional LODs to generate (1–7 recommended).
         quality:  Reduction aggressiveness. 0.0 = maximum reduction, 1.0 = minimal.
+
+    Returns:
+        dict: {"status", "done", "failed"}
     """
     actors = get_selected_actors()
     if not actors:
         log_warning("Select actors in the viewport first.")
-        return
+        return {"status": "error", "done": 0, "failed": 0}
 
     smc_class = unreal.StaticMeshComponent.static_class()
     seen_meshes: set = set()
@@ -171,7 +174,7 @@ def run_lod_auto_generate_selection(
 
     if not targets:
         log_warning("No static meshes found on selected actors.")
-        return
+        return {"status": "error", "done": 0, "failed": 0}
 
     log_info(f"Generating {num_lods} LODs on {len(targets)} unique meshes…")
     done = failed = 0
@@ -184,6 +187,7 @@ def run_lod_auto_generate_selection(
                 failed += 1
 
     log_info(f"LOD generation: {done} succeeded, {failed} failed.")
+    return {"status": "ok", "done": done, "failed": failed}
 
 
 @register_tool(
@@ -198,18 +202,21 @@ def run_lod_auto_generate_folder(
     quality: float = 0.5,
     skip_existing: bool = True,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         folder_path:    Content Browser folder to scan.
         num_lods:       LODs to generate.
         quality:        Reduction aggressiveness (0.0–1.0).
         skip_existing:  Skip meshes that already have LODs.
+
+    Returns:
+        dict: {"status", "done", "failed"}
     """
     targets = _get_meshes_in_folder(folder_path)
     if not targets:
         log_info("No static meshes found.")
-        return
+        return {"status": "ok", "done": 0, "failed": 0}
 
     if skip_existing:
         mesh_sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
@@ -221,7 +228,7 @@ def run_lod_auto_generate_folder(
 
     if not targets:
         log_info("All meshes already have LODs.")
-        return
+        return {"status": "ok", "done": 0, "failed": 0}
 
     log_info(f"Generating {num_lods} LODs on {len(targets)} meshes in {folder_path}…")
     done = failed = 0
@@ -235,6 +242,7 @@ def run_lod_auto_generate_folder(
                 failed += 1
 
     log_info(f"Batch LOD complete: {done} done, {failed} failed.")
+    return {"status": "ok", "done": done, "failed": failed}
 
 
 @register_tool(
@@ -247,21 +255,24 @@ def run_set_collision_folder(
     folder_path: str = "/Game",
     complexity: str = "complex_as_simple",
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         folder_path: Content Browser folder to scan.
         complexity:  One of: "default", "simple", "complex", "complex_as_simple",
                      "simple_and_complex".
+
+    Returns:
+        dict: {"status", "done", "total"}
     """
     if complexity not in _COLLISION_MAP:
         log_error(f"Unknown complexity '{complexity}'. Choose from: {list(_COLLISION_MAP.keys())}")
-        return
+        return {"status": "error", "done": 0, "total": 0}
 
     flag = _COLLISION_MAP[complexity]
     targets = _get_meshes_in_folder(folder_path)
     if not targets:
-        return
+        return {"status": "ok", "done": 0, "total": 0}
 
     log_info(f"Setting collision='{complexity}' on {len(targets)} meshes…")
     done = 0
@@ -278,6 +289,7 @@ def run_set_collision_folder(
                 log_warning(f"  {path.split('/')[-1]}: {e}")
 
     log_info(f"Collision set on {done}/{len(targets)} meshes.")
+    return {"status": "ok", "done": done, "total": len(targets)}
 
 
 @register_tool(
@@ -289,17 +301,20 @@ def run_set_collision_folder(
 def run_lod_audit_folder(
     folder_path: str = "/Game",
     **kwargs,
-) -> None:
+) -> dict:
     """
     Prints a report and saves JSON to Saved/UEFN_Toolbelt/lod_audit.json.
     Does NOT modify any assets.
 
     Args:
         folder_path: Content Browser folder to audit.
+
+    Returns:
+        dict: {"status", "path", "no_lod_count", "no_collision_count", "records"}
     """
     targets = _get_meshes_in_folder(folder_path)
     if not targets:
-        return
+        return {"status": "ok", "path": "", "no_lod_count": 0, "no_collision_count": 0, "records": []}
 
     mesh_sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
 
@@ -355,3 +370,10 @@ def run_lod_audit_folder(
 
     log_info(f"Full audit → {out_path}")
     log_info("Run lod_auto_generate_folder to fix missing LODs.")
+    return {
+        "status": "ok",
+        "path": out_path,
+        "no_lod_count": len(no_lod),
+        "no_collision_count": len(no_collision),
+        "records": records,
+    }
