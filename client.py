@@ -164,7 +164,7 @@ class ToolbeltClient:
     def run_tool(self, tool_name: str, timeout: float = 120.0, **kwargs) -> dict:
         """
         Run any registered UEFN Toolbelt tool by name.
-        This is the main interface — 95+ tools available.
+        This is the main interface — 171 tools available.
 
         Examples:
             ue.run_tool("material_apply_preset", preset="chrome")

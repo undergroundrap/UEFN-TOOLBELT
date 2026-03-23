@@ -32,8 +32,8 @@ Why the queue + tick pattern:
 What's new vs Kirch's original:
     • run_tool command — call any registered UEFN Toolbelt tool by name,
       passing kwargs as JSON. Exposes all 171 toolbelt tools to Claude Code.
-    • All 31 commands: Kirch's originals (system, actors, assets, level,
-      viewport) + set_actor_property, import_asset, run_tool, and more.
+    • All 32 commands: Kirch's originals (system, actors, assets, level,
+      viewport) + set_actor_property, import_asset, run_tool, describe_tool, and more.
     • Toolbelt-aware: pre-populated globals in execute_python include `tb`.
     • start / stop / restart / status exposed as @register_tool entries
       so the dashboard can control the bridge without touching the REPL.

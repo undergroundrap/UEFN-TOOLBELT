@@ -14,7 +14,7 @@ Automate the tedious, script the impossible, and bridge the gap between Python a
 UEFN Toolbelt is a master utility designed to leverage the **2026 UEFN Python 3.11 Update**,
 allowing creators to manipulate actors, manage assets, and generate boilerplate Verse code
 through a high-level, developer-friendly interface — all from a single persistent menu entry
-in the UEFN editor bar. **171 registered tools** across 31 categories, complete AI-agent
+in the UEFN editor bar. **171 registered tools** across 30 categories, complete AI-agent
 readiness (100% structured dict returns), and a unified theme system so every window in the
 platform looks and feels identical.
 
@@ -1149,7 +1149,7 @@ After completing Step 2 (PySide6 installed), click **Toolbelt → Open Dashboard
 import UEFN_Toolbelt as tb; tb.launch_qt()
 ```
 
-A dark-themed floating window opens with a left sidebar nav and 171 tools across 31 categories (including an About page).
+A dark-themed floating window opens with a left sidebar nav and 171 tools across 30 categories (including an About page).
 
 ![Global Dashboard Search](docs/dashboard_search.png)
 
@@ -2216,7 +2216,7 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 ### v1.2 — March 2026 (Phase 20: AI-Agent Readiness)
 
-- **171 tools** across 31 categories
+- **171 tools** across 30 categories
 - **Tool Manifest Export** (`plugin_export_manifest`): Writes `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of every registered tool with its full parameter signature (name, type, required/optional, default). Any AI agent or automation script can load this file and know how to call every tool without reading source code. This is the key artifact for full AI-driven UEFN workflows.
 - **Structured Returns Everywhere (Phase 21 complete)**: All 171 tools return `{"status": "ok"/"error", ...}` dicts. Zero `None` returns remain. MCP callers (Claude Code, `client.py`, scripts) can read every result programmatically — no log parsing required.
 - **Schema-Driven Property Discovery** (`schema_utils.discover_properties`): `verse_device_editor`'s property reader now queries the reference schema for each actor's class before falling back to a hardcoded list. It reads whatever properties the schema actually defines for that class, making it correct-by-construction rather than hardcoded.

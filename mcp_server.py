@@ -176,7 +176,7 @@ mcp = FastMCP(
         "IMPORTANT: Start the listener in UEFN first:\n"
         "  import UEFN_Toolbelt as tb; tb.run('mcp_start')\n\n"
         "Key tools:\n"
-        "  run_toolbelt_tool   — run ANY of the 95+ registered toolbelt tools\n"
+        "  run_toolbelt_tool   — run ANY of the 171 registered toolbelt tools\n"
         "  execute_python      — run arbitrary Python inside UEFN with full unreal.*\n"
         "  list_toolbelt_tools — see every tool available\n"
         "  get_all_actors      — snapshot the level\n"

@@ -646,25 +646,31 @@ When the listener is running, Claude Code can call these directly:
 | Command | Params | What it does |
 |---|---|---|
 | `ping` | — | Health check + command list |
+| `get_log` | `last_n=50` | Return last N lines from the MCP command log ring |
 | `execute_python` | `code` | Run Python in UEFN (pre-populated: `unreal`, `actor_sub`, `asset_sub`, `level_sub`, `tb`) |
 | `run_tool` | `tool_name`, `kwargs={}` | Run any of the 171 registered tools |
 | `list_tools` | `category=""` | List all registered tools |
+| `describe_tool` | `tool_name` | Full manifest entry for one tool (name, description, parameters, tags) |
 | `batch_exec` | `commands=[{command, params}]` | Multiple commands in one tick |
 | `undo` | — | Undo last action |
 | `redo` | — | Redo last undone action |
 | `history` | `tail=30` | Recent command history with timing |
 | `get_all_actors` | `class_filter=""` | Snapshot entire level |
-| `get_selected_actors` | — | Currently selected actors |
+| `get_selected_actors` | — | Currently selected viewport actors |
 | `spawn_actor` | `asset_path`, `location`, `rotation`, `label` | Spawn actor |
 | `delete_actors` | `actor_paths=[...]` | Delete by path or label |
 | `set_actor_transform` | `actor_path`, `location`, `rotation`, `scale` | Move/rotate/scale |
+| `set_actor_property` | `actor_path`, `property_name`, `value` | Set a single editor property on an actor |
 | `get_actor_properties` | `actor_path`, `properties=[...]` | Read editor properties |
 | `list_assets` | `directory`, `recursive`, `class_filter` | List Content Browser assets |
 | `get_asset_info` | `asset_path` | Asset metadata |
+| `get_selected_assets` | — | Currently selected Content Browser assets |
 | `rename_asset` | `old_path`, `new_path` | Rename/move |
 | `duplicate_asset` | `source_path`, `dest_path` | Duplicate |
 | `delete_asset` | `asset_path` | Delete |
+| `does_asset_exist` | `asset_path` | Check if an asset exists |
 | `save_asset` | `asset_path` | Save |
+| `import_asset` | `source_file`, `destination_path`, `replace_existing=True` | Import external file (FBX, PNG, etc.) into Content Browser |
 | `search_assets` | `class_name`, `directory` | Asset Registry search |
 | `save_current_level` | — | Save level |
 | `get_level_info` | — | World name + actor count |
