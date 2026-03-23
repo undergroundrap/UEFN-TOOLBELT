@@ -1462,47 +1462,82 @@ def _tab_plugin_hub(R) -> "QScrollArea":
         cl.addWidget(footer)
         return card
 
-    def _refresh_hub():
-        import urllib.request, time
-        hub_status.setText("Fetching registry…")
+    # Cache for search filtering
+    _all_plugins = []
+
+    def _build_hub_cards(query: str = ""):
         while hub_vbox.count():
             item = hub_vbox.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
+
+        q = query.strip().lower()
+        def _matches(pm):
+            if not q:
+                return True
+            return (
+                q in pm.get("name", "").lower() or
+                q in pm.get("category", "").lower() or
+                q in pm.get("description", "").lower() or
+                any(q in t.lower() for t in pm.get("tags", []))
+            )
+
+        core      = [p for p in _all_plugins if p.get("type") == "core"      and _matches(p)]
+        community = [p for p in _all_plugins if p.get("type") != "core"      and _matches(p)]
+        total     = len(core) + len(community)
+
+        if not total and q:
+            no_result = QLabel(f'No results for "{q}"')
+            no_result.setStyleSheet("color: #777777; font-style: italic; padding: 12px 0;")
+            hub_vbox.addWidget(no_result)
+            return
+
+        if core:
+            core_hdr = QLabel("Core Tools  —  Built into UEFN Toolbelt by Ocean Bennett")
+            core_hdr.setStyleSheet("font-size: 12px; font-weight: bold; color: #44FF88; padding: 8px 0 4px 0;")
+            hub_vbox.addWidget(core_hdr)
+            for pm in core:
+                hub_vbox.addWidget(_make_online_card(pm))
+
+        if community:
+            comm_hdr = QLabel("Community Plugins  —  Third-party tools")
+            comm_hdr.setStyleSheet("font-size: 12px; font-weight: bold; color: #44AAFF; padding: 8px 0 4px 0;")
+            hub_vbox.addWidget(comm_hdr)
+            for pm in community:
+                hub_vbox.addWidget(_make_online_card(pm))
+
+    def _refresh_hub():
+        import urllib.request, time
+        nonlocal _all_plugins
+        hub_status.setText("Fetching registry…")
+        hub_search.setEnabled(False)
         try:
             bust_url = f"{_REGISTRY_URL}?t={int(time.time())}"
             req = urllib.request.Request(bust_url, headers={"Cache-Control": "no-cache", "Pragma": "no-cache"})
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode())
-            plugins = data.get("plugins", [])
-            core = [p for p in plugins if p.get("type") == "core"]
-            community = [p for p in plugins if p.get("type") != "core"]
-
+            _all_plugins = data.get("plugins", [])
+            core_count = sum(1 for p in _all_plugins if p.get("type") == "core")
+            comm_count = sum(1 for p in _all_plugins if p.get("type") != "core")
             hub_status.setText(
-                f"✓ {len(core)} core tools · {len(community)} community plugins"
+                f"✓ {core_count} core tools · {comm_count} community plugins"
                 f" · updated {data.get('updated','?')}"
             )
-
-            if core:
-                core_hdr = QLabel("Core Tools  —  Built into UEFN Toolbelt by Ocean Bennett")
-                core_hdr.setStyleSheet(
-                    "font-size: 12px; font-weight: bold; color: #44FF88; padding: 8px 0 4px 0;"
-                )
-                hub_vbox.addWidget(core_hdr)
-                for pm in core:
-                    hub_vbox.addWidget(_make_online_card(pm))
-
-            if community:
-                comm_hdr = QLabel("Community Plugins  —  Third-party tools")
-                comm_hdr.setStyleSheet(
-                    "font-size: 12px; font-weight: bold; color: #44AAFF; padding: 8px 0 4px 0;"
-                )
-                hub_vbox.addWidget(comm_hdr)
-                for pm in community:
-                    hub_vbox.addWidget(_make_online_card(pm))
-
+            hub_search.setEnabled(True)
+            _build_hub_cards(hub_search.text())
         except Exception as ex:
             hub_status.setText(f"⚠ Could not reach registry: {ex}")
+
+    # Search bar
+    hub_search = QLineEdit()
+    hub_search.setPlaceholderText("Filter Plugin Hub...")
+    hub_search.setStyleSheet(
+        "QLineEdit { background: #212121; border: 1px solid #363636; color: #CCCCCC;"
+        " padding: 6px 10px; border-radius: 4px; font-size: 12px; }"
+        "QLineEdit:focus { border-color: #3A3AFF; }"
+    )
+    hub_search.setEnabled(False)
+    hub_search.textChanged.connect(_build_hub_cards)
 
     btn_refresh = QPushButton("  Refresh Hub")
     btn_refresh.setStyleSheet(
@@ -1511,7 +1546,14 @@ def _tab_plugin_hub(R) -> "QScrollArea":
         "QPushButton:hover { background: #3A3AFF; border-color: #5555FF; color: #FFFFFF; }"
     )
     btn_refresh.clicked.connect(_refresh_hub)
-    L.addWidget(btn_refresh)
+
+    search_row = QWidget()
+    search_row.setStyleSheet("background: transparent;")
+    sr_layout = QHBoxLayout(search_row)
+    sr_layout.setContentsMargins(0, 0, 0, 0)
+    sr_layout.addWidget(hub_search)
+    sr_layout.addWidget(btn_refresh)
+    L.addWidget(search_row)
     L.addWidget(hub_container)
 
     _sep(L)
