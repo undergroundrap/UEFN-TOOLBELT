@@ -150,6 +150,57 @@ All 171 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as 
 
 ---
 
+## AI Autonomy Loop — How Claude Builds a Full Game
+
+The long-term goal: Claude receives a game brief and autonomously builds a complete UEFN project.
+Here is the full loop as it stands today and what remains:
+
+```
+PHASE 1 — READ THE LEVEL          ✅ COMPLETE
+  world_state_export               → full actor list + all readable properties
+  api_crawl_level_classes          → property schema for every class in the level
+  api_sync_master                  → merged Python + Verse schema → DEVICE_API_MAP.md
+  verse_find_project_path          → locate where to write Verse files
+
+PHASE 2 — PLACE & CONFIGURE       ✅ COMPLETE (with known limits)
+  spawn_actor                      → place any asset by path
+  set_actor_transform              → position, rotate, scale
+  delete_actors                    → remove by path or label
+  device_set_property              → set base-class properties (not V2 game-logic props)
+  device_call_method               → call V2 runtime methods (timer_start, Enable, etc.)
+  bulk_*, pattern_*, scatter_*     → layout tools
+
+PHASE 3 — GENERATE & DEPLOY VERSE ✅ COMPLETE
+  verse_gen_game_skeleton          → full game manager stub
+  verse_gen_device_declarations    → @editable refs from level actors
+  verse_gen_elimination_handler    → elimination event handler
+  verse_gen_scoring_tracker        → zone scoring tracker
+  verse_write_file                 → write generated Verse to project source dir
+  system_build_verse               → trigger compilation + parse errors as JSON
+  system_get_last_build_log        → read full build log for diagnosis
+
+PHASE 4 — ITERATE                 ⚠️ PARTIAL
+  system_build_verse errors        → Claude reads errors, edits the file, retries
+  snapshot_save/restore            → rollback if something goes wrong
+  world_state_export (re-run)      → verify level state after changes
+
+KNOWN HARD LIMITS (Epic must unlock these):
+  ✗ V2 device game-logic properties (duration, score, team index) — Verse @editable only
+  ✗ Session launch/stop from Python — no API exposed
+  ✗ Verse compile from inside the editor Python session (system_build_verse uses subprocess)
+  ✗ Channel/event wiring between devices — not exposed to Python
+```
+
+**The autonomous game build sequence (what Claude should do today):**
+1. `world_state_export` — read what's in the level
+2. `verse_gen_device_declarations` — generate @editable refs from real actors
+3. `verse_gen_game_skeleton` — build the game manager around those refs
+4. `verse_write_file` — deploy to project Verse directory
+5. `system_build_verse` — compile and read errors
+6. If errors: read them, fix the Verse, repeat from step 4
+
+---
+
 ## Controlling UEFN from Claude Code (MCP Bridge)
 
 ### First-time setup
@@ -549,7 +600,8 @@ tb.run("screenshot_focus_selection", width=1920, height=1080, name="prop_focus")
 |---|---|---|
 | `verse_list_devices` | — | Enumerate all Creative devices in level |
 | `verse_bulk_set_property` | `property_name`, `value` | Set UPROPERTY on selection |
-| `device_set_property` | `property_name`, `value`, `class_filter=""`, `label_filter=""`, `actor_path=""`, `dry_run=False` | **AI write layer** — set any property on every actor matching a class/label/path filter. Returns per-actor result report. |
+| `device_set_property` | `property_name`, `value`, `class_filter=""`, `label_filter=""`, `actor_path=""`, `dry_run=False` | **AI write layer** — set any base-class property on matched actors. Returns per-actor report. |
+| `device_call_method` | `method`, `class_filter=""`, `label_filter=""`, `actor_path=""`, `method_args=[]` | **V2 runtime control** — call any exposed method on matched actors (timer_start, timer_pause, timer_resume, Enable, Disable, etc.) |
 | `verse_select_by_name` | `name_contains` | Select devices matching label |
 | `verse_select_by_class` | `class_name` | Select devices by class |
 | `verse_export_report` | `output_path` | JSON export of all device properties |
@@ -561,6 +613,11 @@ tb.run("screenshot_focus_selection", width=1920, height=1080, name="prop_focus")
 | `verse_gen_elimination_handler` | `device_name` | Elimination event handler |
 | `verse_gen_scoring_tracker` | `device_name` | Zone scoring tracker |
 | `verse_gen_prop_spawner` | `device_name` | Trigger-controlled prop spawn stub |
+| `verse_find_project_path` | — | Auto-detect the project's Verse source directory |
+| `verse_write_file` | `filename`, `content`, `subdir=""`, `overwrite=False` | **AI deploy layer** — write generated Verse directly into the project's Verse source directory, ready for compilation |
+| `verse_gen_custom` | `filename`, `code`, `description` | Write arbitrary Verse to snippets folder |
+| `system_build_verse` | — | Trigger Verse compilation + parse errors back as structured JSON |
+| `system_get_last_build_log` | — | Read last 100 lines of the UEFN log for error analysis |
 | `spline_to_verse_points` | `sample_count=0` | Spline → Verse `vector3` array |
 | `spline_to_verse_patrol` | — | Full patrol AI skeleton from spline |
 | `spline_to_verse_zone_boundary` | — | Zone boundary + IsPointInZone helper |

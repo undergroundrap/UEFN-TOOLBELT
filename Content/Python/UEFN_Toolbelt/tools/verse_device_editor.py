@@ -340,6 +340,116 @@ def run_export_report(**kwargs) -> dict:
 
 
 @register_tool(
+    name="device_call_method",
+    category="Verse Helpers",
+    description=(
+        "Call an exposed Python method on every actor matching a class or label filter. "
+        "The V2 device runtime control layer — start/stop/pause timers, enable/disable "
+        "capture areas, trigger spawners, etc."
+    ),
+    tags=["device", "method", "call", "runtime", "timer", "ai", "automation"],
+)
+def device_call_method(
+    method: str = "",
+    class_filter: str = "",
+    label_filter: str = "",
+    actor_path: str = "",
+    method_args: list = None,
+    **kwargs,
+) -> dict:
+    """
+    Call ``method`` on every actor that matches at least one filter.
+    Uses getattr() — the only reliable call path for V2 Verse device methods.
+
+    Args:
+        method:       The method name to call (e.g. "timer_start", "timer_pause",
+                      "timer_resume", "timer_set_state", "timer_clear_handles").
+        class_filter: Case-insensitive substring of actor class name.
+        label_filter: Case-insensitive substring of actor label.
+        actor_path:   Exact actor path or label for single-actor targeting.
+        method_args:  Optional list of positional arguments to pass to the method.
+
+    Returns:
+        {
+          "status": "ok",
+          "matched": int,
+          "success": int,
+          "failed": int,
+          "results": [{"label", "class", "result", "error"}]
+        }
+
+    Common V2 device methods discovered via api_crawl_selection:
+        timer_start, timer_pause, timer_resume, timer_set_state, timer_clear_handles
+        (run api_crawl_selection on any device to discover its full method list)
+
+    Examples:
+        tb.run("device_call_method", class_filter="Timer", method="timer_start")
+        tb.run("device_call_method", label_filter="CaptureArea_1", method="Enable")
+    """
+    if not method:
+        return {"status": "error", "message": "method is required."}
+    if not any([class_filter, label_filter, actor_path]):
+        return {"status": "error",
+                "message": "Provide at least one filter: class_filter, label_filter, or actor_path."}
+
+    args = method_args or []
+
+    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    all_actors = actor_sub.get_all_level_actors()
+
+    matched = []
+    for actor in all_actors:
+        try:
+            cls_name = type(actor).__name__
+            label    = actor.get_actor_label()
+            path     = actor.get_path_name()
+        except Exception:
+            continue
+
+        if actor_path and (actor_path == path or actor_path == label):
+            matched.append(actor)
+            continue
+
+        passes_class = (not class_filter) or (class_filter.lower() in cls_name.lower())
+        passes_label = (not label_filter) or (label_filter.lower() in label.lower())
+        if passes_class and passes_label:
+            matched.append(actor)
+
+    if not matched:
+        return {"status": "ok", "matched": 0, "success": 0, "failed": 0, "results": [],
+                "message": "No actors matched the given filters."}
+
+    log_info(f"[device_call_method] {len(matched)} actor(s) matched. Calling '{method}'...")
+
+    results = []
+    success = failed = 0
+
+    for actor in matched:
+        cls_name = type(actor).__name__
+        label    = actor.get_actor_label()
+        fn = getattr(actor, method, None)
+        if fn is None or not callable(fn):
+            log_warning(f"  '{label}': method '{method}' not found on {cls_name}.")
+            results.append({"label": label, "class": cls_name,
+                            "result": "failed", "error": f"method '{method}' not found"})
+            failed += 1
+            continue
+        try:
+            fn(*args)
+            results.append({"label": label, "class": cls_name, "result": "ok", "error": None})
+            success += 1
+        except Exception as e:
+            err = str(e)[:160]
+            log_warning(f"  '{label}': '{method}' raised — {err}")
+            results.append({"label": label, "class": cls_name, "result": "failed", "error": err})
+            failed += 1
+
+    log_info(f"[device_call_method] done — {success} ok, {failed} failed.")
+    return {"status": "ok", "matched": len(matched),
+            "success": success, "failed": failed, "results": results}
+
+
+@register_tool(
     name="device_set_property",
     category="Verse Helpers",
     description=(

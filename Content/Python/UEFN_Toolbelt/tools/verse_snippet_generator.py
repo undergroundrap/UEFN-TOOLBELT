@@ -291,6 +291,152 @@ prop_spawner_controller := class(creative_device):
 #  Registered Tools
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _find_verse_project_dir() -> str:
+    """
+    Auto-detect the Verse source directory for the current UEFN project.
+
+    Search order:
+    1. config verse.project_path (user override — most reliable)
+    2. [ProjectDir]/Verse/  (standard UEFN layout)
+    3. [ProjectDir]/*.verse/ (Epic's Verse package folder naming)
+    4. Falls back to Saved/UEFN_Toolbelt/snippets/custom/ with a warning
+    """
+    from ..core.config import get_config
+    cfg = get_config()
+    user_path = cfg.get("verse.project_path", "")
+    if user_path and os.path.isdir(user_path):
+        return user_path
+
+    project_dir = unreal.Paths.project_dir()
+
+    # Standard layout
+    standard = os.path.join(project_dir, "Verse")
+    if os.path.isdir(standard):
+        return standard
+
+    # Epic's .verse package naming
+    for entry in os.listdir(project_dir):
+        if entry.endswith(".verse") and os.path.isdir(os.path.join(project_dir, entry)):
+            return os.path.join(project_dir, entry)
+
+    # Fallback — create standard path
+    os.makedirs(standard, exist_ok=True)
+    return standard
+
+
+@register_tool(
+    name="verse_find_project_path",
+    category="Verse Helpers",
+    description="Auto-detect and return the Verse source directory for the current UEFN project.",
+    tags=["verse", "path", "project", "config"],
+)
+def run_verse_find_project_path(**kwargs) -> dict:
+    """
+    Returns the path Claude should use when writing .verse files for this project.
+    Set config verse.project_path to override auto-detection.
+
+    Returns:
+        {"status": "ok", "path": str, "source": "config"|"standard"|"package"|"created"}
+    """
+    from ..core.config import get_config
+    cfg = get_config()
+    user_path = cfg.get("verse.project_path", "")
+    if user_path and os.path.isdir(user_path):
+        log_info(f"Verse project path (from config): {user_path}")
+        return {"status": "ok", "path": user_path, "source": "config"}
+
+    project_dir = unreal.Paths.project_dir()
+    standard = os.path.join(project_dir, "Verse")
+    if os.path.isdir(standard):
+        log_info(f"Verse project path (standard): {standard}")
+        return {"status": "ok", "path": standard, "source": "standard"}
+
+    for entry in os.listdir(project_dir):
+        full = os.path.join(project_dir, entry)
+        if entry.endswith(".verse") and os.path.isdir(full):
+            log_info(f"Verse project path (package): {full}")
+            return {"status": "ok", "path": full, "source": "package"}
+
+    os.makedirs(standard, exist_ok=True)
+    log_info(f"Verse project path (created): {standard}")
+    return {"status": "ok", "path": standard, "source": "created"}
+
+
+@register_tool(
+    name="verse_write_file",
+    category="Verse Helpers",
+    description=(
+        "Write Verse code directly into the project's Verse source directory — "
+        "the file is immediately visible to UEFN's compiler. "
+        "The AI deployment layer: Claude generates Verse, this tool places it."
+    ),
+    tags=["verse", "write", "file", "deploy", "ai", "automation", "compile"],
+)
+def run_verse_write_file(
+    filename: str = "",
+    content: str = "",
+    subdir: str = "",
+    overwrite: bool = False,
+    **kwargs,
+) -> dict:
+    """
+    Write ``content`` to ``filename`` inside the project's Verse source directory.
+    After writing, open UEFN and click 'Compile Verse' (or run system_build_verse).
+
+    Args:
+        filename:  The .verse filename (e.g. "game_manager.verse").
+                   A .verse extension is added automatically if missing.
+        content:   The full Verse source code to write.
+        subdir:    Optional subdirectory inside the Verse project root.
+        overwrite: If False (default), raises an error if the file already exists
+                   so Claude never silently stomps existing work.
+
+    Returns:
+        {
+          "status": "ok",
+          "path": str,           # absolute path of the written file
+          "bytes": int,
+          "next_step": str       # instruction for what to do next
+        }
+
+    Example:
+        tb.run("verse_write_file",
+               filename="game_manager.verse",
+               content="game_manager := class(creative_device): ...",
+               overwrite=True)
+    """
+    if not filename:
+        return {"status": "error", "message": "filename is required."}
+    if not content:
+        return {"status": "error", "message": "content is required."}
+
+    if not filename.endswith(".verse"):
+        filename += ".verse"
+
+    verse_root = _find_verse_project_dir()
+    dest_dir = os.path.join(verse_root, subdir) if subdir else verse_root
+    os.makedirs(dest_dir, exist_ok=True)
+    out_path = os.path.join(dest_dir, filename)
+
+    if os.path.exists(out_path) and not overwrite:
+        return {
+            "status": "error",
+            "message": f"File already exists: {out_path}. Pass overwrite=True to replace.",
+            "path": out_path,
+        }
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    log_info(f"[verse_write_file] ✓ Written: {out_path} ({len(content)} bytes)")
+    return {
+        "status": "ok",
+        "path": out_path,
+        "bytes": len(content),
+        "next_step": "Click 'Compile Verse' in UEFN, or run tb.run('system_build_verse') to compile and check for errors.",
+    }
+
+
 @register_tool(
     name="verse_gen_custom",
     category="Verse Helpers",
