@@ -221,9 +221,18 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
         r'([^\s]+\.verse)\((\d+)(?::(\d+))?\)\s*:.*?(?:error\s+)?(.+)',
         re.IGNORECASE
     )
-    # VerseBuild summary lines
-    success_pattern = re.compile(r'VerseBuild.*SUCCESS', re.IGNORECASE)
-    failed_pattern  = re.compile(r'VerseBuild.*(?:FAIL|ERROR)', re.IGNORECASE)
+    # Build status patterns -- covers both Output Log format and .log file format:
+    #   Output Log:  "VerseBuild: SUCCESS -- Build complete."
+    #   .log file:   "LogSolLoadCompiler: ... finished: SUCCESS."
+    #   .log file:   "LogSolaris: ... VerseBuild SUCCESS"
+    success_pattern = re.compile(
+        r'(VerseBuild.*SUCCESS|LogSolLoadCompiler.*finished.*SUCCESS|LogSolaris.*VerseBuild.*SUCCESS)',
+        re.IGNORECASE
+    )
+    failed_pattern = re.compile(
+        r'(VerseBuild.*(?:FAIL|ERROR)|LogSolLoadCompiler.*finished.*(?:FAIL|ERROR))',
+        re.IGNORECASE
+    )
     # LogSolaris error lines (another common pattern)
     solaris_error   = re.compile(r'LogSolaris.*Error.*\.verse', re.IGNORECASE)
 
