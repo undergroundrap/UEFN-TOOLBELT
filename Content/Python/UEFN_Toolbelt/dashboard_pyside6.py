@@ -314,6 +314,25 @@ def _tab_quick_actions(R) -> "QScrollArea":
          "Scans the Asset Registry for every placeable Fortnite Creative device. "
          "Builds Claude's complete placement palette in device_catalog.json.")
 
+    # Optimization Tools
+    g_opt = _group(L, "Optimization")
+    _btn(g_opt, "Rogue Actor Scan  —  find problem actors in the level",
+         lambda: R("rogue_actor_scan"),
+         "Scans every actor for: extreme/zero/negative scale, at-origin placement, "
+         "unnamed actors, off-map transforms. Returns a full issue report.")
+    _btn(g_opt, "Convert to HISM  —  preview (dry run)",
+         lambda: R("convert_to_hism", dry_run=True),
+         "Groups selected StaticMeshActors by shared mesh and shows what would be merged. "
+         "No changes made.")
+    _btn(g_opt, "Convert to HISM  —  merge selection",
+         lambda: R("convert_to_hism", dry_run=False),
+         "Merges selected StaticMeshActors that share the same mesh into one HISM actor "
+         "(one draw call). Deletes the originals. Run the dry-run preview first.")
+    _btn(g_opt, "Material Parent Audit  —  /Game",
+         lambda: R("material_parent_audit", scan_path="/Game"),
+         "Groups all MaterialInstanceConstants in /Game by parent. Flags orphaned MIs "
+         "and shows consolidation opportunities.")
+
     # 0. AI Project Setup Demo
     g_demo = _group(L, "AI Project Setup  |  demo.py")
 
