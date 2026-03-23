@@ -287,6 +287,61 @@ and can dereference null C++ pointers on Verse-backed objects, causing
 
 ---
 
+## 20. AssetData Deprecated Properties — The Silent Skip Bug
+
+### The Problem
+In UEFN 40.00, several `unreal.AssetData` properties are deprecated and raise or return
+garbage when accessed:
+
+- `asset.object_path` → deprecated, should use `asset.get_full_name()`
+- `asset.asset_class` → deprecated, should use `asset.asset_class_path`
+
+If your Asset Registry loop wraps ALL property reads in one `try/except: continue` block,
+the deprecated property throws on every single asset and your loop silently processes nothing.
+This is especially treacherous because the scan reports a correct total count — it just
+identifies 0 matches.
+
+**The failure pattern:**
+```python
+# ❌ One except block skips the entire asset when any optional field is deprecated
+for asset in assets:
+    try:
+        name = str(asset.asset_name)
+        path = str(asset.object_path)     # ← throws DeprecationWarning/error
+        cls  = str(asset.asset_class)     # ← also deprecated
+    except Exception:
+        continue   # ← silently drops all 24,926 assets
+```
+
+### The Solution
+Make `asset_name` the only required field. Wrap each optional deprecated property
+individually and use the new API with a fallback:
+
+```python
+# ✅ Only skip if the essential field is unavailable
+for asset in assets:
+    try:
+        asset_name = str(asset.asset_name)
+    except Exception:
+        continue
+
+    try:
+        object_path = asset.get_full_name()   # replaces object_path
+    except Exception:
+        object_path = asset_name
+
+    try:
+        class_name = str(asset.asset_class_path)  # replaces asset_class
+    except Exception:
+        class_name = "Unknown"
+```
+
+**Discovered:** During `device_catalog_scan` first run (March 2026). Tool reported
+24,926 assets scanned, 0 devices found — until the try/except was split. After fix:
+**4,698 devices across 35 categories**.
+
+---
+
 ## 17. `_serialize()` Swallows Unreal Objects Silently
 
 ### The Problem

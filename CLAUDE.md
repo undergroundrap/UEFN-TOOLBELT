@@ -158,6 +158,7 @@ Here is the full loop as it stands today and what remains:
 ```
 PHASE 1 — READ THE LEVEL          ✅ COMPLETE
   world_state_export               → full actor list + all readable properties
+  device_catalog_scan              → ALL available Creative devices in Fortnite (not just placed)
   api_crawl_level_classes          → property schema for every class in the level
   api_sync_master                  → merged Python + Verse schema → DEVICE_API_MAP.md
   verse_find_project_path          → locate where to write Verse files
@@ -657,6 +658,7 @@ tb.run("scaffold_generate", template="uefn_standard", project_name="MyIsland")
 | `api_crawl_level_classes` | — | Headless dump of exposed properties for every class in the level |
 | `api_sync_master` | — | One-click: level crawl + Verse schema merge → `docs/DEVICE_API_MAP.md` |
 | `world_state_export` | — | Full live state of every actor (transforms + all readable device properties) → `world_state.json` — the AI read layer |
+| `device_catalog_scan` | `extra_paths=[]`, `save_to_docs=True` | Scan Asset Registry for every Creative device Blueprint in Fortnite — not just what's placed. Builds Claude's complete device palette → `device_catalog.json` |
 
 ```python
 tb.run("api_export_full")

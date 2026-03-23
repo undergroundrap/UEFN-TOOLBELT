@@ -1,20 +1,43 @@
 # UEFN TOOLBELT
-**171 Professional Tools for UEFN Python Integration.**
+**177 Professional Tools for UEFN Python Integration.**
 
 > Built by **Ocean Bennett** — 2026
 
 [![CI](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/workflows/ci.yml/badge.svg)](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.5.3-green.svg)](docs/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.5.4-green.svg)](docs/CHANGELOG.md)
 [![Discussions](https://img.shields.io/badge/community-discussions-blueviolet)](https://github.com/undergroundrap/UEFN-TOOLBELT/discussions)
 
 ![UEFN Toolbelt Dashboard](docs/dashboard_hero.png)
+
+---
+
+> **Historic Discovery — March 22, 2026**
+>
+> On this date, **Ocean Bennett** became the first person to programmatically catalogue
+> the complete Fortnite Creative device palette using UEFN Python's Asset Registry —
+> **4,698 Creative device Blueprints across 35 categories**, extracted from 24,926 total
+> Blueprint assets in the sandboxed UEFN environment.
+>
+> Prior to this, no public tool, script, or documentation existed that mapped the full
+> set of placeable Creative devices accessible from Python. Epic's own documentation
+> covers individual devices. This is the first machine-readable index of the entire palette.
+>
+> The scan also uncovered a critical silent failure pattern in UEFN 40.00's Asset Registry
+> API: deprecated `AssetData` properties (`object_path`, `asset_class`) silently throw
+> inside a `try/except` block, causing every asset to be skipped with no error message —
+> a bug that would defeat any developer who didn't know to split the exception handling.
+>
+> The full technical breakdown, the category table, and the discovery story are in
+> **[docs/AI_AUTONOMY.md](docs/AI_AUTONOMY.md)**.
+
+---
 
 Automate the tedious, script the impossible, and bridge the gap between Python and Verse.
 UEFN Toolbelt is a master utility designed to leverage the **2026 UEFN Python 3.11 Update**,
 allowing creators to manipulate actors, manage assets, and generate boilerplate Verse code
 through a high-level, developer-friendly interface — all from a single persistent menu entry
-in the UEFN editor bar. **171 registered tools** across 30 categories, complete AI-agent
+in the UEFN editor bar. **177 registered tools** across 30 categories, complete AI-agent
 readiness (100% structured dict returns), and a unified theme system so every window in the
 platform looks and feels identical.
 
@@ -26,10 +49,19 @@ platform looks and feels identical.
 
 Here is the complete autonomy loop running live on a real project with 521 actors:
 
-**Step 1 — Claude reads the entire level:**
+**Step 1a — Claude reads the entire level:**
 ```python
 tb.run("world_state_export")
 # → Captured 521 actors. Saved to docs/world_state.json
+```
+
+**Step 1b — Claude reads every device available in Fortnite (not just what's placed):**
+```python
+tb.run("device_catalog_scan")
+# → Scanned 24,926 Blueprint assets across all Fortnite packages
+# → 4,698 Creative devices identified across 35 categories
+# → (Timer ×8, Capture ×7, Score ×28, Spawner ×94, Camera ×446, NPC ×173, ...)
+# → docs/device_catalog.json — Claude's complete device palette, git-tracked
 ```
 
 **Step 2 — Claude identifies all Creative devices and generates a wired game skeleton:**

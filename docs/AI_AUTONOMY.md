@@ -184,6 +184,82 @@ device_api_game_manager := class(creative_device):
 
 ---
 
+---
+
+## Phase 2: The Device Catalog — Claude Knows Every Placeable Device
+
+`world_state_export` answers: *"What's in this level?"*
+
+`device_catalog_scan` answers: *"What could be in any level?"*
+
+This is the difference between an AI that reacts to what you've built and an AI that can
+**design from scratch**. By scanning the full UEFN Asset Registry for every Blueprint class
+matching Creative device keywords across all Fortnite packages, Claude gets a complete palette
+of every device available — whether or not any of them are in the current level.
+
+```python
+tb.run("device_catalog_scan")
+# → Scanned 24,926 Blueprint assets across /Fortnite, /Game, /FortniteGame
+# → 4,698 Creative devices identified across 35 categories
+# → Saves to docs/device_catalog.json
+```
+
+**Live run results — March 22, 2026 (first run ever):**
+
+| Category | Devices | Category | Devices |
+|---|---|---|---|
+| Prop | 1,573 | Spawner | 94 |
+| Creative | 504 | Race | 75 |
+| Stat | 486 | Audio | 66 |
+| Lock | 463 | Beacon | 47 |
+| Camera | 446 | Pad | 43 |
+| NPC | 173 | Tracker | 33 |
+| Round | 144 | Chest | 32 |
+| Device | 102 | Zipline | 31 |
+| Gate | 95 | Manager | 29 |
+| Mutator | 29 | Score | 28 |
+| Supply | 25 | Trigger | 24 |
+| Guard | 24 | Zone | 23 |
+| Button | 22 | Barrier | 19 |
+| Ammo | 16 | Pulse | 13 |
+| Creature | 9 | Timer | 8 |
+| Capture | 7 | Teleporter | 5 |
+| Switch | 3 | FortAthena | 1 |
+
+**Total: 4,698 devices. 24,926 Blueprint assets scanned. 35 categories.**
+
+**What this unlocks:**
+- Claude can now say "this level needs a Score Manager — here's the exact asset path"
+- Claude can compare what's *in* the level vs what's *available* to place
+- Claude can generate Verse wiring for devices that don't exist in the level yet,
+  then tell you exactly which Content Browser asset to drag in
+
+**The discovery that almost broke it:**
+`asset.object_path` and `asset.asset_class` are deprecated in UEFN 40.00's Asset Registry API.
+The tool's original `try/except: continue` block was silently skipping all 24,926 assets because
+the deprecated property threw on every single call. The fix was to split the try/except:
+make `asset_name` the only required field, use `get_full_name()` and `asset_class_path` for
+the rest with individual fallbacks. Documented in [UEFN_QUIRKS.md](UEFN_QUIRKS.md).
+
+**How it works under the hood:**
+```python
+ar = unreal.AssetRegistryHelpers.get_asset_registry()
+flt = unreal.ARFilter(
+    package_paths=["/Game"],          # /Fortnite and /FortniteGame are sandboxed (0 results)
+    class_names=["Blueprint", "BlueprintGeneratedClass"],
+    recursive_paths=True,
+)
+assets = ar.get_assets(flt)           # 24,926 Blueprint assets
+# Filter by 35 device-hint keywords  → 4,698 matches
+# Use get_full_name() not object_path → deprecated API fix
+# → device_catalog.json
+```
+
+Results are grouped by category and saved to `docs/device_catalog.json` — git-tracked so
+Claude has the full palette available in every future session without re-scanning.
+
+---
+
 ## How It Works Under the Hood
 
 ### Why `world_state_export` is the key primitive
@@ -234,9 +310,10 @@ clicks required at all.
 
 ```
 TODAY (working):
-  world_state_export          ← Claude reads the level
+  world_state_export          ← Claude reads what's IN the level (521 actors, proven)
+  device_catalog_scan         ← Claude reads what's AVAILABLE to place (full Fortnite palette)
   verse_gen_*                 ← Claude writes Verse code
-  verse_write_file            ← Claude deploys to project
+  verse_write_file            ← Claude deploys to project (6187 bytes, VerseBuild SUCCESS)
   [manual: Build Verse]       ← human clicks once
   device_call_method          ← Claude controls devices at editor time
 
@@ -245,8 +322,14 @@ NEXT:
   verse_error_loop            ← Claude reads build errors, patches, redeploys
 
 FUTURE (with Epic API expansion):
-  Full headless game build:
-    world_state_export → reason → generate → write → build → read errors → patch → build → done
+  Full headless game build — zero human clicks:
+    device_catalog_scan  → Claude picks devices for the game concept
+    world_state_export   → Claude reads current level
+    verse_gen_*          → Claude writes complete Verse game logic
+    verse_write_file     → Claude deploys
+    system_build_verse   → Claude compiles
+    [read errors]        → Claude patches and retries
+    done                 → playable game, no human in the loop
 ```
 
 ---

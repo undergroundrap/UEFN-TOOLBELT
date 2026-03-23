@@ -438,3 +438,195 @@ def world_state_export(**kwargs) -> dict:
         unreal.log(f"[TOOLBELT] ✓ Auto-synced to repo: {repo_path}")
 
     return {"status": "ok", "path": out_path, "count": len(actors_out)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Device Catalog Scan
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Class name fragments that identify Creative / Verse device Blueprints.
+_DEVICE_CLASS_HINTS = [
+    "Device", "Creative", "FortAthena", "Fortnite",
+    "Timer", "Capture", "Score", "Trigger", "Spawner",
+    "Manager", "Barrier", "Button", "Zone", "Tracker",
+    "Mutator", "Beacon", "Guard", "Ammo", "Chest",
+    "Camera", "Lock", "Switch", "Audio", "Race", "Stat",
+    "Supply", "Round", "Pulse", "NPC", "Creature", "Zipline",
+    "Teleporter", "Prop", "Pad", "Gate", "Relay",
+]
+
+# Top-level package paths to search in the Asset Registry.
+# /Fortnite covers the live Creative device Blueprints.
+# /Game covers any project-specific or imported device BPs.
+_SEARCH_PATHS = ["/Fortnite", "/Game", "/FortniteGame"]
+
+
+@register_tool(
+    name="device_catalog_scan",
+    category="API Explorer",
+    description=(
+        "Scan the Asset Registry for every Creative/Verse device class available "
+        "in Fortnite — not just what is placed in the current level. "
+        "Builds a complete device palette Claude can use to design levels from scratch."
+    ),
+    tags=["device", "catalog", "scan", "asset", "registry", "ai", "automation", "creative"],
+)
+def device_catalog_scan(
+    extra_paths: list = None,
+    save_to_docs: bool = True,
+    **kwargs,
+) -> dict:
+    """
+    Query the UEFN Asset Registry for every Blueprint that looks like a Creative
+    device — covering all Fortnite packages, not just the current level.
+
+    This is the AI design layer: once Claude knows every placeable device that
+    exists (not just what's already in the level), it can propose what a level
+    *should* have, generate the Verse wiring for it, and tell you exactly which
+    device to drag from the Content Browser.
+
+    Args:
+        extra_paths:  Additional package paths to search (default: /Fortnite, /Game).
+        save_to_docs: If True, auto-sync the result to docs/device_catalog.json
+                      so it persists across sessions and is visible to Claude.
+
+    Returns:
+        {
+          "status": "ok",
+          "total": int,               # total assets scanned
+          "devices_found": int,       # entries matching device hints
+          "path": str,                # saved JSON path
+          "categories": {             # devices grouped by hint keyword
+            "Timer": [...],
+            "Capture": [...],
+            ...
+          }
+        }
+
+    Output: Saved/UEFN_Toolbelt/device_catalog.json
+            docs/device_catalog.json  (if save_to_docs=True)
+
+    Historical note:
+        First run on Device_API_Mapping (March 2026) — 521-actor level.
+        This tool was built to answer: "What can Claude place in a level it
+        has never seen?" The answer is the full Creative device palette.
+    """
+    from datetime import datetime
+
+    ar = unreal.AssetRegistryHelpers.get_asset_registry()
+
+    search_paths = list(_SEARCH_PATHS)
+    if extra_paths:
+        search_paths.extend(extra_paths)
+
+    # Deduplicate while preserving order
+    seen = set()
+    search_paths = [p for p in search_paths if not (p in seen or seen.add(p))]
+
+    unreal.log(f"[device_catalog_scan] Searching {len(search_paths)} package paths...")
+
+    # ── Phase 1: gather all Blueprint assets across target paths ──────────────
+    all_assets: List[unreal.AssetData] = []
+    for pkg_path in search_paths:
+        try:
+            flt = unreal.ARFilter(
+                package_paths=[pkg_path],
+                class_names=["Blueprint", "BlueprintGeneratedClass"],
+                recursive_paths=True,
+            )
+            batch = ar.get_assets(flt)
+            unreal.log(f"[device_catalog_scan]   {pkg_path}: {len(batch)} Blueprint assets")
+            all_assets.extend(batch)
+        except Exception as e:
+            unreal.log(f"[device_catalog_scan]   {pkg_path}: skipped ({e})")
+
+    unreal.log(f"[device_catalog_scan] Total Blueprint assets found: {len(all_assets)}")
+
+    # ── Phase 2: filter by device-hint keywords ───────────────────────────────
+    hints_lower = [h.lower() for h in _DEVICE_CLASS_HINTS]
+
+    devices: List[Dict[str, Any]] = []
+    categories: Dict[str, List[Dict]] = {}
+
+    for asset in all_assets:
+        # asset_name is the only required field — skip if unavailable
+        try:
+            asset_name = str(asset.asset_name)
+        except Exception:
+            continue
+
+        # Optional fields: use new UE5 API with fallbacks for deprecated properties
+        try:
+            package_path = str(asset.package_path)
+        except Exception:
+            package_path = ""
+
+        try:
+            # get_full_name() replaced the deprecated object_path property
+            object_path = asset.get_full_name()
+        except Exception:
+            object_path = package_path + "." + asset_name if package_path else asset_name
+
+        try:
+            # asset_class_path replaced the deprecated asset_class property
+            class_name = str(asset.asset_class_path)
+        except Exception:
+            class_name = "Unknown"
+
+        name_lower = asset_name.lower()
+        matched_hint = next((h for h in _DEVICE_CLASS_HINTS if h.lower() in name_lower), None)
+        if matched_hint is None:
+            continue
+
+        entry = {
+            "name":         asset_name,
+            "class":        class_name,
+            "package_path": package_path,
+            "object_path":  object_path,
+            "hint":         matched_hint,
+        }
+        devices.append(entry)
+        categories.setdefault(matched_hint, []).append(entry)
+
+    unreal.log(f"[device_catalog_scan] Devices identified: {len(devices)} "
+               f"across {len(categories)} categories.")
+
+    # ── Phase 3: build output ─────────────────────────────────────────────────
+    catalog = {
+        "scanned_at":    datetime.now().isoformat(),
+        "total_scanned": len(all_assets),
+        "devices_found": len(devices),
+        "search_paths":  search_paths,
+        "categories":    {k: sorted(v, key=lambda x: x["name"])
+                          for k, v in sorted(categories.items())},
+        "all_devices":   sorted(devices, key=lambda x: x["name"]),
+    }
+
+    # ── Phase 4: save ─────────────────────────────────────────────────────────
+    saved_dir = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt")
+    os.makedirs(saved_dir, exist_ok=True)
+    out_path = os.path.join(saved_dir, "device_catalog.json")
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(catalog, f, indent=2)
+
+    unreal.log(f"[device_catalog_scan] ✓ Catalog saved: {out_path}")
+
+    repo_path = None
+    if save_to_docs:
+        repo_path = _sync_to_repo(out_path, "device_catalog.json")
+        if repo_path:
+            unreal.log(f"[device_catalog_scan] ✓ Auto-synced to repo: {repo_path}")
+
+    # Summary log — give Claude a readable breakdown
+    for cat, items in sorted(categories.items(), key=lambda x: -len(x[1])):
+        unreal.log(f"  [{cat:20s}] {len(items):4d} devices")
+
+    return {
+        "status":        "ok",
+        "total_scanned": len(all_assets),
+        "devices_found": len(devices),
+        "categories":    {k: len(v) for k, v in categories.items()},
+        "path":          out_path,
+        "repo_path":     repo_path or "",
+    }
