@@ -870,6 +870,7 @@ tb.run("scatter_props", ...)   # N actors
 | `deploy.bat` | Dev workflow tool — deploy + PySide6 check + prints hot-reload command. Use this for active development. |
 | `.mcp.json` | Claude Code MCP server config — already configured |
 | `docs/uefn_python_capabilities.md` | Full UEFN Python API surface reference |
+| Epic UE5.7 Python API (https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/?application_version=5.7) | **Official API reference** -- check here first for correct class/method names. UEFN omits some standard UE5 APIs: `KismetMaterialLibrary` is absent, `/FortniteGame/` asset paths are blocked, some editor factories may not be exposed. |
 | `Content/Python/UEFN_Toolbelt/core/theme.py` | **Single source of truth for all UI colors.** Edit `PALETTE` here to change the platform's appearance everywhere. |
 | `Content/Python/UEFN_Toolbelt/core/base_window.py` | `ToolbeltWindow` base class — subclass instead of `QMainWindow` for any tool window. Auto-applies theme + Slate tick. |
 | `docs/ui_style_guide.md` | **UI Style Guide — MANDATORY** for all windowed tools and plugins. Color palette, `ToolbeltWindow` API, widget recipes. Read this before writing any PySide6 UI. |
