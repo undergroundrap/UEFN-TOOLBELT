@@ -657,6 +657,95 @@ def _tab_bulk_ops(R) -> "QScrollArea":
     _btn(g5, "Stack Vertically",     lambda: R("bulk_stack"))
     _btn(g5, "Normalize Scale →1",   lambda: R("bulk_normalize_scale"))
 
+    # ── Advanced Alignment ─────────────────────────────────────────────────
+    g_adv = _group(L, "Advanced Alignment")
+
+    adv_axis_combo = QComboBox(); adv_axis_combo.addItems(["X","Y","Z"]); adv_axis_combo.setCurrentIndex(2); adv_axis_combo.setFixedWidth(55)
+    adv_ref_combo  = QComboBox(); adv_ref_combo.addItems(["first","last"]); adv_ref_combo.setFixedWidth(60)
+    row_adv1 = QWidget(); h_adv1 = QHBoxLayout(row_adv1); h_adv1.setContentsMargins(0,0,0,0); h_adv1.setSpacing(4)
+    h_adv1.addWidget(QLabel("Axis:")); h_adv1.addWidget(adv_axis_combo)
+    h_adv1.addWidget(QLabel("Ref:")); h_adv1.addWidget(adv_ref_combo); h_adv1.addStretch()
+    g_adv.addWidget(row_adv1)
+    _btn(g_adv, "Align to Reference Actor",
+         lambda: R("align_to_reference", axis=adv_axis_combo.currentText(), reference=adv_ref_combo.currentText()))
+
+    gap_s = _spin(0, -10000, 10000, width=80)
+    gap_axis_combo = QComboBox(); gap_axis_combo.addItems(["X","Y","Z"]); gap_axis_combo.setFixedWidth(55)
+    row_adv2 = QWidget(); h_adv2 = QHBoxLayout(row_adv2); h_adv2.setContentsMargins(0,0,0,0); h_adv2.setSpacing(4)
+    h_adv2.addWidget(QLabel("Gap cm:")); h_adv2.addWidget(gap_s)
+    h_adv2.addWidget(QLabel("Axis:")); h_adv2.addWidget(gap_axis_combo); h_adv2.addStretch()
+    g_adv.addWidget(row_adv2)
+    _btn(g_adv, "Distribute with Exact Gap",
+         lambda: R("distribute_with_gap", axis=gap_axis_combo.currentText(), gap=gap_s.value()))
+
+    pivot_angle_s = _spin(90, -360, 360, width=75)
+    pivot_axis_combo  = QComboBox(); pivot_axis_combo.addItems(["Z","X","Y"]); pivot_axis_combo.setFixedWidth(55)
+    pivot_ref_combo   = QComboBox(); pivot_ref_combo.addItems(["center","first"]); pivot_ref_combo.setFixedWidth(70)
+    row_adv3 = QWidget(); h_adv3 = QHBoxLayout(row_adv3); h_adv3.setContentsMargins(0,0,0,0); h_adv3.setSpacing(4)
+    h_adv3.addWidget(QLabel("°:")); h_adv3.addWidget(pivot_angle_s)
+    h_adv3.addWidget(QLabel("Axis:")); h_adv3.addWidget(pivot_axis_combo)
+    h_adv3.addWidget(QLabel("Pivot:")); h_adv3.addWidget(pivot_ref_combo); h_adv3.addStretch()
+    g_adv.addWidget(row_adv3)
+    _btn(g_adv, "Rotate Around Pivot",
+         lambda: R("rotate_around_pivot", angle_deg=pivot_angle_s.value(),
+                   axis=pivot_axis_combo.currentText(), pivot=pivot_ref_combo.currentText()))
+
+    _row(g_adv,
+         ("Snap to Surface",  lambda: R("align_to_surface")),
+         ("Match Spacing",    lambda: R("match_spacing", axis=adv_axis_combo.currentText())),
+         ("Grid Two Points",  lambda: R("align_to_grid_two_points")),
+    )
+
+    # ── Actor Organization ─────────────────────────────────────────────────
+    g_org = _group(L, "Actor Organization")
+
+    folder_inp = _inp("folder name", "MyGroup", width=160)
+    _btn_inp(g_org, "Move Selection → Folder",
+             lambda: R("actor_move_to_folder", folder_name=folder_inp.text() or "MyGroup"),
+             folder_inp, tip="Moves all selected actors into a named World Outliner folder.")
+
+    _row(g_org,
+         ("Move to Root",       lambda: R("actor_move_to_root")),
+         ("List All Folders",   lambda: R("actor_folder_list")),
+    )
+
+    old_folder_inp = _inp("old folder", "", width=130)
+    new_folder_inp = _inp("new folder", "", width=130)
+    row_ren = QWidget(); h_ren = QHBoxLayout(row_ren); h_ren.setContentsMargins(0,0,0,0); h_ren.setSpacing(4)
+    h_ren.addWidget(QLabel("From:")); h_ren.addWidget(old_folder_inp)
+    h_ren.addWidget(QLabel("To:")); h_ren.addWidget(new_folder_inp); h_ren.addStretch()
+    g_org.addWidget(row_ren)
+    _btn(g_org, "Rename Folder",
+         lambda: R("actor_rename_folder", old_folder=old_folder_inp.text(), new_folder=new_folder_inp.text()))
+
+    sel_folder_inp = _inp("folder name", "", width=160)
+    _btn_inp(g_org, "Select All in Folder",
+             lambda: R("actor_select_by_folder", folder_name=sel_folder_inp.text()),
+             sel_folder_inp)
+
+    class_inp = _inp("class name e.g. PlayerStart", "", width=200)
+    _btn_inp(g_org, "Select All by Class",
+             lambda: R("actor_select_by_class", class_filter=class_inp.text()),
+             class_inp)
+
+    _row(g_org,
+         ("Select Same Folder",   lambda: R("actor_select_same_folder")),
+         ("Attach to Parent",     lambda: R("actor_attach_to_parent")),
+         ("Detach",               lambda: R("actor_detach")),
+    )
+
+    loc_chk = QCheckBox("Loc"); loc_chk.setChecked(True)
+    rot_chk = QCheckBox("Rot"); rot_chk.setChecked(True)
+    scl_chk2 = QCheckBox("Scale"); scl_chk2.setChecked(False)
+    row_mt = QWidget(); h_mt = QHBoxLayout(row_mt); h_mt.setContentsMargins(0,0,0,0); h_mt.setSpacing(6)
+    h_mt.addWidget(loc_chk); h_mt.addWidget(rot_chk); h_mt.addWidget(scl_chk2); h_mt.addStretch()
+    g_org.addWidget(row_mt)
+    _btn(g_org, "Match Transform  (first → others)",
+         lambda: R("actor_match_transform",
+                   copy_location=loc_chk.isChecked(),
+                   copy_rotation=rot_chk.isChecked(),
+                   copy_scale=scl_chk2.isChecked()))
+
     # Verse (Schema-Driven)
     g6 = _group(L, "Verse Property Hardening")
     prop_inp = _inp("bIsEnabled", "bIsEnabled", width=140)
