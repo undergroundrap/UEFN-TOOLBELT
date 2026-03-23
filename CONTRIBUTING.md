@@ -108,4 +108,4 @@ Harassment or abuse of any kind will result in immediate removal.
 
 ---
 
-**Questions?** Open an issue or reach out via GitHub.
+**Questions?** [Join the Discussions](https://github.com/undergroundrap/UEFN-TOOLBELT/discussions) — or open an issue for bugs and feature requests.
