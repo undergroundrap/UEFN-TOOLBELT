@@ -18,6 +18,57 @@ in the UEFN editor bar. **171 registered tools** across 30 categories, complete 
 readiness (100% structured dict returns), and a unified theme system so every window in the
 platform looks and feels identical.
 
+---
+
+## 🤖 Claude Can Build Your Game — Autonomously
+
+> **This is the headline feature.** Not "AI helps you code" — AI *reads your live level, writes the Verse, and deploys it*. Zero copy-paste. Zero manual wiring.
+
+Here is the complete autonomy loop running live on a real project with 521 actors:
+
+**Step 1 — Claude reads the entire level:**
+```python
+tb.run("world_state_export")
+# → Captured 521 actors. Saved to docs/world_state.json
+```
+
+**Step 2 — Claude identifies all Creative devices and generates a wired game skeleton:**
+
+Claude reads `world_state.json`, finds every device in the level (`FortCreativeTimerDevice`,
+`capture_area_device`, `guard_spawner_device`, `button_device`, 14 teleporters, etc.),
+and writes a complete `creative_device` class — `@editable` declarations, `OnBegin` event
+wiring, round flow, creature waves, capture logic, and clean shutdown — all referencing the
+**actual device labels from your level**.
+
+**Step 3 — Claude deploys it directly to the project:**
+```python
+tb.run("verse_write_file", filename="device_api_game_manager.verse", content=verse_code)
+# → Written: Device_API_Mapping\Verse\device_api_game_manager.verse (6187 bytes)
+```
+
+**Step 4 — Build Verse. First try.**
+```
+VerseBuild: SUCCESS -- Build complete.
+```
+
+No type errors. No manual editing. A fully wired, compilable Verse game manager — generated
+from live level state in under 60 seconds.
+
+**What the generated skeleton contains:**
+- `@editable` refs for every device discovered: Timer, Timed Objective, Round Settings, Capture Area, 2× Item Spawners, Creature Spawner, Creature Manager, Creature Placer, 2× Buttons, 2× Conditional Buttons, Lock Device, 5 keyed Teleporters, Audio Mixer, Weapon Mod Bench
+- `OnBegin` that starts the timer, spawns async watchers, and subscribes to all button/timer events
+- `WatchCaptureArea()` — async loop: team captures zone → spawn reward items → trigger creature wave
+- `WatchCreatureWaves()` — async loop: enable creature manager → 30s cooldown → repeat
+- `OnButtonPressed` / `OnButton2Pressed` — unlock doors, activate conditional gates
+- `EndRound()` — stops timer, disables creature manager, despawns guards, stops audio
+
+Place the device in your level, drag your real actors into the `@editable` slots, and play.
+
+> See [docs/AI_AUTONOMY.md](docs/AI_AUTONOMY.md) for the full technical breakdown, the complete
+> generated file, and the hard limits of what Claude can and cannot do in UEFN today.
+
+---
+
 ## 🤖 AI-Accelerated Development (One-Click Sync + Tool Manifest)
 Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect information** about your project's unique Verse devices and custom props:
 
@@ -30,6 +81,7 @@ Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect 
 
 ## Table of Contents
 
+- [Claude Can Build Your Game — Autonomously](#-claude-can-build-your-game--autonomously)
 - [Concept](#concept)
 - [The Workflow Loop — Efficiency Mechanic](#the-workflow-loop--efficiency-mechanic)
 - [Tech Stack](#tech-stack)
@@ -2152,6 +2204,7 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 | File | What it covers |
 |:---|:---|
+| [docs/AI_AUTONOMY.md](docs/AI_AUTONOMY.md) | **AI autonomy loop** — complete live run walkthrough, generated Verse file, how `world_state_export` + `verse_write_file` work, hard limits, roadmap to full headless builds |
 | [docs/SCHEMA_DEEP_DIVE.md](docs/SCHEMA_DEEP_DIVE.md) | **Forensic schema analysis** — type taxonomy, inheritance evidence, enum full tables, network architecture, collision mask system, naming conventions, read-only vs writable |
 | [docs/DEVICE_API_MAP.md](docs/DEVICE_API_MAP.md) | All 14 C++ actor classes — property tables, enums, automation patterns, access cheatsheet |
 | [docs/FORTNITE_DEVICES.md](docs/FORTNITE_DEVICES.md) | Fortnite Creative devices — Trigger, Score Manager, Teleporter, Guard Spawner, channel wiring |
