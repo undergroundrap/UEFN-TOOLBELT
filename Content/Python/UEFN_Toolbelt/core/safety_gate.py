@@ -51,7 +51,7 @@ def core_safety_audit():
     Checks the current UEFN viewport selection against Safety Gate rules.
     Identifies which assets are safe for AI/Automation to modify.
     """
-    actors = unreal.EditorLevelLibrary.get_selected_level_actors()
+    actors = unreal.EditorLevelLibrary.get_selected_level_actors() or []
     if not actors:
         log_warning("Safety Audit: No actors selected.")
         return "No actors selected."
