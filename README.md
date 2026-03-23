@@ -43,6 +43,32 @@ platform looks and feels identical.
 
 ---
 
+## The Demo — New Project Setup in 2 Commands
+
+> Proven live. Scaffold + Verse game manager + 493-actor arena. No manual steps except one Build click.
+
+```python
+# Command 1 — professional folder structure + Verse game manager deployed
+tb.run("project_setup", project_name="MyGame")
+# → 56 folders created in Content Browser
+# → MyGameManager.verse generated and deployed to project
+
+# Command 2 — symmetrical Red vs Blue arena spawns in the viewport
+tb.run("arena_generate", size="medium")
+# → 493 actors placed (6 Red spawns, 6 Blue spawns)
+
+# One click — Verse menu → Build Verse Code
+
+# Command 3 — error loop closes automatically
+tb.run("verse_patch_errors")
+# → build_status: SUCCESS
+```
+
+What used to take 30+ minutes of manual setup runs in seconds. This is the entry point
+for every new UEFN project — scaffold, code, layout, compiled, ready.
+
+---
+
 ## 🤖 Claude Can Build Your Game — Autonomously
 
 > **This is the headline feature.** Not "AI helps you code" — AI *reads your live level, writes the Verse, and deploys it*. Zero copy-paste. Zero manual wiring.
