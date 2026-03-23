@@ -299,6 +299,27 @@ def _tab_quick_actions(R) -> "QScrollArea":
 
     _build_setup_status(L)
 
+    # 0. AI Project Setup Demo
+    g_demo = _group(L, "AI Project Setup  |  demo.py")
+
+    demo_name_inp = _inp("MyGame", "Project Name", width=140)
+    _btn_inp(g_demo, "1. Setup Project  (scaffold + Verse)",
+             lambda: R("project_setup", project_name=demo_name_inp.text()),
+             demo_name_inp,
+             tip="Creates the professional folder structure and deploys a wired Verse game manager. Run this first, wait for it to finish.")
+
+    arena_combo = QComboBox()
+    arena_combo.addItems(["medium", "small", "large"])
+    arena_combo.setFixedWidth(100)
+    _btn_inp(g_demo, "2. Spawn Arena  (run after step 1 returns)",
+             lambda: R("arena_generate", size=arena_combo.currentText()),
+             arena_combo,
+             tip="Spawns a symmetrical Red vs Blue arena. Must be a separate call after project_setup completes (Quirk #22).")
+
+    _btn(g_demo, "3. Check Build Errors  (run after Build Verse Code click)",
+         lambda: R("verse_patch_errors"),
+         "Reads the build log and returns any Verse errors with file content for Claude to fix.")
+
     # 1. Selection & Utility
     g_sel = _group(L, "Selection & Utility")
     _btn(g_sel, "Print Selected Actors to Log", lambda: R("get_all_actors"), "Prints total count and paths of current selection.")
