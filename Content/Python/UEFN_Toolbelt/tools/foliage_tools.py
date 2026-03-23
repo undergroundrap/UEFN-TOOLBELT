@@ -458,5 +458,310 @@ def run_scatter_export_manifest(folder: str = DEFAULT_SCATTER_FOLDER, **kwargs) 
         json.dump({"folder": folder, "count": len(records), "instances": records},
                   f, indent=2)
 
-    log_info(f"Manifest exported: {len(records)} actors → {out_path}")
+    log_info(f"Manifest exported: {len(records)} actors --> {out_path}")
     return {"status": "ok", "path": out_path, "count": len(records)}
+
+
+# =============================================================================
+#  PCG-STYLE SCATTER TOOLS
+# =============================================================================
+
+@register_tool(
+    name="scatter_avoid",
+    category="Procedural",
+    description=(
+        "Scatter props like scatter_props but skip positions that land within "
+        "avoid_radius of any existing level actor matching avoid_class. "
+        "Use this to scatter rocks/trees while avoiding roads, buildings, spawns, etc."
+    ),
+    tags=["scatter", "pcg", "avoid", "obstacle", "procedural", "foliage"],
+)
+def run_scatter_avoid(
+    mesh_path: str = "/Engine/BasicShapes/Sphere",
+    count: int = 50,
+    radius: float = 3000.0,
+    center: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    avoid_class: str = "",
+    avoid_radius: float = 500.0,
+    avoid_label: str = "",
+    min_separation: float = 0.0,
+    scale_min: float = 0.8,
+    scale_max: float = 1.2,
+    rot_yaw_range: float = 360.0,
+    snap_to_surface: bool = False,
+    seed: int = 0,
+    folder: str = "Scatter_Avoid",
+    **kwargs,
+) -> dict:
+    """
+    Scatter props while respecting obstacles already in the level.
+
+    Args:
+        mesh_path:       Content path to the static mesh to scatter.
+        count:           Target number of instances to place.
+        radius:          Scatter area radius in cm.
+        center:          (x, y, z) world center of scatter area.
+        avoid_class:     Class name filter for obstacle actors (e.g. "PlayerStart",
+                         "StaticMeshActor"). Empty = use avoid_label only.
+        avoid_radius:    Minimum clear distance from each obstacle actor (cm).
+        avoid_label:     Label substring filter for obstacle actors. Empty = match all.
+        min_separation:  Minimum distance between any two placed instances (cm).
+        scale_min/max:   Uniform random scale range.
+        rot_yaw_range:   Max random yaw (degrees).
+        snap_to_surface: Trace downward to land on terrain.
+        seed:            Reproducible seed. 0 = random.
+        folder:          World Outliner folder for placed actors.
+
+    Returns:
+        {"status", "placed", "skipped", "folder"}
+    """
+    rng   = random.Random(seed if seed != 0 else None)
+    cx, cy, cz = center
+
+    # -- Collect obstacle positions --
+    # Require at least one filter — otherwise every actor becomes an obstacle
+    obstacles: List[Tuple[float, float]] = []
+    if avoid_class or avoid_label:
+        all_actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
+        for actor in (all_actors or []):
+            try:
+                cls_name   = actor.get_class().get_name()
+                lbl        = actor.get_actor_label()
+                class_ok   = (not avoid_class) or (avoid_class.lower() in cls_name.lower())
+                label_ok   = (not avoid_label) or (avoid_label.lower() in lbl.lower())
+                if class_ok and label_ok:
+                    loc = actor.get_actor_location()
+                    obstacles.append((loc.x, loc.y))
+            except Exception:
+                pass
+
+    log_info(
+        f"[scatter_avoid] {len(obstacles)} obstacle(s) found "
+        f"(class='{avoid_class}', label='{avoid_label}', avoid_radius={avoid_radius}cm)"
+    )
+
+    # -- Generate candidate positions --
+    max_candidates = count * 20
+    if min_separation > 0:
+        candidates = _poisson_disk_2d(max_candidates, radius, min_separation, rng)
+    else:
+        candidates = [
+            (math.sqrt(rng.random()) * radius * math.cos(a),
+             math.sqrt(rng.random()) * radius * math.sin(a))
+            for a in (rng.uniform(0, math.tau) for _ in range(max_candidates))
+        ]
+
+    # -- Filter out positions near obstacles --
+    mesh = load_asset(mesh_path)
+    if mesh is None:
+        return {"status": "error", "message": f"Mesh not found: {mesh_path}"}
+
+    placed_pts: List[Tuple[float, float]] = []
+    placed = skipped = 0
+
+    with undo_transaction(f"Scatter Avoid: {count}x {mesh_path.split('/')[-1]}"):
+        for ox, oy in candidates:
+            if placed >= count:
+                break
+
+            wx, wy = cx + ox, cy + oy
+
+            # Obstacle rejection
+            too_close = any(
+                math.hypot(wx - obx, wy - oby) < avoid_radius
+                for obx, oby in obstacles
+            )
+            if too_close:
+                skipped += 1
+                continue
+
+            wz = _surface_z(wx, wy, cz + 50000.0, cz) if snap_to_surface else cz
+
+            sc  = rng.uniform(scale_min, scale_max)
+            yaw = rng.uniform(0, rot_yaw_range)
+            actor = spawn_static_mesh_actor(
+                mesh_path,
+                unreal.Vector(wx, wy, wz),
+                rotation=unreal.Rotator(0, yaw, 0),
+                scale=unreal.Vector(sc, sc, sc),
+            )
+            if actor:
+                actor.set_folder_path(f"/{folder}")
+                actor.set_actor_label(f"{folder}_{placed:03d}")
+                placed_pts.append((wx, wy))
+                placed += 1
+
+    log_info(f"[scatter_avoid] Placed {placed}, skipped {skipped} (near obstacles).")
+    return {"status": "ok", "placed": placed, "skipped": skipped, "folder": folder}
+
+
+@register_tool(
+    name="scatter_road_edge",
+    category="Procedural",
+    description=(
+        "Place props along both edges of a path (road shoulders, forest edges). "
+        "Pass a list of XY waypoints via 'points', or select a SplineActor in the viewport. "
+        "Offsets perpendicular to the path tangent by edge_offset with random spread."
+    ),
+    tags=["scatter", "pcg", "spline", "road", "edge", "shoulder", "foliage", "procedural"],
+)
+def run_scatter_road_edge(
+    mesh_path: str = "/Engine/BasicShapes/Sphere",
+    points: list = None,
+    edge_offset: float = 400.0,
+    spread: float = 200.0,
+    count_per_sample: int = 2,
+    sample_spacing: float = 500.0,
+    both_sides: bool = True,
+    scale_min: float = 0.7,
+    scale_max: float = 1.3,
+    rot_yaw_range: float = 360.0,
+    snap_to_surface: bool = False,
+    seed: int = 0,
+    folder: str = "Scatter_RoadEdge",
+    **kwargs,
+) -> dict:
+    """
+    Place props along the shoulder of a road/path.
+
+    Two input modes:
+      1. Pass points=[[x,y,z], [x,y,z], ...] — no spline actor needed.
+      2. Select a SplineActor in the viewport (points omitted).
+
+    Args:
+        mesh_path:         Content path to the static mesh.
+        points:            List of [x, y, z] waypoints defining the path centre line.
+                           If omitted, falls back to selected SplineActor.
+        edge_offset:       Distance from path centre to the shoulder line (cm).
+        spread:            Extra random spread perpendicular to shoulder (cm).
+        count_per_sample:  Props to place at each sample point.
+        sample_spacing:    Distance between sample points along the path (cm).
+        both_sides:        If True, place on left AND right shoulders.
+        scale_min/max:     Uniform random scale range.
+        rot_yaw_range:     Max random yaw (degrees).
+        snap_to_surface:   Trace downward to land on terrain.
+        seed:              Reproducible seed. 0 = random.
+        folder:            World Outliner folder for placed actors.
+
+    Returns:
+        {"status", "placed", "samples", "folder"}
+    """
+    rng = random.Random(seed if seed != 0 else None)
+
+    mesh = load_asset(mesh_path)
+    if mesh is None:
+        return {"status": "error", "message": f"Mesh not found: {mesh_path}"}
+
+    # ------------------------------------------------------------------ #
+    #  Build sample list — either from explicit points or selected spline  #
+    # ------------------------------------------------------------------ #
+    # Each sample: (wx, wy, wz, perp_x, perp_y)
+    samples: List[Tuple[float, float, float, float, float]] = []
+
+    if points:
+        # -- Mode 1: waypoint list --
+        # Resample at sample_spacing intervals along the polyline
+        pts = [(float(p[0]), float(p[1]), float(p[2]) if len(p) > 2 else 0.0) for p in points]
+
+        # Walk the polyline and emit sample points
+        accum = 0.0
+        for seg_i in range(len(pts) - 1):
+            ax, ay, az = pts[seg_i]
+            bx, by, bz = pts[seg_i + 1]
+            seg_len = math.hypot(bx - ax, by - ay)
+            if seg_len < 1e-6:
+                continue
+            tang_x = (bx - ax) / seg_len
+            tang_y = (by - ay) / seg_len
+            perp_x = -tang_y
+            perp_y =  tang_x
+
+            while accum <= seg_len:
+                t = accum / seg_len
+                wx = ax + tang_x * accum
+                wy = ay + tang_y * accum
+                wz = az + (bz - az) * t
+                samples.append((wx, wy, wz, perp_x, perp_y))
+                accum += sample_spacing
+            accum -= seg_len  # carry remainder into next segment
+
+        # Always include the final point
+        if pts:
+            lx, ly, lz = pts[-1]
+            if len(pts) >= 2:
+                sx, sy, _ = pts[-2]
+                seg_len = math.hypot(lx - sx, ly - sy)
+                if seg_len > 1e-6:
+                    tx = (lx - sx) / seg_len
+                    ty = (ly - sy) / seg_len
+                    samples.append((lx, ly, lz, -ty, tx))
+
+        log_info(f"[scatter_road_edge] Points mode: {len(pts)} waypoints → {len(samples)} samples")
+
+    else:
+        # -- Mode 2: selected SplineActor --
+        actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+        selected  = actor_sub.get_selected_level_actors() or []
+        spline_comp = None
+        for actor in selected:
+            comp = actor.get_component_by_class(unreal.SplineComponent)
+            if comp is not None:
+                spline_comp = comp
+                break
+
+        if spline_comp is None:
+            return {
+                "status": "error",
+                "message": (
+                    "No path provided. Either pass points=[[x,y,z],...] "
+                    "or select a SplineActor in the viewport."
+                ),
+            }
+
+        spline_len  = spline_comp.get_spline_length()
+        num_samples = max(1, int(spline_len / sample_spacing))
+        for i in range(num_samples + 1):
+            dist    = (i / max(num_samples, 1)) * spline_len
+            pos_ws  = spline_comp.get_location_at_distance_along_spline(dist, unreal.SplineCoordinateSpace.WORLD)
+            tang_ws = spline_comp.get_tangent_at_distance_along_spline(dist, unreal.SplineCoordinateSpace.WORLD)
+            tlen    = math.hypot(tang_ws.x, tang_ws.y)
+            if tlen < 1e-6:
+                continue
+            samples.append((pos_ws.x, pos_ws.y, pos_ws.z, -tang_ws.y / tlen, tang_ws.x / tlen))
+
+        log_info(f"[scatter_road_edge] Spline mode: length={spline_len:.0f}cm → {len(samples)} samples")
+
+    if not samples:
+        return {"status": "error", "message": "No samples generated — check points or spline."}
+
+    # ------------------------------------------------------------------ #
+    #  Place props                                                          #
+    # ------------------------------------------------------------------ #
+    sides  = [1.0, -1.0] if both_sides else [1.0]
+    placed = 0
+
+    with undo_transaction(f"Scatter Road Edge: {mesh_path.split('/')[-1]}"):
+        for wx, wy, wz, perp_x, perp_y in samples:
+            for side in sides:
+                for _ in range(count_per_sample):
+                    rand_spread   = rng.uniform(-spread, spread)
+                    total_offset  = side * (edge_offset + rand_spread)
+                    fx = wx + perp_x * total_offset
+                    fy = wy + perp_y * total_offset
+                    fz = _surface_z(fx, fy, wz + 50000.0, wz) if snap_to_surface else wz
+
+                    sc  = rng.uniform(scale_min, scale_max)
+                    yaw = rng.uniform(0, rot_yaw_range)
+                    actor = spawn_static_mesh_actor(
+                        mesh_path,
+                        unreal.Vector(fx, fy, fz),
+                        rotation=unreal.Rotator(0, yaw, 0),
+                        scale=unreal.Vector(sc, sc, sc),
+                    )
+                    if actor:
+                        actor.set_folder_path(f"/{folder}")
+                        actor.set_actor_label(f"{folder}_{placed:03d}")
+                        placed += 1
+
+    log_info(f"[scatter_road_edge] Placed {placed} props along path shoulder.")
+    return {"status": "ok", "placed": placed, "samples": len(samples), "folder": folder}
