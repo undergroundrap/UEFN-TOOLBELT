@@ -70,12 +70,7 @@ def _import_file_task(file_path: str, dest_dir: str, asset_name: str) -> str:
     if not asset_path:
         return ""
 
-    # Try to persist to disk; UEFN source control may block this but import is still usable
-    try:
-        eal.save_asset(asset_path, only_if_is_dirty=True)
-    except Exception:
-        pass  # session-only is acceptable -- asset is live in Content Browser
-
+    # Sync Content Browser selection -- no save attempt (UEFN source control blocks it)
     eal.sync_browser_to_objects([asset_path])
     return asset_path
 
