@@ -5,6 +5,34 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [1.8.0] — 2026-03-23
+
+### feat: lighting, post-process, audio foundation (217 → 229 tools)
+
+**Expanded `lighting_mastery.py` — 4 new tools:**
+- `light_place`: Spawn point/spot/rect/directional/sky light at camera. Sets intensity, hex color, attenuation radius.
+- `light_set`: Batch-set intensity, color, attenuation on selected lights. Only provided params are changed.
+- `sky_set_time`: Simulate time-of-day (0–24h) by pitching the DirectionalLight using elevation math.
+- `light_list`: Audit all light actors in the level — type, label, location, intensity.
+
+**New `postprocess_tools.py` — 4 new tools:**
+- `postprocess_spawn`: Find or create a global (infinite-extent) PostProcessVolume. No duplicates.
+- `postprocess_set`: Set bloom, exposure, contrast, vignette, saturation on the level's PPV.
+- `postprocess_preset`: Apply a named visual preset: `cinematic`, `night`, `vibrant`, `bleach`, `horror`, `fantasy`, `reset`.
+- `world_settings_set`: Change gravity (cm/s²) and time dilation world-wide.
+
+**New `audio_tools.py` — 4 new tools:**
+- `audio_place`: Spawn AmbientSound at camera. Optionally assign `/Game/...` sound asset, set volume and radius.
+- `audio_set_volume`: Batch-set volume multiplier on selected AmbientSound actors.
+- `audio_set_radius`: Override attenuation falloff radius on selected sounds.
+- `audio_list`: Audit all AmbientSound actors — label, folder, asset, volume.
+
+**Fixed:**
+- `register_tool()` decorator: removed invalid `parameters={}` kwarg from all new tools.
+- `lighting_mastery.py`: refactored to match project patterns — `_actor_sub()` helper, `log_info/error`, `undo_transaction`.
+
+---
+
 ## [1.7.0] — 2026-03-23
 
 ### feat: zone tools, proximity placement, auto-cluster, class replace (204 → 217 tools)

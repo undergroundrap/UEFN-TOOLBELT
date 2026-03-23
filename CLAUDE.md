@@ -61,7 +61,7 @@ import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in
 ## What This Project Is
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
-It runs inside the editor and exposes 217 tools through:
+It runs inside the editor and exposes 229 tools through:
 - A persistent top-menu entry (`Toolbelt ▾`) in the UEFN editor bar
 - An 18-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
 - An MCP HTTP bridge so Claude Code can control UEFN directly
@@ -103,7 +103,7 @@ This file contains every registered tool with its full Python parameter signatur
   }
 }
 ```
-All 217 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
+All 229 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
 
 **Schema utility functions** (`schema_utils.py`):
 - `schema_utils.validate_property(class_name, prop)` — check if a property exists and is writable
@@ -236,7 +236,7 @@ Then restart Claude Code — it connects automatically.
 
 ### What Claude Code can now do
 
-- Run any of the 217 registered tools by name
+- Run any of the 229 registered tools by name
 - Spawn, move, delete actors
 - List/rename/import/tag assets
 - Take screenshots, save level snapshots
@@ -348,6 +348,44 @@ If you call an asynchronous Unreal API (e.g., `unreal.AutomationLibrary.take_hig
 
 ### **Hot-Reloading (sys.modules)**
 UEFN does not natively reload modified Python modules. Use the **"Nuclear Reload"** (provided in `README.md`) to clear `sys.modules` and force a fresh import of Toolbelt logic.
+
+---
+
+### Lighting
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `light_place` | `light_type="point\|spot\|rect\|directional\|sky"`, `intensity`, `color="#RRGGBB"`, `attenuation` | Spawn light at camera position |
+| `light_set` | `intensity`, `color`, `attenuation` | Batch-set on selected lights — only provided params change |
+| `sky_set_time` | `hour=0-24` | Simulate time-of-day by pitching the DirectionalLight |
+| `light_list` | — | Audit all lights — type, label, location, intensity |
+| `light_cinematic_preset` | `mood="Star Wars\|Cyberpunk\|Vibrant"` | Apply mood preset to directional light + fog |
+| `light_randomize_sky` | — | Randomise sun pitch/yaw for look-dev |
+
+### Post-Process & World
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `postprocess_spawn` | `unbounded=True` | Find or create a global PostProcessVolume (no duplicates) |
+| `postprocess_set` | `bloom`, `exposure`, `contrast`, `vignette`, `saturation` | Set any PPV params — omit to leave unchanged |
+| `postprocess_preset` | `preset="cinematic\|night\|vibrant\|bleach\|horror\|fantasy\|reset"` | Apply named visual preset |
+| `world_settings_set` | `gravity`, `time_dilation` | Change gravity (cm/s²) and time dilation world-wide |
+
+### Audio
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `audio_place` | `asset_path=""`, `label`, `volume=1.0`, `radius=0.0`, `folder="Audio"` | Spawn AmbientSound at camera. Leave asset_path blank to assign manually |
+| `audio_set_volume` | `volume=1.0` | Batch-set volume multiplier on selected AmbientSounds |
+| `audio_set_radius` | `radius=2000.0` | Override attenuation falloff radius on selected sounds |
+| `audio_list` | — | Audit all AmbientSound actors — label, asset, volume, folder |
+
+```python
+tb.run("light_place", light_type="spot", intensity=3000, color="#80C0FF", attenuation=1500)
+tb.run("sky_set_time", hour=7.5)
+tb.run("postprocess_preset", preset="night")
+tb.run("audio_place", asset_path="/Game/Audio/A_WindLoop", volume=0.6, radius=3000)
+```
 
 ---
 
@@ -827,7 +865,7 @@ tb.run("config_reset", key="all")   # wipe all customisations
 |---|---|---|
 | `plugin_validate_all` | — | Validate all registered tools against schema |
 | `plugin_list_custom` | — | List all loaded third-party tools from `Saved/UEFN_Toolbelt/Custom_Plugins` |
-| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 217 tools with full parameter signatures (name, type, required, default) for AI-agent and automation use |
+| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 229 tools with full parameter signatures (name, type, required, default) for AI-agent and automation use |
 
 **Online Plugin Hub** — the Plugin Hub dashboard tab fetches `registry.json` live from GitHub.
 - **Core Tools** (green/BUILT-IN): 10 flagship modules by Ocean Bennett, already built in
@@ -857,7 +895,7 @@ When the listener is running, Claude Code can call these directly:
 | `ping` | — | Health check + command list |
 | `get_log` | `last_n=50` | Return last N lines from the MCP command log ring |
 | `execute_python` | `code` | Run Python in UEFN (pre-populated: `unreal`, `actor_sub`, `asset_sub`, `level_sub`, `tb`) |
-| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 217 registered tools |
+| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 229 registered tools |
 | `list_tools` | `category=""` | List all registered tools |
 | `describe_tool` | `tool_name` | Full manifest entry for one tool (name, description, parameters, tags) |
 | `batch_exec` | `commands=[{command, params}]` | Multiple commands in one tick |
