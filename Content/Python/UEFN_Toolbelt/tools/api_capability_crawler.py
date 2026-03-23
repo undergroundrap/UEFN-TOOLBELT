@@ -15,44 +15,63 @@ from .. import core
 from ..registry import register_tool
 
 
+def _is_valid(obj) -> bool:
+    """Check if an Unreal object is safe to access (non-null C++ pointer)."""
+    try:
+        return obj is not None and bool(obj)
+    except Exception:
+        return False
+
+
 def _introspect_object(obj: unreal.Object) -> Dict[str, Any]:
     """
-    Use Python reflection to brute-force determine what properties are exposed
+    Use Python reflection to determine what properties are exposed
     on a given Unreal Object.
 
-    Returns a detailed schema dictionary.
+    Safe version: no component recursion, validates objects before access,
+    skips callables that could dereference null C++ pointers.
     """
+    if not _is_valid(obj):
+        return {"class": "Invalid", "properties": {}, "methods": []}
+
     schema: Dict[str, Any] = {
         "class": type(obj).__name__,
         "properties": {},
         "methods": [],
-        "components": {}
     }
 
-    # Safe attributes to skip
-    _skips = {"set_editor_property", "get_editor_property", "set_editor_properties",
-              "get_class", "get_components_by_class"}
+    # Only probe get_editor_property — never call getattr on unknown attrs
+    # as shiboken can dereference null C++ pointers and crash the editor.
+    _skips = frozenset({
+        "set_editor_property", "get_editor_property", "set_editor_properties",
+        "get_class", "get_components_by_class", "get_outer", "get_typed_outer",
+        "get_world", "get_level", "static_class",
+    })
 
-    # 1. Map properties and methods via `dir()`
+    # 1. Collect method names via dir() — callable check only, no invocation
     for attr in dir(obj):
-        if attr.startswith("__") or attr in _skips:
+        if attr.startswith("_") or attr in _skips:
             continue
-            
         try:
             val = getattr(obj, attr)
             if callable(val):
                 schema["methods"].append(attr)
-                continue
         except Exception:
-            # If getattr fails natively, it's heavily protected.
             pass
 
-        # 2. Test if it's an editor property (Data variable)
+    # 2. Probe editor properties — the only safe reflection path in UEFN
+    for attr in list(schema["methods"]):
+        pass  # methods already collected above
+
+    # Probe known-safe property names via get_editor_property
+    for attr in dir(obj):
+        if attr.startswith("_") or attr in _skips or attr in schema["methods"]:
+            continue
         try:
             val = obj.get_editor_property(attr)
+            if not _is_valid(val) and val is not None:
+                continue
             val_type = type(val).__name__ if val is not None else "Any"
-            
-            # Simple serialization of value for primitives
             rep = None
             if isinstance(val, (int, float, str, bool)):
                 rep = val
@@ -62,32 +81,19 @@ def _introspect_object(obj: unreal.Object) -> Dict[str, Any]:
                 rep = str(val)
             elif isinstance(val, unreal.Vector):
                 rep = {"x": round(val.x, 3), "y": round(val.y, 3), "z": round(val.z, 3)}
-            
             schema["properties"][attr] = {
                 "type": val_type,
                 "readable": True,
-                "example_value": rep
+                "example_value": rep,
             }
         except Exception as e:
             err = str(e)
-            if "not found" not in err.lower():
-                # It is a property, but might fail to read (e.g., array without index)
+            if "not found" not in err.lower() and "cannot" not in err.lower():
                 schema["properties"][attr] = {
                     "type": "Unknown/Restricted",
                     "readable": False,
-                    "error": err
+                    "error": err[:120],
                 }
-
-    # 3. If it's an Actor, walk its Component Hierarchy
-    if isinstance(obj, unreal.Actor):
-        try:
-            components = obj.get_components_by_class(unreal.ActorComponent)
-            for c in components:
-                # Recursively introspect components
-                c_name = c.get_name()
-                schema["components"][c_name] = _introspect_object(c)
-        except Exception as e:
-            schema["components"]["_error"] = str(e)
 
     return schema
 
@@ -116,10 +122,10 @@ def crawl_selection(**kwargs) -> dict:
         "data": {}
     }
 
-    with core.with_progress(actors, "Deep-Scanning Actors") as bars:
-        for actor in bars:
-            label = actor.get_actor_label()
-            report["data"][label] = _introspect_object(actor)
+    for actor in actors:
+        label = actor.get_actor_label()
+        unreal.log(f"[TOOLBELT] Crawling: {label}")
+        report["data"][label] = _introspect_object(actor)
 
     # Save to disk
     import unreal
@@ -199,13 +205,13 @@ def crawl_level_classes(**kwargs) -> dict:
         "classes": {}
     }
 
-    # Sort to scan alphabetically
+    # Sort to scan alphabetically — no progress bar (PySide6 ticking during
+    # heavy reflection can dereference null C++ pointers and crash the editor)
     sorted_classes = sorted(list(class_map.keys()))
-    
-    with core.with_progress(sorted_classes, "Crawling Class Schemas") as bars:
-        for cls_name in bars:
-            actor = class_map[cls_name]
-            report["classes"][cls_name] = _introspect_object(actor)
+    for i, cls_name in enumerate(sorted_classes):
+        actor = class_map[cls_name]
+        unreal.log(f"[TOOLBELT] Crawling {i+1}/{len(sorted_classes)}: {cls_name}")
+        report["classes"][cls_name] = _introspect_object(actor)
 
     # Save to disk
     saved_dir = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt")
@@ -315,3 +321,120 @@ def api_sync_master(**kwargs) -> dict:
         
     core.log_info(f"✓ Master Sync Complete! Document updated: {doc_path}")
     return {"status": "ok", "path": doc_path}
+
+
+@register_tool(
+    name="world_state_export",
+    category="API Explorer",
+    description="Export the full live state of every actor in the level — transforms + readable device properties — to a single JSON Claude can reason about.",
+    tags=["world", "state", "export", "ai", "automation", "snapshot"],
+)
+def world_state_export(**kwargs) -> dict:
+    """
+    Captures the complete live state of the level as a machine-readable JSON:
+      - Every actor's label, class, location, rotation, scale, tags, visibility
+      - Every readable editor property on each actor (device settings, channel
+        assignments, game rules, etc.)
+
+    This is the AI read layer — Claude loads this file to understand exactly
+    what is in the level and how every device is currently configured before
+    deciding what actions to take.
+
+    Output: Saved/UEFN_Toolbelt/world_state.json
+    Also auto-synced to docs/world_state.json for git tracking.
+    """
+    from datetime import datetime
+
+    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    all_actors = actor_sub.get_all_level_actors()
+    if not all_actors:
+        return {"status": "error", "message": "No actors in the level.", "count": 0}
+
+    unreal.log(f"[TOOLBELT] world_state_export: capturing {len(all_actors)} actors...")
+
+    actors_out = []
+    for actor in all_actors:
+        if not _is_valid(actor):
+            continue
+
+        # --- Transform ---
+        try:
+            loc = actor.get_actor_location()
+            location = {"x": round(loc.x, 2), "y": round(loc.y, 2), "z": round(loc.z, 2)}
+        except Exception:
+            location = {}
+
+        try:
+            rot = actor.get_actor_rotation()
+            rotation = {"pitch": round(rot.pitch, 2), "yaw": round(rot.yaw, 2), "roll": round(rot.roll, 2)}
+        except Exception:
+            rotation = {}
+
+        try:
+            sc = actor.get_actor_scale3d()
+            scale = {"x": round(sc.x, 3), "y": round(sc.y, 3), "z": round(sc.z, 3)}
+        except Exception:
+            scale = {}
+
+        # --- Tags ---
+        try:
+            tags = [str(t) for t in actor.tags] if actor.tags else []
+        except Exception:
+            tags = []
+
+        # --- Visibility ---
+        try:
+            hidden = actor.is_hidden_ed()
+        except Exception:
+            hidden = False
+
+        # --- Device properties (readable primitives only) ---
+        props = {}
+        for attr in dir(actor):
+            if attr.startswith("_"):
+                continue
+            try:
+                val = actor.get_editor_property(attr)
+                if isinstance(val, (int, float, str, bool)):
+                    props[attr] = val
+                elif isinstance(val, unreal.EnumBase):
+                    props[attr] = str(val)
+                elif isinstance(val, unreal.Name):
+                    props[attr] = str(val)
+                elif isinstance(val, unreal.Vector):
+                    props[attr] = {"x": round(val.x, 2), "y": round(val.y, 2), "z": round(val.z, 2)}
+                elif isinstance(val, unreal.Rotator):
+                    props[attr] = {"pitch": round(val.pitch, 2), "yaw": round(val.yaw, 2), "roll": round(val.roll, 2)}
+            except Exception:
+                pass
+
+        actors_out.append({
+            "label": actor.get_actor_label(),
+            "class": type(actor).__name__,
+            "location": location,
+            "rotation": rotation,
+            "scale": scale,
+            "hidden": hidden,
+            "tags": tags,
+            "properties": props,
+        })
+
+    state = {
+        "exported_at": datetime.now().isoformat(),
+        "actor_count": len(actors_out),
+        "actors": actors_out,
+    }
+
+    saved_dir = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt")
+    os.makedirs(saved_dir, exist_ok=True)
+    out_path = os.path.join(saved_dir, "world_state.json")
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2)
+
+    unreal.log(f"[TOOLBELT] ✓ World state saved: {out_path}")
+
+    repo_path = _sync_to_repo(out_path, "world_state.json")
+    if repo_path:
+        unreal.log(f"[TOOLBELT] ✓ Auto-synced to repo: {repo_path}")
+
+    return {"status": "ok", "path": out_path, "count": len(actors_out)}

@@ -566,6 +566,8 @@ tb.run("scaffold_generate", template="uefn_standard", project_name="MyIsland")
 | `api_export_full` | — | Full `unreal.pyi` for IDE autocomplete |
 | `api_crawl_selection` | — | Deep-scan properties of selected actors to JSON |
 | `api_crawl_level_classes` | — | Headless dump of exposed properties for every class in the level |
+| `api_sync_master` | — | One-click: level crawl + Verse schema merge → `docs/DEVICE_API_MAP.md` |
+| `world_state_export` | — | Full live state of every actor (transforms + all readable device properties) → `world_state.json` — the AI read layer |
 
 ```python
 tb.run("api_export_full")
