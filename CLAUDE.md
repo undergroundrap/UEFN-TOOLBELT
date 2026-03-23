@@ -518,6 +518,7 @@ tb.run("screenshot_focus_selection", width=1920, height=1080, name="prop_focus")
 |---|---|---|
 | `verse_list_devices` | — | Enumerate all Creative devices in level |
 | `verse_bulk_set_property` | `property_name`, `value` | Set UPROPERTY on selection |
+| `device_set_property` | `property_name`, `value`, `class_filter=""`, `label_filter=""`, `actor_path=""`, `dry_run=False` | **AI write layer** — set any property on every actor matching a class/label/path filter. Returns per-actor result report. |
 | `verse_select_by_name` | `name_contains` | Select devices matching label |
 | `verse_select_by_class` | `class_name` | Select devices by class |
 | `verse_export_report` | `output_path` | JSON export of all device properties |

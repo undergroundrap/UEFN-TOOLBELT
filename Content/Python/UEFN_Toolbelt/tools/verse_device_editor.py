@@ -337,3 +337,151 @@ def run_export_report(**kwargs) -> dict:
 
     log_info(f"Exported {len(report)} device records → {out_path}")
     return {"status": "ok", "path": out_path, "count": len(report)}
+
+
+@register_tool(
+    name="device_set_property",
+    category="Verse Helpers",
+    description=(
+        "Set a property on every actor matching a class, label, or path filter. "
+        "The AI write layer — lets Claude configure any device in the level by name."
+    ),
+    tags=["device", "property", "set", "write", "ai", "automation", "bulk"],
+)
+def device_set_property(
+    property_name: str = "",
+    value: Any = None,
+    class_filter: str = "",
+    label_filter: str = "",
+    actor_path: str = "",
+    dry_run: bool = False,
+    **kwargs,
+) -> dict:
+    """
+    Set ``property_name`` = ``value`` on every actor that matches at least one
+    filter. All three filters are optional and stack (AND logic when combined).
+
+    Args:
+        property_name: The UPROPERTY name to set (e.g. "time_limit", "bIsEnabled").
+        value:         The value to assign. Passed directly to set_editor_property.
+        class_filter:  Case-insensitive substring of the actor class name.
+                       e.g. "Timer" matches FortCreativeTimerDevice.
+        label_filter:  Case-insensitive substring of the actor label.
+                       e.g. "Score" matches "ScoreManager_1".
+        actor_path:    Exact actor path name or label for single-actor targeting.
+        dry_run:       If True, report what would change without making changes.
+
+    Returns:
+        {
+          "status": "ok",
+          "matched": int,        # actors that passed the filter
+          "success": int,        # properties successfully set
+          "failed": int,         # properties that raised an error
+          "skipped": int,        # read-only per schema
+          "dry_run": bool,
+          "results": [           # per-actor detail for AI to read
+            {"label": str, "class": str, "result": "ok"|"failed"|"skipped"|"dry_run",
+             "error": str|None}
+          ]
+        }
+
+    Examples:
+        # Set all timer devices to 120 seconds
+        tb.run("device_set_property",
+               class_filter="Timer", property_name="time_limit", value=120)
+
+        # Disable a specific score manager by label
+        tb.run("device_set_property",
+               label_filter="ScoreManager_1", property_name="bIsEnabled", value=False)
+
+        # Preview what would change before committing
+        tb.run("device_set_property",
+               class_filter="CaptureArea", property_name="TeamIndex",
+               value=1, dry_run=True)
+    """
+    if not property_name:
+        return {"status": "error", "message": "property_name is required."}
+    if value is None and not dry_run:
+        return {"status": "error", "message": "value is required (or pass dry_run=True to preview)."}
+    if not any([class_filter, label_filter, actor_path]):
+        return {"status": "error",
+                "message": "Provide at least one filter: class_filter, label_filter, or actor_path."}
+
+    # --- Gather all level actors ---
+    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    all_actors = actor_sub.get_all_level_actors()
+
+    # --- Apply filters ---
+    matched = []
+    for actor in all_actors:
+        try:
+            cls_name = type(actor).__name__
+            label    = actor.get_actor_label()
+            path     = actor.get_path_name()
+        except Exception:
+            continue
+
+        if actor_path and (actor_path == path or actor_path == label):
+            matched.append(actor)
+            continue
+
+        passes_class = (not class_filter) or (class_filter.lower() in cls_name.lower())
+        passes_label = (not label_filter) or (label_filter.lower() in label.lower())
+
+        if passes_class and passes_label:
+            matched.append(actor)
+
+    if not matched:
+        return {"status": "ok", "matched": 0, "success": 0, "failed": 0,
+                "skipped": 0, "dry_run": dry_run, "results": [],
+                "message": "No actors matched the given filters."}
+
+    log_info(f"[device_set_property] {len(matched)} actor(s) matched. "
+             f"Setting '{property_name}' = {value!r}"
+             + (" [DRY RUN]" if dry_run else ""))
+
+    results = []
+    success = failed = skipped = 0
+
+    with undo_transaction(f"device_set_property: {property_name}"):
+        for actor in matched:
+            cls_name = type(actor).__name__
+            label    = actor.get_actor_label()
+
+            if dry_run:
+                results.append({"label": label, "class": cls_name,
+                                 "result": "dry_run", "error": None})
+                continue
+
+            # Schema read-only check (non-blocking — just a warning)
+            validation = schema_utils.validate_property(cls_name, property_name)
+            if validation.get("exists") and not validation.get("meta", {}).get("readable", True):
+                log_warning(f"  '{label}': '{property_name}' is marked read-only in schema — skipping.")
+                results.append({"label": label, "class": cls_name,
+                                 "result": "skipped", "error": "read-only per schema"})
+                skipped += 1
+                continue
+
+            try:
+                actor.set_editor_property(property_name, value)
+                results.append({"label": label, "class": cls_name,
+                                 "result": "ok", "error": None})
+                success += 1
+            except Exception as e:
+                err = str(e)[:160]
+                log_warning(f"  '{label}': failed to set '{property_name}' — {err}")
+                results.append({"label": label, "class": cls_name,
+                                 "result": "failed", "error": err})
+                failed += 1
+
+    log_info(f"[device_set_property] done — {success} ok, {failed} failed, "
+             f"{skipped} skipped, {len(matched)} matched.")
+    return {
+        "status": "ok",
+        "matched": len(matched),
+        "success": success,
+        "failed": failed,
+        "skipped": skipped,
+        "dry_run": dry_run,
+        "results": results,
+    }
