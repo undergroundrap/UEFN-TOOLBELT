@@ -1,6 +1,6 @@
 # UEFN Toolbelt — Tool Status & Testing
 
-UEFN Toolbelt contains 171 tools across 31 modules. Because many tools actively modify the viewport, spawn actors, or depend on specific Content Browser selections, **the `integration_test.py` suite uses temporary fixtures to automate verification of context-dependent tools.**
+UEFN Toolbelt contains **246 tools across 35+ modules**. Because many tools actively modify the viewport, spawn actors, or depend on specific Content Browser selections, **the `integration_test.py` suite uses temporary fixtures to automate verification of context-dependent tools.**
 
 ### Phase 21 — Complete AI Return Loop
 As of Phase 21, **every registered tool returns a structured `dict`** — `{"status": "ok"/"error", ...}`. Zero `None` returns remain anywhere in the codebase. This means AI agents using the MCP bridge can act on results programmatically: no log parsing, no guessing. The `describe_tool` MCP command was also added for per-tool manifest lookup.
@@ -11,8 +11,22 @@ As of Phase 21, **every registered tool returns a structured `dict`** — `{"sta
 
 This document outlines the current testing status of the toolbelt and categorizes which tools are verified by the automated smoke test, and which require manual verification.
 
-## 🟢 Automated Verification Status: **171 / 171 Tools (100% Coverage)**
-Integration suite health is **100% stable (103/103 sections passed)**.
+## 🟡 Automated Verification Status: **186 / 246 Tools (76% Coverage)**
+Integration suite has **115 test sections written** (103 verified live + 12 Batch 9 written, pending live UEFN run).
+
+> **Coverage gap:** 75 tools were added after v1.6.0 (zones, stamps, actor org, proximity placement, advanced alignment, signs, audio, post-process, level health, config, lighting extended, world state). Batch 9 integration tests are written and syntax-checked — pending one live UEFN run to confirm green.
+
+---
+
+## ⛔ Disabled Tools (Known UEFN Crashes)
+These tools are registered but intentionally disabled at runtime. Do not attempt to re-enable without resolving the upstream crash.
+
+| Tool | Module | Reason | Quirk |
+|---|---|---|---|
+| `lod_auto_generate_selection` | `lod_optimizer` | UEFN mesh reduction crash | UEFN_QUIRKS.md #18 |
+| `lod_auto_generate_folder` | `lod_optimizer` | UEFN mesh reduction crash | UEFN_QUIRKS.md #18 |
+
+---
 
 ## 🟢 Layer 3 Execution Verified (Safe Tools)
 These tools do not require any actors to be selected or a specific level to be open. They are executed automatically during the `smoke_test.py` run to verify that the toolbelt execution pipeline is fully functional end-to-end.
@@ -27,16 +41,28 @@ These tools do not require any actors to be selected or a specific level to be o
 *   `plugin_validate_all` (Plugin Manager)
 *   `plugin_list_custom` (Plugin Manager)
 *   `plugin_export_manifest` (Plugin Manager)
+*   `config_list` (Config)
+*   `stamp_list` (Prefab Stamp)
+*   `zone_list` (Zone Tools)
+*   `sign_list` (Sign Tools)
+*   `entity_list_kits` (Entity Kit)
+*   `actor_folder_list` (Actor Org)
+*   `audio_list` (Audio Tools)
+*   `light_list` (Lighting)
 
 *The smoke test verifies these tools complete execution without throwing exceptions.*
+
+---
 
 ## 🛑 Priority Community Verification (Not Covered by Smoke Test)
 
 The automated `smoke_test.py` covers all API discovery, registry loading, and the 🟢 Layer 3 "Safe" tools above. It **cannot** verify the tools that require actual viewport actors or Content Browser selections.
 
-**These core tools are the highest priority for community tracking.** 
+**These core tools are the highest priority for community tracking.**
 
 To contribute: Test a tool against the latest UEFN version. Ensure it works via the PySide6 UI **AND** via the Claude MCP connection, and submit a PR checking the box with today's date and your GitHub username.
+
+---
 
 ### 🟡 Requires Manual Verification (Level State Dependent)
 These tools require a live level. They spawn new actors or modify the environment globally.
@@ -62,9 +88,41 @@ These tools require a live level. They spawn new actors or modify the environmen
 | `text_color_cycle` | [A] | [A] | AI | 2026-03-20 |
 | `text_export_manifest` | [A] | [A] | AI | 2026-03-22 |
 | `text_apply_translation` | [A] | [A] | AI | 2026-03-22 |
+| `zone_spawn` | [ ] | [ ] | — | — |
+| `zone_resize_to_selection` | [ ] | [ ] | — | — |
+| `zone_snap_to_selection` | [ ] | [ ] | — | — |
+| `zone_select_contents` | [ ] | [ ] | — | — |
+| `zone_move_contents` | [ ] | [ ] | — | — |
+| `zone_fill_scatter` | [ ] | [ ] | — | — |
+| `postprocess_spawn` | [ ] | [ ] | — | — |
+| `postprocess_set` | [ ] | [ ] | — | — |
+| `postprocess_preset` | [ ] | [ ] | — | — |
+| `world_settings_set` | [ ] | [ ] | — | — |
+| `audio_place` | [ ] | [ ] | — | — |
+| `audio_set_volume` | [ ] | [ ] | — | — |
+| `audio_set_radius` | [ ] | [ ] | — | — |
+| `light_place` | [ ] | [ ] | — | — |
+| `light_set` | [ ] | [ ] | — | — |
+| `sky_set_time` | [ ] | [ ] | — | — |
+| `light_cinematic_preset` | [ ] | [ ] | — | — |
+| `light_randomize_sky` | [ ] | [ ] | — | — |
+| `world_state_export` | [ ] | [ ] | — | — |
+| `device_catalog_scan` | [ ] | [ ] | — | — |
+| `level_health_report` | [ ] | [ ] | — | — |
+| `rogue_actor_scan` | [ ] | [ ] | — | — |
+| `stamp_save` | [ ] | [ ] | — | — |
+| `stamp_place` | [ ] | [ ] | — | — |
+| `stamp_delete` | [ ] | [ ] | — | — |
+| `stamp_export` | [ ] | [ ] | — | — |
+| `stamp_import` | [ ] | [ ] | — | — |
+| `sign_spawn_bulk` | [ ] | [ ] | — | — |
+| `actor_duplicate_offset` | [ ] | [ ] | — | — |
+| `actor_copy_to_positions` | [ ] | [ ] | — | — |
+| `actor_cluster_to_folder` | [ ] | [ ] | — | — |
+
+---
 
 ### 🟠 Requires Manual Verification (Actor Selection Dependent)
-These tools **must** have valid actors selected in the UEFN viewport to function. Running them without a selection will result in a graceful warning, but testing actual logic requires a human.
 
 | Tool | UI Verified | AI Verified (MCP) | Tested By | Date |
 |---|---|---|---|---|
@@ -97,13 +155,39 @@ These tools **must** have valid actors selected in the UEFN viewport to function
 | `measure_distance` | [A] | [A] | AI | 2026-03-22 |
 | `measure_travel_time` | [A] | [A] | AI | 2026-03-22 |
 | `spline_measure` | [A] | [A] | AI | 2026-03-22 |
+| `align_to_reference` | [ ] | [ ] | — | — |
+| `distribute_with_gap` | [ ] | [ ] | — | — |
+| `rotate_around_pivot` | [ ] | [ ] | — | — |
+| `align_to_surface` | [ ] | [ ] | — | — |
+| `match_spacing` | [ ] | [ ] | — | — |
+| `align_to_grid_two_points` | [ ] | [ ] | — | — |
+| `actor_attach_to_parent` | [ ] | [ ] | — | — |
+| `actor_detach` | [ ] | [ ] | — | — |
+| `actor_move_to_folder` | [ ] | [ ] | — | — |
+| `actor_move_to_root` | [ ] | [ ] | — | — |
+| `actor_rename_folder` | [ ] | [ ] | — | — |
+| `actor_select_by_folder` | [ ] | [ ] | — | — |
+| `actor_select_same_folder` | [ ] | [ ] | — | — |
+| `actor_select_by_class` | [ ] | [ ] | — | — |
+| `actor_match_transform` | [ ] | [ ] | — | — |
+| `actor_place_next_to` | [ ] | [ ] | — | — |
+| `actor_chain_place` | [ ] | [ ] | — | — |
+| `actor_replace_class` | [ ] | [ ] | — | — |
+| `sign_batch_edit` | [ ] | [ ] | — | — |
+| `sign_batch_set_text` | [ ] | [ ] | — | — |
+| `sign_batch_rename` | [ ] | [ ] | — | — |
+| `sign_clear` | [ ] | [ ] | — | — |
+| `label_attach` | [ ] | [ ] | — | — |
+| `stamp_info` | [ ] | [ ] | — | — |
+| `config_set` / `config_get` / `config_reset` | [ ] | [ ] | — | — |
+
+---
 
 ### 🔴 Requires Manual Verification (Content Browser Dependent)
-These tools require specific assets (Static Meshes, Textures, Folders) to be selected in the Content Browser or exist at a specific path.
 
 | Tool | UI Verified | AI Verified (MCP) | Tested By | Date |
 |---|---|---|---|---|
-| `lod_auto_generate_folder` | [A] | [A] | AI | 2026-03-21 |
+| ~~`lod_auto_generate_folder`~~ | ⛔ DISABLED | ⛔ DISABLED | — | Quirk #18 |
 | `smart_importer` tools (`organize_assets`) | [A] | [A] | AI | 2026-03-21 |
 | `rename_dry_run` | [A] | [A] | AI | 2026-03-20 |
 | `rename_enforce_conventions` | [A] | [A] | AI | 2026-03-20 |
@@ -127,112 +211,107 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 4. Verifies the result (properties, file outputs)
 5. Cleans up with a single `undo_transaction`
 
-**Current Integration Coverage (171 / 171 Tools):**
-- Integration suite health is **100% stable (103/103 sections passed)**.
-- **Materials:** `material_apply_preset` (Engine Fallback), `material_randomize_colors`, `material_bulk_swap`, `material_gradient_painter`, `material_team_color_split`, `material_pattern_painter`, `material_glow_pulse_preview`
-- **Bulk Ops:** `align`, `distribute`, `randomize`, `snap`, `stack`, `reset`, `bulk_mirror`, `bulk_normalize_scale`, `bulk_face_camera`
-- **Patterns:** `grid`, `circle`, `line`, `arc`, `spiral`, `wave`, `pattern_helix`, `pattern_radial_rows` (Geometry & Count verified)
-- **Scatter:** `scatter_props`, `scatter_hism`, `scatter_clear`, `scatter_along_path` (Radius and instance counts)
-- **Splines:** `spline_place_props` & `spline_clear_props` (Dynamic path placement)
-- **Snapshots:** `snapshot_save`, `snapshot_delete`, `snapshot_export`, `snapshot_import`, `snapshot_diff`, `snapshot_compare_live`, `snapshot_restore` JSON integrity
-- **Crawler:** `api_crawl_level_classes`, `api_crawl_selection` level schema extraction
-- **Assets:** `rename_dry_run` (Naming convention audit)
-- **Optimization:** `memory_scan` (Island-wide report generation)
-- **Reference Auditor:** `ref_audit_orphans`, `ref_audit_redirectors`, `ref_audit_duplicates`, `ref_audit_unused_textures`, `ref_full_report`
-- **Project Structure:** `scaffold_preview`, `scaffold_generate`, `scaffold_save_template`, `scaffold_delete_template`
-- **Text Painter:** `text_place`, `text_paint_grid`, `text_save_style`, `text_clear_folder`, `text_color_cycle`, `text_label_selection`
-- **Tagger:** `tag_add`, `tag_remove`, `tag_show`, `tag_search`, `tag_list_all`, `tag_export`
-- **Verse:** `verse_list_snippets`, `verse_gen_device_declarations`, `verse_gen_custom`, `verse_list_devices`, `verse_bulk_set_property`, `verse_export_report`
-- **Splines (Verse):** `spline_to_verse_points`, `spline_to_verse_patrol`, `spline_to_verse_zone_boundary`, `spline_export_json`
-- **Screenshot:** `screenshot_take`, `screenshot_focus_selection`, `screenshot_timed_series`, `screenshot_open_folder`
-- **LODs:** `lod_auto_generate_folder`, `lod_set_collision_folder`, `lod_audit_folder`
-- **Optimization:** `memory_scan_textures`, `memory_scan_meshes`, `memory_top_offenders`, `memory_autofix_lods`
-- **Arena:** `arena_generate` symmetrical generator
-- **Scatter Advanced:** `scatter_along_path`, `scatter_export_manifest`
-- **Asset Admin:** `rename_enforce_conventions`, `rename_strip_prefix`, `organize_assets`
-- **Bridge Control:** `mcp_start`, `mcp_stop` toggles
-- **Measurement:** `measure_distance`, `measure_travel_time`, `spline_measure`
-- **Localization:** `text_export_manifest`, `text_apply_translation`
+**Current Integration Coverage (246 tools — 115 sections written, 103 live-verified):**
+
+> ✅ = Confirmed passing in live UEFN
+> 🔵 = Written + syntax-checked, pending first live run (Batch 9)
+
+- ✅ **Materials:** `material_apply_preset`, `material_randomize_colors`, `material_bulk_swap`, `material_gradient_painter`, `material_team_color_split`, `material_pattern_painter`, `material_glow_pulse_preview`
+- ✅ **Bulk Ops:** `align`, `distribute`, `randomize`, `snap`, `stack`, `reset`, `bulk_mirror`, `bulk_normalize_scale`, `bulk_face_camera`
+- ✅ **Patterns:** `grid`, `circle`, `line`, `arc`, `spiral`, `wave`, `pattern_helix`, `pattern_radial_rows`
+- ✅ **Scatter:** `scatter_props`, `scatter_hism`, `scatter_clear`, `scatter_along_path`
+- ✅ **Splines:** `spline_place_props`, `spline_clear_props`
+- ✅ **Snapshots:** `snapshot_save`, `snapshot_delete`, `snapshot_export`, `snapshot_import`, `snapshot_diff`, `snapshot_compare_live`, `snapshot_restore`
+- ✅ **Crawler:** `api_crawl_level_classes`, `api_crawl_selection`
+- ✅ **Assets:** `rename_dry_run`
+- ✅ **Optimization:** `memory_scan`
+- ✅ **Reference Auditor:** `ref_audit_orphans`, `ref_audit_redirectors`, `ref_audit_duplicates`, `ref_audit_unused_textures`, `ref_full_report`
+- ✅ **Project Structure:** `scaffold_preview`, `scaffold_generate`, `scaffold_save_template`, `scaffold_delete_template`
+- ✅ **Text Painter:** `text_place`, `text_paint_grid`, `text_save_style`, `text_clear_folder`, `text_color_cycle`, `text_label_selection`
+- ✅ **Tagger:** `tag_add`, `tag_remove`, `tag_show`, `tag_search`, `tag_list_all`, `tag_export`
+- ✅ **Verse:** `verse_list_snippets`, `verse_gen_device_declarations`, `verse_gen_custom`, `verse_list_devices`, `verse_bulk_set_property`, `verse_export_report`
+- ✅ **Splines (Verse):** `spline_to_verse_points`, `spline_to_verse_patrol`, `spline_to_verse_zone_boundary`, `spline_export_json`
+- ✅ **Screenshot:** `screenshot_take`, `screenshot_focus_selection`, `screenshot_timed_series`, `screenshot_open_folder`
+- ✅ **LODs:** `lod_set_collision_folder`, `lod_audit_folder` *(lod_auto_generate_* disabled — Quirk #18)*
+- ✅ **Optimization:** `memory_scan_textures`, `memory_scan_meshes`, `memory_top_offenders`, `memory_autofix_lods`
+- ✅ **Arena:** `arena_generate`
+- ✅ **Scatter Advanced:** `scatter_along_path`, `scatter_export_manifest`
+- ✅ **Asset Admin:** `rename_enforce_conventions`, `rename_strip_prefix`, `organize_assets`
+- ✅ **Bridge Control:** `mcp_start`, `mcp_stop`
+- ✅ **Measurement:** `measure_distance`, `measure_travel_time`, `spline_measure`
+- ✅ **Localization:** `text_export_manifest`, `text_apply_translation`
+- 🔵 **Zone Tools (Batch 9):** `zone_spawn`, `zone_list`, `zone_select_contents`, `zone_snap_to_selection`, `zone_fill_scatter`
+- 🔵 **Stamp Tools (Batch 9):** `stamp_save`, `stamp_place`, `stamp_list`, `stamp_info`, `stamp_delete`, `stamp_export`, `stamp_import`
+- 🔵 **Actor Org (Batch 9):** `actor_move_to_folder`, `actor_folder_list`, `actor_select_by_folder`, `actor_select_by_class`, `actor_match_transform`, `actor_move_to_root`, `actor_attach_to_parent`, `actor_detach`
+- 🔵 **Proximity Placement (Batch 9):** `actor_place_next_to`, `actor_chain_place`, `actor_duplicate_offset`, `actor_copy_to_positions`, `actor_cluster_to_folder`, `actor_replace_class` (dry_run)
+- 🔵 **Advanced Alignment (Batch 9):** `align_to_reference`, `distribute_with_gap`, `rotate_around_pivot`, `match_spacing`, `align_to_surface`, `align_to_grid_two_points`
+- 🔵 **Sign Tools (Batch 9):** `sign_spawn_bulk`, `sign_list`, `sign_batch_edit`, `sign_batch_rename`, `sign_batch_set_text`, `label_attach`, `sign_clear`
+- 🔵 **Post-Process & World (Batch 9):** `postprocess_spawn`, `postprocess_set`, `postprocess_preset`, `world_settings_set`
+- 🔵 **Audio (Batch 9):** `audio_place`, `audio_list`, `audio_set_volume`, `audio_set_radius`
+- 🔵 **Level Health (Batch 9):** `level_health_report`, `rogue_actor_scan`
+- 🔵 **Config (Batch 9):** `config_list`, `config_set`, `config_get`, `config_reset`
+- 🔵 **Lighting Extended (Batch 9):** `light_place`, `light_list`, `light_set`, `sky_set_time`
+- 🔵 **World State (Batch 9):** `world_state_export`, `device_catalog_scan`
 
 ---
 
 ## What the Tests Actually Prove (and Don't)
 
-**What the smoke test (171/171) proves:**
-- All 31 modules import and register without errors
-- All 171 tools register into the registry with valid metadata
-- 9 "safe" tools execute end-to-end and return correct results
-- MCP bridge, PySide6, and Verse Book infrastructure all functional
+**What the smoke test proves:**
+- All modules import and register without errors
+- All 246 tools register into the registry with valid metadata
+- Safe tools execute end-to-end and return correct results
+- MCP bridge, PySide6, and Verse infrastructure all functional
 
 **What the API Capability Crawler proves:**
-- Read-only introspection works on live actors (41 actors → 12 classes verified)
+- Read-only introspection works on live actors
 - Property maps, method lists, and component hierarchies are accessible
 - JSON output is valid and machine-readable for AI analysis
 
-**What the automated integration test (103/103) proves:**
+**What the automated integration test (103 live sections + 12 pending) proves:**
 - **Viewport Control:** The system can successfully spawn, select, and destroy actors programmatically.
 - **Context-Aware Tools:** Selection-dependent tools (Bulk Ops, Materials) are confirmed to function on live actors.
 - **File System Integrity:** Screenshots, Snapshots, and Crawler JSONs are successfully written/read.
-- **Automation Parity:** 95% of the manual testing burden is now eliminated. If this test passes, you have total confidence that the core tool logic is sound.
-- **Phase 14 Breakthrough:** Previously, the Toolbelt was limited to what it could "see" in the viewport. Phase 14 introduces **"External IQ"** — the ability to parse Verse source code and monitor the UEFN build system directly. This bridges the gap between the editor and the filesystem.
+- **Automation Parity:** The vast majority of manual testing burden is eliminated. If this test passes, you have high confidence that core tool logic is sound.
 
 **What still requires manual testing:**
-- **Visual Fidelity:** While the test confirms a material *changed*, only a human can verify it looks "correct" for the user's intent.
-- **Complex Hierarchies:** Tools that depend on deeply nested Fortnite-specific components (like certain Arena generators) still benefit from manual oversight.
+- **Visual Fidelity:** While the test confirms a material *changed*, only a human can verify it looks "correct".
+- **Complex Hierarchies:** Tools that depend on deeply nested Fortnite-specific components.
 - **User Experience:** The "feel" of tool interactions and UI responsiveness.
 
 > [!IMPORTANT]
-> The `toolbelt_integration_test` (103/103 sections) is the single most important tool for ensuring the project remains stable as we add more features. **Always run this test before submitting a Pull Request.**
+> The `toolbelt_integration_test` is the single most important tool for ensuring the project remains stable as we add more features. **Always run this test before submitting a Pull Request.**
+>
+> To run Batch 9 tests live: `tb.run("toolbelt_integration_test")` — look for the zone, stamp, actor_org, proximity, advanced_alignment, sign, postprocess, audio, level_health, config, lighting, and world_state sections in the output.
+
+---
 
 ## 🗺️ Automation Roadmap
-The 100% target requires move coverage in these upcoming batches:
 
-### **Batch 3: Advanced Viewport Logic (Target: 35+ Tools)**
-- [x] **Scatter Tools**: `scatter_props` & `scatter_hism` (Verify actor counts in radius)
-- [x] **Spline Tools**: `spline_place_props` (Verify actors follow spline path)
-- [x] **Asset Tools**: `rename_dry_run` (Verify string manipulation)
-- [x] **Optimization**: `memory_scan` (Verify JSON report generation)
+### **Batch 3–8: Core Foundation (COMPLETE — 103 sections)**
+All materials, bulk ops, patterns, scatter, splines, snapshots, crawler, assets, optimization, reference auditor, project structure, text, tagger, Verse, screenshot, LOD, arena, measurement, localization, and MCP bridge.
 
-### **Batch 4: Asset Management & Memory (Target: 45+ Tools)**
-- [x] **Asset Reparenting/Renaming**: `rename_report`, `rename_enforce_conventions`, `rename_strip_prefix`
-- [x] **Memory & LODs**: `memory_scan_textures`, `memory_scan_meshes`, `memory_top_offenders`, `memory_autofix_lods`
-- [x] **Procedural Advanced**: `pattern_spiral`, `pattern_wave`
-- [x] **API Capability**: `api_crawl_selection`
+### **Batch 9: v1.6.0+ Expansion (115 sections written — pending live run)**
+- [ ] **Zone Tools**: `zone_spawn`, `zone_list`, `zone_select_contents`, `zone_snap_to_selection`, `zone_fill_scatter`
+- [ ] **Stamp Tools**: `stamp_save`, `stamp_place`, `stamp_list`, `stamp_info`, `stamp_delete`, `stamp_export`, `stamp_import`
+- [ ] **Actor Org**: `actor_move_to_folder`, `actor_folder_list`, `actor_select_by_folder`, `actor_select_by_class`, `actor_match_transform`, `actor_move_to_root`, `actor_attach_to_parent`, `actor_detach`
+- [ ] **Proximity Placement**: `actor_place_next_to`, `actor_chain_place`, `actor_duplicate_offset`, `actor_copy_to_positions`, `actor_cluster_to_folder`, `actor_replace_class`
+- [ ] **Advanced Alignment**: `align_to_reference`, `distribute_with_gap`, `rotate_around_pivot`, `match_spacing`, `align_to_surface`, `align_to_grid_two_points`
+- [ ] **Sign Tools**: `sign_spawn_bulk`, `sign_list`, `sign_batch_edit`, `sign_batch_rename`, `sign_batch_set_text`, `label_attach`, `sign_clear`
+- [ ] **Post-Process & World**: `postprocess_spawn`, `postprocess_set`, `postprocess_preset`, `world_settings_set`
+- [ ] **Audio**: `audio_place`, `audio_list`, `audio_set_volume`, `audio_set_radius`
+- [ ] **Level Health**: `level_health_report`, `rogue_actor_scan`
+- [ ] **Config**: `config_list`, `config_set`, `config_get`, `config_reset`
+- [ ] **Lighting Extended**: `light_place`, `light_list`, `light_set`, `sky_set_time`
+- [ ] **World State**: `world_state_export`, `device_catalog_scan`
 
-### **Batch 8: Platform & Bridge (Target: 123 Tools - COMPLETE)**
-- [x] **LOD Architecture**: `lod_auto_generate_folder`, `lod_audit_folder`
-- [x] **Optimization Suite**: `memory_scan_textures`, `memory_scan_meshes`, `memory_top_offenders`
-- [x] **Arena Generator**: `arena_generate` (Symmetrical verification)
-- [x] **Smart Importer**: `organize_assets`, `rename_enforce_conventions`
-- [x] **Bridge Protocol**: `mcp_start`, `mcp_stop`
+**To complete Batch 9:** run `tb.run("toolbelt_integration_test")` in UEFN on a clean template level. Mark each section above with `[x]` after confirming it passes.
 
-### **Batch 13: External Absorption Mastery (Target: 132 Tools - COMPLETE)**
-- [x] **Native Importers**: `import_image_from_url`, `import_image_from_clipboard`
-- [x] **Procedural Geo**: `procedural_wire_create`, `procedural_volume_scatter`
-- [x] **Gen-Text Voxel**: `text_voxelize_3d`, `text_render_texture`
-
-### **Batch 14: Advanced Project Parsing (Target: 138 Tools - COMPLETE)**
-- [x] **Verse Intelligence**: `api_verse_get_schema`, `api_verse_refresh_schemas`
-- [x] **System Diagnostics**: `system_build_verse`, `system_get_last_build_log`
-- [x] **Safety Intelligence**: `core_safety_audit` (Native Protection Layer)
-- [x] **Milestone**: 138 Registered Tools
-
-### **Batch 20: AI-Agent Readiness (Target: 171 Tools - COMPLETE)**
-- [x] **Tool Manifest**: `plugin_export_manifest` — writes `tool_manifest.json` with full parameter signatures for all 171 tools; every AI agent and automation script can now discover and call tools without reading source code
-- [x] **Structured Returns**: 25+ tools across `verse_device_editor`, `level_snapshot`, `selection_utils`, `asset_tagger`, `screenshot_tools` now return `{"status", "count", "data"}` dicts; MCP callers read results directly
-- [x] **Schema-Driven Discovery**: `schema_utils.discover_properties()` and `list_classes()` added; `verse_device_editor` property reader replaced hardcoded list with live schema lookup
-- [x] **Registry `to_manifest()`**: Introspects every tool's `inspect.signature()` at export time; captures type annotations, required/optional, and defaults
-- [x] **Milestone**: 171 Registered Tools, 103/103 integration tests passing, full MCP return loop verified end-to-end
-
-### **Batch 21: Complete AI Return Loop (COMPLETE)**
-- [x] **100% Structured Dict Returns**: All remaining `-> None` and primitive-return tools converted. Every `@register_tool` function across all 23 modules now returns `{"status": "ok"/"error", ...data...}`. Zero exceptions remain.
-  - `spline_prop_placer` (2 tools), `text_painter` (7 tools), `smart_organizer` (1), `localization_tools` (2), `foliage_converter` (2), `sequencer_tools` (2), `lighting_mastery` (2), `verse_schema` (2), `system_build` (1), `asset_renamer` (4), `arena_generator` (1)
-- [x] **`describe_tool` MCP Command**: Returns a single tool's full manifest entry by name — no need to load the full `tool_manifest.json`. Ideal for AI agents building dynamic workflows.
-- [x] **Internal Caller Safety**: `run_measure_travel_time` and `run_enforce_conventions(dry_run=True)` updated to handle the new dict returns from their internal callees.
-- [x] **Type annotation cleanup**: All `-> list[str]`, `-> int`, `-> bool`, `-> str`, `-> Optional[unreal.TextRenderActor]` return annotations on registered tools replaced with `-> dict`.
-- [x] **Milestone**: 171 tools, 23 modules, 0 `None` returns — full AI-agent readiness achieved
-
-> **Future potential:** In theory, an automated integration test could use the crawler data to generate validation scripts — spawn actors, apply tool operations, then verify properties changed. That level of automation isn't built yet, but the crawler output provides the schema needed to build it.
+### **Batch 20–21: AI-Agent Readiness (COMPLETE)**
+- [x] **Tool Manifest**: `plugin_export_manifest` — full parameter signatures for all tools
+- [x] **Structured Returns**: 100% `{"status": "ok"/"error", ...}` — zero `None` returns
+- [x] **`describe_tool` MCP Command**: Per-tool manifest lookup
+- [x] **Milestone**: All registered tools AI-agent ready
 
 ---
 
@@ -240,7 +319,8 @@ The 100% target requires move coverage in these upcoming batches:
 
 If you are contributing a new tool or modifying an existing one:
 
-1.  **If it's a "Safe Tool"**: Please ensure it handles empty states gracefully (e.g., if there are no snapshots, `snapshot_list` should just print "0 snapshots" and exit cleanly). You can add it to the execution list in `tests/smoke_test.py`.
-2.  **If it requires context**: You must manually verify the tool in a throwaway UEFN project before submitting a PR.
-3.  **Always run `smoke_test.py`** before committing to ensure you haven't broken the registry or layer imports.
-
+1. **Check existing tools first** — run the fast grep from `CONTRIBUTING.md` Step 1 before writing anything new. The biggest category of waste is building what already exists.
+2. **If it's a "Safe Tool"**: Ensure it handles empty states gracefully. Add it to the smoke_test execution list and to the Layer 3 table above.
+3. **If it requires context**: Manually verify in a throwaway UEFN project before submitting a PR. Add a row to the appropriate 🟡/🟠/🔴 table above.
+4. **Always run `smoke_test.py`** before committing to ensure you haven't broken the registry or layer imports.
+5. **Update this file** when adding tools — tool count, coverage percentage, and the appropriate verification table. This doc is the authoritative source of truth for what's tested and what isn't.

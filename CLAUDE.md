@@ -48,6 +48,10 @@ Ask the user to run the appropriate bundle below. Syntax passing ≠ working in 
 > It can cause `EXCEPTION_ACCESS_VIOLATION` as stale C++ callbacks fire against freed Python objects.
 > **Use a full UEFN restart instead** when first introducing a new tool module.
 > Nuclear reload is safe for iterating on existing tools. See `docs/UEFN_QUIRKS.md` Quirk #26.
+>
+> 🔁 **Nuclear reload fixes code. Hard restart fixes state.**
+> After a crash, a project switch, or a `Shiboken` abort — close UEFN completely and reopen.
+> `tb` is undefined after switching projects; always import fresh after a restart. See Quirk #27.
 
 ```python
 import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
@@ -346,7 +350,13 @@ for t in tb.registry.list_tools():
     print(f"{t['category']:20s} {t['name']}")
 
 ### **The "Nuclear Reload" Command**
-If you have modified the Toolbelt source code, run this in the UEFN console to refresh everything without a restart:
+If you have modified the Toolbelt source code, run this in the UEFN console to refresh everything without a restart.
+
+> **When does `tb` already exist vs. when do you need to import?**
+> - Same project, same session → `tb` is already defined; nuclear reload refreshes it
+> - Switched to a different project → Python environment resets; `tb` is gone — run the full import line
+> - Fresh UEFN launch → always import first
+> - Rule of thumb: `NameError: name 'tb' is not defined` → run the full reload line below
 
 ```python
 # Standard — reload + open dashboard
@@ -675,6 +685,8 @@ Stamps are for level layout: cookie-cut a prop cluster and re-stamp it 10× acro
 | `stamp_list` | — | List all saved stamps with actor counts |
 | `stamp_info` | `name` | Print actor names, mesh paths, and relative offsets |
 | `stamp_delete` | `name` | Delete a saved stamp |
+| `stamp_export` | `name`, `output_path=""` | Export a stamp to a portable JSON file — defaults to `~/Desktop/stamps/{name}.json`. Share with other creators. |
+| `stamp_import` | `file_path`, `name_override=""`, `overwrite=False` | Import a stamp from a JSON file into your local library. Works across projects. |
 
 ```python
 # Save selected actors as "guard_post"
@@ -1171,5 +1183,6 @@ tb.run("scatter_props", ...)   # N actors
 | `docs/CHANGELOG.md` | Version history — all notable changes by release. |
 | `docs/plugin_dev_guide.md` | Plugin authorship guide — security model, audit format, version stamp |
 | `tests/smoke_test.py` | 5-layer health check — run `tb.smoke_test()` |
+| `TOOL_STATUS.md` | **Authoritative test coverage doc.** Tool count, per-tool verification status (🟡/🟠/🔴), integration test batch history, disabled tools, and roadmap. Always update when adding tools. AI agents should check this before assuming a tool is tested. |
 | `Saved/UEFN_Toolbelt/plugin_audit.json` | Security audit of all loaded custom plugins — includes `toolbelt_version`, SHA-256 hashes, timestamps |
 | `Saved/UEFN_Toolbelt/` | All tool outputs (screenshots, snapshots, stubs, exports) |

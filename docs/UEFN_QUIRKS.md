@@ -830,3 +830,52 @@ Nuclear reload works reliably for existing modules because: the same module-leve
 are re-created with the same IDs, and Unreal's C++ side re-registers them without
 accumulating stale handles. The hazard window is only during the gap between `sys.modules.pop`
 (Python objects freed) and the re-import (new objects registered).
+
+---
+
+## 27. Hard UEFN Restart Clears Stale State That Nuclear Reload Cannot (Discovered: March 2026)
+
+### The Problem
+
+Nuclear reload (`sys.modules.pop`) refreshes Python module code but **does not reset UEFN's internal C++ state**. After a crash, a project switch, or a series of failed hot-reloads, the engine can accumulate:
+
+- Stale C++ object references pointing at freed Python objects
+- Partially-registered Slate tick callbacks from a previous session
+- Cached module-level globals that survived the `sys.modules` purge (e.g. class objects held by `Shiboken` or `unreal` internals)
+- Actor/subsystem handles from a previous level that are no longer valid
+
+These stale states can cause:
+- `Abort signal received` crashes with a deep `python311` + `Shiboken` stack (no clear error message)
+- Tools silently returning stale data from a previous project
+- Nuclear reload appearing to succeed but tests still running old code
+- `NameError: name 'tb' is not defined` after switching projects (Python environment was reset)
+
+### The Fix
+
+**When in doubt, do a hard UEFN restart.** This is the single most reliable debug step:
+
+1. Close UEFN completely (File → Exit, or kill the process)
+2. Reopen UEFN and load your project
+3. Import fresh — do NOT use nuclear reload after a restart:
+
+```python
+import UEFN_Toolbelt as tb; tb.register_all_tools()
+```
+
+### When to Hard Restart (not just nuclear reload)
+
+| Situation | Use |
+|---|---|
+| Added a new `.py` module to `tools/` | Hard restart (Quirk #26) |
+| Switched to a different UEFN project | Hard restart (`tb` is undefined) |
+| Editor crashed or aborted mid-run | Hard restart (stale C++ state) |
+| Nuclear reload ran but old code is still executing | Hard restart |
+| `Shiboken` in crash stack | Hard restart |
+| Changed `init_unreal.py` | Hard restart |
+| Iterating on an existing tool | Nuclear reload is fine |
+
+### Rule of Thumb
+
+> Nuclear reload fixes **code**. Hard restart fixes **state**.
+> If nuclear reload isn't working, the problem is state — restart UEFN.
+

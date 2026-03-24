@@ -29,12 +29,6 @@ from UEFN_Toolbelt.registry import register_tool
     description="Generate a Verse checkpoint/progression system — sequential triggers, "
                 "per-player progress, win condition. For racing, tutorial, and obstacle maps.",
     tags=["verse", "codegen", "checkpoint", "progression", "racing", "community"],
-    parameters={
-        "device_name":       {"type": "str",  "required": False, "default": "CheckpointManager", "description": "Class name for the generated device"},
-        "checkpoint_count":  {"type": "int",  "required": False, "default": 5,                  "description": "Number of @editable checkpoint slots to generate"},
-        "reset_on_elim":     {"type": "bool", "required": False, "default": True,               "description": "Reset player progress when they are eliminated"},
-        "write_to_snippets": {"type": "bool", "required": False, "default": True,               "description": "Save to Saved/UEFN_Toolbelt/snippets/custom/"},
-    },
 )
 def verse_gen_checkpoint(device_name: str = "CheckpointManager",
                           checkpoint_count: int = 5,

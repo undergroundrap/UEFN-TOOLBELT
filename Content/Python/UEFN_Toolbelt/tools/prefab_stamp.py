@@ -394,3 +394,71 @@ def stamp_delete(
     os.remove(fp)
     log_info(f"[STAMP] Deleted stamp '{name}'")
     return {"status": "ok", "deleted": name}
+
+
+@register_tool(
+    name="stamp_export",
+    category="Stamps",
+    description="Export a saved stamp to a portable JSON file so it can be shared or imported into another project.",
+    tags=["stamp", "export", "share", "portable"],
+)
+def stamp_export(name: str = "", output_path: str = "", **kwargs) -> dict:
+    if not name:
+        return {"status": "error", "message": "name is required."}
+
+    src = _stamp_path(name)
+    if not os.path.exists(src):
+        return {"status": "error", "message": f"No stamp named '{name}' found."}
+
+    if not output_path:
+        desktop = os.path.join(os.path.expanduser("~"), "Desktop", "stamps")
+        os.makedirs(desktop, exist_ok=True)
+        safe = "".join(c for c in name if c.isalnum() or c in "_- ").strip().replace(" ", "_")
+        output_path = os.path.join(desktop, f"{safe}.json")
+
+    import shutil
+    shutil.copy2(src, output_path)
+    log_info(f"[STAMP] Exported '{name}' → {output_path}")
+    return {"status": "ok", "name": name, "output_path": output_path}
+
+
+@register_tool(
+    name="stamp_import",
+    category="Stamps",
+    description="Import a stamp from a portable JSON file (e.g. shared by another creator). Adds it to your local stamp library.",
+    tags=["stamp", "import", "share", "portable"],
+)
+def stamp_import(file_path: str = "", name_override: str = "",
+                 overwrite: bool = False, **kwargs) -> dict:
+    if not file_path:
+        return {"status": "error", "message": "file_path is required."}
+    if not os.path.exists(file_path):
+        return {"status": "error", "message": f"File not found: {file_path}"}
+
+    with open(file_path, encoding="utf-8") as f:
+        try:
+            data = json.load(f)
+        except Exception as e:
+            return {"status": "error", "message": f"Invalid stamp JSON: {e}"}
+
+    # Validate minimal stamp structure
+    if "actors" not in data or "name" not in data:
+        return {"status": "error", "message": "File does not appear to be a valid stamp (missing 'name' or 'actors')."}
+
+    name = name_override.strip() or data.get("name", "imported_stamp")
+    if name_override:
+        data["name"] = name
+
+    dest = _stamp_path(name)
+    if os.path.exists(dest) and not overwrite:
+        return {
+            "status": "error",
+            "message": f"Stamp '{name}' already exists. Pass overwrite=True to replace it.",
+        }
+
+    with open(dest, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+    actor_count = data.get("actor_count", len(data.get("actors", [])))
+    log_info(f"[STAMP] Imported '{name}' ({actor_count} actors) from {file_path}")
+    return {"status": "ok", "name": name, "actor_count": actor_count, "path": dest}

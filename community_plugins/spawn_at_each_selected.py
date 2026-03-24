@@ -26,14 +26,6 @@ from UEFN_Toolbelt.registry import register_tool
     description="Stamp any asset at the position of every selected actor. "
                 "Useful for placing lights above props, markers at spawn pads, etc.",
     tags=["spawn", "stamp", "position", "batch", "community"],
-    parameters={
-        "asset_path": {"type": "str",   "required": True,  "default": "",    "description": "Content Browser path to the asset to stamp"},
-        "offset_x":   {"type": "float", "required": False, "default": 0.0,   "description": "X offset from each actor's position (cm)"},
-        "offset_y":   {"type": "float", "required": False, "default": 0.0,   "description": "Y offset from each actor's position (cm)"},
-        "offset_z":   {"type": "float", "required": False, "default": 0.0,   "description": "Z offset from each actor's position (cm)"},
-        "copy_rotation": {"type": "bool", "required": False, "default": False, "description": "Copy the source actor's rotation to each stamp"},
-        "folder":     {"type": "str",   "required": False, "default": "Stamps", "description": "World Outliner folder for spawned actors"},
-    },
 )
 def spawn_at_each_selected(asset_path: str = "", offset_x: float = 0.0,
                             offset_y: float = 0.0, offset_z: float = 0.0,

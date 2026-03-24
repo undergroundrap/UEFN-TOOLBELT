@@ -38,6 +38,12 @@ CLAUDE.md is auto-loaded by Claude Code — it gives you full codebase context, 
    Paste into UEFN Python console:
    import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("my_tool_name")
 
+   When does `tb` already exist vs. when do you need to import?
+   • Same project, same session → `tb` is already defined, nuclear reload refreshes it
+   • Switched to a different project → Python environment resets, `tb` is gone — run the full import above
+   • Fresh UEFN launch → same as above, always import first
+   • Rule of thumb: if you see `NameError: name 'tb' is not defined`, just run the full line above
+
    ⚠️ If you added a NEW module (new .py file): do a full UEFN restart instead of nuclear reload.
    Nuclear reload + new module = EXCEPTION_ACCESS_VIOLATION. See UEFN_QUIRKS.md Quirk #26.
 
@@ -83,19 +89,16 @@ def my_tool(**kwargs) -> dict:
 | No `subprocess`, `socket`, `ctypes`, or network imports | Blocked by the plugin security scanner |
 
 ### Parameter declaration (for manifest + dashboard)
+Parameters are declared via **Python default values** — `plugin_export_manifest` reads them with `inspect.signature()` at export time. Do not pass a `parameters=` dict to `@register_tool` — it is not a supported argument and will raise `TypeError`.
+
 ```python
 @register_tool(
     name="my_tool",
     category="My Category",
     description="Does the thing.",
     tags=["thing"],
-    parameters={
-        "count":  {"type": "int",   "required": False, "default": 10,  "description": "How many"},
-        "folder": {"type": "str",   "required": False, "default": "",   "description": "Output folder"},
-        "dry_run":{"type": "bool",  "required": False, "default": True, "description": "Preview only"},
-    }
 )
-def my_tool(count=10, folder="", dry_run=True, **kwargs) -> dict:
+def my_tool(count: int = 10, folder: str = "", dry_run: bool = True, **kwargs) -> dict:
     ...
 ```
 
@@ -111,6 +114,7 @@ def my_tool(count=10, folder="", dry_run=True, **kwargs) -> dict:
 | **#24 — Async Screenshot Deadlock** | `take_high_res_screenshot` is queued. File won't appear while Python is running. Trigger and exit — file lands ~1 second after console returns. |
 | **#25 — Slate Tick Required** | Long-running Python blocks the editor UI. Use `register_slate_pre_tick_callback` for deferred work. |
 | **#26 — Nuclear Reload + New Module = Crash** | `sys.modules.pop` frees Python objects while stale C++ callbacks still point at them. Adding a new `.py` file to tools? **Full UEFN restart**, not nuclear reload. |
+| **#27 — Hard Restart Clears State Nuclear Reload Cannot** | Nuclear reload fixes **code**. Hard restart fixes **state**. After a crash, project switch, or `Shiboken` abort — close UEFN completely and reopen. `tb` is undefined after switching projects; always import fresh. |
 
 Full details: `docs/UEFN_QUIRKS.md`
 
