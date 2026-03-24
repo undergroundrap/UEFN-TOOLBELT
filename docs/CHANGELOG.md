@@ -5,6 +5,29 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [1.8.2] — 2026-03-23
+
+### feat: verse device graph — blueprint-style grouped layout + comment boxes
+
+**Grouped layout (default on SCAN):**
+- Nodes now arranged in labelled category columns instead of the previous scattered circle
+- Categories sorted by size (largest first), then alphabetically — related devices stay together
+- Coloured header labels above each column match the node accent colour
+- Multi-column overflow when a category exceeds 10 nodes
+- Re-Layout button still runs animated Fruchterman-Reingold physics for freeform exploration
+
+**Comment / note boxes (+ Note button):**
+- Draggable, resizable annotation boxes — Blueprint-style, sit behind all nodes (z = −2)
+- Semi-transparent coloured fill with a tinted header bar
+- Double-click **header** → rename title (`QInputDialog.getText`)
+- Double-click **body** → multi-line note content (`QInputDialog.getMultiLineText`)
+- Body shows `"double-click to add notes…"` hint when empty; wraps text automatically
+- Right-click context menu: 7 colour presets + Delete
+- Resize by dragging the bottom-right corner handle
+- Survive every scene rebuild (live sync, re-scan) via `to_dict()` snapshot in `_rebuild_scene`
+
+---
+
 ## [1.8.1] — 2026-03-23
 
 ### feat: verse device graph — write-back, wiring codegen, search + physics fixes
