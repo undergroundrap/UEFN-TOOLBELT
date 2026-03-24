@@ -64,7 +64,8 @@ try:
         QApplication, QWidget, QVBoxLayout, QHBoxLayout,
         QSplitter, QPushButton, QLabel, QLineEdit, QTextEdit, QScrollArea,
         QFrame, QFileDialog, QGraphicsView, QGraphicsScene,
-        QGraphicsItem, QGraphicsObject,
+        QGraphicsItem, QGraphicsObject, QGraphicsTextItem,
+        QInputDialog, QMenu,
     )
     from PySide6.QtCore import Qt, QTimer, QRectF, QPointF, Signal
     from PySide6.QtGui import (
@@ -852,9 +853,19 @@ if _PYSIDE6:
             p.setRenderHint(QPainter.Antialiasing)
 
             # Glow
-            if sel or self._hovered:
-                gc = QColor(col)
-                gc.setAlpha(55 if sel else 28)
+            accent = _P["accent"]
+            if sel:
+                # Large bright accent glow when selected
+                glow = QRadialGradient(w / 2, h / 2, w * 1.1)
+                gc = QColor(accent); gc.setAlpha(110)
+                ge = QColor(accent); ge.setAlpha(0)
+                glow.setColorAt(0, gc)
+                glow.setColorAt(1, ge)
+                p.setBrush(QBrush(glow))
+                p.setPen(Qt.NoPen)
+                p.drawRoundedRect(-20, -20, w + 40, h + 40, r + 20, r + 20)
+            elif self._hovered:
+                gc = QColor(col); gc.setAlpha(28)
                 glow = QRadialGradient(w / 2, h / 2, w * 0.75)
                 glow.setColorAt(0, gc)
                 glow.setColorAt(1, QColor(0, 0, 0, 0))
@@ -867,14 +878,29 @@ if _PYSIDE6:
             p.setPen(Qt.NoPen)
             p.drawRoundedRect(3, 4, w, h, r, r)
 
-            # Body gradient — dashboard card colors
+            # Body gradient — slightly brighter when selected
             grad = QLinearGradient(0, 0, 0, h)
-            grad.setColorAt(0, QColor("#242424"))
-            grad.setColorAt(1, QColor("#1A1A1A"))
+            grad.setColorAt(0, QColor("#2E2E2E") if sel else QColor("#242424"))
+            grad.setColorAt(1, QColor("#1E1E1E") if sel else QColor("#1A1A1A"))
             p.setBrush(QBrush(grad))
-            outline = col if sel else (QColor("#FFFFFF") if self._hovered else QColor("#363636"))
-            p.setPen(QPen(outline, 1.5 if sel else 1.0))
+            if sel:
+                outline = accent
+                pen_w   = 2.5
+            elif self._hovered:
+                outline = QColor("#FFFFFF")
+                pen_w   = 1.0
+            else:
+                outline = QColor("#363636")
+                pen_w   = 1.0
+            p.setPen(QPen(outline, pen_w))
             p.drawRoundedRect(0, 0, w, h, r, r)
+
+            # Extra inner accent ring when selected
+            if sel:
+                inner = QColor(accent); inner.setAlpha(60)
+                p.setPen(QPen(inner, 1.0))
+                p.setBrush(Qt.NoBrush)
+                p.drawRoundedRect(3, 3, w - 6, h - 6, r - 1, r - 1)
 
             # Left accent bar (rounded left edge)
             bar = QPainterPath()
@@ -1000,6 +1026,175 @@ if _PYSIDE6:
             p.setFont(QFont("Segoe UI", 6))
             p.drawText(QRectF(mid.x() + 4, mid.y() - 9, 90, 12),
                        Qt.AlignLeft | Qt.AlignVCenter, self.data.label)
+
+    # ── Comment box (Blueprint-style annotation) ──────────────────────────────
+
+    class _CommentBox(QGraphicsObject):
+        """Draggable, resizable, editable note box — Blueprint-style annotation."""
+        deleted = Signal(object)
+
+        _COLORS = [
+            ("#FFD54F", "Yellow"),
+            ("#EF9A9A", "Red"),
+            ("#A5D6A7", "Green"),
+            ("#90CAF9", "Blue"),
+            ("#CE93D8", "Purple"),
+            ("#80DEEA", "Cyan"),
+            ("#FFCC80", "Orange"),
+        ]
+        _HANDLE = 14
+
+        _HDR_H = 28   # header bar height
+
+        def __init__(self, x: float = 0, y: float = 0,
+                     w: float = 300, h: float = 160,
+                     title: str = "Note", body: str = "",
+                     color: str = "#FFD54F") -> None:
+            super().__init__()
+            self._w     = float(w)
+            self._h     = float(h)
+            self._title = title
+            self._body  = body
+            self._color = color
+            self._resizing      = False
+            self._resize_start  = None
+            self._resize_orig   = None
+            self.setFlag(QGraphicsItem.ItemIsMovable, True)
+            self.setFlag(QGraphicsItem.ItemIsSelectable, True)
+            self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True)
+            self.setAcceptHoverEvents(True)
+            self.setZValue(-2)
+            self.setPos(x, y)
+
+        def boundingRect(self) -> QRectF:
+            return QRectF(-2, -2, self._w + 4, self._h + 4)
+
+        def paint(self, p: QPainter, *_) -> None:
+            p.setRenderHint(QPainter.Antialiasing)
+            col = QColor(self._color)
+            hdr = self._HDR_H
+
+            # Semi-transparent background
+            fill = QColor(col); fill.setAlpha(22)
+            p.setBrush(QBrush(fill))
+            border = QColor(col); border.setAlpha(140)
+            p.setPen(QPen(border, 1.5))
+            p.drawRoundedRect(0, 0, self._w, self._h, 7, 7)
+
+            # Header bar
+            hdr_fill = QColor(col); hdr_fill.setAlpha(65)
+            p.setBrush(QBrush(hdr_fill))
+            p.setPen(Qt.NoPen)
+            path = QPainterPath()
+            path.addRoundedRect(0, 0, self._w, hdr, 7, 7)
+            path.addRect(0, hdr // 2, self._w, hdr // 2)
+            p.drawPath(path)
+
+            # Title
+            p.setPen(QPen(QColor("#111111")))
+            p.setFont(QFont("Segoe UI", 9, QFont.Bold))
+            p.drawText(QRectF(8, 4, self._w - 16, hdr - 4),
+                       Qt.AlignVCenter | Qt.AlignLeft, self._title)
+
+            # Body text (hint if empty)
+            body_rect = QRectF(8, hdr + 6, self._w - 16, self._h - hdr - 20)
+            if self._body:
+                p.setPen(QPen(QColor("#DDDDDD")))
+                p.setFont(QFont("Segoe UI", 8))
+                p.drawText(body_rect, Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap,
+                           self._body)
+            else:
+                p.setPen(QPen(QColor("#555555")))
+                p.setFont(QFont("Segoe UI", 8))
+                p.drawText(body_rect, Qt.AlignLeft | Qt.AlignTop,
+                           "double-click to add notes…")
+
+            # Resize handle (bottom-right)
+            rh = self._HANDLE
+            hc = QColor(col); hc.setAlpha(110)
+            p.setBrush(QBrush(hc))
+            p.setPen(Qt.NoPen)
+            p.drawRect(self._w - rh, self._h - rh, rh, rh)
+            line_c = QColor(col).darker(160)
+            p.setPen(QPen(line_c, 1.0))
+            for i in range(3):
+                off = 3 + i * 3
+                p.drawLine(int(self._w - rh + off), int(self._h),
+                           int(self._w),            int(self._h - rh + off))
+
+        def _in_resize(self, pos: QPointF) -> bool:
+            rh = self._HANDLE
+            return (self._w - rh <= pos.x() <= self._w + 2 and
+                    self._h - rh <= pos.y() <= self._h + 2)
+
+        def _in_header(self, pos: QPointF) -> bool:
+            return pos.y() <= self._HDR_H
+
+        def mousePressEvent(self, e) -> None:
+            if e.button() == Qt.LeftButton and self._in_resize(e.pos()):
+                self._resizing     = True
+                self._resize_start = e.scenePos()
+                self._resize_orig  = (self._w, self._h)
+                e.accept()
+            else:
+                super().mousePressEvent(e)
+
+        def mouseMoveEvent(self, e) -> None:
+            if self._resizing and self._resize_start is not None:
+                d  = e.scenePos() - self._resize_start
+                nw = max(180.0, self._resize_orig[0] + d.x())
+                nh = max(90.0,  self._resize_orig[1] + d.y())
+                self.prepareGeometryChange()
+                self._w = nw
+                self._h = nh
+                self.update()
+                e.accept()
+            else:
+                super().mouseMoveEvent(e)
+
+        def mouseReleaseEvent(self, e) -> None:
+            self._resizing = False
+            super().mouseReleaseEvent(e)
+
+        def mouseDoubleClickEvent(self, e) -> None:
+            if self._in_header(e.pos()):
+                # Double-click header → edit title
+                text, ok = QInputDialog.getText(
+                    None, "Edit Title", "Note title:", text=self._title)
+                if ok:
+                    self._title = text
+                    self.update()
+            else:
+                # Double-click body → edit note content
+                text, ok = QInputDialog.getMultiLineText(
+                    None, "Edit Note", "Note content:", text=self._body)
+                if ok:
+                    self._body = text
+                    self.update()
+
+        def contextMenuEvent(self, e) -> None:
+            menu = QMenu()
+            color_acts = []
+            for hex_col, name in self._COLORS:
+                act = menu.addAction(name)
+                act.setData(hex_col)
+                color_acts.append(act)
+            menu.addSeparator()
+            del_act = menu.addAction("Delete Note")
+            chosen = menu.exec(e.screenPos())
+            if chosen is del_act:
+                self.deleted.emit(self)
+            elif chosen and chosen in color_acts:
+                self._color = chosen.data()
+                self.update()
+
+        def to_dict(self) -> dict:
+            return {
+                "x": self.x(), "y": self.y(),
+                "w": self._w,  "h": self._h,
+                "title": self._title, "body": self._body,
+                "color": self._color,
+            }
 
     # ── Canvas view ───────────────────────────────────────────────────────────
 
@@ -1233,6 +1428,13 @@ if _PYSIDE6:
             self._edge_items:  List[_EdgeItem]      = []
             self._selected:    Optional[DeviceNode]  = None
             self._health_score = 0
+            self._comment_items:    List[_CommentBox]       = []
+            self._cat_header_items: List[QGraphicsTextItem] = []
+
+            # Live sync state
+            self._live_sync   = False
+            self._live_timer: Optional[QTimer] = None
+            self._actor_fingerprint = ""
 
             # Layout animation state
             self._ltimer:  Optional[QTimer] = None
@@ -1246,6 +1448,12 @@ if _PYSIDE6:
             self._l_vh = 800.0
 
             self._build_ui()
+
+            # Viewport → graph selection sync (polls every 800ms, always on)
+            self._sel_timer = QTimer(self)
+            self._sel_timer.setInterval(500)
+            self._sel_timer.timeout.connect(self._check_viewport_selection)
+            self._sel_timer.start()
 
         # ── UI ────────────────────────────────────────────────────────────
 
@@ -1280,6 +1488,11 @@ if _PYSIDE6:
             bl.addWidget(_btn("Re-Layout", cb=self._do_relayout))
             bl.addWidget(_btn("Export JSON", cb=self._do_export))
             bl.addWidget(_btn("Gen Wiring", cb=self._do_generate_wiring))
+            bl.addWidget(_btn("+ Note", cb=self._add_comment))
+
+            self._live_btn = _btn("● Live", cb=self._toggle_live)
+            self._live_btn.setToolTip("Auto-refresh graph when level changes (polls every 4s)")
+            bl.addWidget(self._live_btn)
             bl.addSpacing(16)
 
             lbl_path = QLabel("Path:")
@@ -1345,14 +1558,39 @@ if _PYSIDE6:
             self._status.setText("Scanning…")
             QApplication.processEvents()
             try:
-                path        = self._path_edit.text().strip()
+                path = self._path_edit.text().strip()
+
+                # Auto-detect Verse path if field is empty
+                if not path:
+                    try:
+                        from .verse_snippet_generator import (
+                            _find_uefn_project_root,
+                        )
+                        root     = _find_uefn_project_root()
+                        cfg_path = get_config().get("verse.project_path", "")
+                        candidates = [
+                            cfg_path,
+                            os.path.join(root, "Verse"),
+                        ] + [
+                            os.path.join(root, e)
+                            for e in (os.listdir(root) if os.path.isdir(root) else [])
+                            if e.endswith(".verse")
+                        ]
+                        for c in candidates:
+                            if c and os.path.isdir(c):
+                                path = c
+                                self._path_edit.setText(path)
+                                break
+                    except Exception:
+                        pass
+
                 level_devs  = _scan_level()
                 verse_files = _find_verse_files(path)
                 verse_data  = [v for v in (_VerseParser.parse(vf) for vf in verse_files) if v]
                 self._graph = _GraphBuilder.build(level_devs, verse_data)
                 self._health_score = self._graph.health_score
                 self._rebuild_scene()
-                self._start_layout(animate=True)
+                self._grouped_layout()
                 self._paint_hbar()
                 nd = len(self._graph.nodes)
                 ne = len(self._graph.edges)
@@ -1450,6 +1688,209 @@ if _PYSIDE6:
                 self._panel.w_prop_status.setText(f"Error: {exc}")
                 self._status.setText(f"Write-back failed: {exc}")
 
+        # ── Comment boxes ─────────────────────────────────────────────────
+
+        def _add_comment(self) -> None:
+            """Spawn a new note box in the center of the current view."""
+            center = self._view.mapToScene(
+                self._view.viewport().rect().center()
+            )
+            box = _CommentBox(x=center.x() - 150, y=center.y() - 70)
+            box.deleted.connect(self._remove_comment)
+            self._scene.addItem(box)
+            self._comment_items.append(box)
+
+        def _remove_comment(self, box: "_CommentBox") -> None:
+            if box in self._comment_items:
+                self._comment_items.remove(box)
+            if box.scene():
+                self._scene.removeItem(box)
+
+        # ── Grouped layout ────────────────────────────────────────────────
+
+        def _grouped_layout(self) -> None:
+            """
+            Arrange nodes in labelled category columns — Blueprint-style.
+            Categories are sorted by size (largest first), each gets a header
+            label above its column, and nodes are stacked vertically within it.
+            Re-Layout still uses force-directed physics for freeform exploration.
+            """
+            if not self._graph:
+                return
+
+            # Group by category
+            from collections import defaultdict
+            groups: Dict[str, List[DeviceNode]] = defaultdict(list)
+            for nd in self._graph.nodes:
+                groups[nd.category].append(nd)
+
+            # Sort: largest group first, then alphabetical
+            sorted_cats = sorted(groups.keys(), key=lambda c: (-len(groups[c]), c))
+
+            MAX_ROWS = 10
+            COL_W    = _NODE_W + 60   # horizontal column pitch
+            ROW_H    = _NODE_H + 26   # vertical node pitch
+            CAT_HDR  = 40             # space above first node for category label
+            PAD_X    = 60             # left margin
+            PAD_Y    = 80             # top margin
+
+            # Remove old category header text items
+            for item in self._cat_header_items:
+                if item.scene():
+                    self._scene.removeItem(item)
+            self._cat_header_items = []
+
+            col_x = PAD_X
+            for cat in sorted_cats:
+                nodes = groups[cat]
+                n_sub = math.ceil(len(nodes) / MAX_ROWS)
+
+                for sub in range(n_sub):
+                    sub_nodes = nodes[sub * MAX_ROWS:(sub + 1) * MAX_ROWS]
+                    cat_color = _CAT_COLORS.get(cat, "#888888")
+
+                    # Category header text
+                    hdr = QGraphicsTextItem()
+                    display = cat.upper() if sub == 0 else f"{cat.upper()} ({sub + 1})"
+                    hdr.setHtml(
+                        f'<span style="color:{cat_color}; '
+                        f'font-family:\'Segoe UI\'; font-size:10px; font-weight:600;">'
+                        f'{display}</span>'
+                    )
+                    hdr.setPos(col_x, PAD_Y - CAT_HDR)
+                    hdr.setZValue(-1)
+                    self._scene.addItem(hdr)
+                    self._cat_header_items.append(hdr)
+
+                    for row, nd in enumerate(sub_nodes):
+                        nd.x = float(col_x)
+                        nd.y = float(PAD_Y + row * ROW_H)
+                        item = self._node_items.get(nd.id)
+                        if item:
+                            item.setPos(nd.x, nd.y)
+
+                    col_x += COL_W
+
+                col_x += 30   # extra gap between category groups
+
+            self._scene.update()
+
+        # ── Live sync ─────────────────────────────────────────────────────
+
+        def closeEvent(self, event) -> None:
+            if self._live_timer:
+                self._live_timer.stop()
+            if self._sel_timer:
+                self._sel_timer.stop()
+            super().closeEvent(event)
+
+        def _toggle_live(self) -> None:
+            self._live_sync = not self._live_sync
+            if self._live_sync:
+                self._live_btn.setProperty("accent", "true")
+                self._live_btn.setStyle(self._live_btn.style())
+                self._live_timer = QTimer()
+                self._live_timer.timeout.connect(self._live_check)
+                self._live_timer.start(4000)
+                self._status.setText("● LIVE — watching for changes")
+                self._status.setStyleSheet(f"color:{self.hex('ok')}; font-size:11px;")
+                # Build initial fingerprint
+                self._actor_fingerprint = self._build_fingerprint()
+            else:
+                if self._live_timer:
+                    self._live_timer.stop()
+                    self._live_timer = None
+                self._live_btn.setProperty("accent", "false")
+                self._live_btn.setStyle(self._live_btn.style())
+                self._status.setStyleSheet(f"color:{self.hex('muted')}; font-size:11px;")
+                self._status.setText("Live sync off")
+
+        def _build_fingerprint(self) -> str:
+            """Lightweight level fingerprint — device actor count + sorted labels."""
+            try:
+                sub    = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+                actors = sub.get_all_level_actors()
+                labels = sorted(
+                    a.get_actor_label()
+                    for a in actors
+                    if any(kw in a.get_class().get_name() for kw in _DEV_KEYWORDS)
+                )
+                return f"{len(labels)}:{','.join(labels[:30])}"
+            except Exception:
+                return ""
+
+        def _live_check(self) -> None:
+            """Poll for level changes; resync graph if anything moved or was added/removed."""
+            if not self._live_sync:
+                return
+            fp = self._build_fingerprint()
+            if fp and fp != self._actor_fingerprint:
+                self._actor_fingerprint = fp
+                self._do_live_scan()
+
+        def _do_live_scan(self) -> None:
+            """Re-scan and update graph without disturbing existing node positions."""
+            # Cache current node positions from scene items
+            pos_cache: Dict[str, Tuple[float, float]] = {}
+            if self._graph:
+                for nd in self._graph.nodes:
+                    item = self._node_items.get(nd.id)
+                    pos_cache[nd.id] = (item.x(), item.y()) if item else (nd.x, nd.y)
+
+            try:
+                path       = self._path_edit.text().strip()
+                level_devs = _scan_level()
+                verse_files = _find_verse_files(path)
+                verse_data  = [v for v in (_VerseParser.parse(vf) for vf in verse_files) if v]
+                self._graph = _GraphBuilder.build(level_devs, verse_data)
+                self._health_score = self._graph.health_score
+
+                # Restore positions for known nodes; new nodes land near graph centroid
+                if pos_cache:
+                    cx = sum(x for x, _ in pos_cache.values()) / len(pos_cache)
+                    cy = sum(y for _, y in pos_cache.values()) / len(pos_cache)
+                else:
+                    cx, cy = 0.0, 0.0
+
+                for nd in self._graph.nodes:
+                    if nd.id in pos_cache:
+                        nd.x, nd.y = pos_cache[nd.id]
+                    else:
+                        nd.x = cx + random.uniform(-200, 200)
+                        nd.y = cy + random.uniform(-200, 200)
+
+                self._rebuild_scene()
+
+                # Place all nodes at their cached/assigned positions (no re-layout)
+                for nd in self._graph.nodes:
+                    item = self._node_items.get(nd.id)
+                    if item:
+                        item.setPos(nd.x, nd.y)
+
+                self._paint_hbar()
+
+                ndn  = len(self._graph.nodes)
+                nde  = len(self._graph.edges)
+                self._status.setText(
+                    f"● LIVE  {ndn} devices · {nde} connections · health {self._health_score}/100"
+                )
+                self._status.setStyleSheet(f"color:{self.hex('ok')}; font-size:11px;")
+
+                # Refresh side panel if selected node still exists
+                if self._selected:
+                    refreshed = next(
+                        (n for n in self._graph.nodes if n.id == self._selected.id), None
+                    )
+                    if refreshed:
+                        self._selected = refreshed
+                        self._panel.show_node(refreshed, self._health_score)
+                    else:
+                        self._selected = None
+                        self._panel.clear()
+
+            except Exception as exc:
+                self._status.setText(f"Live sync error: {exc}")
+
         def _on_node_clicked(self, nd: DeviceNode) -> None:
             self._selected = nd
             self._panel.show_node(nd, self._health_score)
@@ -1461,12 +1902,67 @@ if _PYSIDE6:
                 except Exception:
                     pass
 
+        def _check_viewport_selection(self) -> None:
+            """Sync graph highlight when user clicks an actor in the UEFN viewport."""
+            if not self._graph:
+                return
+            try:
+                sub      = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+                selected = sub.get_selected_level_actors()
+
+                # Viewport deselected — remove graph glow, keep panel content
+                if not selected:
+                    if self._scene.selectedItems():
+                        self._scene.clearSelection()
+                    return
+
+                actor = selected[0]
+
+                # Skip if already showing this node (we set it from a graph click)
+                if self._selected and self._selected.actor is not None:
+                    try:
+                        if self._selected.actor == actor:
+                            return
+                    except Exception:
+                        self._selected = None  # stale pointer — reset
+
+                # Find matching graph node
+                match = None
+                for nd in self._graph.nodes:
+                    if nd.actor is None:
+                        continue
+                    try:
+                        if nd.actor == actor:
+                            match = nd
+                            break
+                    except Exception:
+                        continue  # stale actor reference — skip
+
+                if match:
+                    self._selected = match
+                    self._panel.show_node(match, self._health_score)
+                    item = self._node_items.get(match.id)
+                    if item:
+                        self._scene.clearSelection()
+                        item.setSelected(True)
+                        self._view.centerOn(item)
+                else:
+                    # Non-graph actor selected — clear visual highlight, keep panel
+                    if self._scene.selectedItems():
+                        self._scene.clearSelection()
+            except Exception:
+                pass
+
         # ── Scene ─────────────────────────────────────────────────────────
 
         def _rebuild_scene(self) -> None:
+            # Snapshot comment boxes before clearing (scene.clear() destroys all items)
+            saved_comments = [b.to_dict() for b in self._comment_items]
+            self._cat_header_items.clear()
             self._scene.clear()
             self._node_items.clear()
             self._edge_items.clear()
+            self._comment_items.clear()
             if not self._graph:
                 return
 
@@ -1484,6 +1980,13 @@ if _PYSIDE6:
                     self._scene.addItem(eitem)
                     self._edge_items.append(eitem)
 
+            # Restore comment boxes — survive every rebuild (live sync, manual scan)
+            for d in saved_comments:
+                box = _CommentBox(**d)
+                box.deleted.connect(self._remove_comment)
+                self._scene.addItem(box)
+                self._comment_items.append(box)
+
         # ── Force layout (Fruchterman-Reingold, animated) ──────────────────
 
         def _start_layout(self, animate: bool = True) -> None:
@@ -1499,11 +2002,20 @@ if _PYSIDE6:
             nodes = self._graph.nodes
             edges = self._graph.edges
 
-            # Seed unplaced nodes with jittered positions
+            # Seed unplaced nodes — category-based circular placement so
+            # related devices start clustered and physics has a good starting point.
+            cats      = list({nd.category for nd in nodes})
+            n_cats    = max(len(cats), 1)
+            cat_idx   = {c: i for i, c in enumerate(cats)}
+            radius    = max(min(vw, vh) * 0.48, 600.0)
+
             for nd in nodes:
                 if nd.x == 0 and nd.y == 0:
-                    nd.x = vw / 2 + random.uniform(-vw * 0.35, vw * 0.35)
-                    nd.y = vh / 2 + random.uniform(-vh * 0.35, vh * 0.35)
+                    angle = (2 * math.pi * cat_idx.get(nd.category, 0) / n_cats
+                             + random.uniform(-0.4, 0.4))
+                    r     = radius * random.uniform(0.4, 1.0)
+                    nd.x  = vw / 2 + r * math.cos(angle)
+                    nd.y  = vh / 2 + r * math.sin(angle)
 
             TOTAL = 80
             self._l_step  = 0
