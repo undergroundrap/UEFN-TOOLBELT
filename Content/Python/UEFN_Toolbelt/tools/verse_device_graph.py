@@ -807,7 +807,9 @@ if _PYSIDE6:
     # ── NodeItem ──────────────────────────────────────────────────────────────
 
     class _NodeItem(QGraphicsObject):
-        node_clicked = Signal(object)
+        node_clicked   = Signal(object)
+        node_hovered   = Signal(object)   # emits DeviceNode on enter
+        node_unhovered = Signal()         # emits on leave
 
         def __init__(self, data: DeviceNode) -> None:
             super().__init__()
@@ -835,10 +837,12 @@ if _PYSIDE6:
         def hoverEnterEvent(self, e):
             self._hovered = True
             self.update()
+            self.node_hovered.emit(self.data)
 
         def hoverLeaveEvent(self, e):
             self._hovered = False
             self.update()
+            self.node_unhovered.emit()
 
         def mousePressEvent(self, e):
             super().mousePressEvent(e)
@@ -1157,20 +1161,9 @@ if _PYSIDE6:
             super().mouseReleaseEvent(e)
 
         def mouseDoubleClickEvent(self, e) -> None:
-            if self._in_header(e.pos()):
-                # Double-click header → edit title
-                text, ok = QInputDialog.getText(
-                    None, "Edit Title", "Note title:", text=self._title)
-                if ok:
-                    self._title = text
-                    self.update()
-            else:
-                # Double-click body → edit note content
-                text, ok = QInputDialog.getMultiLineText(
-                    None, "Edit Note", "Note content:", text=self._body)
-                if ok:
-                    self._body = text
-                    self.update()
+            # Open the themed edit dialog for both title and body
+            self._edit_dlg = _NoteEditDialog(self)
+            self._edit_dlg.show_in_uefn()
 
         def contextMenuEvent(self, e) -> None:
             menu = QMenu()
@@ -1195,6 +1188,67 @@ if _PYSIDE6:
                 "title": self._title, "body": self._body,
                 "color": self._color,
             }
+
+    # ── Note edit dialog (themed) ─────────────────────────────────────────────
+
+    class _NoteEditDialog(ToolbeltWindow):
+        """Fully-themed editor for a comment box's title + body text."""
+
+        def __init__(self, box: "_CommentBox") -> None:
+            super().__init__(title="UEFN Toolbelt — Edit Note", width=440, height=320)
+            self._box = box
+            self._build_ui()
+
+        def _build_ui(self) -> None:
+            root = QWidget()
+            self.setCentralWidget(root)
+            vl = QVBoxLayout(root)
+            vl.setContentsMargins(0, 0, 0, 0)
+            vl.setSpacing(0)
+
+            bar, bl = self.make_topbar("EDIT NOTE")
+            bl.addWidget(self.make_btn("Save", accent=True, cb=self._save))
+            bl.addWidget(self.make_btn("Cancel", cb=self.close))
+            bl.addStretch()
+            vl.addWidget(bar)
+
+            body = QWidget()
+            body.setStyleSheet(f"background:{self.hex('panel')};")
+            fl = QVBoxLayout(body)
+            fl.setContentsMargins(16, 14, 16, 14)
+            fl.setSpacing(8)
+
+            def _lbl(text):
+                w = QLabel(text)
+                w.setStyleSheet(
+                    f"color:{self.hex('muted')}; font-size:9pt; background:transparent;")
+                return w
+
+            _input_qss = (
+                f"background:#212121; color:{self.hex('text')}; "
+                f"border:1px solid #363636; border-radius:3px; "
+                f"padding:3px 8px; font-family:'Segoe UI'; font-size:10pt;"
+            )
+
+            fl.addWidget(_lbl("Title"))
+            self._title_edit = QLineEdit(self._box._title)
+            self._title_edit.setFixedHeight(28)
+            self._title_edit.setStyleSheet(_input_qss)
+            fl.addWidget(self._title_edit)
+
+            fl.addWidget(_lbl("Notes"))
+            self._body_edit = QTextEdit()
+            self._body_edit.setPlainText(self._box._body)
+            self._body_edit.setStyleSheet(_input_qss)
+            fl.addWidget(self._body_edit)
+
+            vl.addWidget(body)
+
+        def _save(self) -> None:
+            self._box._title = self._title_edit.text().strip() or "Note"
+            self._box._body  = self._body_edit.toPlainText()
+            self._box.update()
+            self.close()
 
     # ── Canvas view ───────────────────────────────────────────────────────────
 
@@ -1430,6 +1484,7 @@ if _PYSIDE6:
             self._health_score = 0
             self._comment_items:    List[_CommentBox]       = []
             self._cat_header_items: List[QGraphicsTextItem] = []
+            self._hover_active = False
 
             # Live sync state
             self._live_sync   = False
@@ -1485,10 +1540,37 @@ if _PYSIDE6:
                 return b
 
             bl.addWidget(_btn("SCAN", accent=True, cb=self._do_scan))
+            bl.addWidget(_btn("Fit", cb=self._do_fit_view, w=40))
             bl.addWidget(_btn("Re-Layout", cb=self._do_relayout))
             bl.addWidget(_btn("Export JSON", cb=self._do_export))
             bl.addWidget(_btn("Gen Wiring", cb=self._do_generate_wiring))
             bl.addWidget(_btn("+ Note", cb=self._add_comment))
+
+            # Edge type toggle buttons
+            bl.addSpacing(8)
+
+            def _edge_btn(label, color, edge_type):
+                b = QPushButton(label)
+                b.setFixedHeight(22)
+                b.setFixedWidth(46)
+                b.setCheckable(True)
+                b.setChecked(True)
+                b.setCursor(Qt.PointingHandCursor)
+                b.setToolTip(f"Show/hide {edge_type} edges")
+                b.setStyleSheet(
+                    f"QPushButton{{background:#1A1A1A; color:{color}; border:1px solid {color};"
+                    f"border-radius:3px; font-size:8pt; font-weight:600;}}"
+                    f"QPushButton:checked{{background:{color}22; color:{color};}}"
+                    f"QPushButton:!checked{{background:#111; color:#444; border-color:#333;}}"
+                )
+                b.toggled.connect(self._on_edge_toggle)
+                return b
+
+            self._btn_editable = _edge_btn("@ed",  "#e94560", "editable")
+            self._btn_events   = _edge_btn(".sub",  "#2ecc71", "event")
+            self._btn_calls    = _edge_btn(".call", "#3498db", "call")
+            for b in (self._btn_editable, self._btn_events, self._btn_calls):
+                bl.addWidget(b)
 
             self._live_btn = _btn("● Live", cb=self._toggle_live)
             self._live_btn.setToolTip("Auto-refresh graph when level changes (polls every 4s)")
@@ -1591,6 +1673,7 @@ if _PYSIDE6:
                 self._health_score = self._graph.health_score
                 self._rebuild_scene()
                 self._grouped_layout()
+                self._do_fit_view()
                 self._paint_hbar()
                 nd = len(self._graph.nodes)
                 ne = len(self._graph.edges)
@@ -1639,6 +1722,7 @@ if _PYSIDE6:
                 self._path_edit.setText(path)
 
         def _on_search(self, text: str) -> None:
+            self._on_node_unhovered()   # clear any active dim before refiltering
             t = text.strip().lower()
             for nid, item in self._node_items.items():
                 visible = (not t or t in item.data.label.lower()
@@ -1650,13 +1734,8 @@ if _PYSIDE6:
                     self._selected = None
                     self._panel.clear()
 
-            # Sync edge visibility — only show if both endpoints are visible
-            for edge in self._edge_items:
-                src = self._node_items.get(edge.data.source_id)
-                tgt = self._node_items.get(edge.data.target_id)
-                edge.setVisible(
-                    bool(src and src.isVisible() and tgt and tgt.isVisible())
-                )
+            # Sync edge visibility — respects both search filter and type toggles
+            self._on_edge_toggle()
 
         def _on_note(self) -> None:
             if self._selected:
@@ -1687,6 +1766,54 @@ if _PYSIDE6:
             except Exception as exc:
                 self._panel.w_prop_status.setText(f"Error: {exc}")
                 self._status.setText(f"Write-back failed: {exc}")
+
+        # ── Fit / edge toggles / hover highlight ──────────────────────────
+
+        def _do_fit_view(self) -> None:
+            rect = self._scene.itemsBoundingRect()
+            if rect.isValid():
+                self._view.fitInView(rect.adjusted(-60, -60, 60, 60),
+                                     Qt.KeepAspectRatio)
+
+        def _on_edge_toggle(self) -> None:
+            show_ed = self._btn_editable.isChecked()
+            show_ev = self._btn_events.isChecked()
+            show_ca = self._btn_calls.isChecked()
+            for eitem in self._edge_items:
+                t  = eitem.data.edge_type
+                ok = ((t == "editable" and show_ed) or
+                      (t == "event"    and show_ev) or
+                      (t == "call"     and show_ca))
+                si = self._node_items.get(eitem.data.source_id)
+                ti = self._node_items.get(eitem.data.target_id)
+                eitem.setVisible(ok and bool(si and si.isVisible()
+                                             and ti and ti.isVisible()))
+
+        def _on_node_hovered(self, nd: DeviceNode) -> None:
+            # Collect the hovered node + all its direct neighbours
+            highlight: set = {nd.id}
+            active_edges: set = set()
+            for eitem in self._edge_items:
+                sid, tid = eitem.data.source_id, eitem.data.target_id
+                if sid == nd.id or tid == nd.id:
+                    highlight.add(sid)
+                    highlight.add(tid)
+                    active_edges.add(id(eitem))
+
+            for nid, item in self._node_items.items():
+                item.setOpacity(1.0 if nid in highlight else 0.12)
+            for eitem in self._edge_items:
+                eitem.setOpacity(1.0 if id(eitem) in active_edges else 0.06)
+            self._hover_active = True
+
+        def _on_node_unhovered(self) -> None:
+            if not self._hover_active:
+                return
+            for item in self._node_items.values():
+                item.setOpacity(1.0)
+            for eitem in self._edge_items:
+                eitem.setOpacity(1.0)
+            self._hover_active = False
 
         # ── Comment boxes ─────────────────────────────────────────────────
 
@@ -1727,12 +1854,14 @@ if _PYSIDE6:
             # Sort: largest group first, then alphabetical
             sorted_cats = sorted(groups.keys(), key=lambda c: (-len(groups[c]), c))
 
-            MAX_ROWS = 10
-            COL_W    = _NODE_W + 60   # horizontal column pitch
-            ROW_H    = _NODE_H + 26   # vertical node pitch
-            CAT_HDR  = 40             # space above first node for category label
-            PAD_X    = 60             # left margin
-            PAD_Y    = 80             # top margin
+            MAX_ROWS         = 12    # nodes per column
+            MAX_COLS_PER_ROW = 12    # columns before wrapping to a new row group
+            COL_W            = _NODE_W + 60
+            ROW_H            = _NODE_H + 26
+            CAT_HDR          = 40
+            PAD_X            = 60
+            PAD_Y            = 80
+            ROW_GROUP_H      = MAX_ROWS * ROW_H + CAT_HDR + 100  # vertical pitch per row group
 
             # Remove old category header text items
             for item in self._cat_header_items:
@@ -1740,12 +1869,20 @@ if _PYSIDE6:
                     self._scene.removeItem(item)
             self._cat_header_items = []
 
-            col_x = PAD_X
+            col_x       = PAD_X
+            col_count   = 0
+            row_y_base  = 0
+
             for cat in sorted_cats:
                 nodes = groups[cat]
                 n_sub = math.ceil(len(nodes) / MAX_ROWS)
 
                 for sub in range(n_sub):
+                    # Wrap to new row group when column limit is hit
+                    if col_count > 0 and col_count % MAX_COLS_PER_ROW == 0:
+                        row_y_base += ROW_GROUP_H
+                        col_x       = PAD_X
+
                     sub_nodes = nodes[sub * MAX_ROWS:(sub + 1) * MAX_ROWS]
                     cat_color = _CAT_COLORS.get(cat, "#888888")
 
@@ -1757,19 +1894,20 @@ if _PYSIDE6:
                         f'font-family:\'Segoe UI\'; font-size:10px; font-weight:600;">'
                         f'{display}</span>'
                     )
-                    hdr.setPos(col_x, PAD_Y - CAT_HDR)
+                    hdr.setPos(col_x, row_y_base + PAD_Y - CAT_HDR)
                     hdr.setZValue(-1)
                     self._scene.addItem(hdr)
                     self._cat_header_items.append(hdr)
 
                     for row, nd in enumerate(sub_nodes):
                         nd.x = float(col_x)
-                        nd.y = float(PAD_Y + row * ROW_H)
+                        nd.y = float(row_y_base + PAD_Y + row * ROW_H)
                         item = self._node_items.get(nd.id)
                         if item:
                             item.setPos(nd.x, nd.y)
 
-                    col_x += COL_W
+                    col_x     += COL_W
+                    col_count += 1
 
                 col_x += 30   # extra gap between category groups
 
@@ -1969,6 +2107,8 @@ if _PYSIDE6:
             for nd in self._graph.nodes:
                 item = _NodeItem(nd)
                 item.node_clicked.connect(self._on_node_clicked)
+                item.node_hovered.connect(self._on_node_hovered)
+                item.node_unhovered.connect(self._on_node_unhovered)
                 self._scene.addItem(item)
                 self._node_items[nd.id] = item
 
