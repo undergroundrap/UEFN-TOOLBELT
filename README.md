@@ -134,7 +134,7 @@ Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect 
 1.  **Open Dashboard**: Run `tb.launch_qt()` or use the `Toolbelt` menu.
 2.  **One-Click Sync**: Click the **"Sync Level Schema to AI"** button in **Quick Actions**.
 3.  **Instant Content**: The 1.6MB schema is automatically copied to your `docs/` folder. Your AI now knows every hidden property in your specific level.
-4.  **Export Tool Manifest**: Run `tb.run("plugin_export_manifest")` to write `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of all 239 tools with their parameter signatures, types, defaults, and categories. An AI agent can load this file and immediately know what every tool does and how to call it, without reading source code.
+4.  **Export Tool Manifest**: Run `tb.run("plugin_export_manifest")` to write `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of all 244 tools with their parameter signatures, types, defaults, and categories. An AI agent can load this file and immediately know what every tool does and how to call it, without reading source code.
 
 ---
 
@@ -572,570 +572,592 @@ still works at the outer level).
 
 ## Tool Reference
 
-### Project (`category="Project"`)
+> **244 tools · 38 categories** — all return `{"status": "ok"/"error", ...}` structured dicts.
+> Run any tool with `tb.run("tool_name", param=value)`.
+> AI agents: use `tb.run("plugin_export_manifest")` to get the full machine-readable manifest.
 
-One-click professional Content Browser structure. Run this at the start of every project.
-
-| Tool Name | Description |
-|---|---|
-| `scaffold_list_templates` | Print all available templates (built-in + saved custom) |
-| `scaffold_preview` | Preview what a template would create — zero changes |
-| `scaffold_generate` | Generate the full folder tree from a template |
-| `scaffold_save_template` | Save a custom folder list as a named reusable template |
-| `scaffold_delete_template` | Remove a saved custom template |
-| `scaffold_organize_loose` | Move loose /Game root assets into the project structure |
-
-**Four built-in templates:**
-
-| Template | Best for | Folders |
-|---|---|---|
-| `uefn_standard` | Full production projects | 50+ |
-| `competitive_map` | Arena / competitive maps | ~25 |
-| `solo_dev` | Fast solo start | ~12 |
-| `verse_heavy` | Verse-centric projects with deep module trees | ~30 |
-
-```python
-# Always preview first
-tb.run("scaffold_preview", template="uefn_standard", project_name="MyIsland")
-
-# Generate when happy with the preview
-tb.run("scaffold_generate", template="uefn_standard", project_name="MyIsland")
-
-# Save your studio's structure as a sharable template
-tb.run("scaffold_save_template",
-       template_name="StudioDefault",
-       folders=["Maps/Main", "Materials/Master", "Verse/Modules"])
-
-# Clean up loose assets after generating the structure
-tb.run("scaffold_organize_loose", project_name="MyIsland", dry_run=False)
-```
-
-> **Note on undo:** Folder creation is a filesystem operation — it cannot be rolled back by
-> Ctrl+Z. The tool is non-destructive by design: it only creates folders, never deletes.
-> Use `scaffold_preview` first, always.
+**Quick navigation:**
+[Actor Organization](#actor-organization-10) ·
+[Alignment](#alignment-6) ·
+[API Explorer](#api-explorer-10) ·
+[Asset Management](#asset-management-5) ·
+[Asset Tagger](#asset-tagger-6) ·
+[Assets](#assets-11) ·
+[Audio](#audio-4) ·
+[Bulk Ops](#bulk-ops-9) ·
+[Entities](#entities-2) ·
+[Environmental](#environmental-2) ·
+[Generative](#generative-2) ·
+[Level Snapshot](#level-snapshot-8) ·
+[Lighting](#lighting-6) ·
+[Localization](#localization-2) ·
+[Materials](#materials-10) ·
+[MCP Bridge](#mcp-bridge-4) ·
+[Measurement](#measurement-3) ·
+[Optimization](#optimization-8) ·
+[Pipeline](#pipeline-2) ·
+[Post-Process](#post-process-4) ·
+[Procedural](#procedural-12) ·
+[Project](#project-7) ·
+[Project Admin](#project-admin-3) ·
+[Prop Patterns](#prop-patterns-9) ·
+[Proximity Tools](#proximity-tools-6) ·
+[Reference Auditor](#reference-auditor-7) ·
+[Screenshot](#screenshot-4) ·
+[Selection](#selection-3) ·
+[Sequencer](#sequencer-2) ·
+[Simulation](#simulation-2) ·
+[Stamps](#stamps-5) ·
+[System](#system-4) ·
+[Tests](#tests-1) ·
+[Text & Signs](#text--signs-14) ·
+[Utilities](#utilities-12) ·
+[Verse Helpers](#verse-helpers-26) ·
+[Zone Tools](#zone-tools-7)
 
 ---
 
-### Materials (`category="Materials"`)
+### Actor Organization (10)
 
-| Tool Name | Description |
+| Tool | Description |
 |---|---|
-| `material_list_presets` | Print all presets (17 built-in + custom) |
-| `material_apply_preset` | Apply named preset to selection (`preset=` kwarg) |
-| `material_randomize_colors` | Random HSV color on each selected actor |
-| `material_gradient_painter` | World-space hex gradient across selection |
-| `material_team_color_split` | Auto Red/Blue by world X midpoint |
-| `material_pattern_painter` | Checkerboard or stripe alternation |
-| `material_glow_pulse_preview` | Set peak emissive intensity for preview |
-| `material_color_harmony` | Complementary / triadic / analogous palettes |
-| `material_save_preset` | Capture current mat params as named preset |
-| `material_bulk_swap` | Replace a material slot across all selected actors (or all actors in level) |
-
-### Procedural (`category="Procedural"`)
-
-| Tool Name | Description |
-|---|---|
-| `arena_generate` | Symmetrical arena (`size=` "small"/"medium"/"large") |
-| `spline_place_props` | Props along selected spline (count or distance mode) |
-| `spline_clear_props` | Delete all props in a named World Outliner folder |
-| `scatter_props` | Scatter N props in a radius using Poisson-disk distribution |
-| `scatter_hism` | Dense instanced scatter (HISM — one draw call for thousands) |
-| `scatter_along_path` | Drop prop clusters along a list of world-space path points |
-| `scatter_clear` | Delete all scatter actors in a named folder |
-| `scatter_export_manifest` | Export scatter positions to JSON |
-
-### Bulk Ops (`category="Bulk Ops"`)
-
-| Tool Name | Description |
-|---|---|
-| `bulk_align` | Align all to first actor on one axis |
-| `bulk_distribute` | Even spacing between extremes |
-| `bulk_randomize` | Random loc / rot / scale offsets |
-| `bulk_snap_to_grid` | Snap to world grid step |
-| `bulk_reset` | Zero rotation, scale → 1 |
-| `bulk_stack` | Stack on Z with optional gap |
-| `bulk_mirror` | Mirror across X, Y, or Z |
-| `bulk_normalize_scale` | Set uniform target scale |
-
-### Text & Signs (`category="Text & Signs"`)
-
-Place colored, styled 3D text directly into the world as real actors.
-Each actor persists in the level, is undoable, and can be configured via saved style presets.
-
-| Tool Name | Description |
-|---|---|
-| `text_place` | Place a single styled 3D text actor at any world location |
-| `text_label_selection` | Auto-label every selected actor with its own name |
-| `text_paint_grid` | Paint a coordinate grid (A1, B2…) of zone labels across a map area |
-| `text_color_cycle` | Place a banner row of text actors cycling through the color palette |
-| `text_save_style` | Save a named style preset (color, size, alignment) for reuse |
-| `text_list_styles` | Print all saved style presets |
-| `text_clear_folder` | Delete all Toolbelt text actors from the level (undoable) |
-
-**Style presets persist** in `Saved/UEFN_Toolbelt/text_styles.json` — share the file with your team or use it across levels.
-
-```python
-# Save a style
-tb.run("text_save_style", style_name="RedBase",
-       color="#FF2200", world_size=150.0, h_align="center")
-
-# Use it anywhere
-tb.run("text_place", text="RED BASE", style="RedBase", location=(3200, 0, 300))
-
-# Label your entire selection in one call
-tb.run("text_label_selection", color="#00FFCC", offset_z=250.0)
-
-# Drop a callout grid on your map
-tb.run("text_paint_grid", cols=8, rows=8, cell_size=1500.0, color="#FFDD00")
-```
-
-### Optimization (`category="Optimization"`)
-
-Scan your project for memory and performance issues before shipping. All scans are read-only — zero changes unless you run `memory_autofix_lods`.
-
-| Tool Name | Description |
-|---|---|
-| `memory_scan` | Full project scan — textures + meshes + sounds in one pass |
-| `memory_scan_textures` | Scan all Texture2D assets; flags >2K (⚠) and >4K (✗) |
-| `memory_scan_meshes` | Scan all StaticMesh assets; flags >50K tris (⚠) and >200K (✗) |
-| `memory_top_offenders` | Rank assets by estimated VRAM / tri cost; prints top N |
-| `memory_autofix_lods` | Auto-generate LODs for every mesh in a folder that has none |
-
-**Severity legend:** `✓ ok` `⚠ warning` `✗ critical`
-
-```python
-# Full project scan
-tb.run("memory_scan", scan_path="/Game")
-
-# Just textures, with a lower warning threshold
-tb.run("memory_scan_textures", scan_path="/Game/Textures", warn_px=1024)
-
-# See the 10 worst offenders
-tb.run("memory_top_offenders", limit=10, scan_path="/Game")
-
-# Auto-fix: generate LODs for every mesh in /Game/Meshes that has none
-tb.run("memory_autofix_lods", scan_path="/Game/Meshes")
-```
-
-### Measurement (`category="Measurement"`)
-
-High-precision spatial analysis for level balancing and navigation.
-
-| Tool Name | Description |
-|---|---|
-| `measure_distance` | Total 3D distance between a chain of selected actors |
-| `measure_travel_time` | Estimate travel time in seconds (Walk/Run/Sprint) |
-| `spline_measure` | Precise world-space length of a selected spline |
-
-```python
-# Select 4 checkpoints in an obby
-tb.run("measure_distance")  # -> Total: 4500.0 cm
-
-# See how long it takes a player to run that track
-tb.run("measure_travel_time", speed_type="Run") # -> 10.0s
-```
-
-### Localization (`category="Localization"`)
-
-Translate your map text for a global audience in one click.
-
-| Tool Name | Description |
-|---|---|
-| `text_export_manifest` | Harvest all level text to CSV/JSON for translation |
-| `text_apply_translation` | Bulk-update actor text from a translated manifest |
-
-```python
-# Export everything to Saved/UEFN_Toolbelt/localization/
-tb.run("text_export_manifest", format="csv")
-
-# Send the CSV to a translator, then re-import:
-tb.run("text_apply_translation", manifest_path="C:/Translations/french.json")
-```
-
-### Assets (`category="Assets"`)
-
-| Tool Name | Description |
-|---|---|
-| `import_fbx` | Import single FBX with auto-setup |
-| `import_fbx_folder` | Batch import entire folder |
-| `organize_assets` | Sort Content Browser folder by asset type |
-| `lod_auto_generate_selection` | ⚠️ Disabled — returns error (UEFN mesh reduction crash, see UEFN_QUIRKS.md #18) |
-| `lod_auto_generate_folder` | ⚠️ Disabled — returns error (UEFN mesh reduction crash, see UEFN_QUIRKS.md #18) |
-| `lod_set_collision_folder` | Batch-set collision complexity on all meshes in a folder |
-| `lod_audit_folder` | Audit folder for missing LODs / collision — zero changes |
-| `rename_dry_run` | Preview Epic naming convention violations — zero changes |
-| `rename_enforce_conventions` | Rename all violating assets to follow Epic convention |
-| `rename_strip_prefix` | Strip a specific prefix from all assets in a folder |
-| `rename_report` | Export full naming audit JSON without making changes |
-
-**Epic Naming Convention — prefix map:**
-
-| Prefix | Asset Class |
-|---|---|
-| `SM_` | Static Mesh |
-| `SK_` | Skeletal Mesh |
-| `M_` | Material |
-| `MI_` | Material Instance |
-| `T_` | Texture 2D |
-| `BP_` | Blueprint |
-| `WBP_` | Widget Blueprint |
-| `NS_` | Niagara System |
-| `SW_` | Sound Wave |
-| `AS_` | Animation Sequence |
-| `DT_` | Data Table |
-
-```python
-# Audit your project — see all violations, make zero changes
-tb.run("rename_dry_run", scan_path="/Game/MyProject")
-
-# Enforce — runs the actual renames
-tb.run("rename_enforce_conventions", scan_path="/Game/Assets")
-
-# Fix just textures
-tb.run("rename_enforce_conventions",
-       scan_path="/Game/Textures",
-       class_filter="Texture2D")
-```
-
-### Prop Patterns (`category="Prop Patterns"`)
-
-Where `foliage_tools` gives you organic scatter, Prop Patterns gives you precision geometry.
-8 placement shapes × 4 rotation modes × 3 scale modes = every layout you'll ever need.
-
-| Tool Name | Pattern | Description |
-|---|---|---|
-| `pattern_grid` | ▦ Grid | N×M rectangular grid with configurable spacing |
-| `pattern_circle` | ◯ Circle | Evenly-spaced ring at a fixed radius |
-| `pattern_arc` | ◔ Arc | Partial ring between two angles |
-| `pattern_spiral` | 🌀 Spiral | Archimedean spiral — radius grows with angle |
-| `pattern_line` | ╌ Line | Evenly spaced between two world points |
-| `pattern_wave` | 〜 Wave | Sine-wave path along X, Y, or Z |
-| `pattern_helix` | 🔃 Helix | 3D corkscrew / spiral staircase |
-| `pattern_radial_rows` | ◎ Radial | Concentric rings (dartboard / arena layout) |
-| `pattern_clear` | ✕ Clear | Delete preview markers or all pattern actors |
-
-**Rotation modes** (supported by every pattern):
-
-| Mode | Behavior |
-|---|---|
-| `world_up` | No rotation — Z stays up (default) |
-| `face_center` | Every prop yaws toward the pattern center |
-| `face_tangent` | Every prop faces along its path direction |
-| `random` | Independent random yaw per prop |
-
-**Scale modes:** `uniform` (constant) · `random` (per-prop noise) · `gradient` (ramps across path)
-
-**Preview workflow:**
-```python
-# Step 1 — see the layout using sphere markers (instant, zero waste)
-tb.run("pattern_circle", count=12, radius=1500.0, preview=True)
-
-# Step 2 — happy with the shape? Clear preview and place the real mesh
-tb.run("pattern_clear", preview_only=True)
-tb.run("pattern_circle", mesh_path="/Game/MyMeshes/SM_Pillar", count=12, radius=1500.0)
-
-# Advanced: spiral staircase with gradient scale
-tb.run("pattern_helix",
-       mesh_path="/Game/Props/SM_Step",
-       count=32, turns=3.0, radius=400.0, rise_per_turn=800.0,
-       rotation_mode="face_tangent",
-       scale_mode="gradient", scale_min=0.8, scale_max=1.2)
-
-# Dartboard arena layout — 3 concentric rings
-tb.run("pattern_radial_rows",
-       mesh_path="/Game/Props/SM_Barrier",
-       rings=3, props_per_ring=6, radius_step=800.0,
-       rotation_mode="face_center", include_center=False)
-```
-
-### Reference Auditor (`category="Reference Auditor"`)
-
-Find and fix silent project health problems. All scan tools are pure read-only.
-Fix tools default to `dry_run=True` — you always see what will change before it happens.
-
-| Tool Name | Description |
-|---|---|
-| `ref_audit_orphans` | Find assets with no referencers — safe deletion candidates |
-| `ref_audit_redirectors` | Find stale ObjectRedirector assets (move/rename artifacts) |
-| `ref_audit_duplicates` | Find assets sharing the same base name in different folders |
-| `ref_audit_unused_textures` | Find Texture2D assets not referenced by any material |
-| `ref_fix_redirectors` | Consolidate redirectors — always dry_run first |
-| `ref_delete_orphans` | ⚠ Permanently delete orphans — always dry_run first (NOT undoable) |
-| `ref_full_report` | Run all scans, print summary, export JSON report |
-
-```python
-# Start here — full health check, zero changes
-tb.run("ref_full_report", scan_path="/Game")
-
-# See exactly what would be deleted before committing
-tb.run("ref_delete_orphans", scan_path="/Game/Textures", dry_run=True)
-
-# Then actually delete (permanent — no undo)
-tb.run("ref_delete_orphans", scan_path="/Game/Textures", dry_run=False)
-
-# Fix redirectors left from reorganizing your Content Browser
-tb.run("ref_fix_redirectors", scan_path="/Game", dry_run=False)
-```
-
-### Level Snapshot (`category="Level Snapshot"`)
-
-Save, restore, and diff actor transforms at any point. Think of it as Git for your level layout.
-Every restore is wrapped in `undo_transaction()` — one Ctrl+Z if you don't like the result.
-
-| Tool Name | Description |
-|---|---|
-| `snapshot_save` | Save a named JSON snapshot of actor transforms |
-| `snapshot_restore` | Restore actor transforms from a snapshot (fully undoable) |
-| `snapshot_list` | List all saved snapshots with actor count and timestamp |
-| `snapshot_diff` | Compare two snapshots — see what was added, removed, or moved |
-| `snapshot_compare_live` | Diff a saved snapshot against the current live level |
-| `snapshot_delete` | Delete a saved snapshot by name |
-| `snapshot_export` | Copy a snapshot to a shareable path |
-| `snapshot_import` | Import a snapshot JSON from an external path |
-
-```python
-# Before a big bulk operation — save a checkpoint
-tb.run("snapshot_save", name="before_bulk_align")
-
-# ...run your operations...
-
-# See what changed
-tb.run("snapshot_compare_live", name="before_bulk_align")
-
-# Not happy — restore to the checkpoint (Ctrl+Z to undo the restore too)
-tb.run("snapshot_restore", name="before_bulk_align")
-
-# Save only selected actors (e.g. your arena layout)
-tb.run("snapshot_save", name="arena_v1", scope="selection")
-
-# Diff two named snapshots
-tb.run("snapshot_diff", name_a="arena_v1", name_b="arena_v2")
-
-# Share a layout with another creator
-tb.run("snapshot_export", name="arena_v1", export_path="C:/Shared/arena_v1.json")
-tb.run("snapshot_import", import_path="C:/Shared/arena_v1.json")
-```
-
-### API Explorer (`category="API Explorer"`)
-
-Inspect and document the live UEFN Python API. Generates `.pyi` stub files so VS Code and
-PyCharm give full autocomplete on `unreal.*` calls — no official stubs required.
-
-**The Live Capability Mapper:** UEFN locks down many internal Epic properties that the official Unreal Engine 5 docs say should be accessible. The new `api_crawl_*` tools act as an automated fuzzer. They use Python reflection on live level objects to brute-force determine exactly what is exposed to you in the current patch, dumping the schema to JSON.
-
-| Tool Name | Description |
-|---|---|
-| `api_search` | Fuzzy-search class/function names across the live unreal module |
-| `api_inspect` | Print full signature + docstring for any `unreal.*` class or function |
-| `api_generate_stubs` | Write `.pyi` stub file for one class (omit name for all classes) |
-| `api_list_subsystems` | Print every `*Subsystem` class available in this UEFN build |
-| `api_export_full` | Export monolithic `unreal.pyi` for complete IDE autocomplete |
-| `api_crawl_selection` | Deep-introspect all properties of the selected actors to JSON |
-| `api_crawl_level_classes` | Headless execution that maps out every exposed property for every unique class in the map |
-
-**Output paths:**
-- `Saved/UEFN_Toolbelt/stubs/unreal.pyi` — full module stub
-- `Saved/UEFN_Toolbelt/stubs/<ClassName>.pyi` — per-class stubs
-- `Saved/UEFN_Toolbelt/api_report.json` — machine-readable class/function index
-
-```python
-# Find everything related to foliage
-tb.run("api_search", query="foliage")
-
-# What methods does EditorAssetLibrary have?
-tb.run("api_inspect", name="EditorAssetLibrary")
-
-# What subsystems are available in this UEFN build?
-tb.run("api_list_subsystems")
-
-# Generate unreal.pyi → drop it in .vscode/ for full autocomplete
-tb.run("api_export_full")
-
-# Stub just one class (fast)
-tb.run("api_generate_stubs", class_name="MaterialEditingLibrary")
-
-# -- LIVE CAPABILITY MAPPERS --
-
-# Deep-scan currently selected actors
-tb.run("api_crawl_selection")
-# → Saved/UEFN_Toolbelt/api_selection_crawl.json
-
-# Headless pass across the entire level for every Fortnite device
-tb.run("api_crawl_level_classes")
-# → Saved/UEFN_Toolbelt/api_level_classes_schema.json
-```
-
-**VS Code integration:**
-
-Add the stubs dir to `.vscode/settings.json` in your project:
-
-```json
-{
-  "python.analysis.extraPaths": [
-    "Saved/UEFN_Toolbelt/stubs"
-  ]
-}
-```
-
-### Verse Helpers (`category="Verse Helpers"`)
-
-![Verse Code Generation Utilities](docs/verse_tab.png)
+| `actor_attach_to_parent` | Last selected actor becomes parent of all others (Maya-style). Preserves world transforms. |
+| `actor_detach` | Detach all selected actors from their parent. Preserves world transforms. |
+| `actor_folder_list` | List all World Outliner folders with actor counts. |
+| `actor_match_transform` | Copy the first selected actor's transform to all others. Toggle location/rotation/scale independently. |
+| `actor_move_to_folder` | Move all selected actors into a named World Outliner folder (auto-created). |
+| `actor_move_to_root` | Move all selected actors out of any folder to the root level. |
+| `actor_rename_folder` | Rename a World Outliner folder — re-paths all actors inside it. Supports dry_run. |
+| `actor_select_by_class` | Select all level actors whose class name contains a filter string. |
+| `actor_select_by_folder` | Select all actors in a named World Outliner folder. |
+| `actor_select_same_folder` | Expand selection to all actors sharing the first actor's folder. |
 
 ---
 
-#### Verse Device Graph — `verse_graph_open`
+### Alignment (6)
 
-> **The single most powerful tool in the Toolbelt for understanding a UEFN level.**
-
-Once a UEFN island exceeds ~30 Verse devices, reasoning about which device talks to which becomes impossible from the Properties panel alone — it only ever shows one device at a time. The Device Graph solves this completely.
-
-Run `tb.run("verse_graph_open")`, point it at your Verse folder, hit **SCAN**, and in seconds you have a **live, interactive map of your entire island's logic** — every device as a node, every `@editable` reference and `.Subscribe()` call as an edge, colored by type.
-
-**What it gives you that nothing else can:**
-- **Instant architecture health** — a 0–100 score with Union-Find cluster detection tells you immediately whether your devices are connected or siloed
-- **Orphan detection** — unconnected devices surface instantly; they'd be invisible in the Properties panel
-- **Wiring errors** — dangling `@editable` refs that point to no placed actor show as red `!` badges before you ever run a build
-- **Blueprint-style layout** — devices grouped by category (Timer, Score, Trigger, etc.) so the structure mirrors how you think about the game
-- **Minimap** — navigate 200+ node graphs without losing your place; colored dots match category colors, click or drag to teleport
-- **Category filter** — isolate an entire device family in one click, stack with search to drill down further
-- **Comment boxes** — annotate sections for yourself or teammates, survive every re-scan
-- **Live sync** — polls every 4 s; graph updates when you add or remove devices in the editor without losing node positions
-- **Gen Wiring** — generates a ready-to-compile `creative_device` Verse stub with `@editable` declarations and `OnBegin` subscriptions from the graph
-- **Write-back** — rename actors and move them to World Outliner folders directly from the graph side panel
-
-This tool alone justifies installing the Toolbelt on any project with serious Verse usage.
+| Tool | Description |
+|---|---|
+| `align_to_reference` | Align all selected actors' X, Y, or Z to the first or last actor's position. |
+| `align_to_surface` | Snap selected actors' Z down to the nearest floor surface (uses line traces). |
+| `align_to_grid_two_points` | Define a local XY grid from two anchor actors, then snap everything else to it. |
+| `distribute_with_gap` | Set an exact cm gap between bounding boxes along an axis (not pivot-to-pivot). |
+| `match_spacing` | Evenly space pivots between first and last actor — endpoints stay fixed. |
+| `rotate_around_pivot` | Orbit selection around center-of-bounds or first actor by angle_deg on any axis. |
 
 ---
 
-| Tool Name | Description |
+### API Explorer (10)
+
+| Tool | Description |
 |---|---|
-| `spline_to_verse_points` | Convert selected spline → Verse `vector3` array literal |
-| `spline_to_verse_patrol` | Full patrol AI device skeleton baked from a spline |
-| `spline_to_verse_zone_boundary` | Spline → Verse zone boundary array + IsPointInZone helper |
-| `spline_export_json` | Export spline points to JSON (pipe into scatter_along_path) |
-| `verse_list_devices` | Enumerate all devices in current level |
-| `verse_graph_open` | **Interactive device graph** — blueprint-style category columns, **minimap** (colored dot overlay, click/drag to navigate), **category filter** dropdown, **Focus** button, **Help** dialog, comment/note boxes, hover highlight, edge type toggles, ● Live sync, write-back, Gen Wiring |
-| `verse_graph_scan` | Headless scan → full device adjacency dict (MCP-friendly, no UI needed) |
-| `verse_graph_export` | Export device graph to JSON for archiving or external tooling |
-| `verse_bulk_set_property` | Bulk-set any UPROPERTY on selection |
-| `verse_select_by_name` | Select devices matching label substring |
-| `verse_select_by_class` | Select devices matching class name |
-| `verse_export_report` | JSON export of all device properties |
-| `verse_gen_device_declarations` | `@editable` Verse declarations from selection |
-| `verse_gen_game_skeleton` | Full game manager device skeleton |
-| `verse_gen_elimination_handler` | Elimination event handler stub |
-| `verse_gen_scoring_tracker` | Zone-based scoring tracker stub |
-| `verse_gen_prop_spawner` | Trigger-controlled prop spawn/despawn stub |
-| `verse_list_snippets` | List all generated `.verse` snippet files |
-| `verse_gen_custom` | Write spec-accurate Verse code to disk — Claude generates after querying the live spec |
+| `api_search` | Fuzzy-search class/function names across the live `unreal` module. |
+| `api_inspect` | Print full signature + docstring for any `unreal.*` class or function. |
+| `api_list_subsystems` | Print every `*Subsystem` class available in this UEFN build. |
+| `api_generate_stubs` | Write `.pyi` stub for one class (or all if name omitted). |
+| `api_export_full` | Export a monolithic `unreal.pyi` stub for full IDE autocomplete. |
+| `api_crawl_selection` | Deep-introspect selected actors, components, and properties → JSON. |
+| `api_crawl_level_classes` | Headless map of all unique classes + exposed properties in the current level. |
+| `api_sync_master` | One-click: level crawl + Verse schema merge → updates `docs/DEVICE_API_MAP.md`. |
+| `device_catalog_scan` | Scan the Asset Registry for every Creative/Verse device available in Fortnite. |
+| `world_state_export` | Export full live state of every actor (transforms + device properties) → `world_state.json`. |
 
-### Screenshot (`category="Screenshot"`)
+---
 
-Capture the editor viewport at any resolution. Confirmed working via `AutomationLibrary.take_high_res_screenshot()` — UEFN 40.00+.
+### Asset Management (5)
 
-| Tool Name | Description |
+| Tool | Description |
 |---|---|
-| `screenshot_take` | Capture viewport at specified resolution (`width=`, `height=`, `name=`) |
-| `screenshot_focus_selection` | Auto-frame selected actors, capture, then restore camera |
-| `screenshot_timed_series` | Capture N screenshots with a delay between each |
-| `screenshot_open_folder` | Print the output folder path to the Output Log |
+| `prefab_migrate_open` | Open the Prefab Asset Migrator — paste Ctrl+C T3D text to extract + copy all asset dependencies to another project. |
+| `prefab_parse_refs` | Headless: parse a T3D prefab string and return all `/Game/` asset paths found. |
+| `prefab_resolve_deps` | Headless: walk the AssetRegistry dependency graph for a list of package paths. |
+| `prefab_export_to_disk` | Headless: copy resolved `.uasset` files from Content folder to a destination directory. |
+| `ui_icon_import_open` | Open the UI Icon Importer — paste any image from clipboard (browser, Figma, Photoshop) to import as a UEFN Texture2D. |
 
-**Output:** `Saved/UEFN_Toolbelt/screenshots/{name}_{YYYYMMDD_HHMMSS}_{W}x{H}.png`
+---
+
+### Asset Tagger (6)
+
+All tags use the `TB:` namespace prefix to avoid collisions.
+
+| Tool | Description |
+|---|---|
+| `tag_add` | Add a searchable metadata tag to all selected Content Browser assets. |
+| `tag_remove` | Remove a tag from all selected Content Browser assets. |
+| `tag_show` | Print all Toolbelt tags on selected assets. |
+| `tag_search` | Find assets by tag key/value across a folder. |
+| `tag_list_all` | List every unique tag key used under a folder with asset counts. |
+| `tag_export` | Export full tag → asset index to `Saved/UEFN_Toolbelt/tag_export.json`. |
+
+---
+
+### Assets (11)
+
+| Tool | Description |
+|---|---|
+| `rename_dry_run` | Preview naming convention violations without changing anything. |
+| `rename_enforce_conventions` | Rename assets to follow Epic's prefix conventions (`SM_`, `T_`, `M_`, etc.). |
+| `rename_strip_prefix` | Strip a specific prefix from all assets in a folder. |
+| `rename_report` | Export a full naming audit JSON for a folder. |
+| `organize_assets` | Sort assets into typed sub-folders by asset class. |
+| `import_fbx` | Import a single FBX file into the Content Browser. |
+| `import_fbx_folder` | Batch-import all FBX files in a folder. |
+| `lod_audit_folder` | Report which static meshes in a folder have no LODs or collision. |
+| `lod_auto_generate_selection` | Auto-generate LODs on selected actors' meshes. ⚠️ Disabled in UEFN (Quirk #18). |
+| `lod_auto_generate_folder` | Auto-generate LODs on all meshes in a folder. ⚠️ Disabled in UEFN (Quirk #18). |
+| `lod_set_collision_folder` | Batch-set collision complexity on all static meshes in a folder. |
+
+---
+
+### Audio (4)
+
+| Tool | Description |
+|---|---|
+| `audio_place` | Spawn an AmbientSound actor at the camera position. Optionally assign a sound asset. |
+| `audio_set_volume` | Set volume multiplier on all selected AmbientSound actors. |
+| `audio_set_radius` | Override attenuation falloff radius on selected AmbientSound actors. |
+| `audio_list` | List all AmbientSound actors in the level with label, location, and folder. |
+
+---
+
+### Bulk Ops (9)
+
+| Tool | Description |
+|---|---|
+| `bulk_align` | Align all selected actors to the first actor's position on one axis. |
+| `bulk_distribute` | Space selected actors evenly between the two extremes along an axis. |
+| `bulk_randomize` | Apply random location / rotation / scale offsets to selected actors. |
+| `bulk_snap_to_grid` | Snap all selected actors' locations to a world grid. |
+| `bulk_reset` | Reset rotation to (0,0,0) and scale to (1,1,1) on all selected actors. |
+| `bulk_mirror` | Mirror selected actors across an axis (reflects position about center). |
+| `bulk_normalize_scale` | Set all selected actors to a uniform target scale. |
+| `bulk_stack` | Stack selected actors vertically (Z) on top of each other. |
+| `bulk_face_camera` | Rotate all selected actors to face the editor viewport camera (yaw only). |
+
+---
+
+### Entities (2)
+
+| Tool | Description |
+|---|---|
+| `entity_list_kits` | List all available Standard Kits for the quick-spawn tool. |
+| `entity_spawn_kit` | Spawn a pre-configured Standard Kit of Creative devices in one click. |
+
+---
+
+### Environmental (2)
+
+| Tool | Description |
+|---|---|
+| `foliage_convert_selected_to_actor` | Convert selected StaticMeshActors into Foliage Actors. |
+| `foliage_audit_brushes` | Audit all foliage brushes and return the mesh paths they use. |
+
+---
+
+### Generative (2)
+
+| Tool | Description |
+|---|---|
+| `text_render_texture` | Render a text string into a transparent Texture2D asset natively in-editor. |
+| `text_voxelize_3d` | Voxelize a text string into a 3D StaticMesh using procedural cubes. |
+
+---
+
+### Level Snapshot (8)
+
+| Tool | Description |
+|---|---|
+| `snapshot_save` | Save a named JSON snapshot of actor transforms in the current level. |
+| `snapshot_restore` | Restore actor transforms from a named snapshot (fully undoable). |
+| `snapshot_list` | List all saved snapshots with actor count and timestamp. |
+| `snapshot_diff` | Compare two snapshots — see what actors were added, removed, or moved. |
+| `snapshot_compare_live` | Compare a saved snapshot against the current live level state. |
+| `snapshot_export` | Copy a snapshot JSON to a custom path for sharing. |
+| `snapshot_import` | Import a snapshot JSON from an external path. |
+| `snapshot_delete` | Delete a saved snapshot by name. |
 
 ```python
-# 1080p viewport capture
-tb.run("screenshot_take", width=1920, height=1080, name="lobby")
-
-# 4K
-tb.run("screenshot_take", width=3840, height=2160, name="hero_shot")
-
-# Auto-frame whatever is selected and shoot
-tb.run("screenshot_focus_selection", width=1920, height=1080, name="prop")
-
-# 10 frames, 2s apart — timelapse / build progress
-tb.run("screenshot_timed_series", count=10, interval=2.0, width=1920, height=1080)
+tb.run("snapshot_save", name="before_scatter")
+# ... make changes ...
+tb.run("snapshot_compare_live", name="before_scatter")
+tb.run("snapshot_restore",      name="before_scatter")
 ```
 
 ---
 
-### Asset Tagger (`category="Asset Tagger"`)
+### Lighting (6)
 
-Persistent metadata tags on Content Browser assets using `EditorAssetLibrary.set_metadata_tag()`.
-Tags survive project saves and show up in the Content Browser filter panel.
-
-| Tool Name | Description |
+| Tool | Description |
 |---|---|
-| `tag_add` | Add a key=value tag to selected Content Browser assets |
-| `tag_remove` | Remove a tag key from selected assets |
-| `tag_show` | Print all Toolbelt tags on selected assets |
-| `tag_search` | Find all assets under a folder matching a tag key / value |
-| `tag_list_all` | List every unique tag key in use under a folder with asset counts |
-| `tag_export` | Export the full tag → asset index to JSON |
-
-**Tag prefix:** All tags use the `TB:` namespace to avoid collisions with Epic's own metadata.
-**Output:** `Saved/UEFN_Toolbelt/tag_export.json`
-
-```python
-# Tag selected assets
-tb.run("tag_add", key="biome", value="desert")
-tb.run("tag_add", key="status", value="final")
-
-# Find all "desert" biome assets under /Game
-tb.run("tag_search", key="biome", value="desert", folder="/Game")
-
-# See everything tagged on the current selection
-tb.run("tag_show")
-
-# Full index export
-tb.run("tag_export", folder="/Game")
-```
+| `light_place` | Spawn a light at camera position. `light_type`: point/spot/rect/directional/sky. |
+| `light_set` | Batch-set intensity, color, and attenuation on selected lights. Only provided params change. |
+| `light_list` | List all light actors with type, label, and location. |
+| `sky_set_time` | Simulate time-of-day by pitching the DirectionalLight. `hour`: 0–24. |
+| `light_cinematic_preset` | Apply mood preset to directional light + fog. Presets: Star Wars, Cyberpunk, Vibrant. |
+| `light_randomize_sky` | Randomise sun pitch/yaw for quick look-dev iterations. |
 
 ---
 
-### MCP Bridge (`category="MCP Bridge"`)
+### Localization (2)
 
-Runs an HTTP listener inside UEFN so Claude Code (or any MCP-compatible AI) can directly
-control the editor — spawn actors, run any of the 123 toolbelt tools, execute arbitrary Python.
-
-| Tool Name | Description |
+| Tool | Description |
 |---|---|
-| `mcp_start` | Start the HTTP listener (auto-detects port 8765-8770) |
-| `mcp_stop` | Stop the listener |
-| `mcp_restart` | Restart after hot-reload or port conflict |
-| `mcp_status` | Print port, running state, and command count to Output Log |
+| `text_export_manifest` | Export all level text (TextRenderActors + devices) to CSV or JSON for translation. |
+| `text_apply_translation` | Read a translated manifest and update level actors with new strings. |
 
-**Setup (one-time):**
-```bat
-pip install mcp
-```
+---
 
-**Start the listener in UEFN:**
+### Materials (10)
+
+**17 built-in presets:** `chrome` · `gold` · `neon` · `hologram` · `lava` · `ice` · `concrete` · `wood_oak` · `metal_rust` · `glass` · `team_red` · `team_blue` · `team_green` · `team_yellow` · `glow_pulse` · `scanlines` · `iridescent`
+
+| Tool | Description |
+|---|---|
+| `material_list_presets` | Print all presets (17 built-in + custom). |
+| `material_apply_preset` | Apply a named preset to all selected actors. |
+| `material_randomize_colors` | Random HSV color on each selected actor. |
+| `material_gradient_painter` | World-space color gradient across selection (`axis`, `color_a`, `color_b`). |
+| `material_team_color_split` | Auto Red/Blue split by world X midpoint. |
+| `material_pattern_painter` | Checkerboard or stripe alternation across selection. |
+| `material_glow_pulse_preview` | Set emissive peak intensity for viewport preview. |
+| `material_color_harmony` | Apply complementary / triadic / analogous palette to selection. |
+| `material_save_preset` | Save current material params as a named reusable preset. |
+| `material_bulk_swap` | Replace one material slot with another across selected actors or the full level. |
+
+---
+
+### MCP Bridge (4)
+
+Start the listener in UEFN, then Claude Code (or any MCP client) can run all 244 tools by name, spawn actors, execute arbitrary Python, and more.
+
+| Tool | Description |
+|---|---|
+| `mcp_start` | Start the HTTP listener so Claude Code can control UEFN directly. |
+| `mcp_stop` | Stop the listener. |
+| `mcp_restart` | Restart after hot-reload or port conflict. |
+| `mcp_status` | Print port, running state, and command count. |
+
 ```python
 tb.run("mcp_start")
 # Output Log: [MCP] ✓ Listener running on http://127.0.0.1:8765
 ```
 
-**`.mcp.json`** in your project root (already included in this repo):
-```json
-{
-  "mcpServers": {
-    "uefn-toolbelt": {
-      "command": "python",
-      "args": ["<ABSOLUTE_PATH>/mcp_server.py"]
-    }
-  }
-}
+---
+
+### Measurement (3)
+
+| Tool | Description |
+|---|---|
+| `measure_distance` | 3D distance between two actors or total chain length of a selection. |
+| `measure_travel_time` | Travel time between selected points at Walk/Run/Sprint/Vehicle speeds. |
+| `spline_measure` | Precise world-space length of a selected spline actor. |
+
+---
+
+### Optimization (8)
+
+| Tool | Description |
+|---|---|
+| `rogue_actor_scan` | Find actors with extreme scale, at-origin placement, or unnamed labels. |
+| `memory_scan` | Full island memory scan — textures, meshes, sounds → JSON report. |
+| `memory_scan_textures` | Audit textures and flag oversized ones (`warn_px`, `crit_px` thresholds). |
+| `memory_scan_meshes` | Audit static meshes — polygon count, LODs, collision. |
+| `memory_top_offenders` | Print the top N heaviest assets by estimated memory cost. |
+| `memory_autofix_lods` | Auto-generate LODs on all meshes missing them in a folder. |
+| `convert_to_hism` | Merge selected actors sharing the same mesh into a single HISM actor (one draw call). |
+| `material_parent_audit` | Audit material instances — group by parent, flag orphaned MIs. |
+
+---
+
+### Pipeline (2)
+
+| Tool | Description |
+|---|---|
+| `import_image_from_clipboard` | Capture the current Windows Clipboard image and import it as a Texture2D. |
+| `import_image_from_url` | Download an image from a URL and import it into the Content Browser. |
+
+---
+
+### Post-Process (4)
+
+| Tool | Description |
+|---|---|
+| `postprocess_spawn` | Find or create a global (infinite-extent) PostProcessVolume — no duplicates. |
+| `postprocess_set` | Set bloom, exposure, contrast, vignette, saturation. Only provided params change. |
+| `postprocess_preset` | Apply a named visual preset. Presets: `cinematic` · `night` · `vibrant` · `bleach` · `horror` · `fantasy` · `reset`. |
+| `world_settings_set` | Change gravity (cm/s²) and time dilation world-wide. |
+
+---
+
+### Procedural (12)
+
+| Tool | Description |
+|---|---|
+| `arena_generate` | Generate a symmetrical Red vs Blue arena. `size`: small/medium/large. |
+| `scatter_props` | Scatter StaticMesh props in a radius with Poisson-disk distribution. |
+| `scatter_hism` | Dense instanced scatter using HISM — one draw call for thousands of props. |
+| `scatter_avoid` | Scatter props but skip positions within `avoid_radius` of matching actors. |
+| `scatter_road_edge` | Place props along both shoulders of a path (road edges, forest borders). |
+| `scatter_along_path` | Scatter prop clusters along a list of world-space path points. |
+| `scatter_export_manifest` | Export positions/rotations of all scatter actors in a folder to JSON. |
+| `scatter_clear` | Delete all scatter actors in a named World Outliner folder. |
+| `spline_place_props` | Place props along a selected spline actor. |
+| `spline_clear_props` | Delete all actors in the SplineProps folder. |
+| `procedural_volume_scatter` | Scatter random meshes within a spherical or cubic boundary. |
+| `procedural_wire_create` | Draw a procedural sagging wire/cable between exactly two selected actors. |
+
+---
+
+### Project (7)
+
+| Tool | Description |
+|---|---|
+| `scaffold_list_templates` | List all available scaffold templates (built-in + saved custom). |
+| `scaffold_preview` | Preview what a template would create — zero changes made. |
+| `scaffold_generate` | Generate a professional Content Browser folder tree from a template. |
+| `scaffold_save_template` | Save a custom folder list as a named reusable template. |
+| `scaffold_delete_template` | Delete a saved custom template. |
+| `scaffold_organize_loose` | Move loose `/Game` root assets into the project folder structure. |
+| `organize_smart_categorize` | Auto-organize assets functionally (Meshes/Trees, Materials/Master, etc.) via smart keyword matching. |
+
+**Built-in templates:** `uefn_standard` · `competitive_map` · `solo_dev` · `verse_heavy`
+
+---
+
+### Project Admin (3)
+
+| Tool | Description |
+|---|---|
+| `project_setup` | One-command project setup: scaffold folders + deploy Verse game manager skeleton. |
+| `system_backup_project` | Create a timestamped `.zip` backup of the Content folder. |
+| `system_perf_audit` | Fast performance check of the current level. |
+
+---
+
+### Prop Patterns (9)
+
+All pattern tools take `asset_path` + layout params and spawn at camera position.
+
+| Tool | Description |
+|---|---|
+| `pattern_grid` | N×M rectangular grid (`rows`, `cols`, `spacing`). |
+| `pattern_circle` | Evenly-spaced ring (`count`, `radius`). |
+| `pattern_arc` | Partial arc between two angles (`count`, `radius`, `angle_start`, `angle_end`). |
+| `pattern_spiral` | Archimedean spiral — radius grows with angle (`count`, `turns`). |
+| `pattern_line` | Props between two world points (`count`, `start`, `end`). |
+| `pattern_wave` | Sine-wave path (`count`, `amplitude`). |
+| `pattern_helix` | 3D corkscrew (`count`, `height`, `radius`). |
+| `pattern_radial_rows` | Concentric rings — dartboard/stadium layout (`rings`, `count_per_ring`). |
+| `pattern_clear` | Delete actors spawned by pattern tools (`preview_only=True` to preview first). |
+
+---
+
+### Proximity Tools (6)
+
+| Tool | Description |
+|---|---|
+| `actor_place_next_to` | Move last selected actor flush against the first on a specified face (`direction`: +X/-X/+Y/-Y/+Z/-Z). |
+| `actor_chain_place` | Arrange selected actors end-to-end along an axis using bounds. |
+| `actor_duplicate_offset` | Duplicate selected actor N times with cumulative offset — build arrays without copy-paste. |
+| `actor_replace_class` | Replace every actor matching a class filter with a new asset. Always `dry_run=True` first. |
+| `actor_cluster_to_folder` | Group nearby actors into World Outliner subfolders by XY-proximity radius. |
+| `actor_copy_to_positions` | Stamp copies of the selected actor at every `[[x,y,z], ...]` in a list. |
+
+---
+
+### Reference Auditor (7)
+
+Always `dry_run=True` before any destructive operation.
+
+| Tool | Description |
+|---|---|
+| `ref_audit_orphans` | Find assets with no referencers — candidates for deletion. |
+| `ref_audit_redirectors` | Find stale ObjectRedirectors left behind after moves/renames. |
+| `ref_audit_duplicates` | Find assets sharing the same base name in different folders. |
+| `ref_audit_unused_textures` | Find Texture2D assets not referenced by any material. |
+| `ref_fix_redirectors` | Consolidate ObjectRedirectors. `dry_run=True` first. |
+| `ref_delete_orphans` | Delete unreferenced assets. `dry_run=True` first. NOT undoable. |
+| `ref_full_report` | Run all scans and export a JSON health report for the project. |
+
+---
+
+### Screenshot (4)
+
+Output: `Saved/UEFN_Toolbelt/screenshots/{name}_{YYYYMMDD_HHMMSS}_{W}x{H}.png`
+
+| Tool | Description |
+|---|---|
+| `screenshot_take` | Capture the viewport at any resolution (`width`, `height`, `name`). |
+| `screenshot_focus_selection` | Auto-frame the selection, capture, then restore the camera. |
+| `screenshot_timed_series` | Take N screenshots at a timed interval for before/after comparisons. |
+| `screenshot_open_folder` | Print the screenshots output folder path to the Output Log. |
+
+---
+
+### Selection (3)
+
+| Tool | Description |
+|---|---|
+| `select_by_property` | Select actors where a property matches a specific value. |
+| `select_by_verse_tag` | Select actors that have a specific Verse tag. |
+| `select_in_radius` | Select all actors of a class within a radius of the current selection. |
+
+---
+
+### Sequencer (2)
+
+| Tool | Description |
+|---|---|
+| `seq_actor_to_spline` | Animate a selected actor along a selected spline path in the Sequencer. |
+| `seq_batch_keyframe` | Add a transform keyframe for all selected actors at the current time. |
+
+---
+
+### Simulation (2)
+
+| Tool | Description |
+|---|---|
+| `sim_generate_proxy` | Generate a Python simulation proxy for a selected Verse device. |
+| `sim_trigger_method` | Trigger a discoverable method on a Verse device via the Python API. |
+
+---
+
+### Stamps (5)
+
+Save a group of placed actors as a reusable named stamp and re-place it anywhere. Not the same as `prefab_migrate_open` — stamps are for level layout reuse, not asset migration.
+
+| Tool | Description |
+|---|---|
+| `stamp_save` | Save selected StaticMesh actors as a named stamp → `Saved/UEFN_Toolbelt/stamps/{name}.json`. |
+| `stamp_place` | Spawn stamp at camera (or `location=[x,y,z]`). `yaw_offset` rotates group; `scale_factor` rescales. |
+| `stamp_list` | List all saved stamps with actor counts. |
+| `stamp_info` | Print actor names, mesh paths, and relative offsets for a stamp. |
+| `stamp_delete` | Delete a saved stamp by name. |
+
+```python
+tb.run("stamp_save",  name="guard_post")
+tb.run("stamp_place", name="guard_post", yaw_offset=90.0)
+
+# Instant symmetric layout — 4 compass points
+for angle, x, y in [(0,5000,0),(90,0,5000),(180,-5000,0),(270,0,-5000)]:
+    tb.run("stamp_place", name="guard_post", location=[x,y,0], yaw_offset=angle)
 ```
 
-Restart Claude Code — it connects automatically. Then ask Claude things like:
-- *"Apply the chrome material preset to all selected actors"*
-- *"Scatter 200 props in a 4000cm spiral around the origin"*
-- *"Save a level snapshot, then mirror the selection across X"*
+---
 
-**Available MCP commands:** ping, execute\_python, run\_tool (→ all 171 tools), list\_tools,
-get\_all\_actors, get\_selected\_actors, spawn\_actor, delete\_actors, set\_actor\_transform,
-list\_assets, get\_asset\_info, rename\_asset, save\_current\_level, get\_viewport\_camera,
-set\_viewport\_camera, and more.
+### System (4)
+
+| Tool | Description |
+|---|---|
+| `system_build_verse` | Trigger Verse compilation and parse errors back as structured JSON. |
+| `system_get_last_build_log` | Read the last 100 lines of the UEFN log for error analysis. |
+| `system_optimize_background_cpu` | Disable UEFN sleep when alt-tabbed so Python/AI runs at max speed. |
+| `verse_patch_errors` | AI error loop: read build log, extract errors + file content, return everything Claude needs to fix and redeploy. |
+
+---
+
+### Tests (1)
+
+| Tool | Description |
+|---|---|
+| `toolbelt_integration_test` | ⚠️ Invasive — spawns/deletes actors. Run in a clean template level only. |
+
+---
+
+### Text & Signs (14)
+
+| Tool | Description |
+|---|---|
+| `text_place` | Place a single styled 3D text actor at a world location. |
+| `text_label_selection` | Auto-label every selected actor with its own name, floating above it. |
+| `text_paint_grid` | Paint a coordinate grid of labels across a map area (A1, B2, …). |
+| `text_color_cycle` | Place text actors cycling through a color palette. |
+| `text_save_style` | Save a named text style preset for reuse across levels. |
+| `text_list_styles` | Print all saved text style presets. |
+| `text_clear_folder` | Delete all TextRenderActors in the Toolbelt text folder. |
+| `sign_spawn_bulk` | Spawn N text signs in a row, column, or grid at a given location. |
+| `sign_batch_edit` | Edit text/color/size on all selected signs — only provided fields change. |
+| `sign_batch_set_text` | Assign individual text strings to each selected sign in order. |
+| `sign_batch_rename` | Rename selected signs sequentially: `prefix_01`, `prefix_02`, … |
+| `sign_list` | List all TextRenderActors in a folder with their current text. |
+| `sign_clear` | Delete all signs in a named folder. |
+| `label_attach` | Spawn a floating text label above each selected actor, parented so it follows movement. |
+
+---
+
+### Utilities (12)
+
+| Tool | Description |
+|---|---|
+| `config_list` | Show all Toolbelt config keys — current values + whether overridden. |
+| `config_get` | Read one config key. |
+| `config_set` | Persist a config value (`key`, `value`). Survives restarts and updates. |
+| `config_reset` | Reset a key (or `"all"`) back to built-in defaults. |
+| `theme_list` | List all available Toolbelt UI themes. |
+| `theme_get` | Get the currently active theme name. |
+| `theme_set` | Switch the Toolbelt UI theme — applies live, persists across restarts. |
+| `level_health_report` | Run all audit tools and return a unified 0–100 health score with A+/A/B/C/D/F grade. MCP-friendly. |
+| `level_health_open` | Print a formatted Level Health Report to the Output Log (score + per-category breakdown). |
+| `plugin_validate_all` | Validate all registered tools against Toolbelt schema requirements. |
+| `plugin_list_custom` | List all loaded third-party custom plugins from `Saved/UEFN_Toolbelt/Custom_Plugins/`. |
+| `plugin_export_manifest` | Export `tool_manifest.json` — full machine-readable index of all tools with parameter signatures. |
+
+---
+
+### Verse Helpers (26)
+
+| Tool | Description |
+|---|---|
+| `verse_list_devices` | List all Verse/Creative device actors in the current level. |
+| `verse_select_by_name` | Select all devices whose label contains a filter string. |
+| `verse_select_by_class` | Select all devices of a given class name substring. |
+| `verse_bulk_set_property` | Set a UPROPERTY on all selected Verse device actors at once. |
+| `device_set_property` | AI write layer — set any base-class property on actors matching class/label/path filter. |
+| `device_call_method` | V2 runtime control — call any exposed method on matched actors (`timer_start`, `Enable`, etc.). |
+| `verse_export_report` | Export a JSON report of all Verse device properties to the Saved folder. |
+| `verse_find_project_path` | Auto-detect the Verse source directory for the current UEFN project. |
+| `verse_write_file` | AI deploy layer — write generated Verse directly into the project's Verse source directory. |
+| `verse_gen_game_skeleton` | Generate a full `creative_device` game manager Verse stub. |
+| `verse_gen_device_declarations` | Generate `@editable` device declarations from the current selection. |
+| `verse_gen_elimination_handler` | Generate a Verse elimination event handler skeleton. |
+| `verse_gen_scoring_tracker` | Generate a Verse zone scoring tracker device skeleton. |
+| `verse_gen_prop_spawner` | Generate a trigger-controlled prop spawn/despawn Verse skeleton. |
+| `verse_gen_custom` | Write arbitrary Verse to the snippets folder. |
+| `verse_list_snippets` | List all generated snippet files in `Saved/UEFN_Toolbelt/snippets/`. |
+| `verse_open_snippets_folder` | Open the Verse snippet library folder in Windows Explorer. |
+| `verse_graph_open` | Interactive Verse Device Graph — force-directed layout, minimap, category filter, live sync, write-back. |
+| `verse_graph_scan` | Headless scan → full device adjacency dict (MCP-friendly). |
+| `verse_graph_export` | Export the device graph to JSON for external tooling. |
+| `spline_to_verse_points` | Convert selected spline to a Verse `vector3` array literal. |
+| `spline_to_verse_patrol` | Generate a full Verse patrol AI device skeleton from a selected spline. |
+| `spline_to_verse_zone_boundary` | Convert selected spline to a Verse zone boundary + `IsPointInZone` helper. |
+| `spline_export_json` | Export spline points to JSON (for `scatter_along_path` etc.). |
+| `api_verse_get_schema` | Get the cached Verse schema for a device class. |
+| `api_verse_refresh_schemas` | Refresh the Verse schema cache from current level devices. |
+
+---
+
+### Zone Tools (7)
+
+Zone actors can be any box-shaped actor. **Convention:** select the zone actor first, then other actors.
+
+| Tool | Description |
+|---|---|
+| `zone_spawn` | Spawn a visible cube zone marker at camera position in the "Zones" folder. |
+| `zone_resize_to_selection` | Resize zone to exactly contain all other selected actors (+ `padding` cm). |
+| `zone_snap_to_selection` | Move zone center to match combined selection bounds — no resize. |
+| `zone_select_contents` | Select every level actor whose pivot is inside the zone's bounds. |
+| `zone_move_contents` | Move zone + all actors inside it as a unit by a world-space offset. |
+| `zone_fill_scatter` | Randomly scatter copies of an asset throughout the zone volume. |
+| `zone_list` | List all actors in the "Zones" folder with center, width, depth, height. |
+
+```python
+tb.run("zone_spawn", width=4000, depth=4000, height=800, label="ArenaCenter")
+tb.run("zone_resize_to_selection", padding=200)
+tb.run("zone_select_contents")
+tb.run("zone_move_contents", offset_x=5000)
+tb.run("zone_fill_scatter", asset_path="/Engine/BasicShapes/Cube", count=50, min_spacing=300)
+```
 
 ---
 
@@ -1147,10 +1169,6 @@ tb.run("toolbelt_smoke_test")
 # Results saved to Saved/UEFN_Toolbelt/smoke_test_results.txt
 ```
 
-All 6 layers passing means the full stack is healthy — you don't need to test every tool individually.
-If any layer fails, the result file shows exactly which check failed and why.
-
----
 
 ## Getting Started
 
@@ -1267,7 +1285,7 @@ Expected output in the log:
 |---|---|---|
 | **Layer 1** — Python Environment | stdlib, threading, sockets, HTTP server, file I/O | 13 |
 | **Layer 2** — UEFN API Surface | `unreal` module, subsystems, AutomationLibrary, Materials | 13 |
-| **Layer 3** — Toolbelt Core | All 31 modules loaded, 171 tools registered, 23 safe tools executed | 40 |
+| **Layer 3** — Toolbelt Core | All 38 modules loaded, 244 tools registered, 23 safe tools executed | 40 |
 | **Layer 4** — MCP Bridge | 31 command handlers, HTTP listener state | 4 |
 | **Layer 5** — Dashboard (PySide6) | PySide6 importable, QApplication, ToolbeltDashboard | 3 |
 | **Layer 6** — Verse Book | clone present, git reachable, 22 chapters parsed | 12 |
@@ -1286,7 +1304,7 @@ After completing Step 2 (PySide6 installed), click **Toolbelt → Open Dashboard
 import UEFN_Toolbelt as tb; tb.launch_qt()
 ```
 
-A dark-themed floating window opens with a left sidebar nav and 171 tools across 30 categories (including an About page).
+A dark-themed floating window opens with a left sidebar nav and 244 tools across 38 categories (including an About page).
 
 ![Global Dashboard Search](docs/dashboard_search.png)
 
@@ -1294,7 +1312,7 @@ A dark-themed floating window opens with a left sidebar nav and 171 tools across
 
 | Search | Where | What it does |
 |---|---|---|
-| **Find any tool…** | Sidebar (top) | Global — searches all 171 tools across every category by name, description, or tag. Results show a category badge so you know where each tool lives. |
+| **Find any tool…** | Sidebar (top) | Global — searches all 244 tools across every category by name, description, or tag. Results show a category badge so you know where each tool lives. |
 | **Filter this page…** | Content header (top-right) | Within-category — hides/shows buttons on the current page as you type. Disappears during global search. |
 
 > **If the dashboard doesn't open after installing PySide6:** The module may be cached from before PySide6 was installed. Paste this single line to clear and reload:
@@ -1361,7 +1379,7 @@ Claude will call `run_toolbelt_tool("toolbelt_smoke_test")` through the bridge a
 > **Note:** The listener must be started in UEFN each session. You can also click **Dashboard → MCP → Start Listener** instead of pasting the command.
 
 **What Claude can do once connected:**
-- Run any of the 171 tools by name
+- Run any of the 244 tools by name
 - Spawn, move, delete actors directly
 - Generate spec-accurate Verse code (pulls from the live verse-book spec)
 - Execute arbitrary Python inside UEFN
@@ -1721,7 +1739,7 @@ tb.run("api_crawl_level_classes")
 
 | Layer | File | What it contains |
 |:---|:---|:---|
-| **Tool Layer** | `Saved/UEFN_Toolbelt/tool_manifest.json` | 171 tools — names, params, types, defaults |
+| **Tool Layer** | `Saved/UEFN_Toolbelt/tool_manifest.json` | 244 tools — names, params, types, defaults |
 | **C++ Layer** | `docs/uefn_reference_schema.json` | 14 actor classes, 1,031 properties with types + defaults |
 | **Verse Layer** | `docs/api_level_classes_schema.json` | Your project's `@editable` device properties (git-ignored) |
 
@@ -1993,7 +2011,7 @@ UEFN Python v40.00 experimental drop (March 2026).
 > (`dump_uefn_api.py`, `generate_uefn_stub.py`, `uefn_listener.py`). Full credit.
 >
 > **How UEFN Toolbelt differs:** Kirch's project focused on *Discovery* — mapping the API
-> and teaching AI what exists. **UEFN Toolbelt is an Execution Engine** — 171 tools for
+> and teaching AI what exists. **UEFN Toolbelt is an Execution Engine** — 244 tools for
 > actually building levels, built on top of that same bridge architecture. You don't need
 > to run a standalone MCP server alongside Toolbelt — Toolbelt is the all-in-one superset.
 
@@ -2109,7 +2127,7 @@ import UEFN_Toolbelt as tb; tb.run("mcp_start")
 `.mcp.json` is already in the repo root — Claude Code picks it up automatically on next launch.
 
 **What Claude can do:**
-- Run any of the 171 toolbelt tools by name (`run_toolbelt_tool`)
+- Run any of the 244 toolbelt tools by name (`run_toolbelt_tool`)
 - Spawn, move, delete actors; read selected actors live
 - List, rename, duplicate, import, delete Content Browser assets
 - Execute arbitrary Python inside UEFN with full `unreal.*` access
@@ -2212,7 +2230,7 @@ tb.run("verse_gen_custom",
 
 `CLAUDE.md` in the project root is auto-loaded by Claude Code every time you open the project. It contains:
 
-- Every tool name, parameter, and usage example for all 171 tools
+- Every tool name, parameter, and usage example for all 244 tools
 - MCP bridge command reference
 - UEFN Python critical rules (main thread, undo transactions, API gotchas)
 - Common patterns and troubleshooting
@@ -2233,7 +2251,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 | Ecosystem Moat | **Rich Plugin Hub, automatic UI generation** | Scattered, undocumented gists |
 | Security Model | **4-Gate Audit (AST scanning, SHA-256)** | Blind execution of untrusted code |
 | Verification | **Automated Integration Test Suite** | Manual testing only |
-| Tool count | **171 tools, 31 modules** | Single-purpose scripts |
+| Tool count | **244 tools, 38 modules** | Single-purpose scripts |
 | AI integration | **Full MCP bridge + model-agnostic HTTP client + tool manifest** | None |
 | Local model support | **LM Studio, Ollama, any HTTP agent** | None |
 | Verse code gen | **Live spec-backed (27K line reference)** | Static templates |
@@ -2248,7 +2266,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 The UEFN Toolbelt includes a professional-grade testing suite to ensure stability across UEFN updates.
 
 ### 1. Smoke Test (Healthy Schema Check)
-Verifies all 31 modules are loaded, all 171 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
+Verifies all 38 modules are loaded, all 244 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
 ```python
 import UEFN_Toolbelt as tb
 tb.run("toolbelt_smoke_test")
@@ -2307,7 +2325,7 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 ### v1.5.3 — March 2026 (Audit Fixes + MCP Auto-Start)
 
-- **Version string corrected**: `__version__` bumped from stale `1.2.0` to `1.5.3`. Dashboard About tab now shows `v1.5.3 · 171 tools`.
+- **Version string corrected**: `__version__` bumped from stale `1.2.0` to `1.5.3`. Dashboard About tab now shows `v1.5.3 · 244 tools`.
 - **MCP listener auto-starts** when the dashboard opens — no more manual `tb.run("mcp_start")`. If Claude Code is already configured, it connects automatically on first dashboard open. Silent if already running; never blocks the UI if MCP fails.
 - **Smoke test threshold corrected**: `MIN_TOOL_COUNT` updated from stale `155` to `171`. Smoke test now catches regressions at the real tool count.
 - **Safe tool execution expanded**: 23 no-argument tools now verified at smoke-test time (was 9). Coverage: `theme_list`, `theme_get`, `config_list`, `config_get`, `verse_graph_scan`, `api_search`, `spline_measure`, and more.
@@ -2355,9 +2373,9 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 ### v1.2 — March 2026 (Phase 20: AI-Agent Readiness)
 
-- **171 tools** across 30 categories
+- **244 tools** across 38 categories
 - **Tool Manifest Export** (`plugin_export_manifest`): Writes `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of every registered tool with its full parameter signature (name, type, required/optional, default). Any AI agent or automation script can load this file and know how to call every tool without reading source code. This is the key artifact for full AI-driven UEFN workflows.
-- **Structured Returns Everywhere (Phase 21 complete)**: All 171 tools return `{"status": "ok"/"error", ...}` dicts. Zero `None` returns remain. MCP callers (Claude Code, `client.py`, scripts) can read every result programmatically — no log parsing required.
+- **Structured Returns Everywhere (Phase 21 complete)**: All 244 tools return `{"status": "ok"/"error", ...}` dicts. Zero `None` returns remain. MCP callers (Claude Code, `client.py`, scripts) can read every result programmatically — no log parsing required.
 - **Schema-Driven Property Discovery** (`schema_utils.discover_properties`): `verse_device_editor`'s property reader now queries the reference schema for each actor's class before falling back to a hardcoded list. It reads whatever properties the schema actually defines for that class, making it correct-by-construction rather than hardcoded.
 - **Registry `to_manifest()`**: New method on `ToolRegistry` that introspects every function's signature via `inspect.signature()` — captures param names, type annotations, required/optional status, and defaults. Powers `plugin_export_manifest` and exposes the full tool catalog programmatically.
 - **`schema_utils` expansion**: Added `list_classes()` (all schema class names) and `discover_properties(class_name)` (schema property dict for a class) — two new helper functions that replace hardcoded property lists with live schema lookups.
@@ -2365,7 +2383,7 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 ### v1.1 — March 2026 (Phase 19: Simulation & Sequences)
 
-- **160 tools** across 30 categories: Simulation, Sequencer, Verse Helpers, and more
+- **160 tools** across 38 categories: Simulation, Sequencer, Verse Helpers, and more
 - **Verse Simulation Proxies**: Generate Python counterparts for @editable Verse properties to test logic without full UEFN sessions.
 - **Named Auto-Link Breakthrough**: Robust fuzzy resolution for `VerseDevice_C` actors—auto-links viewport labels to Verse schema.
 - **Sequencer Automation**: One-click "Actor to Spline" paths and batch keyframe management.
@@ -2374,7 +2392,7 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 
 ### v1.0 — March 2026 (Initial Release)
 
-- **171 tools** across 13 categories: Materials, Procedural, Bulk Ops, Text, Assets, Verse, Project, Screenshot, Tags, MCP, API Explorer, Utilities, and more
+- **244 tools** across 13 categories: Materials, Procedural, Bulk Ops, Text, Assets, Verse, Project, Screenshot, Tags, MCP, API Explorer, Utilities, and more
 - **PySide6 dashboard** — dark-themed floating window with sidebar nav, search across all tools, and per-category pages
 - **Tool Registry** — `@register_tool` decorator system, execute-by-name, tag/category search
 - **MCP bridge** — full two-process architecture letting Claude Code control UEFN over HTTP
