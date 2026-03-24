@@ -361,8 +361,76 @@ Do not use a different icon, a plain `QIcon()`, or no icon at all.
 
 ---
 
+## Dialogs and Sub-Windows — The Hard Rule
+
+> **Never use `QDialog`, `QInputDialog`, `QMessageBox`, or any other unstyled Qt dialog.**
+> Every window the user sees — confirmation prompts, text editors, progress indicators,
+> error messages — must be a `ToolbeltWindow` subclass with `show_in_uefn()`.
+> Unstyled dialogs break the visual contract and are immediately obvious as unfinished.
+
+### Pattern (canonical example: `_NoteEditDialog` in `verse_device_graph.py`)
+
+```python
+class MyPromptDialog(ToolbeltWindow):
+    def __init__(self, initial_value: str = "") -> None:
+        super().__init__(title="UEFN Toolbelt — My Prompt", width=440, height=300)
+        self._value = initial_value
+        self._build_ui()
+
+    def _build_ui(self) -> None:
+        root = QWidget()
+        self.setCentralWidget(root)
+        vl = QVBoxLayout(root)
+        vl.setContentsMargins(0, 0, 0, 0)
+        vl.setSpacing(0)
+
+        bar, bl = self.make_topbar("MY PROMPT")
+        bl.addWidget(self.make_btn("Save", accent=True, cb=self._save))
+        bl.addWidget(self.make_btn("Cancel", cb=self.close))
+        bl.addStretch()
+        vl.addWidget(bar)
+
+        body = QWidget()
+        body.setStyleSheet(f"background:{self.hex('panel')};")
+        fl = QVBoxLayout(body)
+        fl.setContentsMargins(16, 14, 16, 14)
+        fl.setSpacing(8)
+
+        fl.addWidget(self.make_label("Value", role="muted"))
+        self._edit = QLineEdit(self._value)
+        self._edit.setFixedHeight(28)
+        self._edit.setStyleSheet(
+            f"background:#212121; color:{self.hex('text')}; "
+            f"border:1px solid #363636; border-radius:3px; padding:3px 8px;"
+        )
+        fl.addWidget(self._edit)
+        vl.addWidget(body)
+
+    def _save(self) -> None:
+        self._value = self._edit.text().strip()
+        # update whatever owns this dialog, then close
+        self.close()
+
+# Open it — always show_in_uefn(), never show() alone:
+self._dlg = MyPromptDialog(initial_value="hello")   # store ref to prevent GC
+self._dlg.show_in_uefn()
+```
+
+### Rules
+
+- Always store the dialog reference on `self` (e.g. `self._dlg = ...`) to prevent Python GC from destroying it while Qt still holds the window open.
+- Use `make_topbar` + `make_btn` — the title bar must be consistent with every other window.
+- Body background: `self.hex('panel')` (`#212121`). Input fields: `background:#212121; border:1px solid #363636`.
+- For multi-line text: use `QTextEdit` with the same input QSS.
+- `show_in_uefn()` registers the Slate tick driver automatically. Never call `exec()` or `show()` alone.
+
+---
+
 ## What NOT to Do
 
+- **No `QDialog`, `QInputDialog`, or `QMessageBox`** — use a `ToolbeltWindow` subclass. See "Dialogs and Sub-Windows" above.
+- **No calling `show()` or `exec()` on dialogs** — always `show_in_uefn()`.
+- **No floating dialog reference** — always assign to `self._something` before calling `show_in_uefn()` or the window will be garbage-collected.
 - **No purple, navy, or blue-grey tints.** Banned values: `#0a0a1a`, `#1a1a30`,
   `#2a2a45`, `#3a3a5a`, `#888899`, `#444466`, `#d0d0e0`, or any hex where
   R/G/B are unequal in a blue/purple direction. The palette is strictly neutral
@@ -385,7 +453,9 @@ If you are an AI agent generating code for this project, apply these rules uncon
 4. Use `self.make_topbar`, `self.make_btn`, `self.make_text_area`, etc. — don't build widgets manually.
 5. For `QGraphicsItem` subclasses: `from ..core.theme import PALETTE` and build a local `_P` dict.
 6. **Never hard-code a hex color.** If a semantic token doesn't exist, add it to `core/theme.PALETTE`.
-7. Reference implementation: `tools/verse_device_graph.py`
+7. **Never use `QDialog`, `QInputDialog`, or `QMessageBox`** — subclass `ToolbeltWindow`. See "Dialogs and Sub-Windows".
+8. Store dialog references on `self` before calling `show_in_uefn()` to prevent GC.
+9. Reference implementation: `tools/verse_device_graph.py` — `_NoteEditDialog` for dialogs, `_DeviceGraphWindow` for full tool windows.
 
 ---
 

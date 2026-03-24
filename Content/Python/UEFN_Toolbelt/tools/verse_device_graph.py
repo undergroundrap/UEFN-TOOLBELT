@@ -1484,7 +1484,8 @@ if _PYSIDE6:
             self._health_score = 0
             self._comment_items:    List[_CommentBox]       = []
             self._cat_header_items: List[QGraphicsTextItem] = []
-            self._hover_active = False
+            self._hover_active   = False
+            self._layout_loaded  = False   # True after first successful layout restore
 
             # Live sync state
             self._live_sync   = False
@@ -1673,6 +1674,7 @@ if _PYSIDE6:
                 self._health_score = self._graph.health_score
                 self._rebuild_scene()
                 self._grouped_layout()
+                self._load_layout()     # restore saved positions + first-time comments
                 self._do_fit_view()
                 self._paint_hbar()
                 nd = len(self._graph.nodes)
@@ -1913,9 +1915,74 @@ if _PYSIDE6:
 
             self._scene.update()
 
+        # ── Layout persistence ────────────────────────────────────────────
+
+        def _layout_path(self) -> str:
+            saved = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt")
+            os.makedirs(saved, exist_ok=True)
+            return os.path.join(saved, "graph_layout.json")
+
+        def _save_layout(self) -> None:
+            if not self._graph:
+                return
+            try:
+                data = {
+                    "version": 1,
+                    "nodes": {
+                        nd.label: {"x": nd.x, "y": nd.y}
+                        for nd in self._graph.nodes
+                    },
+                    "comments": [b.to_dict() for b in self._comment_items],
+                }
+                with open(self._layout_path(), "w", encoding="utf-8") as fh:
+                    json.dump(data, fh, indent=2)
+                log_info(f"verse_graph: layout saved ({len(self._graph.nodes)} nodes, "
+                         f"{len(self._comment_items)} notes)")
+            except Exception as exc:
+                log_warning(f"verse_graph: layout save failed: {exc}")
+
+        def _load_layout(self) -> None:
+            try:
+                path = self._layout_path()
+                if not os.path.exists(path):
+                    return
+                with open(path, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+
+                # Restore node positions (always — covers re-scans too)
+                pos_map  = data.get("nodes", {})
+                restored = 0
+                for nd in self._graph.nodes:
+                    if nd.label in pos_map:
+                        nd.x = pos_map[nd.label]["x"]
+                        nd.y = pos_map[nd.label]["y"]
+                        item = self._node_items.get(nd.id)
+                        if item:
+                            item.setPos(nd.x, nd.y)
+                        restored += 1
+
+                # Restore comment boxes only on first load — after that
+                # the in-memory list is authoritative and _rebuild_scene handles it
+                if not self._layout_loaded and not self._comment_items:
+                    for d in data.get("comments", []):
+                        box = _CommentBox(**d)
+                        box.deleted.connect(self._remove_comment)
+                        self._scene.addItem(box)
+                        self._comment_items.append(box)
+
+                self._layout_loaded = True
+                if restored:
+                    self._status.setText(
+                        (self._status.text() or "") +
+                        f"  · layout restored ({restored}/{len(self._graph.nodes)})"
+                    )
+            except Exception as exc:
+                log_warning(f"verse_graph: layout load failed: {exc}")
+
         # ── Live sync ─────────────────────────────────────────────────────
 
         def closeEvent(self, event) -> None:
+            self._save_layout()
             if self._live_timer:
                 self._live_timer.stop()
             if self._sel_timer:
