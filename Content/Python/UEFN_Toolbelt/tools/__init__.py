@@ -62,3 +62,4 @@ from . import postprocess_tools
 from . import audio_tools
 from . import optimization_tools
 from . import prefab_migrator
+from . import ui_icon_import

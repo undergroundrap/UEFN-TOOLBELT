@@ -34,7 +34,7 @@ from ..core.base_window import ToolbeltWindow
 
 class MyToolWindow(ToolbeltWindow):
     def __init__(self):
-        super().__init__(title="MY TOOL", width=1100, height=700)
+        super().__init__(title="UEFN Toolbelt — My Tool Name", width=1100, height=700)
         self._build_ui()
 
     def _build_ui(self):
@@ -60,6 +60,34 @@ win.show_in_uefn()   # ← QSS + Slate tick, both handled automatically
 ```
 
 That's it. No manual `setStyleSheet`, no Slate tick boilerplate, no color constants to copy.
+
+---
+
+## Window Title Format (Mandatory)
+
+Every `ToolbeltWindow` title **must** follow this exact format:
+
+```
+"UEFN Toolbelt — Tool Name"
+```
+
+- The prefix is always `UEFN Toolbelt` (not "Toolbelt", not the project name)
+- The separator is ` — ` (space + em dash + space)
+- The tool name is title-case, no trailing punctuation
+
+**Help dialogs** append ` Help` to the main window title:
+```
+"UEFN Toolbelt — Tool Name Help"
+```
+
+**Sub-dialogs** (edit note, confirm, etc.) use a descriptive suffix:
+```
+"UEFN Toolbelt — Edit Note"
+"UEFN Toolbelt — Generated Verse Wiring"
+```
+
+This convention ensures every OS title bar, taskbar entry, and Alt+Tab preview reads
+consistently — users always know they are inside Toolbelt.
 
 ---
 

@@ -19,7 +19,7 @@ import urllib.parse
 import urllib.request
 import unreal
 
-from ..core import log_info, log_error, log_warning
+from ..core import log_info, log_error, log_warning, get_config, detect_project_mount
 from ..core.safety_gate import SafetyGate
 from ..registry import register_tool
 
@@ -139,10 +139,12 @@ def _extract_clipboard_png(temp_path: str) -> bool:
 )
 def run_import_image_from_url(
     url: str,
-    asset_dir: str = "/Game/UEFN_Toolbelt/Textures",
+    asset_dir: str = "",
     asset_name: str = "",
     **kwargs
 ) -> dict:
+    if not asset_dir:
+        asset_dir = get_config().get("import.default_dir") or f"/{detect_project_mount()}/UEFN_Toolbelt/Textures"
     if not url.strip():
         log_error("Image URL is required.")
         return {"error": "Missing URL"}
@@ -195,10 +197,12 @@ def run_import_image_from_url(
     tags=["import", "clipboard", "image", "texture", "paste"]
 )
 def run_import_image_from_clipboard(
-    asset_dir: str = "/Game/UEFN_Toolbelt/Textures",
+    asset_dir: str = "",
     asset_name: str = "",
     **kwargs
 ) -> dict:
+    if not asset_dir:
+        asset_dir = get_config().get("import.default_dir") or f"/{detect_project_mount()}/UEFN_Toolbelt/Textures"
     clean_name = _sanitize_asset_name(asset_name) or _next_sequential_name(asset_dir)
     # Phase 14: Safety Gate Validation
     SafetyGate.enforce_safety(asset_dir)

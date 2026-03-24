@@ -11,7 +11,7 @@ Usage:
 
     class MyToolWindow(ToolbeltWindow):
         def __init__(self):
-            super().__init__(title="MY TOOL", width=1100, height=700)
+            super().__init__(title="UEFN Toolbelt — My Tool", width=1100, height=700)
             self._build_ui()
 
         def _build_ui(self):

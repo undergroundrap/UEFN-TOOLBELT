@@ -59,6 +59,10 @@ DEFAULTS: dict[str, Any] = {
     # Verse Device Graph
     "verse.project_path":       "",
 
+    # Image Import (import_image_from_clipboard / import_image_from_url)
+    # Empty string = auto-detect project mount at call time → /{mount}/UEFN_Toolbelt/Textures
+    "import.default_dir":       "",
+
     # UI Theme
     "ui.theme":                 "toolbelt_dark",
 }

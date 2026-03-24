@@ -490,44 +490,129 @@ return {"status": "ok", "label": actor.get_actor_label(), "path": actor.get_path
 ## 23. `/Game/` Mount Point Is Invisible in the Content Browser (Discovered: March 2026)
 
 ### The Problem
-In UEFN, `unreal.Paths.project_content_dir()` returns the **FortniteGame engine content path** (`C:/Program Files/Epic Games/Fortnite/FortniteGame/Content`), not the user's project content directory. Similarly, the internal `/Game/` mount point exists and accepts `duplicate_asset()` calls — assets created there return `True` from `does_asset_exist()` — but **they never appear in the Content Browser**. The Content Browser only shows the project's named mount point (e.g. `/Device_API_Mapping/`).
+In UEFN, `unreal.Paths.project_content_dir()` returns the **FortniteGame engine content path**
+(`C:/Program Files/Epic Games/Fortnite/FortniteGame/Content`), not the user's project content
+directory. Similarly, the internal `/Game/` mount point exists and accepts `duplicate_asset()`
+calls — assets created there return `True` from `does_asset_exist()` — but **they never appear
+in the Content Browser**. The Content Browser only shows the project's named mount point
+(e.g. `/Device_API_Mapping/`).
 
 ### The Root Cause
-UEFN runs as a plugin inside FortniteGame. `project_content_dir()` resolves relative to the engine, not the user's island project. The `/Game/` mount is technically valid but maps to an internal path that isn't surfaced in the browser UI.
+UEFN runs as a plugin inside FortniteGame. `project_content_dir()` resolves relative to the
+engine, not the user's island project. The `/Game/` mount is technically valid but maps to an
+internal path that isn't surfaced in the browser UI.
 
-### The Solution
-1. **Get the project mount point** by scanning Asset Registry top-level paths and excluding known engine mounts. `get_project_file_path()` returns `FortniteGame.uproject` in UEFN — do NOT use it for this purpose:
-```python
-_BUILTIN_MOUNTS = {"/Game", "/Engine", "/FortniteGame", "/Fortnite", "/Fortnite.com",
-                   "/Epic", "/Script", "/Paper2D"}
-ar = unreal.AssetRegistryHelpers.get_asset_registry()
-top = [str(p).rstrip("/") for p in ar.get_sub_paths("/", recurse=False)]
-candidates = [p for p in top if p not in _BUILTIN_MOUNTS
-              and not any(p.startswith(b) for b in _BUILTIN_MOUNTS)]
-proj_mount = candidates[0] if candidates else "/Game"  # e.g. "/Device_API_Mapping"
+### ⚠️ The Plugin Mount Trap (Critical — Causes Silent Mislocation)
+
+Even after excluding known engine mounts, **Epic plugin mounts sort alphabetically before user
+project mounts**. Taking the first non-engine mount is wrong:
+
+```
+/ACLPlugin/          ← Epic Animation Compression Library — sorts BEFORE user project
+/AnimationWarping/   ← Another Epic plugin
+/Device_API_Mapping/ ← actual user project ← you want this
 ```
 
-2. **Get the project's Content dir on disk** via `project_dir()` + `"Content"`, then convert to absolute:
+Taking `candidates[0]` would return `/ACLPlugin/` — the import succeeds, reports no error,
+but the asset lands in a plugin mount the Content Browser never shows. **This is silent data
+loss from the user's perspective.**
+
+Known Epic plugin mounts to exclude (not exhaustive — new ones appear with engine updates):
+`ACLPlugin`, `AnimationLocomotionLibrary`, `AnimationWarping`, `CommonUI`, `GameplayAbilities`,
+`GameplayTasks`, `GameplayMessageRouter`, `StructUtils`, `Chooser`, `UIExtension`,
+`ModularGameplay`, `ModularGameplayActors`, `DataRegistry`, `SmartObjects`,
+`StateTreeEditorModule`, `GameFeatures`, `ReplicationGraph`, `PhysicsControl`,
+`Niagara`, `EnhancedInput`, `ControlRig`, `ModelingEditorAssets`, `QualityAssistEd`
+
+### The Canonical Solution — "Most Paths" Detection
+
+**Do not take the first alphabetical mount. Count cached paths per mount and take the largest.**
+The user's project always has hundreds or thousands of content paths. Every Epic plugin has
+fewer than ~50. This is reliable regardless of what plugins are installed:
+
 ```python
+_SKIP_MOUNTS = frozenset({
+    # Engine / runtime
+    "Engine", "FortniteGame", "FortniteGame.com", "Fortnite", "Paper2D", "Script",
+    # Epic editor plugins (add more as discovered — never remove entries)
+    "QualityAssistEd", "Niagara", "EnhancedInput", "ModelingEditorAssets", "ControlRig",
+    "ACLPlugin", "AnimationLocomotionLibrary", "AnimationWarping", "CommonUI",
+    "GameplayAbilities", "GameplayTasks", "GameplayMessageRouter", "StructUtils",
+    "Chooser", "UIExtension", "ModularGameplay", "ModularGameplayActors",
+    "DataRegistry", "SmartObjects", "StateTreeEditorModule", "GameFeatures",
+    "ReplicationGraph", "PhysicsControl",
+})
+
+def _detect_project_mount() -> str:
+    """Return the user's project Content Browser mount — the mount with the most paths."""
+    try:
+        ar = unreal.AssetRegistryHelpers.get_asset_registry()
+        counts: dict = {}
+        for p in ar.get_all_cached_paths():
+            root = p.strip("/").split("/")[0]
+            if root and root not in _SKIP_MOUNTS:
+                counts[root] = counts.get(root, 0) + 1
+        if counts:
+            return max(counts, key=counts.get)   # user project wins every time
+    except Exception:
+        pass
+    return "Game"
+```
+
+### Fallback: User-Driven Detection (Most Reliable of All)
+
+When a tool lets the user select assets before acting, derive the mount from the first asset
+path the user provides. This is 100% reliable and requires no heuristic:
+
+```python
+# When user adds an asset from CB selection:
+pkg = asset_data.package_name          # e.g. "/Device_API_Mapping/Meshes/SM_Wall"
+mount = pkg.strip("/").split("/")[0]   # → "Device_API_Mapping"
+self._dest.setText(f"/{mount}/Migrated/")
+```
+
+Use this approach in any windowed tool where the user provides assets before the destination
+is needed (see `prefab_migrator.py` for a reference implementation).
+
+### Getting the Project Content Dir on Disk
+
+For disk-level operations (e.g. `shutil.copy2`), never use `project_content_dir()`.
+Use `project_dir()` + `"/Content"` instead:
+
+```python
+# ❌ Returns FortniteGame engine path — wrong for user project files
+src = unreal.Paths.project_content_dir()
+
+# ✅ Returns user project Content dir on disk
 project_root = unreal.Paths.convert_relative_path_to_full(
     unreal.Paths.project_dir()
 ).rstrip("/\\")
-content_dir = project_root + "/Content"
+src = project_root + "/Content"
 ```
 
-3. **Use the project mount for same-project asset operations** (duplicate, exists checks, paths shown in CB):
+### Asset Path Rules
+
 ```python
-# ❌ Assets created here exist internally but are invisible in the Content Browser
-dst = "/Game/Migrated/SM_MyMesh"
+# ❌ Wrong — imports succeed but asset is invisible in Content Browser
+unreal.EditorAssetLibrary.duplicate_asset(src, "/Game/Migrated/SM_Wall")
 
-# ✅ Assets created here appear in the Content Browser under the Migrated folder
-dst = f"/{proj_name}/Migrated/SM_MyMesh"
+# ✅ Correct — asset appears in CB under Migrated folder
+mount = _detect_project_mount()        # e.g. "Device_API_Mapping"
+unreal.EditorAssetLibrary.duplicate_asset(src, f"/{mount}/Migrated/SM_Wall")
 ```
 
-### Asset path format from the Content Browser
-`AssetData.package_name` returns paths using the project mount point, **not** `/Game/`:
+`AssetData.package_name` always returns the project-mount form — never `/Game/`:
 ```
 /Device_API_Mapping/Meshes/SM_Wall   ← what UEFN returns
-/Game/Meshes/SM_Wall                 ← what you might expect from UE5 docs
+/Game/Meshes/SM_Wall                 ← what UE5 docs show — WRONG in UEFN
 ```
-Never force-prepend `/Game/` to paths returned by `get_selected_asset_data()` or the Asset Registry in UEFN.
+Never force-prepend `/Game/` to paths from `get_selected_asset_data()` or the Asset Registry.
+
+### Quick Reference — What NOT to Use
+
+| API | Problem | Use instead |
+|---|---|---|
+| `Paths.project_content_dir()` | Returns FortniteGame engine path | `Paths.project_dir() + "/Content"` |
+| `Paths.get_project_file_path()` | Returns `FortniteGame.uproject` | Asset Registry mount detection |
+| `candidates[0]` (first alpha mount) | Picks ACLPlugin or similar before user project | `max(counts, key=counts.get)` |
+| `/Game/` as asset destination | Assets invisible in Content Browser | `_detect_project_mount()` |

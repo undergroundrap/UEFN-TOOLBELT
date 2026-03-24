@@ -309,6 +309,10 @@ def _tab_quick_actions(R) -> "QScrollArea":
          lambda: R("prefab_migrate_open"),
          "Migrates assets (+ all meshes, materials, textures) to another folder or project. "
          "Dry-run preview, flatten option, viewport + Content Browser selection, cross-project disk copy.")
+    _btn(g_flag, "UI Icon Importer  —  paste any image, import with correct Mip settings",
+         lambda: R("ui_icon_import_open"),
+         "Copy an image from any browser, Figma, or Photoshop and paste it directly. "
+         "Auto-applies TC_UserInterface2D / NoMipmaps. Supports file browse and drag-drop.")
     _btn(g_flag, "World State Export  —  full level snapshot for AI",
          lambda: R("world_state_export"),
          "Dumps every actor's transform and readable properties to world_state.json — "

@@ -1,39 +1,54 @@
 import os
 import unreal
 from ..registry import register_tool
-from ..core import log_info, log_warning, log_error
+from ..core import log_info, log_warning, log_error, PLUGIN_MOUNTS
+
+# Engine / plugin mounts that must never be written to.
+# Sourced from core.PLUGIN_MOUNTS — single source of truth (see UEFN_QUIRKS.md Quirk #23).
+_BLOCKED_MOUNTS = PLUGIN_MOUNTS | frozenset({"Fortnite", "Epic"})
+
 
 class SafetyGate:
     """
     Central safety layer for all UEFN Toolbelt 'Write' operations.
     Prevents accidental modification of Epic/Fortnite system assets and
     enforces project-relative path validation.
+
+    UEFN note: the user's project uses a named mount (e.g. /BRCosmetics/,
+    /Device_API_Mapping/) — NOT /Game/. Checking only for /Game/ blocks all
+    legitimate project writes. We check the mount root against _BLOCKED_MOUNTS
+    instead. See docs/UEFN_QUIRKS.md Quirk #23.
     """
-    
+
     @staticmethod
-    def is_safe_to_modify(asset_path):
+    def is_safe_to_modify(asset_path: str):
         """
         Checks if an asset path is safe to modify.
-        Returns (bool, reason)
+        Returns (bool, reason).
         """
-        # 1. Check if path starts with /Game/ (User project)
-        # Avoid /Epic/, /Fortnite/, /Engine/, /Paper2D/, etc.
-        safe_prefixes = ["/Game/", "/VerseLocal/"]
-        
-        normalized_path = asset_path.replace("\\", "/")
-        if not any(normalized_path.startswith(prefix) for prefix in safe_prefixes):
-            return False, f"BLOCKED: Asset '{asset_path}' is a system/engine asset and must not be modified."
-        
-        # 2. Check for 'Cooked' status if possible (EditorAssetSubsystem usually handles this)
-        # But we can add a manual check if needed via asset registry flags
-        
+        normalized = asset_path.replace("\\", "/")
+
+        # Always allow VerseLocal
+        if normalized.startswith("/VerseLocal/"):
+            return True, "Asset is in a modifiable project directory."
+
+        # Extract the top-level mount root
+        root = normalized.strip("/").split("/")[0] if normalized.strip("/") else ""
+
+        if not root:
+            return False, f"BLOCKED: Empty or invalid asset path '{asset_path}'."
+
+        if root in _BLOCKED_MOUNTS:
+            return False, (
+                f"BLOCKED: Asset '{asset_path}' is in a system/engine mount "
+                f"(/{root}/) and must not be modified."
+            )
+
         return True, "Asset is in a modifiable project directory."
 
     @staticmethod
-    def enforce_safety(asset_path):
-        """
-        Raises an exception if the asset is not safe to modify.
-        """
+    def enforce_safety(asset_path: str):
+        """Raises PermissionError if the asset is not safe to modify."""
         is_safe, reason = SafetyGate.is_safe_to_modify(asset_path)
         if not is_safe:
             log_error(reason)
@@ -42,8 +57,13 @@ class SafetyGate:
 
     @staticmethod
     def get_project_content_dir():
-        """Returns the absolute path to the project's Content directory."""
-        return unreal.Paths.project_content_dir()
+        """Returns the absolute path to the project's Content directory on disk."""
+        # project_content_dir() returns the FortniteGame engine path in UEFN.
+        # Use project_dir() + /Content instead. See UEFN_QUIRKS.md Quirk #23.
+        root = unreal.Paths.convert_relative_path_to_full(
+            unreal.Paths.project_dir()
+        ).rstrip("/\\")
+        return root + "/Content"
 
 @register_tool(name="core_safety_audit", category="System")
 def core_safety_audit():

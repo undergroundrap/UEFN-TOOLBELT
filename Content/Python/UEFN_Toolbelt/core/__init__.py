@@ -17,6 +17,67 @@ from typing import Generator, Iterable, List, Optional
 import unreal
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  Project Path Utilities
+#  Always use these — never call Paths.project_content_dir() or guess a mount.
+#  See docs/UEFN_QUIRKS.md Quirk #23 for the full explanation.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Engine and known Epic plugin mounts that are never the user's project.
+# Add entries here as new plugins are discovered — never remove existing ones.
+PLUGIN_MOUNTS: frozenset = frozenset({
+    "Engine", "FortniteGame", "Fortnite", "Epic", "Paper2D", "Script",
+    "QualityAssistEd", "Niagara", "EnhancedInput", "ModelingEditorAssets", "ControlRig",
+    "ACLPlugin", "AnimationLocomotionLibrary", "AnimationWarping", "CommonUI",
+    "GameplayAbilities", "GameplayTasks", "GameplayMessageRouter", "StructUtils",
+    "Chooser", "UIExtension", "ModularGameplay", "ModularGameplayActors",
+    "DataRegistry", "SmartObjects", "StateTreeEditorModule", "GameFeatures",
+    "ReplicationGraph", "PhysicsControl",
+})
+
+
+def detect_project_mount() -> str:
+    """
+    Return the user's project Content Browser mount point.
+
+    Strategy: count Asset Registry cached paths per mount root and return
+    the one with the most entries.  The user's project always has hundreds
+    or thousands of paths; every Epic plugin has fewer than ~50.  This is
+    reliable regardless of which plugins are installed.
+
+    Never use candidates[0] (first alphabetical) — plugin mounts like
+    /ACLPlugin/ sort before user projects and cause silent mislocation.
+
+    Returns e.g. "BRCosmetics" or "Device_API_Mapping" (no leading slash).
+    """
+    try:
+        ar = unreal.AssetRegistryHelpers.get_asset_registry()
+        counts: dict = {}
+        for p in ar.get_all_cached_paths():
+            root = p.strip("/").split("/")[0]
+            if root and root not in PLUGIN_MOUNTS:
+                counts[root] = counts.get(root, 0) + 1
+        if counts:
+            return max(counts, key=counts.get)
+    except Exception:
+        pass
+    return "Game"
+
+
+def project_content_dir() -> str:
+    """
+    Return the user's project Content directory path on disk.
+
+    unreal.Paths.project_content_dir() returns the FortniteGame *engine*
+    content path in UEFN — not the user's island project.  This helper
+    uses project_dir() + '/Content' which always resolves correctly.
+    """
+    root = unreal.Paths.convert_relative_path_to_full(
+        unreal.Paths.project_dir()
+    ).rstrip("/\\")
+    return root + "/Content"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  Logging
 # ─────────────────────────────────────────────────────────────────────────────
 

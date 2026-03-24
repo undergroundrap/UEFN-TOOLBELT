@@ -5,6 +5,23 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [1.8.5] — 2026-03-24
+
+### feat: ui icon importer — clipboard-first texture import
+
+**New flagship tool (`ui_icon_import_open`):**
+- Copy any image from a browser, Figma, Photoshop, or Paint and paste it with Ctrl+V directly into the window — imports as a UEFN texture in one step
+- Three input paths: clipboard paste (Ctrl+V), click-to-browse file dialog, drag-and-drop image files
+- Five texture presets covering all common UEFN UI needs: UI Icon (TC_UserInterface2D · NoMipmaps), Sprite/2D, Thumbnail, Normal Map, Default/Mipmapped
+- Auto-detects project mount point for default destination (`/[Mount]/UI/Icons/`)
+- Auto-prefixes `T_` on filenames per Epic naming convention
+- Applies `post_edit_change()` + saves asset after settings — texture is fully configured on import
+- Syncs Content Browser and selects the imported asset automatically
+- `?` help dialog covers all presets, input methods, and the "why no mipmaps for UI" rationale
+- Added to dashboard Flagship Tools quick bar
+
+---
+
 ## [1.8.4] — 2026-03-24
 
 ### feat: prefab asset migrator — dependency-aware asset migration tool

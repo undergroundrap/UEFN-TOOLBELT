@@ -61,7 +61,7 @@ import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in
 ## What This Project Is
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
-It runs inside the editor and exposes 240 tools through:
+It runs inside the editor and exposes 241 tools through:
 - A persistent top-menu entry (`Toolbelt ▾`) in the UEFN editor bar
 - An 18-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
 - An MCP HTTP bridge so Claude Code can control UEFN directly
@@ -74,7 +74,8 @@ It runs inside the editor and exposes 240 tools through:
 > Read `docs/ui_style_guide.md` before writing any windowed UI.
 > The short version:
 > 1. Subclass `ToolbeltWindow` from `core/base_window.py` — theme + Slate tick are automatic
-> 2. Only use hex values from the palette in that guide — no purple, no navy, no off-whites
+> 2. **Window title format is mandatory:** `"UEFN Toolbelt — Tool Name"`. Always. Help dialogs: `"UEFN Toolbelt — Tool Name Help"`. Sub-dialogs: `"UEFN Toolbelt — Action Name"`. Never omit the prefix — every OS title bar and taskbar entry must read as Toolbelt.
+> 3. Only use hex values from the palette in that guide — no purple, no navy, no off-whites
 > 3. **NEVER add `make_topbar()` unless it carries multiple real toolbar buttons** (scan, export, filter, etc.). The OS title bar set via `title=` already shows the window name. A topbar whose only content is a title label + stretch (even with one small utility button like `?`) is redundant visual noise — remove it. This applies to main windows AND sub-dialogs (help, edit, confirm). If in doubt: does removing the topbar lose any functionality? If no → remove it.
 > 4. **Every tool window must have a `?` help button** that opens a `_HelpDialog(ToolbeltWindow)`. No exceptions. If the window has a topbar → `?` goes last on the right. If no topbar → `?` goes in the bottom action row right-aligned. See `docs/ui_style_guide.md` for the exact pattern.
 > 5. For read-only text areas (help dialogs, logs): always set `editor.setLineWrapMode(QTextEdit.NoWrap)` — otherwise separator lines and fixed-width content wrap and break the layout.
@@ -104,7 +105,7 @@ This file contains every registered tool with its full Python parameter signatur
   }
 }
 ```
-All 240 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
+All 241 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
 
 **Schema utility functions** (`schema_utils.py`):
 - `schema_utils.validate_property(class_name, prop)` — check if a property exists and is writable
@@ -126,6 +127,17 @@ All 240 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as 
 4. **Save explicitly** — asset changes aren't saved automatically.
    Always call `save_asset(path)` or `save_current_level()`.
 5. **Path format** — asset paths use forward slashes. In standard UE5 docs paths start with `/Game/`, but **in UEFN the Content Browser mount point is the project name** (e.g. `/Device_API_Mapping/`). `AssetData.package_name` returns the project-mount form. Never force-prepend `/Game/` to paths from the Asset Registry or Content Browser selection. `unreal.Paths.project_content_dir()` returns the FortniteGame engine path — use `unreal.Paths.project_dir() + "/Content"` instead. See `docs/UEFN_QUIRKS.md` Quirk #23.
+
+   **Detecting the project mount point** — never take the first alphabetical non-engine mount. Epic plugin mounts (`ACLPlugin`, `AnimationWarping`, etc.) sort before user project mounts. Always use the **"most paths" approach** — the user's project has far more content than any plugin:
+   ```python
+   counts = {}
+   for p in unreal.AssetRegistryHelpers.get_asset_registry().get_all_cached_paths():
+       root = p.strip("/").split("/")[0]
+       if root and root not in _SKIP_MOUNTS:
+           counts[root] = counts.get(root, 0) + 1
+   mount = max(counts, key=counts.get) if counts else "Game"
+   ```
+   Canonical implementation: `core/__init__.py` → `detect_project_mount()`. Import it with `from ..core import detect_project_mount`. Never reimplement this per-tool.
 6. **Vectors/Rotators** — `unreal.Vector(x, y, z)` · `unreal.Rotator(pitch, yaw, roll)`
    Pitch = tilt up/down · Yaw = rotate left/right · Roll = spin
 
@@ -236,7 +248,7 @@ Then restart Claude Code — it connects automatically.
 
 ### What Claude Code can now do
 
-- Run any of the 240 registered tools by name
+- Run any of the 241 registered tools by name
 - Spawn, move, delete actors
 - List/rename/import/tag assets
 - Take screenshots, save level snapshots
@@ -642,6 +654,7 @@ tb.run("memory_top_offenders", limit=10)
 | `import_fbx` | `file_path`, `destination="/Game/"` | Import single FBX |
 | `import_fbx_folder` | `folder_path`, `destination="/Game/"` | Batch import folder |
 | `organize_assets` | `folder="/Game/"` | Sort by asset type into subfolders |
+| `ui_icon_import_open` | — | Open the UI Icon Importer — paste any image from clipboard (browser, Figma, Photoshop), auto-imports with TC_UserInterface2D · NoMipmaps · TextureGroup_UI. File browse and drag-drop also supported |
 | `prefab_migrate_open` | — | Open the Prefab Asset Migrator window — copy assets with full dependency closure (meshes, materials, textures) within the project or to disk for cross-project import |
 | `prefab_parse_refs` | `t3d_text` | Parse T3D clipboard text (Ctrl+C in viewport) and return all asset references |
 | `prefab_resolve_deps` | `asset_paths=[...]` | Resolve full dependency tree for a list of asset package paths |
@@ -869,7 +882,7 @@ tb.run("config_reset", key="all")   # wipe all customisations
 |---|---|---|
 | `plugin_validate_all` | — | Validate all registered tools against schema |
 | `plugin_list_custom` | — | List all loaded third-party tools from `Saved/UEFN_Toolbelt/Custom_Plugins` |
-| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 240 tools with full parameter signatures (name, type, required, default) for AI-agent and automation use |
+| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 241 tools with full parameter signatures (name, type, required, default) for AI-agent and automation use |
 
 **Online Plugin Hub** — the Plugin Hub dashboard tab fetches `registry.json` live from GitHub.
 - **Core Tools** (green/BUILT-IN): 10 flagship modules by Ocean Bennett, already built in
@@ -899,7 +912,7 @@ When the listener is running, Claude Code can call these directly:
 | `ping` | — | Health check + command list |
 | `get_log` | `last_n=50` | Return last N lines from the MCP command log ring |
 | `execute_python` | `code` | Run Python in UEFN (pre-populated: `unreal`, `actor_sub`, `asset_sub`, `level_sub`, `tb`) |
-| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 240 registered tools |
+| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 241 registered tools |
 | `list_tools` | `category=""` | List all registered tools |
 | `describe_tool` | `tool_name` | Full manifest entry for one tool (name, description, parameters, tags) |
 | `batch_exec` | `commands=[{command, params}]` | Multiple commands in one tick |

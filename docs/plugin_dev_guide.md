@@ -233,6 +233,76 @@ window sizing, and proper cleanup. You never need to manually call
 
 ---
 
+## ⚠️ Detecting the Project Mount Point (Read This Before Touching Any Path)
+
+This is the single most common mistake plugin authors make in UEFN. Get it wrong and your
+tool silently writes assets somewhere the user can never find them.
+
+### Why `/Game/` is wrong
+
+UEFN runs as a plugin inside FortniteGame. The `/Game/` mount exists and accepts asset
+operations without error — but **it is invisible in the Content Browser**. Any asset you
+write there disappears from the user's perspective.
+
+### Why "first alphabetical non-engine mount" is also wrong
+
+Epic ships dozens of plugin mounts alongside every UEFN project. Many sort alphabetically
+**before** the user's actual project:
+
+```
+/ACLPlugin/          ← Epic Animation Compression Library — comes first alphabetically
+/AnimationWarping/   ← another Epic plugin
+/Device_API_Mapping/ ← the actual user project   ← YOU WANT THIS
+```
+
+Picking `candidates[0]` returns `ACLPlugin`. The import succeeds, reports no error, the
+user's asset is written to a plugin folder they cannot see. Silent data loss.
+
+### The canonical pattern — one import, done
+
+This is already solved in `core/__init__.py`. **Never reimplement it in your plugin.**
+Just import it:
+
+```python
+from UEFN_Toolbelt.core import detect_project_mount
+
+mount = detect_project_mount()          # e.g. "BRCosmetics" or "Device_API_Mapping"
+dest  = f"/{mount}/MyPlugin/Textures/"
+```
+
+That's it. `detect_project_mount()` counts Asset Registry paths per mount and returns the
+one with the most — the user's project always has hundreds of paths, every Epic plugin has
+fewer than ~50. The full `PLUGIN_MOUNTS` blocklist is maintained in `core/__init__.py`
+and shared by every tool and the SafetyGate.
+
+### Other APIs to never use for this purpose
+
+| API | Why it's wrong |
+|---|---|
+| `unreal.Paths.project_content_dir()` | Returns FortniteGame engine path, not user project |
+| `unreal.Paths.get_project_file_path()` | Returns `FortniteGame.uproject` in UEFN |
+| `candidates[0]` after filtering engine mounts | Picks plugin mount alphabetically before user project |
+
+### Getting the project Content dir on disk
+
+For tools that copy files on disk (cross-project migration, etc.):
+
+```python
+# ❌ Wrong — returns engine content dir
+src = unreal.Paths.project_content_dir()
+
+# ✅ Correct
+project_root = unreal.Paths.convert_relative_path_to_full(
+    unreal.Paths.project_dir()
+).rstrip("/\\")
+src = project_root + "/Content"
+```
+
+Full technical breakdown: `docs/UEFN_QUIRKS.md` Quirk #23.
+Canonical implementation: `core/__init__.py` → `detect_project_mount()` and `PLUGIN_MOUNTS`.
+
+---
+
 ## 🔒 Security Model
 
 The Toolbelt applies **four security gates** to every custom plugin:
