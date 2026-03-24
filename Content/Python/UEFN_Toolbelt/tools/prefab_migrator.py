@@ -868,18 +868,41 @@ WHAT IT DOES NOT MIGRATE
         def _list_packages(self, list_widget: QListWidget) -> List[str]:
             return [list_widget.item(i).text() for i in range(list_widget.count())]
 
+        def _categorize(self, pkg: str) -> tuple:
+            """Return (label, color) for a package path based on name/path hints."""
+            name = pkg.rsplit("/", 1)[-1].upper()
+            low  = pkg.lower()
+            if any(x in low for x in ("/verse/", "/verse_", "_verse", ".verse")):
+                return "Verse",    "#C678DD"
+            if any(name.startswith(p) for p in ("SM_", "SKM_", "SK_")):
+                return "Mesh",     "#E5C07B"
+            if any(name.startswith(p) for p in ("M_", "MI_", "MF_", "MM_")):
+                return "Material", "#E06C75"
+            if any(name.startswith(p) for p in ("T_", "TX_")):
+                return "Texture",  "#56B6C2"
+            if any(name.startswith(p) for p in ("BP_", "ABP_")):
+                return "Blueprint","#61AFEF"
+            if any(name.startswith(p) for p in ("A_", "S_", "SC_", "SFX_")):
+                return "Audio",    "#98C379"
+            if any(name.startswith(p) for p in ("P_", "NS_", "FX_", "VFX_")):
+                return "FX",       "#FF9900"
+            if any(name.startswith(p) for p in ("DA_", "DT_", "D_")):
+                return "Data",     "#ABB2BF"
+            return "Asset",        "#888888"
+
         def _populate_dep_list(self, dep_list: QListWidget,
                                resolved: Set[str], seeds: List[str]) -> None:
             dep_list.clear()
             seed_set = set(seeds)
             for pkg in sorted(resolved):
-                item = QListWidgetItem(pkg)
-                if pkg in seed_set:
-                    item.setForeground(QColor("#3A8FC7"))
-                    item.setToolTip("Direct seed asset")
-                else:
-                    item.setForeground(QColor("#888888"))
-                    item.setToolTip("Pulled in as dependency")
+                cat, color = self._categorize(pkg)
+                seed_marker = " ●" if pkg in seed_set else ""
+                item = QListWidgetItem(f"[{cat}]{seed_marker}  {pkg}")
+                item.setForeground(QColor(color))
+                item.setToolTip(
+                    ("Direct seed asset" if pkg in seed_set else "Pulled in as dependency")
+                    + f"  ·  {cat}"
+                )
                 dep_list.addItem(item)
 
         # ── Resolve ────────────────────────────────────────────────────────
