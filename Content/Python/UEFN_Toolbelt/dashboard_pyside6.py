@@ -193,7 +193,7 @@ def _build_setup_status(L: "QVBoxLayout") -> None:
     try:
         import UEFN_Toolbelt as _tb
         count = len(_tb.registry.list_tools())
-        color = "ok" if count >= 171 else "warn"
+        color = "ok" if count >= 240 else "warn"
         checks.append(("Tool registry", color, f"{count} tools registered"))
     except Exception as e:
         checks.append(("Tool registry", "error", str(e)))

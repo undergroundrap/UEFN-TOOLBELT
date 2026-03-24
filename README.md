@@ -1,5 +1,5 @@
 # UEFN TOOLBELT
-**244 Professional Tools for UEFN Python Integration.**
+**246 Professional Tools for UEFN Python Integration.**
 
 > Built by **Ocean Bennett** — 2026
 
@@ -37,7 +37,7 @@ Automate the tedious, script the impossible, and bridge the gap between Python a
 UEFN Toolbelt is a master utility designed to leverage the **2026 UEFN Python 3.11 Update**,
 allowing creators to manipulate actors, manage assets, and generate boilerplate Verse code
 through a high-level, developer-friendly interface — all from a single persistent menu entry
-in the UEFN editor bar. **244 registered tools** across 38 categories, complete AI-agent
+in the UEFN editor bar. **246 registered tools** across 38 categories, complete AI-agent
 readiness (100% structured dict returns), and a unified theme system so every window in the
 platform looks and feels identical.
 
@@ -142,7 +142,7 @@ Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect 
 1.  **Open Dashboard**: Run `tb.launch_qt()` or use the `Toolbelt` menu.
 2.  **One-Click Sync**: Click the **"Sync Level Schema to AI"** button in **Quick Actions**.
 3.  **Instant Content**: The 1.6MB schema is automatically copied to your `docs/` folder. Your AI now knows every hidden property in your specific level.
-4.  **Export Tool Manifest**: Run `tb.run("plugin_export_manifest")` to write `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of all 244 tools with their parameter signatures, types, defaults, and categories. An AI agent can load this file and immediately know what every tool does and how to call it, without reading source code.
+4.  **Export Tool Manifest**: Run `tb.run("plugin_export_manifest")` to write `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of all 246 tools with their parameter signatures, types, defaults, and categories. An AI agent can load this file and immediately know what every tool does and how to call it, without reading source code.
 
 ---
 
@@ -622,7 +622,7 @@ still works at the outer level).
 
 ## Tool Reference
 
-> **244 tools · 38 categories** — all return `{"status": "ok"/"error", ...}` structured dicts.
+> **246 tools · 38 categories** — all return `{"status": "ok"/"error", ...}` structured dicts.
 > Run any tool with `tb.run("tool_name", param=value)`.
 > AI agents: use `tb.run("plugin_export_manifest")` to get the full machine-readable manifest.
 
@@ -878,7 +878,7 @@ tb.run("snapshot_restore",      name="before_scatter")
 
 ### MCP Bridge (4)
 
-Start the listener in UEFN, then Claude Code (or any MCP client) can run all 244 tools by name, spawn actors, execute arbitrary Python, and more.
+Start the listener in UEFN, then Claude Code (or any MCP client) can run all 246 tools by name, spawn actors, execute arbitrary Python, and more.
 
 | Tool | Description |
 |---|---|
@@ -1335,7 +1335,7 @@ Expected output in the log:
 |---|---|---|
 | **Layer 1** — Python Environment | stdlib, threading, sockets, HTTP server, file I/O | 13 |
 | **Layer 2** — UEFN API Surface | `unreal` module, subsystems, AutomationLibrary, Materials | 13 |
-| **Layer 3** — Toolbelt Core | All 38 modules loaded, 244 tools registered, 23 safe tools executed | 40 |
+| **Layer 3** — Toolbelt Core | All 38 modules loaded, 246 tools registered, 23 safe tools executed | 40 |
 | **Layer 4** — MCP Bridge | 31 command handlers, HTTP listener state | 4 |
 | **Layer 5** — Dashboard (PySide6) | PySide6 importable, QApplication, ToolbeltDashboard | 3 |
 | **Layer 6** — Verse Book | clone present, git reachable, 22 chapters parsed | 12 |
@@ -1354,7 +1354,7 @@ After completing Step 2 (PySide6 installed), click **Toolbelt → Open Dashboard
 import UEFN_Toolbelt as tb; tb.launch_qt()
 ```
 
-A dark-themed floating window opens with a left sidebar nav and 244 tools across 38 categories (including an About page).
+A dark-themed floating window opens with a left sidebar nav and 246 tools across 38 categories (including an About page).
 
 ![Global Dashboard Search](docs/dashboard_search.png)
 
@@ -1362,7 +1362,7 @@ A dark-themed floating window opens with a left sidebar nav and 244 tools across
 
 | Search | Where | What it does |
 |---|---|---|
-| **Find any tool…** | Sidebar (top) | Global — searches all 244 tools across every category by name, description, or tag. Results show a category badge so you know where each tool lives. |
+| **Find any tool…** | Sidebar (top) | Global — searches all 246 tools across every category by name, description, or tag. Results show a category badge so you know where each tool lives. |
 | **Filter this page…** | Content header (top-right) | Within-category — hides/shows buttons on the current page as you type. Disappears during global search. |
 
 > **If the dashboard doesn't open after installing PySide6:** The module may be cached from before PySide6 was installed. Paste this single line to clear and reload:
@@ -1789,7 +1789,7 @@ tb.run("api_crawl_level_classes")
 
 | Layer | File | What it contains |
 |:---|:---|:---|
-| **Tool Layer** | `Saved/UEFN_Toolbelt/tool_manifest.json` | 244 tools — names, params, types, defaults |
+| **Tool Layer** | `Saved/UEFN_Toolbelt/tool_manifest.json` | 246 tools — names, params, types, defaults |
 | **C++ Layer** | `docs/uefn_reference_schema.json` | 14 actor classes, 1,031 properties with types + defaults |
 | **Verse Layer** | `docs/api_level_classes_schema.json` | Your project's `@editable` device properties (git-ignored) |
 
@@ -2061,7 +2061,7 @@ UEFN Python v40.00 experimental drop (March 2026).
 > (`dump_uefn_api.py`, `generate_uefn_stub.py`, `uefn_listener.py`). Full credit.
 >
 > **How UEFN Toolbelt differs:** Kirch's project focused on *Discovery* — mapping the API
-> and teaching AI what exists. **UEFN Toolbelt is an Execution Engine** — 244 tools for
+> and teaching AI what exists. **UEFN Toolbelt is an Execution Engine** — 246 tools for
 > actually building levels, built on top of that same bridge architecture. You don't need
 > to run a standalone MCP server alongside Toolbelt — Toolbelt is the all-in-one superset.
 
@@ -2177,7 +2177,7 @@ import UEFN_Toolbelt as tb; tb.run("mcp_start")
 `.mcp.json` is already in the repo root — Claude Code picks it up automatically on next launch.
 
 **What Claude can do:**
-- Run any of the 244 toolbelt tools by name (`run_toolbelt_tool`)
+- Run any of the 246 toolbelt tools by name (`run_toolbelt_tool`)
 - Spawn, move, delete actors; read selected actors live
 - List, rename, duplicate, import, delete Content Browser assets
 - Execute arbitrary Python inside UEFN with full `unreal.*` access
@@ -2284,7 +2284,7 @@ to ship full AI-native onboarding as a core feature.
 
 **How it works:** Claude Code automatically loads `CLAUDE.md` whenever you open the project directory. The file contains everything Claude needs to contribute correctly on the first try:
 
-- Every tool name, category, parameter, and usage example across all 244 tools
+- Every tool name, category, parameter, and usage example across all 246 tools
 - The exact nuclear reload command and when it's safe vs. unsafe (Quirk #26)
 - V2 device property wall — what Python can and cannot configure (Quirk #19)
 - UEFN path mounting quirks — why `/Game/` breaks and what to use instead (Quirk #23)
@@ -2298,7 +2298,7 @@ to ship full AI-native onboarding as a core feature.
 git clone https://github.com/undergroundrap/UEFN-TOOLBELT
 cd UEFN-TOOLBELT
 claude
-# → Claude knows all 244 tools, all UEFN quirks, and the full test workflow.
+# → Claude knows all 246 tools, all UEFN quirks, and the full test workflow.
 # → "Add a tool that does X" works on the first try. No session history needed.
 ```
 
@@ -2322,7 +2322,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 | Ecosystem Moat | **Rich Plugin Hub, automatic UI generation** | Scattered, undocumented gists |
 | Security Model | **4-Gate Audit (AST scanning, SHA-256)** | Blind execution of untrusted code |
 | Verification | **Automated Integration Test Suite** | Manual testing only |
-| Tool count | **244 tools, 38 modules** | Single-purpose scripts |
+| Tool count | **246 tools, 38 modules** | Single-purpose scripts |
 | AI integration | **Full MCP bridge + model-agnostic HTTP client + tool manifest** | None |
 | Local model support | **LM Studio, Ollama, any HTTP agent** | None |
 | Verse code gen | **Live spec-backed (27K line reference)** | Static templates |
@@ -2338,7 +2338,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 The UEFN Toolbelt includes a professional-grade testing suite to ensure stability across UEFN updates.
 
 ### 1. Smoke Test (Healthy Schema Check)
-Verifies all 38 modules are loaded, all 244 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
+Verifies all 38 modules are loaded, all 246 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
 ```python
 import UEFN_Toolbelt as tb
 tb.run("toolbelt_smoke_test")

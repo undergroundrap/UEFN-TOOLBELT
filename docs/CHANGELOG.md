@@ -5,6 +5,71 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [1.9.2] — 2026-03-24
+
+### feat: stamp_export / stamp_import — cross-project stamp sharing
+- `stamp_export` — copy a saved stamp to a portable JSON file (defaults to `~/Desktop/stamps/`)
+- `stamp_import` — import a stamp from any JSON file into the local library with optional name override and overwrite control
+- Verified live: export → file on Desktop, import → appears in `stamp_list`
+
+### test: batch 9 integration tests — 163/163 passing
+- 12 new test sections covering 75 tools added after v1.6.0:
+  zones, stamps, actor org, proximity placement, advanced alignment, signs,
+  post-process, audio, level health, config, lighting extended, world state
+- Incremental result flushing: partial results now written after every test record,
+  so a mid-run crash leaves a diagnostic file instead of nothing
+- Fixed wrong return key assertions: `world_state_export` (`count` not `actor_count`),
+  `device_catalog_scan` (`devices_found` not `device_count`)
+- `sky_set_time` and `world_settings_set` marked as expected-limited on bare template levels
+
+### feat: MCP dashboard live status indicator
+- MCP tab now shows live `● RUNNING port 8765` / `● NOT RUNNING` label
+- Status auto-refreshes whenever the MCP tab is navigated to
+- Start/Stop/Restart buttons update status immediately after running
+
+### feat: verse tab — check build errors button
+- Added `▶ Check Build Errors` button at top of Build Intelligence group
+- Calls `verse_patch_errors` — reads build log, extracts errors with file/line context,
+  returns full content of every erroring .verse file for Claude to fix in one shot
+
+### feat: community plugins — 2 new genuine gap-fillers
+- `spawn_at_each_selected` — stamp any asset at every selected actor's position
+  (place lights above torches, markers at spawn pads, etc.)
+- `verse_gen_checkpoint` — generate a full Verse checkpoint/progression system
+  (sequential triggers, per-player progress, win condition, optional reset-on-elim)
+
+### fix: parameters= kwarg not valid in @register_tool
+- Removed `parameters={}` from all `@register_tool` decorators (not a supported argument)
+- Manifest builds from `inspect.signature()` on the function — type annotations + defaults
+- Fixed in `prefab_stamp.py` and both community plugins; documented in CONTRIBUTING.md
+
+### docs: quirk #27 — hard restart vs nuclear reload
+- Nuclear reload fixes code. Hard restart fixes state.
+- Added to `UEFN_QUIRKS.md`, `CLAUDE.md`, and `CONTRIBUTING.md` with decision table
+- Covers: Shiboken crashes, project switches, stale C++ handles, `tb` undefined errors
+
+### docs: TOOL_STATUS.md rebuilt from scratch
+- Updated from 171 → 246 tools, 76% coverage
+- Full Batch 9 coverage map (🔵 written/pending → ✅ live-verified after 163/163)
+- Disabled tools table (lod_auto_generate_* — Quirk #18)
+- CLAUDE.md and CONTRIBUTING.md now reference TOOL_STATUS.md as authoritative coverage doc
+
+### docs: smoke test vs integration test explained everywhere
+- README, CLAUDE.md, CONTRIBUTING.md all now clearly explain what each test does,
+  when to run it, safety rules, and the comparison table
+- Dashboard setup status threshold updated from 171 → 240
+
+### docs: tb import rule — when to import vs when tb already exists
+- Added to CLAUDE.md Nuclear Reload section and CONTRIBUTING.md Step 4
+- Rule: same project/session = tb exists; switched projects or fresh launch = import fresh
+
+### docs: ai-native onboarding — CONTRIBUTING.md and README
+- CONTRIBUTING.md: 5-step contributor loop, mandatory "check existing tools first" as Step 1,
+  fast grep command to audit all 246 tool names before writing anything new
+- README: AI-native pioneer pitch, CLAUDE.md auto-loading as a first-of-its-kind feature
+
+---
+
 ## [1.9.1] — 2026-03-24
 
 ### feat: level stamp system — save and re-place actor groups
