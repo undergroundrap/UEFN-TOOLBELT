@@ -37,7 +37,7 @@ Automate the tedious, script the impossible, and bridge the gap between Python a
 UEFN Toolbelt is a master utility designed to leverage the **2026 UEFN Python 3.11 Update**,
 allowing creators to manipulate actors, manage assets, and generate boilerplate Verse code
 through a high-level, developer-friendly interface — all from a single persistent menu entry
-in the UEFN editor bar. **239 registered tools** across 37 categories, complete AI-agent
+in the UEFN editor bar. **244 registered tools** across 38 categories, complete AI-agent
 readiness (100% structured dict returns), and a unified theme system so every window in the
 platform looks and feels identical.
 
@@ -2226,16 +2226,37 @@ tb.run("verse_gen_custom",
 
 ---
 
-## CLAUDE.md — Instant AI Context
+## CLAUDE.md — AI-Native Repository (First of Its Kind)
 
-`CLAUDE.md` in the project root is auto-loaded by Claude Code every time you open the project. It contains:
+Most GitHub repos require hours of reading before an AI can contribute meaningfully.
+UEFN Toolbelt is the first UEFN project — and one of the first on GitHub at any scale —
+to ship full AI-native onboarding as a core feature.
 
-- Every tool name, parameter, and usage example for all 244 tools
-- MCP bridge command reference
-- UEFN Python critical rules (main thread, undo transactions, API gotchas)
-- Common patterns and troubleshooting
+**How it works:** Claude Code automatically loads `CLAUDE.md` whenever you open the project directory. The file contains everything Claude needs to contribute correctly on the first try:
 
-Any Claude session in this project starts fully briefed — no prompting required.
+- Every tool name, category, parameter, and usage example across all 244 tools
+- The exact nuclear reload command and when it's safe vs. unsafe (Quirk #26)
+- V2 device property wall — what Python can and cannot configure (Quirk #19)
+- UEFN path mounting quirks — why `/Game/` breaks and what to use instead (Quirk #23)
+- Commit format, testing requirements, and the two-phase validation workflow
+- MCP bridge command reference for AI → UEFN live control
+- The complete 6-phase industrial pipeline for autonomous game building
+
+**What this means in practice:**
+
+```bash
+git clone https://github.com/undergroundrap/UEFN-TOOLBELT
+cd UEFN-TOOLBELT
+claude
+# → Claude knows all 244 tools, all UEFN quirks, and the full test workflow.
+# → "Add a tool that does X" works on the first try. No session history needed.
+```
+
+Any contributor — including external contributors who've never seen this codebase — opens it with Claude Code and immediately has the same working knowledge as someone who's built it from scratch. The onboarding system is the repo.
+
+> **No other UEFN tool on GitHub has this.** Most repos have a README. This repo has a machine-readable contributor brain that upgrades every AI session that opens it.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full 5-step contributor loop with Claude.
 
 ---
 
@@ -2257,6 +2278,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 | Verse code gen | **Live spec-backed (27K line reference)** | Static templates |
 | Dashboard | **Sidebar nav, Plugin Hub, 13 pages, dark theme** | Blueprint widgets or none |
 | Architecture | **Registry + decorators, undo-safe, extensible** | Monolithic scripts |
+| AI onboarding | **CLAUDE.md auto-loaded — any contributor + Claude Code = full context instantly** | None |
 | Day-1 release | **Shipped UEFN 40.00 launch day (March 2026)** | |
 
 ---

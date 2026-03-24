@@ -977,6 +977,45 @@ tb.run("config_reset", key="all")   # wipe all customisations
 
 ---
 
+### Entities / Environmental / Generative / Pipeline
+
+Low-frequency tools — check these exist before re-implementing similar functionality.
+
+| Tool | Category | What it does |
+|---|---|---|
+| `entity_spawn_kit` | Entities | Spawn a pre-configured Standard Kit of Creative devices |
+| `entity_list_kits` | Entities | List all available Standard Kits |
+| `foliage_convert_selected_to_actor` | Environmental | Convert selected StaticMeshActors into Foliage Actors |
+| `foliage_audit_brushes` | Environmental | Audit all foliage brushes and return mesh paths |
+| `text_render_texture` | Generative | Render a text string into a transparent Texture2D asset |
+| `text_voxelize_3d` | Generative | Voxelize text into a 3D StaticMesh using procedural cubes |
+| `import_image_from_clipboard` | Pipeline | Import the current Windows Clipboard image as Texture2D |
+| `import_image_from_url` | Pipeline | Download an image from URL into the Content Browser |
+
+---
+
+### Project Admin / Selection / Sequencer / Simulation / System
+
+| Tool | Category | What it does |
+|---|---|---|
+| `project_setup` | Project Admin | One-command setup: scaffold + Verse game manager skeleton |
+| `system_backup_project` | Project Admin | Timestamped .zip backup of the Content folder |
+| `system_perf_audit` | Project Admin | Fast performance check of the current level |
+| `select_by_property` | Selection | Select actors where a property matches a value |
+| `select_by_verse_tag` | Selection | Select actors with a specific Verse tag |
+| `select_in_radius` | Selection | Select all actors of a class within a radius |
+| `seq_actor_to_spline` | Sequencer | Animate an actor along a spline in the Sequencer |
+| `seq_batch_keyframe` | Sequencer | Add transform keyframes for all selected actors at current time |
+| `sim_generate_proxy` | Simulation | Generate a Python simulation proxy for a Verse device |
+| `sim_trigger_method` | Simulation | Trigger a discoverable method on a Verse device |
+| `system_build_verse` | System | Trigger Verse compilation + parse errors as structured JSON |
+| `system_get_last_build_log` | System | Read last 100 lines of UEFN log for error analysis |
+| `system_optimize_background_cpu` | System | Disable UEFN sleep when alt-tabbed (max Python/AI speed) |
+| `verse_patch_errors` | System | AI error loop: extract build errors + file content for Claude to fix |
+| `toolbelt_integration_test` | Tests | ⚠️ Invasive full automation — use in clean template level only |
+
+---
+
 ### MCP Bridge
 
 | Tool | Key Params | What it does |

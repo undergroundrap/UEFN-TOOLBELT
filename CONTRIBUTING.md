@@ -1,111 +1,165 @@
 # Contributing to UEFN Toolbelt
 
-Thanks for wanting to contribute. Here's everything you need.
+Anyone with this repo and Claude Code can iterate on UEFN Toolbelt on the first try.
+CLAUDE.md is auto-loaded by Claude Code — it gives you full codebase context, all tool names, every UEFN quirk, and the exact testing workflow without reading hours of history.
 
 ---
 
-## Ways to Contribute
-
-| Type | How |
-|---|---|
-| Bug report | Open an issue using the Bug Report template |
-| Feature request | Open an issue using the Feature Request template |
-| New community plugin | Add an entry to `registry.json` and open a PR |
-| Core tool contribution | Fork → add `.py` to `tools/` → PR |
-| Docs improvement | Edit any `.md` file and open a PR |
-
----
-
-## Adding a Community Plugin (Path A — recommended)
-
-1. **Host your `.py` file** in your own GitHub repo (single file, ≤ 50 KB, no zips).
-2. **Fork** this repository.
-3. **Add your entry** to `registry.json` at the root:
-
-```json
-{
-  "id": "your_tool_id",
-  "name": "Your Tool Name",
-  "version": "1.0.0",
-  "author": "Your Name",
-  "author_url": "https://github.com/yourhandle",
-  "type": "community",
-  "description": "One sentence description.",
-  "category": "Gameplay",
-  "tags": ["tag1", "tag2"],
-  "url": "https://github.com/yourhandle/yourrepo/blob/main/your_tool.py",
-  "download_url": "https://raw.githubusercontent.com/yourhandle/yourrepo/main/your_tool.py",
-  "min_toolbelt_version": "1.5.3",
-  "size_kb": 10
-}
-```
-
-4. **Open a PR** — once merged, your tool appears in every user's Plugin Hub on next Refresh.
-
-**Requirements for community plugins:**
-- Single `.py` file, ≤ 50 KB
-- Passes the four-gate security scanner (no `subprocess`, `socket`, `ctypes`, network libs)
-- Uses `@register_tool` decorator with `name`, `category`, `description`
-- Returns a `dict` with at least `{"status": "ok"}` or `{"status": "error", "error": "..."}`
-
----
-
-## Contributing a Core Tool (Path B)
-
-1. Fork the repository.
-2. Create your tool in `Content/Python/UEFN_Toolbelt/tools/your_tool.py`.
-3. Import it in `Content/Python/UEFN_Toolbelt/tools/__init__.py`.
-4. Add it to the hot-reload list in `launcher.py`.
-5. Run the syntax check: `python -c "import ast; ast.parse(open('Content/Python/UEFN_Toolbelt/tools/your_tool.py').read())"`
-6. Test in the live UEFN editor with the hard refresh bundle (see README).
-7. Open a PR describing what the tool does and how you tested it.
-
-**Core tool requirements:**
-- All tools return structured dicts: `{"status": "ok", "count": N, "data": [...]}`
-- Tool names use `snake_case`
-- No hardcoded file paths — use `unreal.Paths.*` APIs
-- No blocking `time.sleep()` calls — UEFN main thread must stay free
-
----
-
-## Git Commit Format
+## The 5-Step Contributor Loop
 
 ```
-type: concise description in lowercase
-```
+1. CHECK EXISTING TOOLS
+   Read CLAUDE.md — every built-in tool is documented by category.
+   Search: grep -r "register_tool" Content/Python/UEFN_Toolbelt/tools/
+   Don't duplicate — extend.
 
-Types: `feat` · `fix` · `docs` · `refactor` · `test` · `perf`
+2. WRITE YOUR TOOL
+   Create:  Content/Python/UEFN_Toolbelt/tools/my_tool.py
+   Register: from . import my_tool  ← add to tools/__init__.py
+   Follow the tool design rules below.
 
-Examples:
-```
-feat: wave spawner tool with verse device integration
-fix: mcp bridge port binding on windows firewall block
-docs: plugin hub onboarding guide
+3. SYNTAX CHECK (fast gate, no UEFN needed)
+   python -c "
+   import ast
+   with open('Content/Python/UEFN_Toolbelt/tools/my_tool.py', encoding='utf-8') as f:
+       ast.parse(f.read())
+   print('OK')
+   "
+
+4. LIVE TEST IN UEFN (required — syntax passing ≠ working)
+   Paste into UEFN Python console:
+   import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("my_tool_name")
+
+   ⚠️ If you added a NEW module (new .py file): do a full UEFN restart instead of nuclear reload.
+   Nuclear reload + new module = EXCEPTION_ACCESS_VIOLATION. See UEFN_QUIRKS.md Quirk #26.
+
+5. DOCUMENT AND COMMIT
+   • Add your tool to the table in CLAUDE.md under its category
+   • Add a row to the Tool Reference in README.md
+   • Bump __version__ in Content/Python/UEFN_Toolbelt/__init__.py
+   • Add a [version] entry in docs/CHANGELOG.md
+   • Commit format:  feat: add my_tool — one-line description
 ```
 
 ---
 
-## Two-Phase Validation (required before every PR)
+## Tool Design Rules
 
-**Phase 1 — syntax check (run locally):**
-```bash
-python -c "import ast; ast.parse(open('path/to/your_file.py', encoding='utf-8').read()); print('OK')"
-```
-
-**Phase 2 — live UEFN test (required):**
+### Minimum viable tool
 ```python
-import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
+from ..registry import register_tool
+
+@register_tool(
+    name="my_tool",
+    category="My Category",
+    description="One sentence — shown in dashboard and manifest.",
+    tags=["keyword1", "keyword2"],
+)
+def my_tool(**kwargs) -> dict:
+    import unreal
+    # ... your logic ...
+    return {"status": "ok", "result": "..."}
 ```
 
-PRs that haven't been tested in the live editor will be asked to verify before merge.
+### Hard rules
+
+| Rule | Why |
+|---|---|
+| Always return a `dict` with `"status": "ok"` or `"status": "error"` | MCP callers read structured results — no `None` returns |
+| Accept `**kwargs` even if you use no params | Registry calls every tool this way |
+| Wrap actor mutations in `ScopedEditorTransaction` | Gives users Ctrl+Z undo |
+| Never call `unreal.get_asset()` inside a loop | Use Asset Registry batch queries instead |
+| Use `detect_project_mount()` for asset paths, never hardcode `/Game/` | UEFN mounts at project name, not `/Game/` — see Quirk #23 |
+| Window classes must be module-level, not defined inside the tool function | Hot-reload creates duplicate class names → Qt crash |
+| All PySide6 windows must subclass `ToolbeltWindow` from `core/base_window.py` | Consistent theme + Slate tick handling |
+| No `subprocess`, `socket`, `ctypes`, or network imports | Blocked by the plugin security scanner |
+
+### Parameter declaration (for manifest + dashboard)
+```python
+@register_tool(
+    name="my_tool",
+    category="My Category",
+    description="Does the thing.",
+    tags=["thing"],
+    parameters={
+        "count":  {"type": "int",   "required": False, "default": 10,  "description": "How many"},
+        "folder": {"type": "str",   "required": False, "default": "",   "description": "Output folder"},
+        "dry_run":{"type": "bool",  "required": False, "default": True, "description": "Preview only"},
+    }
+)
+def my_tool(count=10, folder="", dry_run=True, **kwargs) -> dict:
+    ...
+```
 
 ---
 
-## Code of Conduct
+## UEFN Quirks Quick-Reference
 
-Be respectful, constructive, and collaborative. This project is for the UEFN community.
-Harassment or abuse of any kind will result in immediate removal.
+| Quirk | Rule |
+|---|---|
+| **#2 — Main Thread Lock** | All `unreal.*` calls must be on the main thread. Never `time.sleep()` while waiting for async ops — you'll deadlock the engine. |
+| **#19 — V2 Device Property Wall** | V2 Creative devices (Timer, Score Manager, etc.) store game-logic settings as Verse `@editable` props. `set_editor_property` fails silently. Use `device_call_method` or generate Verse code instead. |
+| **#23 — /Game/ Mount** | UEFN mounts at project name, not `/Game/`. Use `detect_project_mount()` for all asset path operations. Never force-prepend `/Game/`. |
+| **#24 — Async Screenshot Deadlock** | `take_high_res_screenshot` is queued. File won't appear while Python is running. Trigger and exit — file lands ~1 second after console returns. |
+| **#25 — Slate Tick Required** | Long-running Python blocks the editor UI. Use `register_slate_pre_tick_callback` for deferred work. |
+| **#26 — Nuclear Reload + New Module = Crash** | `sys.modules.pop` frees Python objects while stale C++ callbacks still point at them. Adding a new `.py` file to tools? **Full UEFN restart**, not nuclear reload. |
+
+Full details: `docs/UEFN_QUIRKS.md`
 
 ---
 
-**Questions?** [Join the Discussions](https://github.com/undergroundrap/UEFN-TOOLBELT/discussions) — or open an issue for bugs and feature requests.
+## PR Guidelines
+
+1. **One tool or fix per PR** — keeps review tractable
+2. **Must include live test confirmation** — paste Output Log snippet in the PR description showing the tool ran without errors in UEFN
+3. **Follow commit format**: `feat: tool_name — what it does` (lowercase, no "Phase:", no Title Case)
+4. **Update docs**: CLAUDE.md category table + README Tool Reference row + CHANGELOG entry
+5. **No `__version__` bump needed for community PRs** — maintainer handles versioning at release
+
+---
+
+## Community Plugins (No Fork Required)
+
+If you want to ship a tool without touching the core repo:
+
+1. Create a `.py` file with a `@register_tool` decorated function
+2. Drop it in `[YourProject]/Saved/UEFN_Toolbelt/Custom_Plugins/`
+3. It auto-loads on editor start and appears in the Dashboard
+
+**Security gates your plugin passes automatically:**
+- File size ≤ 50 KB
+- No blocked imports (`subprocess`, `socket`, `ctypes`, network libs)
+- SHA-256 hash logged to `plugin_audit.json`
+
+To list a plugin in the in-app Plugin Hub: add an entry to `registry.json` with `"type": "community"` and open a PR.
+
+Full guide: `docs/plugin_dev_guide.md`
+
+---
+
+## Key Files
+
+| File | What it is |
+|---|---|
+| `CLAUDE.md` | **Auto-loaded by Claude Code.** Full tool inventory, UEFN rules, testing workflow. Always update when adding tools. |
+| `Content/Python/UEFN_Toolbelt/__init__.py` | Package root — `__version__`, `register()`, `run()` |
+| `Content/Python/UEFN_Toolbelt/tools/__init__.py` | Import every tool module here so decorators fire |
+| `Content/Python/UEFN_Toolbelt/registry.py` | `@register_tool` decorator + `ToolRegistry` singleton |
+| `Content/Python/UEFN_Toolbelt/core/base_window.py` | `ToolbeltWindow` — subclass for all PySide6 windows |
+| `Content/Python/UEFN_Toolbelt/core/theme.py` | Color palette — single source of truth for UI colors |
+| `docs/ui_style_guide.md` | **Mandatory reading** before writing any windowed UI |
+| `docs/UEFN_QUIRKS.md` | Non-obvious UEFN Python behaviors — read before your first tool |
+| `docs/CHANGELOG.md` | Version history — add your entry here |
+| `tests/smoke_test.py` | 5-layer health check — `tb.run("toolbelt_smoke_test")` |
+
+---
+
+## Getting Started with Claude Code
+
+```bash
+git clone https://github.com/undergroundrap/UEFN-TOOLBELT
+cd UEFN-TOOLBELT
+claude  # Claude Code auto-loads CLAUDE.md — full codebase context, instant
+```
+
+Claude Code will know every tool, every UEFN quirk, the exact test commands, and the commit format — without any further setup. This is intentional. CLAUDE.md is the contributor onboarding system.
