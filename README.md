@@ -37,7 +37,7 @@ Automate the tedious, script the impossible, and bridge the gap between Python a
 UEFN Toolbelt is a master utility designed to leverage the **2026 UEFN Python 3.11 Update**,
 allowing creators to manipulate actors, manage assets, and generate boilerplate Verse code
 through a high-level, developer-friendly interface — all from a single persistent menu entry
-in the UEFN editor bar. **229 registered tools** across 36 categories, complete AI-agent
+in the UEFN editor bar. **240 registered tools** across 36 categories, complete AI-agent
 readiness (100% structured dict returns), and a unified theme system so every window in the
 platform looks and feels identical.
 
@@ -134,7 +134,7 @@ Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect 
 1.  **Open Dashboard**: Run `tb.launch_qt()` or use the `Toolbelt` menu.
 2.  **One-Click Sync**: Click the **"Sync Level Schema to AI"** button in **Quick Actions**.
 3.  **Instant Content**: The 1.6MB schema is automatically copied to your `docs/` folder. Your AI now knows every hidden property in your specific level.
-4.  **Export Tool Manifest**: Run `tb.run("plugin_export_manifest")` to write `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of all 171 tools with their parameter signatures, types, defaults, and categories. An AI agent can load this file and immediately know what every tool does and how to call it, without reading source code.
+4.  **Export Tool Manifest**: Run `tb.run("plugin_export_manifest")` to write `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of all 240 tools with their parameter signatures, types, defaults, and categories. An AI agent can load this file and immediately know what every tool does and how to call it, without reading source code.
 
 ---
 
