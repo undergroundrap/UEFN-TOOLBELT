@@ -215,11 +215,53 @@ with open("path/to/script.py") as f:
 
 ## ⚠️ Automated Integration Testing
 
-The `toolbelt_integration_test` (103/103 verified) is **INVASIVE** by design. It programmatically spawns actors, modifies properties, and deletes assets to verify correctness.
+The smoke test verifies that all tools *register* correctly. The integration test verifies that they *work* — in a live UEFN editor, against real actors.
+
+### What the integration test actually does
+
+`toolbelt_integration_test` is a fixture-driven test harness that runs inside UEFN:
+
+1. **Spawns** temporary cube/sphere actors programmatically
+2. **Selects** them via `EditorActorSubsystem`
+3. **Runs** each tool against that live selection
+4. **Verifies** the result — property changed, actor spawned, file written, count correct
+5. **Cleans up** every actor it touched via a single undo transaction
+
+**163 tests across 246 tools** — covering materials, bulk ops, patterns, scatter, splines, snapshots, asset management, Verse tools, screenshots, LODs, arena, measurement, localization, zones, stamps, actor org, proximity placement, advanced alignment, signs, post-process, audio, level health, config, lighting, and world state.
+
+This is the closest thing to a full CI suite possible inside the UEFN Python sandbox. If this passes, you have high confidence that the core tool logic is sound — not just that it imported.
+
+### How to run it
+
+```python
+# Use a clean template level — never run in a production project
+import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_integration_test")
+```
+
+Results are written to:
+```
+Saved/UEFN_Toolbelt/integration_test_results.txt
+```
+
+If the editor crashes mid-run (rare), the file will contain partial results up to the last completed test — useful for pinpointing which section caused the crash.
 
 > [!WARNING]
 > **DO NOT run the full integration test in a live production project.**
-> It is designed to be run in a **blank Test Template** (e.g., "Empty Level"). While every test includes automated cleanup, the sheer volume of actor spawning can be slow and may clutter your Undo history.
+> It spawns, modifies, and deletes actors. Use a blank **Empty Level** or throwaway test project.
+> Every test section cleans up after itself, but the undo history will be long.
+
+### Smoke test vs integration test
+
+| | Smoke Test | Integration Test |
+|---|---|---|
+| Runs outside UEFN? | No (needs editor) | No (needs editor) |
+| Tests all 246 tools? | Registry only | Live execution |
+| Requires level actors? | No | Yes (spawns its own) |
+| Safe in production? | Yes | **No — use blank level** |
+| Runtime | ~5 seconds | ~35 seconds |
+| Command | `tb.run("toolbelt_smoke_test")` | `tb.run("toolbelt_integration_test")` |
+
+Run the smoke test after every change. Run the integration test before submitting a PR.
 
 ---
 
@@ -1297,7 +1339,7 @@ Expected output in the log:
 | **Layer 4** — MCP Bridge | 31 command handlers, HTTP listener state | 4 |
 | **Layer 5** — Dashboard (PySide6) | PySide6 importable, QApplication, ToolbeltDashboard | 3 |
 | **Layer 6** — Verse Book | clone present, git reachable, 22 chapters parsed | 12 |
-| **Layer 7** — Integration | Fixture-based verification of context-aware tools (materials, snapshots, scatter) | 10 |
+| **Layer 7** — Integration | Fixture-based verification of context-aware tools — see Integration Testing section above | — |
 
 > If you haven't installed PySide6 or cloned the verse-book yet, you may see a few non-critical failures.
 > Complete Steps 2 and 7 in the Getting Started guide above to resolve them.
