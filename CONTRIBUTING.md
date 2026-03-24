@@ -9,9 +9,17 @@ CLAUDE.md is auto-loaded by Claude Code — it gives you full codebase context, 
 
 ```
 1. CHECK EXISTING TOOLS
-   Read CLAUDE.md — every built-in tool is documented by category.
-   Search: grep -r "register_tool" Content/Python/UEFN_Toolbelt/tools/
-   Don't duplicate — extend.
+   Run this from the repo root — no UEFN needed:
+
+   grep -rh 'name="' Content/Python/UEFN_Toolbelt/tools/ --include="*.py" \
+     | grep -o 'name="[^"]*"' | sed 's/name="//;s/"//' | sort
+
+   That lists every registered tool name. Filter it:
+   ... | grep scatter      ← check if scatter tools exist
+   ... | grep align        ← check if alignment tools exist
+
+   If a tool already does 80% of what you want — extend it with a param.
+   Don't create a new tool for the remaining 20%.
 
 2. WRITE YOUR TOOL
    Create:  Content/Python/UEFN_Toolbelt/tools/my_tool.py

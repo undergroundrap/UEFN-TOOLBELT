@@ -71,9 +71,21 @@ A new tool that overlaps an existing one wastes time, inflates the count, and co
 
 ### Pre-build checklist — required before writing a single line of tool code
 
-1. **Search the registry by keyword:**
+**Step 0 — Full tool list in 5 seconds (no UEFN needed, run from repo root):**
+```bash
+grep -rh 'name="' Content/Python/UEFN_Toolbelt/tools/ --include="*.py" \
+  | grep -o 'name="[^"]*"' | sed 's/name="//;s/"//' | sort
+```
+This dumps every registered tool name alphabetically. Search the output before writing anything. This is the authoritative list — faster and more complete than reading CLAUDE.md tables.
+
+To filter by keyword:
+```bash
+grep -rh 'name="' Content/Python/UEFN_Toolbelt/tools/ --include="*.py" \
+  | grep -o 'name="[^"]*"' | sed 's/name="//;s/"//' | sort | grep scatter
+```
+
+1. **Search the registry by keyword (UEFN console):**
    ```python
-   # In UEFN console:
    for t in tb.registry.list_tools():
        if "scatter" in t["name"] or "scatter" in t.get("description","").lower():
            print(t["name"], "—", t["description"])
