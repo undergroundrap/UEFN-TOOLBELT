@@ -429,6 +429,7 @@ def pattern_grid(
     description="Arrange a mesh in an evenly-spaced ring at a set radius",
     icon="◯",
     tags=["pattern", "circle", "ring", "placement"],
+    example='tb.run("pattern_circle", mesh_path="/Engine/BasicShapes/Cube", count=16, radius=1500.0)',
 )
 def pattern_circle(
     mesh_path: str = _FALLBACK_MESH,

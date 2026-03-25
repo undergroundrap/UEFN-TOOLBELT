@@ -219,6 +219,7 @@ def stamp_save(
         "New actors are placed in 'folder' and selected after placement."
     ),
     tags=["stamp", "place", "spawn", "layout", "instance"],
+    example='tb.run("stamp_place", name="guard_post", location=[8000, 4000, 0], yaw_offset=180.0, scale_factor=1.5)',
 )
 def stamp_place(
     name: str = "",

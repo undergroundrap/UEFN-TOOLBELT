@@ -297,6 +297,7 @@ def _do_restore(name: str, restore_location: bool,
     description="Save a named JSON snapshot of actor transforms in the current level",
     icon="📸",
     tags=["snapshot", "backup", "save", "transforms"],
+    example='tb.run("snapshot_save", name="before_scatter")',
 )
 def snapshot_save(
     name: str = "",

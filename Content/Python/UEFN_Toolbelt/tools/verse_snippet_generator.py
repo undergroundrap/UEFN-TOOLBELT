@@ -395,6 +395,7 @@ def run_verse_find_project_path(**kwargs) -> dict:
         "The AI deployment layer: Claude generates Verse, this tool places it."
     ),
     tags=["verse", "write", "file", "deploy", "ai", "automation", "compile"],
+    example='tb.run("verse_write_file", filename="game_manager.verse", content=verse_code, overwrite=True)',
 )
 def run_verse_write_file(
     filename: str = "",

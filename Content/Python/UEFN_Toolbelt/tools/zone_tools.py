@@ -129,6 +129,7 @@ def _point_in_bounds(
         "width/depth/height are in cm."
     ),
     tags=["zone", "spawn", "volume", "mutator"],
+    example='tb.run("zone_spawn", width=4000, depth=4000, height=800, label="ArenaCenter")',
 )
 def zone_spawn(
     width: float = 1000.0,

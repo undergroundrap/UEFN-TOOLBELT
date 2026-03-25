@@ -253,6 +253,7 @@ def run_scatter_props(
     category="Procedural",
     description="Scatter thousands of instances in one draw call using HISM (GPU-instanced).",
     tags=["scatter", "hism", "instanced", "foliage", "performant", "dense"],
+    example='tb.run("scatter_hism", mesh_path="/Game/Meshes/SM_Rock", count=300, radius=5000.0)',
 )
 def run_scatter_hism(
     mesh_path: str = "/Engine/BasicShapes/Sphere",

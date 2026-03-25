@@ -1085,6 +1085,12 @@ def toolbelt_integration_test(**kwargs) -> None:
             _test_lighting_extended()
             _test_world_state()
 
+            # --- Batch 10 (Tools added in v1.9.6) ---
+            _test_visibility_tools()
+            _test_viewport_bookmarks()
+            _test_selection_sets()
+            _test_project_admin_v196()
+
             # Finalize
             _cleanup_fixtures()
             report_path = _save_report()
@@ -1900,6 +1906,127 @@ def _test_world_state() -> None:
 
     except Exception as e:
         _record("WorldState", "Error", False, str(e))
+
+
+# ─── Batch 10 (Tools added in v1.9.6) ─────────────────────────────────────────
+
+def _test_visibility_tools() -> None:
+    _header("10.1 Actor Visibility")
+    import UEFN_Toolbelt as tb
+    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    a1 = _spawn_fixture(location=unreal.Vector(0, 0, 0))
+    a2 = _spawn_fixture(location=unreal.Vector(300, 0, 0))
+    try:
+        actor_sub.set_selected_level_actors([a1, a2])
+
+        result = tb.run("actor_hide")
+        passed = result.get("status") == "ok" and result.get("hidden", 0) == 2
+        _record("Visibility", "actor_hide", passed, f"hidden={result.get('hidden', 0)}")
+
+        result = tb.run("actor_show")
+        passed = result.get("status") == "ok" and result.get("shown", 0) == 2
+        _record("Visibility", "actor_show", passed, f"shown={result.get('shown', 0)}")
+
+        # Isolate: these 2 visible, everything else hidden
+        result = tb.run("actor_isolate")
+        passed = result.get("status") == "ok" and result.get("visible", 0) == 2
+        _record("Visibility", "actor_isolate", passed, f"visible={result.get('visible', 0)}")
+
+        # Restore full visibility
+        result = tb.run("actor_show_all")
+        passed = result.get("status") == "ok" and result.get("restored", 0) > 0
+        _record("Visibility", "actor_show_all", passed, f"restored={result.get('restored', 0)}")
+
+        # Lock/unlock — may fail on special actor types (sandboxed), status:ok is sufficient
+        actor_sub.set_selected_level_actors([a1])
+        result = tb.run("actor_lock")
+        _record("Visibility", "actor_lock (runs ok)", result.get("status") == "ok")
+        result = tb.run("actor_unlock")
+        _record("Visibility", "actor_unlock (runs ok)", result.get("status") == "ok")
+
+    except Exception as e:
+        _record("Visibility", "Error", False, str(e))
+    finally:
+        for a in [a1, a2]:
+            if a: actor_sub.destroy_actor(a)
+
+
+def _test_viewport_bookmarks() -> None:
+    _header("10.2 Viewport Bookmarks & ShowFlags")
+    import UEFN_Toolbelt as tb
+    try:
+        # ShowFlag preset
+        result = tb.run("viewport_showflag", preset="clean")
+        _record("Viewport", "viewport_showflag (clean)", result.get("status") == "ok",
+                f"{result.get('commands_applied', [])}")
+        result = tb.run("viewport_showflag", preset="reset")
+        _record("Viewport", "viewport_showflag (reset)", result.get("status") == "ok")
+
+        # Bookmark round-trip
+        result = tb.run("viewport_bookmark_save", name="_integration_test")
+        passed = result.get("status") == "ok" and "location" in result
+        _record("Viewport", "viewport_bookmark_save", passed)
+
+        result = tb.run("viewport_bookmark_list")
+        passed = result.get("status") == "ok" and "_integration_test" in result.get("bookmarks", {})
+        _record("Viewport", "viewport_bookmark_list", passed)
+
+        result = tb.run("viewport_bookmark_jump", name="_integration_test")
+        _record("Viewport", "viewport_bookmark_jump", result.get("status") == "ok")
+
+        # Unknown preset should return error
+        result = tb.run("viewport_showflag", preset="__nonexistent__")
+        _record("Viewport", "viewport_showflag (unknown preset = error)", result.get("status") == "error")
+
+    except Exception as e:
+        _record("Viewport", "Error", False, str(e))
+
+
+def _test_selection_sets() -> None:
+    _header("10.3 Selection Sets")
+    import UEFN_Toolbelt as tb
+    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    a1 = _spawn_fixture(location=unreal.Vector(0, 0, 0))
+    a2 = _spawn_fixture(location=unreal.Vector(400, 0, 0))
+    try:
+        actor_sub.set_selected_level_actors([a1, a2])
+
+        result = tb.run("selection_save", name="_integration_test")
+        passed = result.get("status") == "ok" and result.get("count", 0) == 2
+        _record("SelectionSets", "selection_save", passed, f"count={result.get('count', 0)}")
+
+        result = tb.run("selection_list")
+        passed = result.get("status") == "ok" and "_integration_test" in result.get("sets", {})
+        _record("SelectionSets", "selection_list", passed)
+
+        # Clear selection then restore
+        actor_sub.set_selected_level_actors([])
+        result = tb.run("selection_restore", name="_integration_test")
+        passed = result.get("status") == "ok" and result.get("matched", 0) == 2 and result.get("missing", 0) == 0
+        _record("SelectionSets", "selection_restore", passed,
+                f"matched={result.get('matched')}, missing={result.get('missing')}")
+
+        # Restore with unknown set
+        result = tb.run("selection_restore", name="__nonexistent__")
+        _record("SelectionSets", "selection_restore (unknown = error)", result.get("status") == "error")
+
+    except Exception as e:
+        _record("SelectionSets", "Error", False, str(e))
+    finally:
+        for a in [a1, a2]:
+            if a: actor_sub.destroy_actor(a)
+
+
+def _test_project_admin_v196() -> None:
+    _header("10.4 Project Admin v1.9.6")
+    import UEFN_Toolbelt as tb
+    try:
+        result = tb.run("save_all_dirty")
+        passed = result.get("status") == "ok"
+        _record("ProjectAdmin", "save_all_dirty", passed,
+                f"level={result.get('level_saved')}, packages={result.get('packages_saved')}")
+    except Exception as e:
+        _record("ProjectAdmin", "Error", False, str(e))
 
 
 if __name__ == "__main__":

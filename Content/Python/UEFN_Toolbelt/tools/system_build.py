@@ -139,6 +139,7 @@ def _find_verse_root() -> str:
         "of each erroring file -- so Claude can fix and redeploy in one shot."
     ),
     tags=["verse", "build", "error", "patch", "fix", "loop", "ai", "automation", "recursive"],
+    example='result = tb.run("verse_patch_errors")  # call after Build Verse fails; read result["errors"] + result["files"]',
 )
 def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
     """
@@ -236,6 +237,29 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
     # LogSolaris error lines (another common pattern)
     solaris_error   = re.compile(r'LogSolaris.*Error.*\.verse', re.IGNORECASE)
 
+    def _classify_error(message: str):
+        """Return (error_type, fix_hint) for a Verse error message."""
+        msg = message.lower()
+        if ("identifier" in msg and ("not found" in msg or "unknown" in msg)) or "undeclared" in msg:
+            return "undefined_identifier", "Declare or import this identifier before use, or check for a typo."
+        if "cannot convert" in msg or "type mismatch" in msg or "expected type" in msg or "incompatible type" in msg:
+            return "type_mismatch", "Check the types on both sides of the assignment or call."
+        if "no member" in msg or "does not have member" in msg or "has no field" in msg or "no property" in msg:
+            return "missing_member", "Check the spelling and type of the member access."
+        if "needs override" in msg or "must override" in msg or ("override" in msg and "keyword" in msg):
+            return "missing_override", "Add <override> to the function signature."
+        if "unexpected" in msg or "expected ';'" in msg or "expected ')'" in msg or "parse error" in msg or "syntax" in msg:
+            return "syntax_error", "Fix the syntax near this line — check brackets, semicolons, and keywords."
+        if "unreachable" in msg:
+            return "unreachable_code", "Remove or reorder the code after this point."
+        if "suspend" in msg or "suspends" in msg:
+            return "suspend_context", "This call requires a <suspends> context — add it to the calling function signature."
+        if "not in scope" in msg or "out of scope" in msg:
+            return "scope_error", "Move the declaration to the correct scope or import the module."
+        if "duplicate" in msg or "already defined" in msg or "redefinition" in msg:
+            return "duplicate_definition", "Remove or rename the duplicate declaration."
+        return "unknown", "Read the error message and check the Verse language spec."
+
     errors = []
     build_status = "UNKNOWN"
     warning_count = 0
@@ -256,18 +280,20 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
             message   = m.group(4).strip()
 
             # Skip duplicates (same file+line+message)
-            key = (filename, line_no, message[:60])
             if not any(
                 e["file"] == filename and e["line"] == line_no
                 and e["message"][:60] == message[:60]
                 for e in errors
             ):
+                error_type, fix_hint = _classify_error(message)
                 errors.append({
-                    "file":    filename,
-                    "line":    line_no,
-                    "col":     col_no,
-                    "message": message,
-                    "raw_path": file_path,
+                    "file":       filename,
+                    "line":       line_no,
+                    "col":        col_no,
+                    "message":    message,
+                    "error_type": error_type,
+                    "fix_hint":   fix_hint,
+                    "raw_path":   file_path,
                 })
 
         if "warning" in line.lower() and ".verse" in line.lower():
@@ -323,18 +349,37 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
             "system_get_last_build_log for context."
         )
 
+    # Group errors by file for easier Claude consumption
+    errors_by_file: dict = {}
+    for e in errors:
+        errors_by_file.setdefault(e["file"], []).append({
+            "line":       e["line"],
+            "col":        e["col"],
+            "message":    e["message"],
+            "error_type": e["error_type"],
+            "fix_hint":   e["fix_hint"],
+        })
+
+    # Error type summary — lets Claude see at a glance what categories of errors exist
+    type_counts: dict = {}
+    for e in errors:
+        type_counts[e["error_type"]] = type_counts.get(e["error_type"], 0) + 1
+
     log_info(f"[verse_patch_errors] build={build_status}  "
              f"errors={len(errors)}  warnings={warning_count}  "
-             f"files_read={len(files_out)}")
+             f"files_read={len(files_out)}  "
+             f"types={type_counts}")
 
     return {
-        "status":        "success" if build_status == "SUCCESS" else
-                         ("errors" if errors else "unknown"),
-        "build_status":  build_status,
-        "error_count":   len(errors),
-        "warning_count": warning_count,
-        "errors":        errors,
-        "files":         files_out,
-        "log_path":      latest_log,
-        "next_step":     next_step,
+        "status":          "success" if build_status == "SUCCESS" else
+                           ("errors" if errors else "unknown"),
+        "build_status":    build_status,
+        "error_count":     len(errors),
+        "warning_count":   warning_count,
+        "error_type_summary": type_counts,
+        "errors":          errors,
+        "errors_by_file":  errors_by_file,
+        "files":           files_out,
+        "log_path":        latest_log,
+        "next_step":       next_step,
     }

@@ -53,6 +53,7 @@ from ..registry import register_tool
     category="Bulk Ops",
     description="Align all selected actors to the first actor's position on one axis.",
     tags=["align", "snap", "bulk", "selection"],
+    example='tb.run("bulk_align", axis="Z")  # select actors first',
 )
 def run_align(axis: str = "Z", **kwargs) -> dict:
     """

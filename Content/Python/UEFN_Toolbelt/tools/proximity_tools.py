@@ -440,6 +440,7 @@ def actor_cluster_to_folder(
         "Preserves rotation and scale of the source actor. Works with StaticMeshActors."
     ),
     tags=["stamp", "copy", "positions", "batch", "spawn"],
+    example='tb.run("actor_copy_to_positions", positions=[[0,0,0],[500,200,0],[1000,-100,50]], folder="Trees")',
 )
 def actor_copy_to_positions(
     positions: list = None,

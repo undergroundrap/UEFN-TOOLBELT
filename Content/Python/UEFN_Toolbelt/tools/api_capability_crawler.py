@@ -328,6 +328,7 @@ def api_sync_master(**kwargs) -> dict:
     category="API Explorer",
     description="Export the full live state of every actor in the level — transforms + readable device properties — to a single JSON Claude can reason about.",
     tags=["world", "state", "export", "ai", "automation", "snapshot"],
+    example='result = tb.run("world_state_export")  # → Saved/UEFN_Toolbelt/world_state.json with all actors + transforms + properties',
 )
 def world_state_export(**kwargs) -> dict:
     """
@@ -388,6 +389,40 @@ def world_state_export(**kwargs) -> dict:
         except Exception:
             hidden = False
 
+        # --- World Outliner folder ---
+        try:
+            fp = actor.get_folder_path()
+            folder = str(fp).strip("/") if fp else ""
+        except Exception:
+            folder = ""
+
+        # --- Parent actor ---
+        try:
+            parent_actor = actor.get_attach_parent_actor()
+            parent = parent_actor.get_actor_label() if parent_actor else ""
+        except Exception:
+            parent = ""
+
+        # --- Bounds (center + half-extent in cm) ---
+        try:
+            origin, box_extent = actor.get_actor_bounds(False)
+            bounds = {
+                "center": {"x": round(origin.x, 1), "y": round(origin.y, 1), "z": round(origin.z, 1)},
+                "extent": {"x": round(box_extent.x, 1), "y": round(box_extent.y, 1), "z": round(box_extent.z, 1)},
+            }
+        except Exception:
+            bounds = {}
+
+        # --- Static mesh asset path ---
+        asset_path = ""
+        try:
+            if isinstance(actor, unreal.StaticMeshActor):
+                mesh = actor.static_mesh_component.get_editor_property("static_mesh")
+                if mesh:
+                    asset_path = mesh.get_path_name().split(".")[0]
+        except Exception:
+            pass
+
         # --- Device properties (readable primitives only) ---
         props = {}
         for attr in dir(actor):
@@ -409,19 +444,35 @@ def world_state_export(**kwargs) -> dict:
                 pass
 
         actors_out.append({
-            "label": actor.get_actor_label(),
-            "class": type(actor).__name__,
-            "location": location,
-            "rotation": rotation,
-            "scale": scale,
-            "hidden": hidden,
-            "tags": tags,
+            "label":      actor.get_actor_label(),
+            "class":      type(actor).__name__,
+            "folder":     folder,
+            "parent":     parent,
+            "location":   location,
+            "rotation":   rotation,
+            "scale":      scale,
+            "bounds":     bounds,
+            "asset_path": asset_path,
+            "hidden":     hidden,
+            "tags":       tags,
             "properties": props,
         })
+
+    # Build summary for fast AI reasoning without scanning all actors
+    class_counts: dict = {}
+    folder_map: dict = {}
+    for a in actors_out:
+        class_counts[a["class"]] = class_counts.get(a["class"], 0) + 1
+        f = a["folder"] or "(root)"
+        folder_map[f] = folder_map.get(f, 0) + 1
 
     state = {
         "exported_at": datetime.now().isoformat(),
         "actor_count": len(actors_out),
+        "summary": {
+            "class_counts": dict(sorted(class_counts.items(), key=lambda x: x[1], reverse=True)),
+            "folder_map":   dict(sorted(folder_map.items(), key=lambda x: x[1], reverse=True)),
+        },
         "actors": actors_out,
     }
 
@@ -470,6 +521,7 @@ _SEARCH_PATHS = ["/Fortnite", "/Game", "/FortniteGame"]
         "Builds a complete device palette Claude can use to design levels from scratch."
     ),
     tags=["device", "catalog", "scan", "asset", "registry", "ai", "automation", "creative"],
+    example='tb.run("device_catalog_scan")  # → docs/device_catalog.json — full palette of spawnable Creative devices',
 )
 def device_catalog_scan(
     extra_paths: list = None,

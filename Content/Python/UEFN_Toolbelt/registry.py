@@ -55,6 +55,7 @@ class ToolEntry:
     version: str = "1.0.0"
     url: str = ""
     last_updated: str = ""
+    example: str = ""   # Concrete call showing valid params — shown in manifest for AI agents
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -91,6 +92,7 @@ class ToolRegistry:
         version: str = "1.0.0",
         url: str = "",
         last_updated: str = "",
+        example: str = "",
     ) -> None:
         """Register a tool, with overwrite protection for core system tools."""
         if not source:
@@ -125,6 +127,7 @@ class ToolRegistry:
             version=version,
             url=url,
             last_updated=last_updated,
+            example=example,
         )
         log_info(f"  ✓ Registered: [{category}] {name}")
 
@@ -141,6 +144,7 @@ class ToolRegistry:
         version: str = "1.0.0",
         url: str = "",
         last_updated: str = "",
+        example: str = "",
     ) -> Callable:
         """
         @register_tool decorator factory. Use this on the tool's entry-point.
@@ -149,7 +153,7 @@ class ToolRegistry:
             def run(**kwargs): ...
         """
         def _wrap(fn: Callable) -> Callable:
-            self.register(name, fn, category, description, icon, shortcut, tags, source, author, version, url, last_updated)
+            self.register(name, fn, category, description, icon, shortcut, tags, source, author, version, url, last_updated, example)
             return fn
         return _wrap
 
@@ -286,6 +290,7 @@ class ToolRegistry:
                 "description": entry.description,
                 "tags": entry.tags,
                 "parameters": params,
+                "example": entry.example,
                 "icon": entry.icon,
                 "shortcut": entry.shortcut,
                 "author": entry.author,
@@ -347,6 +352,7 @@ def register_tool(
     version: str = "1.0.0",
     url: str = "",
     last_updated: str = "",
+    example: str = "",
 ) -> Callable:
     """
     Module-level convenience decorator that registers with the global registry.
@@ -373,4 +379,5 @@ def register_tool(
         version=version,
         url=url,
         last_updated=last_updated,
+        example=example,
     )

@@ -457,6 +457,7 @@ def device_call_method(
         "The AI write layer — lets Claude configure any device in the level by name."
     ),
     tags=["device", "property", "set", "write", "ai", "automation", "bulk"],
+    example='tb.run("device_set_property", property_name="bIsEnabled", value=True, class_filter="TimerDevice", dry_run=False)',
 )
 def device_set_property(
     property_name: str = "",
