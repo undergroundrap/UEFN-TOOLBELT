@@ -82,6 +82,8 @@ pyrightconfig.json
 # ─── Claude Code ──────────────────────────────────────────────────────────────
 # Personal Claude Code settings (co-author suppression, etc.) — not shared.
 .claude/settings.json
+# Agent worktrees — temporary isolated copies created by Claude agent runs.
+.claude/worktrees/
 
 # ─── OS ───────────────────────────────────────────────────────────────────────
 
