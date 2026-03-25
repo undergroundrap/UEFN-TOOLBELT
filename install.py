@@ -46,7 +46,7 @@ for _name in sorted(_os.listdir(_PYTHON_DIR)):
                 _mod.register()
         except Exception as _e:
             __import__("unreal").log_error(f"[LOADER] Failed to load '{_name}': {_e}")
-del _sys, _os, _importlib, _PYTHON_DIR
+del _sys, _os, _importlib, _PYTHON_DIR, _name, _pkg, _mod
 # [/UEFN_TOOLBELT_LOADER]
 """
 
@@ -114,6 +114,18 @@ def _ensure_pyside6() -> None:
         print("  ✓ PySide6 already installed — nothing to do.")
         return
 
+    # Verify pip is available before attempting install
+    pip_check = subprocess.run(
+        [ue_python, "-m", "pip", "--version"],
+        capture_output=True,
+    )
+    if pip_check.returncode != 0:
+        print("  ✗ UE Python is missing pip — cannot auto-install PySide6.")
+        print("     Install manually by opening a terminal and running:")
+        print(f'     "{ue_python}" -m pip install PySide6')
+        print("     (If pip is missing entirely, reinstall Fortnite via the Epic Launcher.)")
+        return
+
     print("  Installing PySide6 into UE Python (this takes ~30 seconds)...")
     result = subprocess.run(
         [ue_python, "-m", "pip", "install", "PySide6", "--quiet"],
@@ -123,10 +135,10 @@ def _ensure_pyside6() -> None:
     if result.returncode == 0:
         print("  ✓ PySide6 installed successfully.")
     else:
-        print("  ✗ PySide6 install failed. Error:")
-        print(f"    {result.stderr.strip()}")
-        print("     Install manually:")
+        print("  ✗ PySide6 install failed. Install manually:")
         print(f'     "{ue_python}" -m pip install PySide6')
+        if result.stderr.strip():
+            print(f"     Error: {result.stderr.strip()}")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -151,7 +163,11 @@ def _find_uefn_projects():
 
     for root in roots:
         if os.path.isdir(root):
-            for name in os.listdir(root):
+            try:
+                entries = os.listdir(root)
+            except (PermissionError, OSError):
+                continue
+            for name in entries:
                 uproject = os.path.join(root, name, f"{name}.uproject")
                 if os.path.exists(uproject):
                     candidates.append(os.path.join(root, name))
@@ -192,10 +208,15 @@ def _install_toolbelt(project_path: str):
     os.makedirs(dest_python, exist_ok=True)
 
     # ── Step 1: Copy the Toolbelt package ─────────────────────────────────────
-    if os.path.exists(dest_tb):
-        shutil.rmtree(dest_tb)
-    shutil.copytree(TOOLBELT_SRC, dest_tb)
-    print(f"  ✓ Copied UEFN_Toolbelt → {dest_tb}")
+    try:
+        if os.path.exists(dest_tb):
+            print(f"  Updating existing installation...")
+            shutil.rmtree(dest_tb)
+        shutil.copytree(TOOLBELT_SRC, dest_tb)
+        print(f"  ✓ Copied UEFN_Toolbelt → {dest_tb}")
+    except Exception as e:
+        print(f"  ✗ Failed to copy Toolbelt: {e}")
+        sys.exit(1)
 
     # ── Step 2: Handle init_unreal.py ─────────────────────────────────────────
     if not os.path.exists(dest_init):
@@ -210,10 +231,18 @@ def _install_toolbelt(project_path: str):
         if _LOADER_MARKER in existing:
             print(f"  ✓ init_unreal.py already contains the Toolbelt loader — no changes needed")
         else:
-            with open(dest_init, "a", encoding="utf-8") as f:
-                f.write(_LOADER_BLOCK)
-            print(f"  ✓ Patched existing init_unreal.py with Toolbelt loader block")
-            print(f"    (Your original init_unreal.py content is unchanged above the patch)")
+            try:
+                with open(dest_init, "a", encoding="utf-8") as f:
+                    f.write(_LOADER_BLOCK)
+                print(f"  ✓ Patched existing init_unreal.py with Toolbelt loader block")
+                print(f"    (Your original init_unreal.py content is unchanged above the patch)")
+            except PermissionError:
+                print(f"  ✗ init_unreal.py is read-only — could not patch it.")
+                print(f"    Make it writable and re-run install.py, or manually append the loader block.")
+                sys.exit(1)
+            except Exception as e:
+                print(f"  ✗ Failed to patch init_unreal.py: {e}")
+                sys.exit(1)
 
 
 def _print_next_steps(project_path: str):
@@ -227,7 +256,7 @@ Next steps:
   2. The "Toolbelt ▾" menu appears in the top menu bar automatically
   3. Verify in the Python console:
 
-       import UEFN_Toolbelt as tb; tb.smoke_test()
+       import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_smoke_test")
 
 To write your own plugin:
   1. Create a .py file with a @register_tool decorated function
