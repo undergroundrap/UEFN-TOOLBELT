@@ -129,6 +129,8 @@ _SKIP_LINE_FRAGMENTS = [
     # README Patch Notes section — historical version/count entries
     "bumped from stale",
     "171 → 246",
+    "→ 250 tools",
+    "→ 247 tools",
     "→ 229 tools",
     "→ 217 tools",
     "→ 204 tools",

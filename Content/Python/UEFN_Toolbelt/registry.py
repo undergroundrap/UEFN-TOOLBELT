@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import inspect
 import os
+import time
 import traceback
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
@@ -160,6 +161,7 @@ class ToolRegistry:
         failing tool never crashes the editor session.
 
         Returns the tool's return value, or None on failure.
+        Every call is recorded in the rolling activity log (core/activity_log.py).
         """
         if tool_id not in self._tools:
             log_error(f"Unknown tool: '{tool_id}'. Call list_tools() to see available tools.")
@@ -167,10 +169,26 @@ class ToolRegistry:
 
         entry = self._tools[tool_id]
         log_info(f"Running tool: {tool_id}")
+        _start = time.perf_counter()
         try:
-            return entry.fn(**kwargs)
+            result = entry.fn(**kwargs)
+            _duration_ms = (time.perf_counter() - _start) * 1000
+            try:
+                from .core.activity_log import record as _record
+                _record(tool_id=tool_id, status="ok", duration_ms=_duration_ms)
+            except Exception:
+                pass  # Never let logging crash a successful tool run
+            return result
         except Exception:
-            log_error(f"Tool '{tool_id}' raised an exception:\n{traceback.format_exc()}")
+            _duration_ms = (time.perf_counter() - _start) * 1000
+            _tb = traceback.format_exc()
+            log_error(f"Tool '{tool_id}' raised an exception:\n{_tb}")
+            try:
+                from .core.activity_log import record as _record
+                _record(tool_id=tool_id, status="error", duration_ms=_duration_ms,
+                        error=_tb.strip().splitlines()[-1] if _tb.strip() else "Unknown error")
+            except Exception:
+                pass
             return None
 
     # ── Validation ────────────────────────────────────────────────────────────

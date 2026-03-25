@@ -33,7 +33,7 @@ __version__ = "1.9.5"
 
 # Total registered tools — update alongside __version__ when adding/removing tools.
 # Checked by scripts/drift_check.py to catch stale counts across docs and UI.
-__tool_count__ = 247
+__tool_count__ = 250
 
 # API contract version — plugins declare MIN_TOOLBELT_VERSION = "x.y.z" to
 # signal the oldest platform release they support. Checked at load time.

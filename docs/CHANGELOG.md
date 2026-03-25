@@ -5,6 +5,24 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [1.9.6] — 2026-03-24
+
+### feat: rolling activity log — system monitor for every tool call (247 → 250 tools)
+- New module `core/activity_log.py` — records every `tb.run()` call automatically
+  - In-memory ring buffer (`deque(maxlen=500)`) + JSON persistence to `Saved/UEFN_Toolbelt/activity_log.json`
+  - Per-entry fields: `tool`, `status` (ok/error), `duration_ms`, `timestamp`, `error` (truncated traceback tail)
+  - Pre-loads from disk on first access — survives hot-reload
+- Wired into `registry.execute()` at the chokepoint — zero boilerplate for tool authors
+  - `time.perf_counter()` timing wraps every tool call
+  - Lazy import (`from .core.activity_log import record`) — never crashes a successful run
+- 3 new registered tools:
+  - `toolbelt_activity_log` — view last N entries, newest first (default 50)
+  - `toolbelt_activity_stats` — aggregate stats: total, ok/error counts, error rate, slowest, most-called, last 5 errors
+  - `toolbelt_activity_clear` — wipe buffer + disk file before benchmarking or fresh test runs
+- Use cases: AI agent health monitoring, performance bottleneck detection, error pattern analysis
+
+---
+
 ## [1.9.5] — 2026-03-24
 
 ### feat: publish_audit — Fortnite island publish-readiness checker

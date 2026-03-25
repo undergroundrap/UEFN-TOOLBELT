@@ -77,7 +77,7 @@ import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in
 ## ⚠️ MANDATORY: Check the Registry Before Adding Any Tool
 
 **Never build a new tool without first auditing what already exists.**
-With 247 registered tools, the risk of duplicating or fragmenting existing functionality is high.
+With 250 registered tools, the risk of duplicating or fragmenting existing functionality is high.
 A new tool that overlaps an existing one wastes time, inflates the count, and confuses users.
 
 ### Pre-build checklist — required before writing a single line of tool code
@@ -128,7 +128,7 @@ This keeps the tool count honest, the dashboard scannable, and the MCP manifest 
 ## What This Project Is
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
-It runs inside the editor and exposes 247 tools through:
+It runs inside the editor and exposes 250 tools through:
 - A persistent top-menu entry (`Toolbelt ▾`) in the UEFN editor bar
 - A 26-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
 - An MCP HTTP bridge so Claude Code can control UEFN directly
@@ -172,7 +172,7 @@ This file contains every registered tool with its full Python parameter signatur
   }
 }
 ```
-All 247 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
+All 250 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
 
 **Schema utility functions** (`schema_utils.py`):
 - `schema_utils.validate_property(class_name, prop)` — check if a property exists and is writable
@@ -315,7 +315,7 @@ Then restart Claude Code — it connects automatically.
 
 ### What Claude Code can now do
 
-- Run any of the 247 registered tools by name
+- Run any of the 250 registered tools by name
 - Spawn, move, delete actors
 - List/rename/import/tag assets
 - Take screenshots, save level snapshots
@@ -351,7 +351,7 @@ See `docs/plugin_dev_guide.md` for full details. You can generate plugins for th
 
 ```python
 import UEFN_Toolbelt as tb
-tb.register_all_tools()   # ← required — registers all 247 tools
+tb.register_all_tools()   # ← required — registers all 250 tools
 
 # Basic
 tb.run("tool_name")
@@ -399,14 +399,14 @@ import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in
 Two separate test systems. Know which is which before running either.
 
 ### Smoke Test — `tb.run("toolbelt_smoke_test")`
-**What it proves:** All 247 tools *registered* correctly. The registry loaded, all modules imported, and a set of "safe" tools ran end-to-end without exceptions.
+**What it proves:** All 250 tools *registered* correctly. The registry loaded, all modules imported, and a set of "safe" tools ran end-to-end without exceptions.
 **What it does NOT prove:** That tools produce correct output on real actors. It cannot test anything selection-dependent or level-state-dependent.
 **Safe to run:** Anywhere, any project, any time. ~5 seconds.
 **Run after:** Every code change, before committing.
 
 ### Integration Test — `tb.run("toolbelt_integration_test")`
 **What it proves:** 163 tools *work* in a live UEFN editor. The harness spawns real actor fixtures, runs each tool against them, verifies the result (property changed, actor count correct, file written), and cleans up.
-**Coverage:** All 247 tools across 21 test sections — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
+**Coverage:** All 250 tools across 21 test sections — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
 **⚠️ INVASIVE — only run in a blank template level.** It spawns and deletes actors. Never run in a production project.
 **Run after:** Before any PR. After adding a new tool. After major refactors. ~35 seconds.
 
@@ -417,7 +417,7 @@ If the editor crashes mid-run, the file contains partial results up to the last 
 
 | | Smoke Test | Integration Test |
 |---|---|---|
-| Tests registration? | ✅ All 247 tools | ✅ |
+| Tests registration? | ✅ All 250 tools | ✅ |
 | Tests live execution? | Partial (safe tools only) | ✅ 163 tests on real actors |
 | Safe in production? | ✅ Yes | ❌ Blank level only |
 | Runtime | ~5s | ~35s |
@@ -1037,7 +1037,7 @@ tb.run("config_reset", key="all")   # wipe all customisations
 | `level_health_open` | — | Open the Level Health Dashboard window — colour-coded category cards, per-issue drilldown, live audit progress. |
 | `plugin_validate_all` | — | Validate all registered tools against schema |
 | `plugin_list_custom` | — | List all loaded third-party tools from `Saved/UEFN_Toolbelt/Custom_Plugins` |
-| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 247 tools with full parameter signatures (name, type, required, default) for AI-agent and automation use |
+| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 250 tools with full parameter signatures (name, type, required, default) for AI-agent and automation use |
 
 **Online Plugin Hub** — the Plugin Hub dashboard tab fetches `registry.json` live from GitHub.
 - **Core Tools** (green/BUILT-IN): 10 flagship modules by Ocean Bennett, already built in
@@ -1083,6 +1083,9 @@ Low-frequency tools — check these exist before re-implementing similar functio
 | `system_get_last_build_log` | System | Read last 100 lines of UEFN log for error analysis |
 | `system_optimize_background_cpu` | System | Disable UEFN sleep when alt-tabbed (max Python/AI speed) |
 | `verse_patch_errors` | System | AI error loop: extract build errors + file content for Claude to fix |
+| `toolbelt_activity_log` | System | Rolling log of all tool calls — name, status, duration, timestamp, error |
+| `toolbelt_activity_stats` | System | Aggregate stats: total calls, error rate, slowest tool, most called |
+| `toolbelt_activity_clear` | System | Wipe the in-memory log and activity_log.json |
 | `toolbelt_integration_test` | Tests | ⚠️ Invasive full automation — use in clean template level only |
 
 ---
@@ -1107,7 +1110,7 @@ When the listener is running, Claude Code can call these directly:
 | `ping` | — | Health check + command list |
 | `get_log` | `last_n=50` | Return last N lines from the MCP command log ring |
 | `execute_python` | `code` | Run Python in UEFN (pre-populated: `unreal`, `actor_sub`, `asset_sub`, `level_sub`, `tb`) |
-| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 247 registered tools |
+| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 250 registered tools |
 | `list_tools` | `category=""` | List all registered tools |
 | `describe_tool` | `tool_name` | Full manifest entry for one tool (name, description, parameters, tags) |
 | `batch_exec` | `commands=[{command, params}]` | Multiple commands in one tick |
