@@ -2650,11 +2650,26 @@ TIPS
                     sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
                     sub.select_nothing()
                     sub.set_actor_selection_state(nd.actor, True)
-                    # Snap viewport to the device — same native command as
-                    # Camera Movement > Move Camera to Object (no roll corruption)
-                    unreal.SystemLibrary.execute_console_command(
-                        unreal.EditorLevelLibrary.get_editor_world(), "CAMERA ALIGN"
-                    )
+                    # Defer CAMERA ALIGN to the next Slate tick.
+                    # execute_console_command triggers the engine's full command pipeline
+                    # and crashes if called directly from a Qt signal handler.
+                    # Deferring via register_slate_pre_tick_callback runs it on the main
+                    # Unreal thread — same pattern used by _schedule_menu in __init__.py.
+                    _fired = False
+                    def _align(dt: float) -> None:
+                        nonlocal _fired
+                        if _fired:
+                            return
+                        _fired = True
+                        try:
+                            unreal.SystemLibrary.execute_console_command(
+                                unreal.EditorLevelLibrary.get_editor_world(), "CAMERA ALIGN"
+                            )
+                        except Exception:
+                            pass
+                        finally:
+                            unreal.unregister_slate_pre_tick_callback(_handle)
+                    _handle = unreal.register_slate_pre_tick_callback(_align)
                 except Exception:
                     pass
 

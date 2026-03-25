@@ -881,7 +881,85 @@ import UEFN_Toolbelt as tb; tb.register_all_tools()
 
 ---
 
-## Quirk #28 — Claude Code Agent Worktrees Showing as a Third Repo in VS Code
+## 28. `execute_console_command` Crashes UEFN When Called From a Qt Signal Handler (Discovered: March 2026)
+
+### The Problem
+
+Calling `unreal.SystemLibrary.execute_console_command(world, "CAMERA ALIGN")` (or any console command) **directly from inside a PySide6 signal handler** (e.g. a node's `clicked` signal, a button's `pressed` signal, or any other Qt callback) causes a **hard UEFN crash** — no Python traceback, the editor process terminates.
+
+This happens because `execute_console_command` triggers the engine's full command-dispatch pipeline synchronously. When Qt is in the middle of dispatching a signal, the engine's command pipeline re-enters the Slate/input stack in a way that violates internal ordering assumptions, causing an access violation or stack corruption.
+
+The crash is not obvious: it doesn't produce a Python exception. UEFN just disappears. Wrapping the call in `try/except` does **not** help because the crash happens at the C++ level before any Python error can be raised.
+
+### Affected APIs
+
+Any API that triggers an internal engine dispatch synchronously can exhibit this pattern:
+- `unreal.SystemLibrary.execute_console_command()`
+- `unreal.EditorLevelLibrary.set_level_viewport_camera_info()` — causes camera roll corruption (separate but related)
+- Potentially any API that modifies Slate/viewport state
+
+### The Fix — Defer via `register_slate_pre_tick_callback`
+
+Defer the console command to the next Unreal tick. The Slate pre-tick fires on the main editor thread, outside of Qt's signal dispatch, so the engine command pipeline has no re-entrancy conflict:
+
+```python
+def _on_node_clicked(self, nd: DeviceNode) -> None:
+    # Select the actor synchronously — this is safe
+    sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    sub.set_actor_selection_state(nd.actor, True)
+
+    # ❌ CRASHES — do NOT call execute_console_command directly here
+    # unreal.SystemLibrary.execute_console_command(world, "CAMERA ALIGN")
+
+    # ✅ SAFE — defer to next Slate tick
+    _fired = False
+    def _align(dt: float) -> None:
+        nonlocal _fired
+        if _fired:
+            return
+        _fired = True
+        try:
+            unreal.SystemLibrary.execute_console_command(
+                unreal.EditorLevelLibrary.get_editor_world(), "CAMERA ALIGN"
+            )
+        except Exception:
+            pass
+        finally:
+            unreal.unregister_slate_pre_tick_callback(_handle)
+    _handle = unreal.register_slate_pre_tick_callback(_align)
+```
+
+The `_fired` guard prevents double-fire if for any reason the callback fires before `_handle` is assigned (extremely unlikely but defensive).
+
+### Why `register_slate_pre_tick_callback` (not post-tick)
+
+Pre-tick fires at the beginning of each frame, before Slate processes input. This ensures the camera command runs in a clean frame context. Post-tick fires after Slate, which introduces one extra frame of delay and can cause visible "snap" artifacts.
+
+### Where This Pattern Is Used in Toolbelt
+
+- `tools/verse_device_graph.py` — `_on_node_clicked` snaps the UEFN viewport to the clicked device actor
+- `tools/viewport_tools.py` — `_camera_align_to_actors()` helper used by all spawn tools with `focus=True`
+
+### Rule of Thumb
+
+> Any `execute_console_command` call that originates from a Qt signal (button click, combo change, timer tick, etc.) **must** be deferred via `register_slate_pre_tick_callback`. The same applies to any engine API that touches Slate or viewport state.
+
+---
+
+## Quirk #29 — Verse Device Graph Hard Crash Clears on Full UEFN Restart (Discovered: March 2026)
+
+If `verse_graph_open` hard-crashes UEFN and the crash persists after nuclear reload, **do a full UEFN restart**. This is a specific instance of Quirk #27.
+
+The graph window creates multiple Slate tick callbacks, Qt timers, and PySide6 widgets. After a crash or a project switch, stale C++ references from the previous session can make even a freshly-deployed version of the file crash on open. Nuclear reload purges the Python module but cannot clean up those C++ handles — only a full restart does.
+
+After restart, use the full import form:
+```python
+import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("verse_graph_open")
+```
+
+---
+
+## 30. Claude Code Agent Worktrees Showing as a Third Repo in VS Code
 
 **What you see:** VS Code Source Control shows a third repository entry (e.g. `agent-ae5015a9`) alongside `UEFN-TOOLBELT` and `verse-book`. It has modified files inside it and no sync/push button visible on the main repo.
 
