@@ -74,7 +74,7 @@ class VerseBuildService:
         return errors
 
 @register_tool(name="system_build_verse", category="System")
-def system_build_verse():
+def system_build_verse(**kwargs) -> dict:
     """
     Triggers a background UEFN build to compile Verse and return errors.
     This replaces the manual 'Push Changes' loop for rapid AI diagnostics.
@@ -99,7 +99,7 @@ def system_build_verse():
         return {"status": "success", "message": "Verse compiled with 0 errors."}
 
 @register_tool(name="system_get_last_build_log", category="System")
-def system_get_last_build_log() -> dict:
+def system_get_last_build_log(**kwargs) -> dict:
     """Reads the most recent UEFN log file for error analysis."""
     log_dir = os.path.join(unreal.Paths.project_saved_dir(), "Logs")
     if not os.path.exists(log_dir):

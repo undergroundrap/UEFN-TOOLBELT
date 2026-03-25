@@ -358,7 +358,7 @@ def screenshot_timed_series(
     height: int = 1080,
     interval_sec: float = 2.0,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Capture a series of screenshots at regular intervals from the current camera.
 
@@ -376,8 +376,9 @@ def screenshot_timed_series(
     """
     if count < 1:
         unreal.log_warning("[Screenshot] count must be at least 1.")
-        return
+        return {"status": "error", "message": "count must be at least 1"}
     _do_timed_series(name, count, width, height, max(0.0, interval_sec))
+    return {"status": "ok", "count": count, "folder": _SHOT_DIR}
 
 
 @register_tool(

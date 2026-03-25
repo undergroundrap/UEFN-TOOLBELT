@@ -55,10 +55,10 @@ def _resolve_verse_class(actor: unreal.Actor) -> str:
     description="Generate a Python simulation proxy for a selected Verse device.",
     tags=["sim", "verse", "proxy", "automation"],
 )
-def run_generate_proxy(**kwargs) -> None:
+def run_generate_proxy(**kwargs) -> dict:
     actors = require_selection(min_count=1)
     if not actors:
-        return
+        return {"status": "error", "message": "No actors selected."}
 
     actor = actors[0]
     cls_raw = actor.get_class().get_name()
@@ -183,6 +183,14 @@ def run_generate_proxy(**kwargs) -> None:
 
     log_info(f"Proxy written → {out_path}")
     log_info(f"  Class : {cls_title}Proxy  |  {len(props)} props · {len(methods)} methods · {len(events)} events")
+    return {
+        "status": "ok",
+        "class": cls_title + "Proxy",
+        "path": out_path,
+        "props": len(props),
+        "methods": len(methods),
+        "events": len(events),
+    }
 
 
 @register_tool(
@@ -191,13 +199,15 @@ def run_generate_proxy(**kwargs) -> None:
     description="Trigger a discoverable method on a Verse device via the Python API.",
     tags=["sim", "verse", "trigger", "method"],
 )
-def run_trigger_method(method_name: str = "", **kwargs) -> None:
+def run_trigger_method(method_name: str = "", **kwargs) -> dict:
     """
     Simulates calling a Verse function by executing its Python equivalent.
     """
     actors = require_selection(min_count=1)
-    if not actors or not method_name:
-        return
+    if not actors:
+        return {"status": "error", "message": "No actors selected."}
+    if not method_name:
+        return {"status": "error", "message": "method_name is required."}
 
     actor = actors[0]
     if hasattr(actor, method_name):
@@ -205,7 +215,10 @@ def run_trigger_method(method_name: str = "", **kwargs) -> None:
         with undo_transaction(f"Sim: Trigger {method_name}"):
             try:
                 getattr(actor, method_name)()
+                return {"status": "ok", "actor": actor.get_actor_label(), "method": method_name}
             except Exception as e:
                 log_error(f"Failed to trigger {method_name}: {e}")
+                return {"status": "error", "message": str(e)}
     else:
         log_error(f"Method '{method_name}' not found on this actor.")
+        return {"status": "error", "message": f"Method '{method_name}' not found on {actor.get_actor_label()}"}

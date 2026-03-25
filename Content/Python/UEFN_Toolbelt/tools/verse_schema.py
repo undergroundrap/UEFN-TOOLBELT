@@ -130,7 +130,7 @@ class VerseSchemaParser:
 _parser = VerseSchemaParser()
 
 @register_tool(name="api_verse_get_schema", category="Verse Helpers")
-def api_verse_get_schema(class_name: str) -> dict:
+def api_verse_get_schema(class_name: str = "", **kwargs) -> dict:
     """
     Returns the Verse schema (properties, events, functions) for a given class.
     Derived from .digest.verse intelligence.
@@ -149,7 +149,7 @@ def api_verse_get_schema(class_name: str) -> dict:
     return {"status": "error", "class_name": class_name, "schema": None}
 
 @register_tool(name="api_verse_refresh_schemas", category="Verse Helpers")
-def api_verse_refresh_schemas() -> dict:
+def api_verse_refresh_schemas(**kwargs) -> dict:
     """Forces a re-scan of all Verse digest files for schema intelligence."""
     _parser.load_digests()
     return {"status": "ok", "loaded": len(_parser.device_schemas)}

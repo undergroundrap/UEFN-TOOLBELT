@@ -173,7 +173,7 @@ def run_import_fbx(
     place_in_level: bool = False,
     combine_meshes: bool = False,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         file_path:       Absolute OS path to the .fbx file.
@@ -184,12 +184,12 @@ def run_import_fbx(
     """
     if not file_path:
         log_error("import_fbx: file_path is required.")
-        return
+        return {"status": "error", "message": "file_path is required."}
 
     file_path = os.path.normpath(file_path)
     if not os.path.isfile(file_path):
         log_error(f"File not found: {file_path}")
-        return
+        return {"status": "error", "message": f"File not found: {file_path}"}
 
     if not file_path.lower().endswith(".fbx"):
         log_warning("import_fbx: expected an .fbx file.")
@@ -204,7 +204,7 @@ def run_import_fbx(
 
     if not imported:
         log_error(f"Import failed for {file_path}. Check the Output Log for FBX errors.")
-        return
+        return {"status": "error", "message": f"Import failed for {file_path}"}
 
     log_info(f"  Imported: {imported}")
 
@@ -226,6 +226,7 @@ def run_import_fbx(
     }])
 
     log_info(f"Import complete: {base_name}")
+    return {"status": "ok", "imported": imported, "count": len(imported)}
 
 
 @register_tool(
@@ -241,7 +242,7 @@ def run_import_fbx_folder(
     place_in_level: bool = False,
     combine_meshes: bool = False,
     **kwargs,
-) -> None:
+) -> dict:
     """
     Args:
         folder_path:  Absolute OS path to the folder containing .fbx files.
@@ -252,12 +253,12 @@ def run_import_fbx_folder(
     """
     if not folder_path:
         log_error("import_fbx_folder: folder_path is required.")
-        return
+        return {"status": "error", "message": "folder_path is required."}
 
     folder_path = os.path.normpath(folder_path)
     if not os.path.isdir(folder_path):
         log_error(f"Folder not found: {folder_path}")
-        return
+        return {"status": "error", "message": f"Folder not found: {folder_path}"}
 
     fbx_files = [
         os.path.join(folder_path, f)
@@ -267,7 +268,7 @@ def run_import_fbx_folder(
 
     if not fbx_files:
         log_info(f"No .fbx files found in {folder_path}")
-        return
+        return {"status": "ok", "imported": [], "count": 0}
 
     log_info(f"Found {len(fbx_files)} FBX files. Starting batch import…")
     session = dest_base or (_session_path() + "/Meshes")
@@ -300,6 +301,7 @@ def run_import_fbx_folder(
     }])
 
     log_info(f"Batch import complete: {len(all_imported)} assets.")
+    return {"status": "ok", "imported": all_imported, "count": len(all_imported)}
 
 
 @register_tool(
@@ -312,7 +314,7 @@ def run_organize_assets(
     source_path: str = "/Game/Imports",
     target_base: str = "/Game/Organized",
     **kwargs,
-) -> None:
+) -> dict:
     """
     Moves assets from source_path into target_base/Meshes, target_base/Materials,
     target_base/Textures, etc., based on asset class.
@@ -323,7 +325,7 @@ def run_organize_assets(
     """
     if not unreal.EditorAssetLibrary.does_directory_exist(source_path):
         log_error(f"Source folder does not exist: {source_path}")
-        return
+        return {"status": "error", "message": f"Source folder does not exist: {source_path}"}
 
     asset_paths = unreal.EditorAssetLibrary.list_assets(
         source_path, recursive=True, include_folder=False
@@ -331,7 +333,7 @@ def run_organize_assets(
 
     if not asset_paths:
         log_info(f"No assets found in {source_path}")
-        return
+        return {"status": "ok", "moved": 0}
 
     type_map = {
         "StaticMesh":             "Meshes",
@@ -371,3 +373,4 @@ def run_organize_assets(
             log_warning(f"  Could not move {asset_name}: {e}")
 
     log_info(f"Organize complete: {moved} assets moved to {target_base}/")
+    return {"status": "ok", "moved": moved, "total": len(asset_paths), "target": target_base}

@@ -5,6 +5,27 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [1.9.3] — 2026-03-24
+
+### fix: zero None returns — Phase 21 guarantee enforced across all tools
+- `screenshot_timed_series` — returned `None`; now returns `{"status": "ok", "count", "folder"}`
+- `sim_generate_proxy` — returned `None` on success/no-selection; now returns structured dict
+- `sim_trigger_method` — returned `None` on all paths; now returns `{"status": "ok/error", ...}`
+- `import_fbx` — returned `None` on all paths; now returns `{"status": "ok/error", "imported", "count"}`
+- `import_fbx_folder` — same fix; returns count of imported assets
+- `organize_assets` — same fix; returns `{"status": "ok", "moved", "total", "target"}`
+- `system_build_verse` and `system_get_last_build_log` — added missing `**kwargs`
+- `api_verse_get_schema` and `api_verse_refresh_schemas` — added missing `**kwargs` + `= ""` default
+
+### docs: ARCHITECTURE.md — system design reference
+- New top-level document covering: directory map, subsystem descriptions, data flow,
+  execution environment constraints, and extension points
+- Added to Key Files table in CLAUDE.md and CONTRIBUTING.md
+
+### docs: README version badge bump 1.9.1 → 1.9.2
+
+---
+
 ## [1.9.2] — 2026-03-24
 
 ### feat: stamp_export / stamp_import — cross-project stamp sharing

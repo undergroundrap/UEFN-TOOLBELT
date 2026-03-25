@@ -161,6 +161,7 @@ Full guide: `docs/plugin_dev_guide.md`
 | `Content/Python/UEFN_Toolbelt/core/theme.py` | Color palette — single source of truth for UI colors |
 | `docs/ui_style_guide.md` | **Mandatory reading** before writing any windowed UI |
 | `docs/UEFN_QUIRKS.md` | Non-obvious UEFN Python behaviors — read before your first tool |
+| `ARCHITECTURE.md` | System design, directory map, subsystems, data flow — read before structural changes |
 | `docs/CHANGELOG.md` | Version history — add your entry here |
 | `tests/smoke_test.py` | 5-layer health check — `tb.run("toolbelt_smoke_test")` |
 
