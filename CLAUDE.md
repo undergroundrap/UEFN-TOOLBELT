@@ -15,15 +15,19 @@ This is the single most important rule in this project. Syntax checks and unit t
 
 ### When to ask the user to test
 
+> **Every test starts with `deploy.bat`.** Without it, UEFN is running old code.
+
 | Change type | Required test |
 |---|---|
-| New tool or tool modification | `tb.run("tool_name")` in UEFN Python console |
-| Dashboard UI change (new tab, widget, layout) | Nuclear reload + visual inspect in UEFN |
-| Theme / styling change | Nuclear reload + switch themes in Appearance tab |
-| MCP bridge change | `tb.run("mcp_start")` + ping from Claude Code |
-| `core/` module change | Nuclear reload + `tb.run("toolbelt_smoke_test")` |
+| Any code change | **`deploy.bat` first**, then the appropriate step below |
+| New tool or tool modification | `deploy.bat` → nuclear reload → `tb.run("tool_name")` |
+| Dashboard UI change (new tab, widget, layout) | `deploy.bat` → **full UEFN restart** → visual inspect |
+| Theme / styling change | `deploy.bat` → **full UEFN restart** → switch themes in Appearance tab |
+| `verse_device_graph.py` or `dashboard_pyside6.py` | `deploy.bat` → **full UEFN restart** (nuclear reload will crash) |
+| MCP bridge change | `deploy.bat` → `tb.run("mcp_start")` + ping from Claude Code |
+| `core/` module change | `deploy.bat` → nuclear reload → `tb.run("toolbelt_smoke_test")` |
 | `install.py` / `deploy.bat` change | Run the script end-to-end |
-| Any change touching PySide6 windows | Open the window, interact with it |
+| Any change touching PySide6 windows | `deploy.bat` → **full UEFN restart** → open window, interact |
 
 ### Two-phase validation workflow
 
@@ -46,8 +50,18 @@ Catches Python syntax errors and stale version/tool-count references instantly w
 
 When you add a new tool, also bump `__tool_count__` in `Content/Python/UEFN_Toolbelt/__init__.py` alongside `__version__`. Both are read by `drift_check.py` as the single source of truth.
 
-**Phase 2 — Live UEFN test (required before every commit):**
-Ask the user to run the appropriate bundle below. Syntax passing ≠ working in the editor.
+**Phase 2 — Deploy + live UEFN test (required before every commit):**
+
+> **⚠️ ALWAYS run `deploy.bat` before testing in UEFN.**
+> The repo and the UEFN project are separate directories. Editing files in the repo does nothing
+> until you deploy. `deploy.bat` copies everything to your Fortnite Projects folder and prints
+> the correct hot-reload command. Never skip this step.
+
+```bat
+deploy.bat
+```
+
+Then paste the hot-reload command it prints into the UEFN Python console. Syntax passing ≠ working in the editor.
 
 ### The hard refresh bundle (paste into UEFN Python console)
 
@@ -55,6 +69,11 @@ Ask the user to run the appropriate bundle below. Syntax passing ≠ working in 
 > It can cause `EXCEPTION_ACCESS_VIOLATION` as stale C++ callbacks fire against freed Python objects.
 > **Use a full UEFN restart instead** when first introducing a new tool module.
 > Nuclear reload is safe for iterating on existing tools. See `docs/UEFN_QUIRKS.md` Quirk #26.
+>
+> ⚠️ **Nuclear reload is also unsafe for modules with active Qt windows or Slate tick callbacks**
+> (e.g. `verse_device_graph.py`, `dashboard_pyside6.py`). If UEFN hard-crashes after a nuclear
+> reload, close UEFN completely, run `deploy.bat` again, restart UEFN, then do a clean import.
+> Nuclear reload is only safe for pure tool modules with no persistent window state.
 >
 > 🔁 **Nuclear reload fixes code. Hard restart fixes state.**
 > After a crash, a project switch, or a `Shiboken` abort — close UEFN completely and reopen.
