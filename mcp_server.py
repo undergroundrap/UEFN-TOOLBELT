@@ -33,11 +33,11 @@ Claude Code config — add to .mcp.json in your project root:
 Then in UEFN (Output Log or Toolbelt dashboard):
     import UEFN_Toolbelt as tb; tb.run("mcp_start")
 
-After that, Claude Code has full control over UEFN — 171 tools, live actor data,
+After that, Claude Code has full control over UEFN — 246 tools, live actor data,
 arbitrary Python execution, viewport control, and more.
 
 What this exposes (beyond Kirch's original 22 tools):
-    run_toolbelt_tool   — call any of the 171 registered toolbelt tools by name
+    run_toolbelt_tool   — call any of the 246 registered toolbelt tools by name
     list_toolbelt_tools — list every available tool with category and description
     mcp_get_log         — read the last N lines of the MCP listener log ring
 
@@ -60,7 +60,12 @@ from mcp.server.fastmcp import FastMCP
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-LISTENER_PORT   = int(os.environ.get("UEFN_MCP_PORT", "8765"))
+try:
+    LISTENER_PORT = int(os.environ.get("UEFN_MCP_PORT", "8765"))
+    if not (1 <= LISTENER_PORT <= 65535):
+        raise ValueError(f"Port {LISTENER_PORT} out of range")
+except ValueError:
+    LISTENER_PORT = 8765
 LISTENER_URL    = f"http://127.0.0.1:{LISTENER_PORT}"
 VERSE_BOOK_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "verse-book", "docs")

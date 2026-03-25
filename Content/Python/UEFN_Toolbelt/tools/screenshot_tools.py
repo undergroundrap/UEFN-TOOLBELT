@@ -234,6 +234,12 @@ def _do_timed_series(
     interval_sec: float,
 ) -> None:
     _ensure_dir()
+    if interval_sec > 0:
+        unreal.log_warning(
+            f"[Screenshot] ⚠ interval_sec={interval_sec:.1f}s — the editor UI will "
+            f"freeze for ~{interval_sec * (count - 1):.1f}s while the series runs. "
+            f"Use interval_sec=0 for a back-to-back burst with no freeze."
+        )
     unreal.log(
         f"[Screenshot] Starting series of {count} screenshots "
         f"every {interval_sec:.1f}s…"

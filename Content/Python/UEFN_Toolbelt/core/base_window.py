@@ -165,11 +165,12 @@ if _PYSIDE6:
                         unreal.unregister_slate_post_tick_callback(handle[0])
                         return
                     app.processEvents()
-                except Exception:
+                except Exception as _e:
                     try:
                         unreal.unregister_slate_post_tick_callback(handle[0])
                     except Exception:
                         pass
+                    unreal.log_warning(f"[ToolbeltWindow] Slate tick error (callback unregistered): {_e}")
 
             handle[0] = unreal.register_slate_post_tick_callback(_tick)
 
