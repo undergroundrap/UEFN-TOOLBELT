@@ -25,20 +25,22 @@ from typing import Dict, List
 # Always read from PALETTE — never hard-code a hex value elsewhere.
 
 PALETTE: Dict[str, str] = {
-    "bg":      "#181818",   # window / root background
-    "panel":   "#212121",   # input fields, text areas, secondary panels
-    "card":    "#1E1E1E",   # elevated surfaces, node bodies
-    "border":  "#2A2A2A",   # subtle borders, dividers, splitters
-    "border2": "#363636",   # heavier borders, node outlines, button borders
-    "text":    "#CCCCCC",   # primary text
-    "muted":   "#555555",   # secondary / hint / disabled text
-    "accent":  "#3A3AFF",   # primary action, focus rings, pressed states
-    "brand":   "#e94560",   # toolbelt brand red — window titles only
-    "warn":    "#f1c40f",   # warnings
-    "error":   "#FF4444",   # errors
-    "ok":      "#44FF88",   # success / healthy
-    "grid":    "#1A1A1A",   # canvas grid lines, scrollbar track
-    "topbar":  "#111111",   # top bar / status bar background
+    "bg":          "#181818",   # window / root background
+    "panel":       "#212121",   # input fields, text areas, secondary panels
+    "card":        "#1E1E1E",   # elevated surfaces, node bodies
+    "border":      "#2A2A2A",   # subtle borders, dividers, splitters
+    "border2":     "#363636",   # heavier borders, node outlines, button borders
+    "text":        "#CCCCCC",   # primary text
+    "muted":       "#555555",   # secondary / hint / disabled text
+    "text_bright": "#FFFFFF",   # high-contrast text, titles, hero labels
+    "text_dim":    "#AAAAAA",   # secondary text, slightly dimmer than text
+    "accent":      "#3A3AFF",   # primary action, focus rings, pressed states
+    "brand":       "#e94560",   # toolbelt brand red — window titles only
+    "warn":        "#f1c40f",   # warnings
+    "error":       "#FF4444",   # errors
+    "ok":          "#44FF88",   # success / healthy
+    "grid":        "#1A1A1A",   # canvas grid lines, scrollbar track
+    "topbar":      "#111111",   # top bar / status bar background
 }
 
 # ── Theme Library ──────────────────────────────────────────────────────────────
@@ -48,105 +50,117 @@ PALETTE: Dict[str, str] = {
 THEMES: Dict[str, Dict[str, str]] = {
 
     "toolbelt_dark": {  # ← Default
-        "bg":      "#181818",
-        "panel":   "#212121",
-        "card":    "#1E1E1E",
-        "border":  "#2A2A2A",
-        "border2": "#363636",
-        "text":    "#CCCCCC",
-        "muted":   "#555555",
-        "accent":  "#3A3AFF",
-        "brand":   "#e94560",
-        "warn":    "#f1c40f",
-        "error":   "#FF4444",
-        "ok":      "#44FF88",
-        "grid":    "#1A1A1A",
-        "topbar":  "#111111",
+        "bg":          "#181818",
+        "panel":       "#212121",
+        "card":        "#1E1E1E",
+        "border":      "#2A2A2A",
+        "border2":     "#363636",
+        "text":        "#CCCCCC",
+        "muted":       "#555555",
+        "text_bright": "#FFFFFF",
+        "text_dim":    "#AAAAAA",
+        "accent":      "#3A3AFF",
+        "brand":       "#e94560",
+        "warn":        "#f1c40f",
+        "error":       "#FF4444",
+        "ok":          "#44FF88",
+        "grid":        "#1A1A1A",
+        "topbar":      "#111111",
     },
 
     "midnight": {  # GitHub dark — deep navy black
-        "bg":      "#0D1117",
-        "panel":   "#161B22",
-        "card":    "#13181F",
-        "border":  "#21262D",
-        "border2": "#30363D",
-        "text":    "#E6EDF3",
-        "muted":   "#8B949E",
-        "accent":  "#58A6FF",
-        "brand":   "#F78166",
-        "warn":    "#D29922",
-        "error":   "#F85149",
-        "ok":      "#3FB950",
-        "grid":    "#090D12",
-        "topbar":  "#090D12",
+        "bg":          "#0D1117",
+        "panel":       "#161B22",
+        "card":        "#13181F",
+        "border":      "#21262D",
+        "border2":     "#30363D",
+        "text":        "#E6EDF3",
+        "muted":       "#8B949E",
+        "text_bright": "#FFFFFF",
+        "text_dim":    "#A0ACBB",
+        "accent":      "#58A6FF",
+        "brand":       "#F78166",
+        "warn":        "#D29922",
+        "error":       "#F85149",
+        "ok":          "#3FB950",
+        "grid":        "#090D12",
+        "topbar":      "#090D12",
     },
 
     "ocean": {  # Deep ocean blue — Ocean Bennett's personal palette
-        "bg":      "#0A1628",
-        "panel":   "#0F1F38",
-        "card":    "#0C1930",
-        "border":  "#1A3050",
-        "border2": "#1E4070",
-        "text":    "#B8D4F0",
-        "muted":   "#4A7A9B",
-        "accent":  "#00BFFF",
-        "brand":   "#00E5FF",
-        "warn":    "#FFB347",
-        "error":   "#FF4466",
-        "ok":      "#00FF88",
-        "grid":    "#081220",
-        "topbar":  "#060E1A",
+        "bg":          "#0A1628",
+        "panel":       "#0F1F38",
+        "card":        "#0C1930",
+        "border":      "#1A3050",
+        "border2":     "#1E4070",
+        "text":        "#B8D4F0",
+        "muted":       "#4A7A9B",
+        "text_bright": "#FFFFFF",
+        "text_dim":    "#88AACC",
+        "accent":      "#00BFFF",
+        "brand":       "#00E5FF",
+        "warn":        "#FFB347",
+        "error":       "#FF4466",
+        "ok":          "#00FF88",
+        "grid":        "#081220",
+        "topbar":      "#060E1A",
     },
 
     "nord": {  # Arctic, north-blue — popular Nord scheme
-        "bg":      "#2E3440",
-        "panel":   "#3B4252",
-        "card":    "#343A47",
-        "border":  "#434C5E",
-        "border2": "#4C566A",
-        "text":    "#ECEFF4",
-        "muted":   "#7B88A1",
-        "accent":  "#88C0D0",
-        "brand":   "#BF616A",
-        "warn":    "#EBCB8B",
-        "error":   "#BF616A",
-        "ok":      "#A3BE8C",
-        "grid":    "#272C38",
-        "topbar":  "#252B36",
+        "bg":          "#2E3440",
+        "panel":       "#3B4252",
+        "card":        "#343A47",
+        "border":      "#434C5E",
+        "border2":     "#4C566A",
+        "text":        "#ECEFF4",
+        "muted":       "#7B88A1",
+        "text_bright": "#FFFFFF",
+        "text_dim":    "#D0D8E8",
+        "accent":      "#88C0D0",
+        "brand":       "#BF616A",
+        "warn":        "#EBCB8B",
+        "error":       "#BF616A",
+        "ok":          "#A3BE8C",
+        "grid":        "#272C38",
+        "topbar":      "#252B36",
     },
 
     "forest": {  # Dark green — natural, focused
-        "bg":      "#0F1B12",
-        "panel":   "#162018",
-        "card":    "#121A14",
-        "border":  "#1E3020",
-        "border2": "#2A4A2C",
-        "text":    "#C8E8C8",
-        "muted":   "#4A7A4A",
-        "accent":  "#4CAF7D",
-        "brand":   "#FF6644",
-        "warn":    "#F0C040",
-        "error":   "#FF4444",
-        "ok":      "#66DD44",
-        "grid":    "#0C1610",
-        "topbar":  "#0A120C",
+        "bg":          "#0F1B12",
+        "panel":       "#162018",
+        "card":        "#121A14",
+        "border":      "#1E3020",
+        "border2":     "#2A4A2C",
+        "text":        "#C8E8C8",
+        "muted":       "#4A7A4A",
+        "text_bright": "#FFFFFF",
+        "text_dim":    "#99CC99",
+        "accent":      "#4CAF7D",
+        "brand":       "#FF6644",
+        "warn":        "#F0C040",
+        "error":       "#FF4444",
+        "ok":          "#66DD44",
+        "grid":        "#0C1610",
+        "topbar":      "#0A120C",
     },
 
     "daylight": {  # Light — for bright monitors and accessibility
-        "bg":      "#F5F5F5",
-        "panel":   "#FFFFFF",
-        "card":    "#EFEFEF",
-        "border":  "#DDDDDD",
-        "border2": "#CCCCCC",
-        "text":    "#1A1A2A",
-        "muted":   "#888888",
-        "accent":  "#2255CC",
-        "brand":   "#CC1A3A",
-        "warn":    "#B87800",
-        "error":   "#CC2222",
-        "ok":      "#1A8822",
-        "grid":    "#E8E8E8",
-        "topbar":  "#E0E0E0",
+        "bg":          "#F5F5F5",
+        "panel":       "#FFFFFF",
+        "card":        "#EFEFEF",
+        "border":      "#DDDDDD",
+        "border2":     "#CCCCCC",
+        "text":        "#1A1A2A",
+        "muted":       "#888888",
+        "text_bright": "#111111",
+        "text_dim":    "#444444",
+        "accent":      "#2255CC",
+        "brand":       "#CC1A3A",
+        "warn":        "#B87800",
+        "error":       "#CC2222",
+        "ok":          "#1A8822",
+        "grid":        "#E8E8E8",
+        "topbar":      "#E0E0E0",
     },
 }
 

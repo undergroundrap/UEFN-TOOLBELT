@@ -61,7 +61,7 @@ from UEFN_Toolbelt.registry import register_tool
 # Sourced from core/theme.py — the single source of truth for all Toolbelt colors.
 # To change colors platform-wide, edit core/theme.PALETTE. Do not hard-code hex here.
 
-from .core.theme import QSS as _QSS  # noqa: E402 — after sys/unreal imports
+from .core.theme import QSS as _QSS, color as _color  # noqa: E402 — after sys/unreal imports
 from .core import theme as _theme_mod
 from .core.config import get_config as _get_config
 
@@ -166,7 +166,7 @@ def _btn_inp(layout: "QVBoxLayout", label: str, fn_factory,
 def _sep(layout: "QVBoxLayout") -> None:
     line = QFrame()
     line.setFrameShape(QFrame.HLine)
-    line.setStyleSheet("color: #2A2A2A;")
+    line.setStyleSheet(f"color: {_color('border')};")
     layout.addWidget(line)
 
 
@@ -240,7 +240,7 @@ def _build_setup_status(L: "QVBoxLayout") -> None:
         checks.append(("Verse-book spec", "warn", "Could not verify"))
 
     # ── Render rows ───────────────────────────────────────────────────────────
-    color_map = {"ok": "#44FF88", "warn": "#f1c40f", "error": "#FF4444"}
+    color_map = {"ok": _color("ok"), "warn": _color("warn"), "error": _color("error")}
     icon_map  = {"ok": "✓", "warn": "⚠", "error": "✗"}
 
     for name, status, detail in checks:
@@ -256,7 +256,7 @@ def _build_setup_status(L: "QVBoxLayout") -> None:
 
         name_lbl = QLabel(name)
         name_lbl.setFixedWidth(140)
-        name_lbl.setStyleSheet("font-size: 11px; color: #CCCCCC; background: transparent;")
+        name_lbl.setStyleSheet(f"font-size: 11px; color: {_color('text')}; background: transparent;")
 
         detail_lbl = QLabel(detail)
         detail_lbl.setStyleSheet(f"font-size: 10px; color: {col}; background: transparent;")
@@ -272,11 +272,11 @@ def _build_setup_status(L: "QVBoxLayout") -> None:
     n_warn = sum(1 for _, s, _ in checks if s == "warn")
     n_err  = sum(1 for _, s, _ in checks if s == "error")
     if n_err:
-        summary_col, summary = "#FF4444", f"{n_err} issue(s) need attention — see rows above"
+        summary_col, summary = _color("error"), f"{n_err} issue(s) need attention — see rows above"
     elif n_warn:
-        summary_col, summary = "#f1c40f", f"{n_ok}/{len(checks)} checks passing — {n_warn} advisory"
+        summary_col, summary = _color("warn"), f"{n_ok}/{len(checks)} checks passing — {n_warn} advisory"
     else:
-        summary_col, summary = "#44FF88", f"All {n_ok} checks passing — you're good to go"
+        summary_col, summary = _color("ok"), f"All {n_ok} checks passing — you're good to go"
 
     summary_lbl = QLabel(summary)
     summary_lbl.setStyleSheet(f"font-size: 11px; color: {summary_col}; padding: 4px 2px 0 2px; background: transparent;")
@@ -289,11 +289,11 @@ def _tab_quick_actions(R) -> "QScrollArea":
     scroll, L = _page()
 
     hero = QLabel("Quick Actions")
-    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
 
     desc = QLabel("The most frequently used tools for daily UEFN workflow automation.")
-    desc.setStyleSheet("font-size: 12px; color: #AAAAAA; padding-bottom: 12px;")
+    desc.setStyleSheet(f"font-size: 12px; color: {_color('text_dim')}; padding-bottom: 12px;")
     desc.setWordWrap(True)
     L.addWidget(desc)
 
@@ -1302,7 +1302,7 @@ def _tab_verse(R) -> "QScrollArea":
         "organized into:  game_systems/  device_wiring/  spline_tools/  custom/\n"
         "Click Refresh to browse. Click any snippet to copy it to the clipboard."
     )
-    hint.setStyleSheet("font-size: 10px; color: #555555; padding: 4px;")
+    hint.setStyleSheet(f"font-size: 10px; color: {_color('muted')}; padding: 4px;")
     hint.setWordWrap(True)
     g4.addWidget(hint)
 
@@ -1325,7 +1325,7 @@ def _tab_verse(R) -> "QScrollArea":
 
         if not os.path.isdir(snippets_dir):
             lbl = QLabel("  No snippets yet — generate one above first.")
-            lbl.setStyleSheet("color: #555555; padding: 6px; font-size: 11px;")
+            lbl.setStyleSheet(f"color: {_color('muted')}; padding: 6px; font-size: 11px;")
             snippet_list.addWidget(lbl)
             return
 
@@ -1340,7 +1340,7 @@ def _tab_verse(R) -> "QScrollArea":
 
             cat_lbl = QLabel(f"  {subcat}/")
             cat_lbl.setStyleSheet(
-                "font-size: 10px; color: #555555; letter-spacing: 1px;"
+                f"font-size: 10px; color: {_color('muted')}; letter-spacing: 1px;"
                 " padding: 6px 4px 2px 4px; font-weight: bold;"
             )
             snippet_list.addWidget(cat_lbl)
@@ -1355,10 +1355,10 @@ def _tab_verse(R) -> "QScrollArea":
 
                 name_btn = QPushButton(f"  {fname}  ({size} bytes)")
                 name_btn.setStyleSheet(
-                    "QPushButton { text-align: left; background: #1E1E1E;"
-                    " border: 1px solid #2A2A2A; color: #AAAAAA; font-size: 11px;"
+                    f"QPushButton {{ text-align: left; background: {_color('card')};"
+                    f" border: 1px solid {_color('border')}; color: {_color('text_dim')}; font-size: 11px;"
                     " padding: 5px 8px; border-radius: 3px; }"
-                    "QPushButton:hover { background: #252525; color: #CCCCCC; }"
+                    f"QPushButton:hover {{ background: #252525; color: {_color('text')}; }}"
                 )
                 def _copy(p=fpath):
                     try:
@@ -1372,9 +1372,9 @@ def _tab_verse(R) -> "QScrollArea":
                 open_btn = QPushButton("Open")
                 open_btn.setFixedWidth(52)
                 open_btn.setStyleSheet(
-                    "QPushButton { background: #1A1A1A; border: 1px solid #2A2A2A;"
-                    " color: #555555; padding: 4px; font-size: 10px; border-radius: 3px; }"
-                    "QPushButton:hover { color: #AAAAAA; }"
+                    f"QPushButton {{ background: {_color('grid')}; border: 1px solid {_color('border')};"
+                    f" color: {_color('muted')}; padding: 4px; font-size: 10px; border-radius: 3px; }}"
+                    f"QPushButton:hover {{ color: {_color('text_dim')}; }}"
                 )
                 def _open(p=fpath):
                     import subprocess
@@ -1388,7 +1388,7 @@ def _tab_verse(R) -> "QScrollArea":
 
         if found == 0:
             lbl = QLabel("  No .verse files found yet.")
-            lbl.setStyleSheet("color: #555555; padding: 6px; font-size: 11px;")
+            lbl.setStyleSheet(f"color: {_color('muted')}; padding: 6px; font-size: 11px;")
             snippet_list.addWidget(lbl)
 
     btn_row = QWidget()
@@ -1642,7 +1642,7 @@ def _tab_api(R) -> "QScrollArea":
         "  github.com/KirChuvakov/uefn-mcp-server"
     )
     lbl.setWordWrap(True)
-    lbl.setStyleSheet("color: #555555; font-size: 11px; padding: 4px;")
+    lbl.setStyleSheet(f"color: {_color('muted')}; font-size: 11px; padding: 4px;")
     g3.addWidget(lbl)
     _btn(g3, "Open Output Log (check stub export path)",
          lambda: unreal.log(
@@ -1679,12 +1679,12 @@ def _tab_mcp(R) -> "QScrollArea":
 
     def _refresh_status():
         state, text = _read_mcp_state()
-        col = "#44FF88" if state == "running" else "#FF5555"
+        col = _color("ok") if state == "running" else "#FF5555"
         status_lbl.setText(text)
         status_lbl.setStyleSheet(
             f"color: {col}; font-size: 13px; font-weight: bold;"
-            " background: #141414; padding: 10px 14px; border-radius: 4px;"
-            " border: 1px solid #2A2A2A;"
+            f" background: #141414; padding: 10px 14px; border-radius: 4px;"
+            f" border: 1px solid {_color('border')};"
         )
 
     _refresh_status()
@@ -1787,7 +1787,7 @@ def _tab_verification(R) -> "QScrollArea":
 
     # Big scary WARNING label
     warn_lbl = QLabel("⚠️  WARNING: INVASIVE INTEGRATION TEST")
-    warn_lbl.setStyleSheet("color: #FF4444; font-weight: bold; font-size: 13px; padding-top: 10px;")
+    warn_lbl.setStyleSheet(f"color: {_color('error')}; font-weight: bold; font-size: 13px; padding-top: 10px;")
     L.addWidget(warn_lbl)
 
     desc_lbl = QLabel(
@@ -1823,11 +1823,11 @@ def _tab_plugin_hub(R) -> "QScrollArea":
 
     # ── Header
     hero = QLabel("Plugin Ecosystem")
-    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
 
     desc = QLabel("Discover and run third-party tools installed in your Custom_Plugins directory.")
-    desc.setStyleSheet("font-size: 12px; color: #AAAAAA; padding-bottom: 12px;")
+    desc.setStyleSheet(f"font-size: 12px; color: {_color('text_dim')}; padding-bottom: 12px;")
     desc.setWordWrap(True)
     L.addWidget(desc)
 
@@ -1850,11 +1850,11 @@ def _tab_plugin_hub(R) -> "QScrollArea":
     )
 
     hub_header = QLabel("Browse Online Hub")
-    hub_header.setStyleSheet("font-size: 15px; font-weight: bold; color: #FFFFFF; padding: 4px 0 2px 0;")
+    hub_header.setStyleSheet(f"font-size: 15px; font-weight: bold; color: {_color('text_bright')}; padding: 4px 0 2px 0;")
     L.addWidget(hub_header)
 
     hub_desc = QLabel("Community plugins — click Install to download into your Custom_Plugins folder.")
-    hub_desc.setStyleSheet("font-size: 11px; color: #AAAAAA; padding-bottom: 8px;")
+    hub_desc.setStyleSheet(f"font-size: 11px; color: {_color('text_dim')}; padding-bottom: 8px;")
     hub_desc.setWordWrap(True)
     L.addWidget(hub_desc)
 
@@ -1908,7 +1908,7 @@ def _tab_plugin_hub(R) -> "QScrollArea":
         hl.setContentsMargins(0, 0, 0, 0)
 
         t = QLabel(pm["name"])
-        t.setStyleSheet("font-size: 13px; font-weight: bold; color: #FFFFFF;")
+        t.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {_color('text_bright')};")
         hl.addWidget(t)
 
         v = QLabel(f"v{pm['version']}")
@@ -1925,8 +1925,8 @@ def _tab_plugin_hub(R) -> "QScrollArea":
         if is_core:
             core_badge = QLabel("BUILT-IN")
             core_badge.setStyleSheet(
-                "font-size: 10px; color: #44FF88; background: #0F3320;"
-                " border: 1px solid #44FF88; border-radius: 3px; padding: 2px 6px; font-weight: bold;"
+                f"font-size: 10px; color: {_color('ok')}; background: #0F3320;"
+                f" border: 1px solid {_color('ok')}; border-radius: 3px; padding: 2px 6px; font-weight: bold;"
             )
             hl.addWidget(core_badge)
 
@@ -1934,7 +1934,7 @@ def _tab_plugin_hub(R) -> "QScrollArea":
             if tool_count:
                 tc_badge = QLabel(f"{tool_count} tools")
                 tc_badge.setStyleSheet(
-                    "font-size: 10px; color: #AAAAAA; background: #222222;"
+                    f"font-size: 10px; color: {_color('text_dim')}; background: #222222;"
                     " border: 1px solid #444444; border-radius: 3px; padding: 2px 6px;"
                 )
                 hl.addWidget(tc_badge)
@@ -1958,7 +1958,7 @@ def _tab_plugin_hub(R) -> "QScrollArea":
         d = QLabel(pm.get("description", ""))
         d.setWordWrap(True)
         d.setStyleSheet(
-            "font-size: 12px; color: #CCCCCC; padding: 4px 0; border: none; background: transparent;"
+            f"font-size: 12px; color: {_color('text')}; padding: 4px 0; border: none; background: transparent;"
         )
         cl.addWidget(d)
 
@@ -1978,10 +1978,10 @@ def _tab_plugin_hub(R) -> "QScrollArea":
         if not is_core:
             install_btn = QPushButton("Install")
             install_btn.setStyleSheet(
-                "QPushButton { background: #1A3322; border: 1px solid #44FF88; color: #44FF88;"
+                f"QPushButton {{ background: #1A3322; border: 1px solid {_color('ok')}; color: {_color('ok')};"
                 " padding: 4px 14px; border-radius: 3px; font-weight: bold; }"
-                "QPushButton:hover { background: #2A4A33; }"
-                "QPushButton:pressed { background: #44FF88; color: #000000; }"
+                f"QPushButton:hover {{ background: #2A4A33; }}"
+                f"QPushButton:pressed {{ background: {_color('ok')}; color: #000000; }}"
             )
             install_btn.clicked.connect(lambda _, p=pm: _install_plugin(p))
             fl.addWidget(install_btn)
@@ -2021,7 +2021,7 @@ def _tab_plugin_hub(R) -> "QScrollArea":
 
         if core:
             core_hdr = QLabel("Core Tools  —  Built into UEFN Toolbelt by Ocean Bennett")
-            core_hdr.setStyleSheet("font-size: 12px; font-weight: bold; color: #44FF88; padding: 8px 0 4px 0;")
+            core_hdr.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {_color('ok')}; padding: 8px 0 4px 0;")
             hub_vbox.addWidget(core_hdr)
             for pm in core:
                 hub_vbox.addWidget(_make_online_card(pm))
@@ -2059,7 +2059,7 @@ def _tab_plugin_hub(R) -> "QScrollArea":
     hub_search = QLineEdit()
     hub_search.setPlaceholderText("Filter Plugin Hub...")
     hub_search.setStyleSheet(
-        "QLineEdit { background: #212121; border: 1px solid #363636; color: #CCCCCC;"
+        f"QLineEdit {{ background: {_color('panel')}; border: 1px solid {_color('border2')}; color: {_color('text')};"
         " padding: 6px 10px; border-radius: 4px; font-size: 12px; }"
         "QLineEdit:focus { border-color: #3A3AFF; }"
     )
@@ -2068,9 +2068,9 @@ def _tab_plugin_hub(R) -> "QScrollArea":
 
     btn_refresh = QPushButton("  Refresh Hub")
     btn_refresh.setStyleSheet(
-        "QPushButton { background: #2D2D2D; border: 1px solid #555555; color: #DDDDDD;"
+        f"QPushButton {{ background: #2D2D2D; border: 1px solid {_color('muted')}; color: #DDDDDD;"
         " padding: 6px 16px; border-radius: 4px; font-weight: bold; }"
-        "QPushButton:hover { background: #3A3AFF; border-color: #5555FF; color: #FFFFFF; }"
+        f"QPushButton:hover {{ background: #3A3AFF; border-color: #5555FF; color: {_color('text_bright')}; }}"
     )
     btn_refresh.clicked.connect(_refresh_hub)
 
@@ -2119,7 +2119,7 @@ def _tab_plugin_hub(R) -> "QScrollArea":
 
     for entry in sorted(custom_entries, key=lambda e: e.name):
         card = QFrame()
-        card.setStyleSheet("QFrame { background: #212121; border: 1px solid #363636; border-radius: 6px; margin-bottom: 6px; }")
+        card.setStyleSheet(f"QFrame {{ background: {_color('panel')}; border: 1px solid {_color('border2')}; border-radius: 6px; margin-bottom: 6px; }}")
         c_layout = QVBoxLayout(card)
         c_layout.setContentsMargins(12, 12, 12, 12)
         c_layout.setSpacing(6)
@@ -2131,7 +2131,7 @@ def _tab_plugin_hub(R) -> "QScrollArea":
         h_layout.setContentsMargins(0, 0, 0, 0)
 
         title = QLabel(entry.name)
-        title.setStyleSheet("font-size: 14px; font-weight: bold; color: #FFFFFF;")
+        title.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {_color('text_bright')};")
         h_layout.addWidget(title)
 
         version = QLabel(f"v{entry.version}")
@@ -2147,7 +2147,7 @@ def _tab_plugin_hub(R) -> "QScrollArea":
         if entry.last_updated: meta_str.append(f"Updated: {entry.last_updated}")
         if meta_str:
             meta = QLabel("  |  ".join(meta_str))
-            meta.setStyleSheet("font-size: 11px; color: #AAAAAA; border: none; background: transparent;")
+            meta.setStyleSheet(f"font-size: 11px; color: {_color('text_dim')}; border: none; background: transparent;")
             c_layout.addWidget(meta)
 
         if entry.url:
@@ -2174,7 +2174,7 @@ def _tab_plugin_hub(R) -> "QScrollArea":
 
         def _badge(text, ok=True):
             b = QLabel(text)
-            color = "#44FF88" if ok else "#FFAAAA"
+            color = _color("ok") if ok else "#FFAAAA"
             bg = "#1A3322" if ok else "#331A1A"
             b.setStyleSheet(f"color: {color}; background: {bg}; border: 1px solid {color}; border-radius: 3px; padding: 3px 6px; font-size: 10px; font-weight: bold;")
             return b
@@ -2193,7 +2193,7 @@ def _tab_plugin_hub(R) -> "QScrollArea":
         # Action button
         run_btn = QPushButton("Run Tool")
         run_btn.setStyleSheet(
-            "QPushButton { background: #2D2D2D; border: 1px solid #444444; color: #FFFFFF;"
+            f"QPushButton {{ background: #2D2D2D; border: 1px solid #444444; color: {_color('text_bright')};"
             " padding: 4px 12px; border-radius: 3px; font-weight: bold; margin-left: 10px; }"
             "QPushButton:hover { background: #3A3AFF; border-color: #5555FF; }"
             "QPushButton:pressed { background: #5555FF; }"
@@ -2261,7 +2261,7 @@ def _tab_localization(R) -> "QScrollArea":
 def _tab_selection(R) -> "QScrollArea":
     scroll, L = _page()
     hero = QLabel("Advanced Selection")
-    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
     
     g = _group(L, "Proximity & Filtering")
@@ -2289,7 +2289,7 @@ def _tab_selection(R) -> "QScrollArea":
 def _tab_lighting(R) -> "QScrollArea":
     scroll, L = _page()
     hero = QLabel("Lighting & Post-Process")
-    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
 
     # ── Place Light ──────────────────────────────────────────────────────────
@@ -2372,11 +2372,11 @@ def _tab_lighting(R) -> "QScrollArea":
 def _tab_audio(R) -> "QScrollArea":
     scroll, L = _page()
     hero = QLabel("Audio Placement")
-    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
 
     note = QLabel("Places standard AmbientSound actors (not Fortnite music devices).\nLeave Asset Path blank to assign a sound manually in the Details panel.")
-    note.setStyleSheet("font-size: 11px; color: #AAAAAA; padding-bottom: 10px;")
+    note.setStyleSheet(f"font-size: 11px; color: {_color('text_dim')}; padding-bottom: 10px;")
     note.setWordWrap(True)
     L.addWidget(note)
 
@@ -2426,7 +2426,7 @@ def _tab_audio(R) -> "QScrollArea":
 def _tab_project_admin(R) -> "QScrollArea":
     scroll, L = _page()
     hero = QLabel("Project Administration")
-    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
 
     g = _group(L, "Maintenance & Safety")
@@ -2443,11 +2443,11 @@ def _tab_project_admin(R) -> "QScrollArea":
 def _tab_environmental(R) -> "QScrollArea":
     scroll, L = _page()
     hero = QLabel("Environmental Mastery")
-    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
     
     desc = QLabel("Prop-to-Foliage conversion and brush auditing.")
-    desc.setStyleSheet("font-size: 12px; color: #AAAAAA; padding-bottom: 12px;")
+    desc.setStyleSheet(f"font-size: 12px; color: {_color('text_dim')}; padding-bottom: 12px;")
     desc.setWordWrap(True)
     L.addWidget(desc)
     
@@ -2461,7 +2461,7 @@ def _tab_environmental(R) -> "QScrollArea":
 def _tab_entities(R) -> "QScrollArea":
     scroll, L = _page()
     hero = QLabel("Entity Management")
-    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
     
     g = _group(L, "Device Kits")
@@ -2484,7 +2484,7 @@ def _tab_simulation(_R=None) -> "QScrollArea":
     L.addWidget(hero)
 
     desc = QLabel("Test Verse logic in-editor without full sessions using schema-driven proxies.")
-    desc.setStyleSheet("font-size: 12px; color: #AAAAAA; padding-bottom: 12px;")
+    desc.setStyleSheet(f"font-size: 12px; color: {_color('text_dim')}; padding-bottom: 12px;")
     desc.setWordWrap(True)
     L.addWidget(desc)
 
@@ -2512,7 +2512,7 @@ def _tab_sequencer(_R=None) -> "QScrollArea":
     L.addWidget(hero)
 
     desc = QLabel("Cinematic fly-throughs and bulk keyframe management.")
-    desc.setStyleSheet("font-size: 12px; color: #AAAAAA; padding-bottom: 12px;")
+    desc.setStyleSheet(f"font-size: 12px; color: {_color('text_dim')}; padding-bottom: 12px;")
     desc.setWordWrap(True)
     L.addWidget(desc)
 
@@ -2541,11 +2541,11 @@ def _tab_appearance(_R=None) -> "QScrollArea":
     scroll, L = _page()
 
     hero = QLabel("Appearance")
-    hero.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF; padding: 12px 0 4px 0;")
+    hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
 
     desc = QLabel("Switch the color theme. Changes apply live to all open windows and persist across restarts.")
-    desc.setStyleSheet("font-size: 12px; color: #AAAAAA; padding-bottom: 12px;")
+    desc.setStyleSheet(f"font-size: 12px; color: {_color('text_dim')}; padding-bottom: 12px;")
     desc.setWordWrap(True)
     L.addWidget(desc)
 
@@ -2567,7 +2567,7 @@ def _tab_appearance(_R=None) -> "QScrollArea":
             f"QPushButton {{ background: {t['bg']}; color: {t['text']}; "
             f"border: 1px solid {t['border2']}; border-radius: 6px; "
             f"font-size: 11px; font-weight: bold; }}"
-            f"QPushButton:hover {{ border: 2px solid #FFFFFF; }}"
+            f"QPushButton:hover {{ border: 2px solid {_color('text_bright')}; }}"
         )
 
         # Colour strip — drawn as a sub-label showing bg + accent + brand
@@ -2608,7 +2608,7 @@ def _tab_appearance(_R=None) -> "QScrollArea":
 
     # Active-theme indicator — updates live when theme changes
     active_lbl = QLabel()
-    active_lbl.setStyleSheet("font-size: 11px; color: #555555; padding-top: 6px;")
+    active_lbl.setStyleSheet(f"font-size: 11px; color: {_color('muted')}; padding-top: 6px;")
     g.addWidget(active_lbl)
 
     def _update_swatches(new_qss: str = None) -> None:
@@ -2618,7 +2618,7 @@ def _tab_appearance(_R=None) -> "QScrollArea":
             t = _theme_mod.THEMES.get(n, _theme_mod.THEMES["toolbelt_dark"])
             active = n == current
             border_w = "3px" if active else "1px"
-            border_col = "#FFFFFF" if active else t["border2"]
+            border_col = _color("text_bright") if active else t["border2"]
             prefix = "✓ " if active else ""
             display = prefix + n.replace("_", " ").title()
             btn.setText(display)
@@ -2626,7 +2626,7 @@ def _tab_appearance(_R=None) -> "QScrollArea":
                 f"QPushButton {{ background: {t['bg']}; color: {t['text']}; "
                 f"border: {border_w} solid {border_col}; border-radius: 6px; "
                 f"font-size: 11px; font-weight: bold; }}"
-                f"QPushButton:hover {{ border: 2px solid #FFFFFF; }}"
+                f"QPushButton:hover {{ border: 2px solid {_color('text_bright')}; }}"
             )
 
     _theme_mod.subscribe(_update_swatches)
@@ -2655,7 +2655,7 @@ def _tab_about(_R=None) -> "QScrollArea":
     # ── Hero ─────────────────────────────────────────────────────────────────
     hero = QLabel("UEFN Toolbelt")
     hero.setStyleSheet(
-        "font-size: 26px; font-weight: bold; color: #FFFFFF;"
+        f"font-size: 26px; font-weight: bold; color: {_color('text_bright')};"
         " padding: 12px 0 4px 0; letter-spacing: 1px;"
     )
     hero.setAlignment(Qt.AlignCenter)
@@ -2667,7 +2667,7 @@ def _tab_about(_R=None) -> "QScrollArea":
     L.addWidget(tagline)
 
     version = QLabel("v1.5.3  ·  171 tools  ·  UEFN 40.00+  ·  Python 3.11  ·  March 2026")
-    version.setStyleSheet("font-size: 11px; color: #555555; padding-bottom: 12px;")
+    version.setStyleSheet(f"font-size: 11px; color: {_color('muted')}; padding-bottom: 12px;")
     version.setAlignment(Qt.AlignCenter)
     L.addWidget(version)
 
@@ -2721,14 +2721,14 @@ def _tab_about(_R=None) -> "QScrollArea":
             "QPushButton { background: #1A1A55; border: 1px solid #3A3AFF;"
             " color: #8888FF; padding: 4px 8px; border-radius: 3px; font-size: 11px; }"
             "QPushButton:hover { background: #2A2A77; color: #AAAAFF; }"
-            "QPushButton:pressed { background: #3A3AFF; color: #FFFFFF; }"
+            f"QPushButton:pressed {{ background: #3A3AFF; color: {_color('text_bright')}; }}"
         )
         copy_btn.clicked.connect(
             lambda _, c=command: QApplication.clipboard().setText(c)
         )
 
         lbl = QLabel(label)
-        lbl.setStyleSheet("font-size: 10px; color: #555555; min-width: 120px;")
+        lbl.setStyleSheet(f"font-size: 10px; color: {_color('muted')}; min-width: 120px;")
 
         col = QWidget()
         col_layout = QVBoxLayout(col)
@@ -2764,7 +2764,7 @@ def _tab_about(_R=None) -> "QScrollArea":
     g_author = _group(L, "Author")
 
     author = QLabel("Ocean Bennett  (@undergroundrap)")
-    author.setStyleSheet("font-size: 13px; color: #CCCCCC; padding: 6px 4px;")
+    author.setStyleSheet(f"font-size: 13px; color: {_color('text')}; padding: 6px 4px;")
     g_author.addWidget(author)
 
     role = QLabel(
@@ -2798,7 +2798,7 @@ def _tab_about(_R=None) -> "QScrollArea":
     ]
     for num, label in stats:
         row = QLabel(f"  {num:>4}   {label}")
-        row.setStyleSheet("font-size: 12px; color: #AAAAAA; padding: 3px 4px;")
+        row.setStyleSheet(f"font-size: 12px; color: {_color('text_dim')}; padding: 3px 4px;")
         g_stats.addWidget(row)
 
     _sep(L)
@@ -2807,7 +2807,7 @@ def _tab_about(_R=None) -> "QScrollArea":
     g_lic = _group(L, "License")
 
     lic_title = QLabel("AGPL-3.0 with Visible Attribution Requirement")
-    lic_title.setStyleSheet("font-size: 12px; color: #CCCCCC; padding: 4px 4px 2px 4px; font-weight: bold;")
+    lic_title.setStyleSheet(f"font-size: 12px; color: {_color('text')}; padding: 4px 4px 2px 4px; font-weight: bold;")
     g_lic.addWidget(lic_title)
 
     lic_body = QLabel(
@@ -2873,7 +2873,7 @@ def _tab_about(_R=None) -> "QScrollArea":
         ),
     ]:
         attr_name = QLabel(name)
-        attr_name.setStyleSheet("font-size: 11px; font-weight: bold; color: #CCCCCC; padding: 6px 4px 2px 4px;")
+        attr_name.setStyleSheet(f"font-size: 11px; font-weight: bold; color: {_color('text')}; padding: 6px 4px 2px 4px;")
         g_attr.addWidget(attr_name)
 
         attr_desc_lbl = QLabel(desc)
@@ -3001,8 +3001,8 @@ class ToolbeltDashboard(QMainWindow):
         self._search_box.setPlaceholderText("  Find any tool…")
         self._search_box.setToolTip("Global search — finds tools across all categories by name, description, or tag")
         self._search_box.setStyleSheet(
-            "QLineEdit { background: #1A1A1A; border: none;"
-            " border-bottom: 1px solid #2A2A2A; color: #CCCCCC;"
+            f"QLineEdit {{ background: {_color('grid')}; border: none;"
+            f" border-bottom: 1px solid {_color('border')}; color: {_color('text')};"
             " padding: 8px 10px; font-size: 12px; }"
             "QLineEdit:focus { border-bottom: 1px solid #3A3AFF; }"
         )
@@ -3012,7 +3012,7 @@ class ToolbeltDashboard(QMainWindow):
         _NAV_BASE = (
             "QPushButton { background: transparent; border: none; border-left: 3px solid transparent;"
             " color: #777777; text-align: left; padding: 9px 12px; font-size: 12px; }"
-            "QPushButton:hover { background: #1C1C1C; color: #CCCCCC; }"
+            f"QPushButton:hover {{ background: #1C1C1C; color: {_color('text')}; }}"
             "QPushButton:checked { background: #1A1A55; color: #AAAAFF;"
             " border-left: 3px solid #3A3AFF; font-weight: bold; }"
         )
@@ -3056,7 +3056,7 @@ class ToolbeltDashboard(QMainWindow):
 
         self._cat_label = QLabel("Materials")
         self._cat_label.setStyleSheet(
-            "font-size: 11px; font-weight: bold; color: #555555;"
+            f"font-size: 11px; font-weight: bold; color: {_color('muted')};"
             " letter-spacing: 1px; text-transform: uppercase;"
         )
         hdr_layout.addWidget(self._cat_label)
@@ -3067,8 +3067,8 @@ class ToolbeltDashboard(QMainWindow):
         self._filter_box.setToolTip("Filters buttons visible on the current category page")
         self._filter_box.setFixedWidth(170)
         self._filter_box.setStyleSheet(
-            "QLineEdit { background: #212121; border: 1px solid #2A2A2A;"
-            " color: #CCCCCC; padding: 4px 8px; font-size: 11px; border-radius: 3px; }"
+            f"QLineEdit {{ background: {_color('panel')}; border: 1px solid {_color('border')};"
+            f" color: {_color('text')}; padding: 4px 8px; font-size: 11px; border-radius: 3px; }}"
             "QLineEdit:focus { border-color: #3A3AFF; }"
         )
         self._filter_box.textChanged.connect(self._on_filter)
@@ -3085,7 +3085,7 @@ class ToolbeltDashboard(QMainWindow):
         divider = QFrame()
         divider.setFrameShape(QFrame.Shape.VLine)
         divider.setFixedWidth(1)
-        divider.setStyleSheet("background: #2A2A2A;")
+        divider.setStyleSheet(f"background: {_color('border')};")
 
         central = QWidget()
         layout = QHBoxLayout(central)
@@ -3173,12 +3173,12 @@ class ToolbeltDashboard(QMainWindow):
 
         if not results:
             lbl = QLabel(f'  No tools match "{text}".')
-            lbl.setStyleSheet("color: #555555; padding: 16px;")
+            lbl.setStyleSheet(f"color: {_color('muted')}; padding: 16px;")
             self._search_layout.addWidget(lbl)
             return
 
         count_lbl = QLabel(f"  {len(results)} tool{'s' if len(results) != 1 else ''} found")
-        count_lbl.setStyleSheet("color: #555555; font-size: 11px; padding: 6px 8px 2px 8px;")
+        count_lbl.setStyleSheet(f"color: {_color('muted')}; font-size: 11px; padding: 6px 8px 2px 8px;")
         self._search_layout.addWidget(count_lbl)
 
         for tool in results:
@@ -3194,8 +3194,8 @@ class ToolbeltDashboard(QMainWindow):
             cat_badge.setFixedWidth(86)
             cat_badge.setAlignment(Qt.AlignCenter)
             cat_badge.setStyleSheet(
-                "font-size: 9px; color: #555555; background: #1E1E1E;"
-                " border: 1px solid #2A2A2A; border-radius: 3px; padding: 2px 4px;"
+                f"font-size: 9px; color: {_color('muted')}; background: {_color('card')};"
+                f" border: 1px solid {_color('border')}; border-radius: 3px; padding: 2px 4px;"
                 " margin: 2px 4px 2px 0;"
             )
 
@@ -3235,7 +3235,7 @@ class ToolbeltDashboard(QMainWindow):
             unreal.log_error(f"[Dashboard] {tool_name}: {e}")
 
     def _set_status(self, msg: str, ok: bool = True) -> None:
-        color = "#44FF88" if ok else "#FF4444"
+        color = _color("ok") if ok else _color("error")
         self._sbar.setStyleSheet(f"QStatusBar {{ color: {color}; }}")
         self._sbar.showMessage(msg, 5000)
 
