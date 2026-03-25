@@ -35,7 +35,10 @@ from typing import Any
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
-MAX_ENTRIES = 500   # ring buffer cap — old entries drop off the front
+MAX_ENTRIES = 500   # ring buffer cap — old entries drop off the front automatically.
+                    # Disk file is always overwritten (never appended), so this also
+                    # caps the on-disk size (~100 KB at 500 entries, ~200 bytes each).
+                    # Bump this number if you need longer session history.
 _LOG_FILENAME = "activity_log.json"
 
 # ── In-memory ring buffer ──────────────────────────────────────────────────────
