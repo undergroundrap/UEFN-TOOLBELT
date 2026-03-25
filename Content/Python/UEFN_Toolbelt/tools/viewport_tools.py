@@ -183,3 +183,192 @@ def run_viewport_camera_get(**kwargs) -> dict:
     except Exception as e:
         log_error(f"viewport_camera_get failed: {e}")
         return {"status": "error", "error": str(e)}
+
+
+# ── Show flag presets ──────────────────────────────────────────────────────────
+
+_SHOWFLAG_PRESETS = {
+    "clean":         ["ShowFlag.TextRenders 0", "ShowFlag.BillboardSprites 0", "ShowFlag.Decals 0"],
+    "no_text":       ["ShowFlag.TextRenders 0"],
+    "no_icons":      ["ShowFlag.BillboardSprites 0"],
+    "geometry_only": ["ShowFlag.TextRenders 0", "ShowFlag.BillboardSprites 0",
+                      "ShowFlag.Decals 0", "ShowFlag.Particles 0"],
+    "reset":         ["ShowFlag.TextRenders 1", "ShowFlag.BillboardSprites 1",
+                      "ShowFlag.Decals 1", "ShowFlag.Particles 1"],
+}
+
+
+@register_tool(
+    name="viewport_showflag",
+    category="Viewport",
+    description=(
+        "Apply a viewport show-flag preset to instantly declutter the editor view. "
+        "Presets: clean | no_text | no_icons | geometry_only | reset"
+    ),
+    tags=["viewport", "showflag", "visibility", "display", "clean", "preset"],
+)
+def run_viewport_showflag(preset: str = "clean", **kwargs) -> dict:
+    """
+    Toggle UEFN viewport show flags using a named preset.
+
+    Args:
+        preset: 'clean'         — hide text, device icons, decals
+                'no_text'       — hide only 3D text renders
+                'no_icons'      — hide only device billboard icons
+                'geometry_only' — hide text, icons, decals, particles
+                'reset'         — restore all hidden categories
+                'list'          — return available presets (no change)
+    """
+    if preset == "list":
+        return {"status": "ok", "presets": list(_SHOWFLAG_PRESETS.keys())}
+    commands = _SHOWFLAG_PRESETS.get(preset)
+    if commands is None:
+        return {
+            "status": "error",
+            "error": f"Unknown preset '{preset}'. Available: {list(_SHOWFLAG_PRESETS.keys())}",
+        }
+    try:
+        world = unreal.EditorLevelLibrary.get_editor_world()
+        applied = []
+        for cmd in commands:
+            unreal.SystemLibrary.execute_console_command(world, cmd)
+            applied.append(cmd)
+        log_info(f"viewport_showflag: applied preset '{preset}' ({len(applied)} flags)")
+        return {"status": "ok", "preset": preset, "commands_applied": applied}
+    except Exception as e:
+        log_error(f"viewport_showflag failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+# ── Viewport bookmarks ─────────────────────────────────────────────────────────
+
+def _bookmarks_path() -> str:
+    import os
+    saved = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt")
+    os.makedirs(saved, exist_ok=True)
+    return os.path.join(saved, "viewport_bookmarks.json")
+
+
+def _load_bookmarks() -> dict:
+    import json, os
+    p = _bookmarks_path()
+    if os.path.exists(p):
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def _save_bookmarks(data: dict) -> None:
+    import json
+    with open(_bookmarks_path(), "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+@register_tool(
+    name="viewport_bookmark_save",
+    category="Viewport",
+    description=(
+        "Save the current viewport camera position as a named bookmark. "
+        "Jump back any time with viewport_bookmark_jump."
+    ),
+    tags=["viewport", "camera", "bookmark", "save", "position", "navigate"],
+)
+def run_viewport_bookmark_save(name: str = "", **kwargs) -> dict:
+    """
+    Save the current viewport camera position as a named bookmark.
+
+    Args:
+        name: Bookmark name, e.g. 'spawn_area', 'boss_room', 'overview'
+    """
+    if not name:
+        return {"status": "error", "error": "name is required. Example: 'spawn_area' or 'overview'"}
+    try:
+        loc, rot = _get_camera()
+        bookmarks = _load_bookmarks()
+        bookmarks[name] = {
+            "x": round(loc.x, 1), "y": round(loc.y, 1), "z": round(loc.z, 1),
+            "pitch": round(rot.pitch, 1), "yaw": round(rot.yaw, 1),
+        }
+        _save_bookmarks(bookmarks)
+        log_info(f"viewport_bookmark_save: saved '{name}'")
+        return {
+            "status": "ok",
+            "name": name,
+            "location": [round(loc.x, 1), round(loc.y, 1), round(loc.z, 1)],
+            "rotation": {"pitch": round(rot.pitch, 1), "yaw": round(rot.yaw, 1)},
+            "total_bookmarks": len(bookmarks),
+        }
+    except Exception as e:
+        log_error(f"viewport_bookmark_save failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@register_tool(
+    name="viewport_bookmark_jump",
+    category="Viewport",
+    description=(
+        "Jump the viewport camera to a saved named bookmark. "
+        "Use viewport_bookmark_list to see all saved bookmarks."
+    ),
+    tags=["viewport", "camera", "bookmark", "jump", "navigate", "goto"],
+)
+def run_viewport_bookmark_jump(name: str = "", **kwargs) -> dict:
+    """
+    Teleport the viewport camera to a previously saved bookmark.
+
+    Args:
+        name: Bookmark name saved with viewport_bookmark_save
+    """
+    if not name:
+        return {"status": "error", "error": "name is required."}
+    try:
+        bookmarks = _load_bookmarks()
+        if name not in bookmarks:
+            available = list(bookmarks.keys())
+            return {
+                "status": "error",
+                "error": f"Bookmark '{name}' not found.",
+                "available": available,
+            }
+        bm = bookmarks[name]
+        loc = unreal.Vector(bm["x"], bm["y"], bm["z"])
+        rot = unreal.Rotator(bm["pitch"], bm["yaw"], 0)
+        _set_camera(loc, rot)
+        log_info(f"viewport_bookmark_jump: jumped to '{name}'")
+        return {
+            "status": "ok",
+            "name": name,
+            "location": [bm["x"], bm["y"], bm["z"]],
+            "rotation": {"pitch": bm["pitch"], "yaw": bm["yaw"]},
+        }
+    except Exception as e:
+        log_error(f"viewport_bookmark_jump failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+@register_tool(
+    name="viewport_bookmark_list",
+    category="Viewport",
+    description="List all saved viewport camera bookmarks with their coordinates.",
+    tags=["viewport", "camera", "bookmark", "list", "navigate"],
+)
+def run_viewport_bookmark_list(**kwargs) -> dict:
+    """Return all saved viewport bookmarks."""
+    try:
+        bookmarks = _load_bookmarks()
+        return {
+            "status": "ok",
+            "count": len(bookmarks),
+            "bookmarks": {
+                name: {"location": [bm["x"], bm["y"], bm["z"]],
+                       "rotation": {"pitch": bm["pitch"], "yaw": bm["yaw"]}}
+                for name, bm in bookmarks.items()
+            },
+            "tip": "Use viewport_bookmark_jump with a name to teleport to any saved position.",
+        }
+    except Exception as e:
+        log_error(f"viewport_bookmark_list failed: {e}")
+        return {"status": "error", "error": str(e)}

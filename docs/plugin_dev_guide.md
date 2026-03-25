@@ -10,7 +10,7 @@ By writing a **Custom Plugin**, you can add your own completely custom tools to 
 
 ## 🔍 Before You Write a Plugin — Check What Already Exists
 
-UEFN Toolbelt ships with 269 built-in tools across 42 categories. Before writing a plugin,
+UEFN Toolbelt ships with 269 built-in tools across 43 categories. Before writing a plugin,
 spend two minutes confirming the capability doesn't already exist.
 
 **Quick registry search (paste into UEFN console):**

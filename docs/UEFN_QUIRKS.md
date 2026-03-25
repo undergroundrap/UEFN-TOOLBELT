@@ -984,3 +984,21 @@ git worktree prune
 
 **This is a Claude Code behavior, not a VS Code or UEFN quirk.** It only appears when agent-mode tasks run. Regular Claude Code sessions (no `isolation: "worktree"`) never create these.
 
+
+
+---
+
+## Quirk #30 — `bLockLocation` / `bLocked` Sandboxed on UEFN System Actors (Discovered: March 2026)
+
+`actor_lock` uses `set_editor_property("bLockLocation", True)` with a fallback to `"bLocked"`. Both properties fail silently (caught by try/except) on UEFN system actors such as `DemoRoom`, `Map Controller`, and Creative V2 device actors.
+
+**Why:** UEFN's Python sandbox disallows transform-lock modifications on special editor-managed actors. These actors are controlled by Epic's Creative subsystem and cannot be locked/unlocked via the Python API.
+
+**Expected behavior:** The tool will report `locked: 0, failed: N` for selections that contain only system actors. On standard `StaticMeshActor` props the property likely succeeds.
+
+**Workaround:** Lock system actors manually in the World Outliner (right-click → Lock Actor). There is no Python API equivalent for UEFN system actors.
+
+**`actor_lock` still correctly:**
+- Handles mixed selections (locks what it can, skips what it can't)
+- Returns a clear failure message naming the sandboxed actors
+- Does not crash or corrupt state

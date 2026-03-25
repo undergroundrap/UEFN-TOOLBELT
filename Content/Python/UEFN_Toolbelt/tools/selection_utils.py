@@ -1,3 +1,4 @@
+import os
 import unreal
 from ..registry import register_tool
 from ..core import log_info, log_error, undo_transaction
@@ -146,3 +147,123 @@ def run_select_by_verse_tag(tag_name: str = "", **kwargs) -> dict:
 
     log_info(f"No actors found with tag '{tag_name}'.")
     return {"status": "ok", "count": 0, "labels": []}
+
+
+# ── Named selection sets ───────────────────────────────────────────────────────
+# Save the current selection as a named set (labels → JSON).
+# Restore it any time — even after a restart — by re-selecting matching labels.
+
+def _sets_path() -> str:
+    saved = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt")
+    os.makedirs(saved, exist_ok=True)
+    return os.path.join(saved, "selection_sets.json")
+
+
+def _load_sets() -> dict:
+    import json as _json
+    p = _sets_path()
+    if os.path.exists(p):
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                return _json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def _save_sets(data: dict) -> None:
+    import json as _json
+    with open(_sets_path(), "w", encoding="utf-8") as f:
+        _json.dump(data, f, indent=2)
+
+
+@register_tool(
+    name="selection_save",
+    category="Selection",
+    description=(
+        "Save the current viewport selection as a named set. "
+        "Restore it any time with selection_restore — survives restarts."
+    ),
+    tags=["selection", "save", "set", "named", "team", "restore"],
+)
+def run_selection_save(name: str = "", **kwargs) -> dict:
+    """
+    Save the current actor selection under a name.
+
+    Args:
+        name: Set name, e.g. 'arena_props', 'player_spawns', 'my_section'
+    """
+    if not name:
+        return {"status": "error", "error": "name is required. Example: 'arena_props' or 'my_section'"}
+    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    actors = actor_sub.get_selected_level_actors()
+    if not actors:
+        return {"status": "error", "error": "No actors selected."}
+    labels = [a.get_actor_label() for a in actors]
+    sets = _load_sets()
+    sets[name] = labels
+    _save_sets(sets)
+    log_info(f"selection_save: saved '{name}' ({len(labels)} actors)")
+    return {"status": "ok", "name": name, "count": len(labels), "labels": labels}
+
+
+@register_tool(
+    name="selection_restore",
+    category="Selection",
+    description=(
+        "Restore a previously saved named selection set. "
+        "Matches actors by label — works across restarts."
+    ),
+    tags=["selection", "restore", "set", "named", "team"],
+)
+def run_selection_restore(name: str = "", **kwargs) -> dict:
+    """
+    Re-select all actors matching a saved selection set by label.
+
+    Args:
+        name: Set name saved with selection_save
+    """
+    if not name:
+        return {"status": "error", "error": "name is required."}
+    sets = _load_sets()
+    if name not in sets:
+        return {"status": "error", "error": f"Selection set '{name}' not found.", "available": list(sets.keys())}
+    target_labels = {lbl.lower() for lbl in sets[name]}
+    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    all_actors = actor_sub.get_all_level_actors()
+    # Match first occurrence per label — avoids duplicate-label actors in the level
+    seen = set()
+    matched = []
+    for a in all_actors:
+        lbl = a.get_actor_label().lower()
+        if lbl in target_labels and lbl not in seen:
+            matched.append(a)
+            seen.add(lbl)
+    if matched:
+        actor_sub.set_selected_level_actors(matched)
+    missing = len(target_labels) - len(matched)
+    log_info(f"selection_restore: restored '{name}' — {len(matched)} matched, {missing} not found")
+    return {
+        "status": "ok",
+        "name": name,
+        "matched": len(matched),
+        "missing": missing,
+        "labels": [a.get_actor_label() for a in matched],
+    }
+
+
+@register_tool(
+    name="selection_list",
+    category="Selection",
+    description="List all saved named selection sets with their actor counts.",
+    tags=["selection", "list", "set", "named", "team"],
+)
+def run_selection_list(**kwargs) -> dict:
+    """Return all saved selection sets."""
+    sets = _load_sets()
+    return {
+        "status": "ok",
+        "count": len(sets),
+        "sets": {name: {"actors": len(labels), "labels": labels} for name, labels in sets.items()},
+        "tip": "Use selection_restore with a name to re-select any saved set.",
+    }

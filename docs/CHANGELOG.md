@@ -7,6 +7,35 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ## [1.9.6] — 2026-03-25
 
+### feat: team workflow tools — visibility, selection sets, bookmarks, merge (270 → 287 tools)
+
+**New module: `actor_visibility.py` (8 tools)**
+- `actor_hide` / `actor_show` — hide or restore selected actors in the viewport
+- `actor_isolate` — hide everything except selection; focus on your section
+- `actor_show_all` — restore visibility for every hidden actor in the level
+- `folder_hide` / `folder_show` — toggle visibility of an entire World Outliner folder
+- `actor_lock` / `actor_unlock` — prevent accidental viewport moves on final-placed assets
+
+**`viewport_tools.py` additions (4 tools)**
+- `viewport_showflag` — apply named show-flag preset (clean / no_text / no_icons / geometry_only / reset)
+- `viewport_bookmark_save` / `viewport_bookmark_jump` / `viewport_bookmark_list` — named persistent camera bookmarks; survive restarts
+
+**`selection_utils.py` additions (3 tools)**
+- `selection_save` / `selection_restore` / `selection_list` — save named actor selections to JSON; restore by label match across restarts
+
+**`project_admin.py` addition (1 tool)**
+- `save_all_dirty` — save all unsaved assets and the current map in one call; no dialog
+
+**`bulk_operations.py` addition (1 tool)**
+- `mesh_merge_selection` — merge selected StaticMesh actors into a single mesh asset (one draw call); graceful error if UEFN sandboxes the API
+
+**Also in this release:**
+- `viewport_move_to_camera` — move selected actors to current camera position (sprint-placed workflows)
+- `CAMERA ALIGN` deferred-tick fix in Verse Device Graph node clicks
+- UEFN_QUIRKS.md: Quirk #28 (execute_console_command crash from Qt signal), Quirk #29 (verse graph crash clears on UEFN restart)
+
+---
+
 ### feat: 6 new tool modules + focus=True viewport snap for all spawn tools (250 → 269 tools)
 
 **New modules (19 tools):**
@@ -50,7 +79,7 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
-## [1.9.5] — 2026-03-24
+## [1.9.6] — 2026-03-24
 
 ### feat: publish_audit — Fortnite island publish-readiness checker
 - New tool: `publish_audit` in `tools/publish_audit.py`

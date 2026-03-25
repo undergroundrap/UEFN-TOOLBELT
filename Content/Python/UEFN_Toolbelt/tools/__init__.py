@@ -72,3 +72,4 @@ from . import pcg_tools
 from . import geometry_tools
 from . import movie_render_tools
 from . import viewport_tools
+from . import actor_visibility

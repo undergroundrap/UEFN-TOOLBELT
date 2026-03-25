@@ -4,7 +4,7 @@
 > It gives Claude full knowledge of the UEFN Toolbelt so you can use natural language
 > to control UEFN without looking up tool names or parameters.
 
-<!-- last full audit: v1.9.5 — 2026-03-24 -->
+<!-- last full audit: v1.9.6 — 2026-03-24 -->
 
 ---
 
@@ -147,7 +147,7 @@ This keeps the tool count honest, the dashboard scannable, and the MCP manifest 
 ## What This Project Is
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
-It runs inside the editor and exposes 270 tools through:
+It runs inside the editor and exposes 287 tools through:
 - A persistent top-menu entry (`Toolbelt ▾`) in the UEFN editor bar
 - A 26-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
 - An MCP HTTP bridge so Claude Code can control UEFN directly
@@ -191,7 +191,7 @@ This file contains every registered tool with its full Python parameter signatur
   }
 }
 ```
-All 270 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
+All 287 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
 
 **Schema utility functions** (`schema_utils.py`):
 - `schema_utils.validate_property(class_name, prop)` — check if a property exists and is writable
@@ -370,7 +370,7 @@ See `docs/plugin_dev_guide.md` for full details. You can generate plugins for th
 
 ```python
 import UEFN_Toolbelt as tb
-tb.register_all_tools()   # ← required — registers all 270 tools
+tb.register_all_tools()   # ← required — registers all 287 tools
 
 # Basic
 tb.run("tool_name")
@@ -418,14 +418,14 @@ import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in
 Two separate test systems. Know which is which before running either.
 
 ### Smoke Test — `tb.run("toolbelt_smoke_test")`
-**What it proves:** All 270 tools *registered* correctly. The registry loaded, all modules imported, and a set of "safe" tools ran end-to-end without exceptions.
+**What it proves:** All 287 tools *registered* correctly. The registry loaded, all modules imported, and a set of "safe" tools ran end-to-end without exceptions.
 **What it does NOT prove:** That tools produce correct output on real actors. It cannot test anything selection-dependent or level-state-dependent.
 **Safe to run:** Anywhere, any project, any time. ~5 seconds.
 **Run after:** Every code change, before committing.
 
 ### Integration Test — `tb.run("toolbelt_integration_test")`
 **What it proves:** 163 tools *work* in a live UEFN editor. The harness spawns real actor fixtures, runs each tool against them, verifies the result (property changed, actor count correct, file written), and cleans up.
-**Coverage:** All 270 tools across 21 test sections — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
+**Coverage:** All 287 tools across 21 test sections — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
 **⚠️ INVASIVE — only run in a blank template level.** It spawns and deletes actors. Never run in a production project.
 **Run after:** Before any PR. After adding a new tool. After major refactors. ~35 seconds.
 
@@ -436,7 +436,7 @@ If the editor crashes mid-run, the file contains partial results up to the last 
 
 | | Smoke Test | Integration Test |
 |---|---|---|
-| Tests registration? | ✅ All 270 tools | ✅ |
+| Tests registration? | ✅ All 287 tools | ✅ |
 | Tests live execution? | Partial (safe tools only) | ✅ 163 tests on real actors |
 | Safe in production? | ✅ Yes | ❌ Blank level only |
 | Runtime | ~5s | ~35s |
@@ -637,6 +637,7 @@ tb.run("pattern_helix", asset_path="/Game/Meshes/SM_Column",
 | `bulk_mirror` | `axis="X"` | Mirror across axis |
 | `bulk_normalize` | — | Normalize all scales to 1 |
 | `bulk_stack` | `axis="Z"`, `gap=0.0` | Stack actors vertically |
+| `mesh_merge_selection` | `dest_path="/Game/UEFN_Toolbelt/Merged"`, `asset_name="MergedMesh"`, `replace_originals=False` | Merge selected StaticMesh actors into one asset — one draw call. Note: API may be sandboxed in UEFN; returns clear error if so |
 
 ```python
 tb.run("bulk_align", axis="Z")
@@ -771,7 +772,7 @@ tb.run("stamp_place", name="guard_post", location=[8000, 4000, 0],
        yaw_offset=180.0, scale_factor=2.0)
 
 # Place 4 copies at compass points — instant symmetric layout
-for angle, x, y in [(0, 5000, 0), (90, 0, 5000), (180, -5000, 0), (270, 0, -5000)]:
+for angle, x, y in [(0, 5000, 0), (90, 0, 5000), (180, -5000, 0), (287, 0, -5000)]:
     tb.run("stamp_place", name="guard_post", location=[x, y, 0], yaw_offset=angle)
 
 tb.run("stamp_list")
@@ -915,13 +916,64 @@ tb.run("tag_search", key="biome", value="desert", folder="/Game/Props")
 | `viewport_focus_actor` | `label` | Find actor by partial label match, select it, snap camera to it |
 | `viewport_move_to_camera` | — | Move selected actors to current camera position — fly to a spot, then place things there |
 | `viewport_camera_get` | — | Return current camera location + rotation (save/restore positions) |
+| `viewport_showflag` | `preset="clean\|no_text\|no_icons\|geometry_only\|reset"` | Toggle UEFN viewport show flags — declutter the view instantly for screenshots or reviews |
+| `viewport_bookmark_save` | `name` | Save current camera position as a named bookmark (persists across restarts) |
+| `viewport_bookmark_jump` | `name` | Teleport camera to a saved named bookmark |
+| `viewport_bookmark_list` | — | List all saved bookmarks with coordinates |
 
 ```python
 tb.run("viewport_goto", x=5000, y=-2000, z=800)
-tb.run("viewport_focus_actor", label="Cube")       # partial match: "Cube" finds "SM_Cube_001"
-tb.run("viewport_move_to_camera")                   # move selection to where you're looking
-result = tb.run("viewport_camera_get")
-tb.run("viewport_goto", x=result["location"][0], y=result["location"][1], z=result["location"][2])
+tb.run("viewport_focus_actor", label="Cube")
+tb.run("viewport_move_to_camera")
+tb.run("viewport_showflag", preset="clean")         # hide text, device icons, decals
+tb.run("viewport_showflag", preset="reset")         # restore everything
+tb.run("viewport_bookmark_save", name="spawn_area")
+tb.run("viewport_bookmark_jump", name="spawn_area")
+tb.run("viewport_bookmark_list")
+```
+
+---
+
+### Visibility & Lock
+
+Tools for working in crowded shared levels — isolate your section, hide whole folders, lock final assets.
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `actor_hide` | — | Hide selected actors in the viewport (non-destructive, reversible) |
+| `actor_show` | — | Unhide currently selected actors |
+| `actor_isolate` | — | Hide everything EXCEPT the current selection — focus mode |
+| `actor_show_all` | — | Restore visibility for every hidden actor in the level |
+| `folder_hide` | `folder_name` | Hide all actors in a World Outliner folder, e.g. `'Zones'` |
+| `folder_show` | `folder_name` | Restore visibility for all actors in a folder |
+| `actor_lock` | — | Lock selected actors — prevents accidental viewport moves/rotates/scales |
+| `actor_unlock` | — | Unlock selected actors |
+
+```python
+tb.run("actor_isolate")                      # focus on what you have selected
+tb.run("actor_show_all")                     # restore everything
+tb.run("folder_hide", folder_name="Zones")   # fold away zones while placing props
+tb.run("folder_show", folder_name="Zones")   # bring them back
+tb.run("actor_lock")                         # lock final-placed assets
+```
+
+---
+
+### Selection Sets
+
+Save named groups of actors to disk. Restore them any time — even after restart.
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `selection_save` | `name` | Save current viewport selection as a named set |
+| `selection_restore` | `name` | Re-select all actors matching a saved set (matched by label) |
+| `selection_list` | — | List all saved selection sets |
+
+```python
+tb.run("selection_save", name="arena_props")
+tb.run("selection_save", name="player_spawns")
+tb.run("selection_restore", name="arena_props")   # works after restart
+tb.run("selection_list")
 ```
 
 ---
@@ -1084,7 +1136,7 @@ tb.run("config_reset", key="all")   # wipe all customisations
 | `level_health_open` | — | Open the Level Health Dashboard window — colour-coded category cards, per-issue drilldown, live audit progress. |
 | `plugin_validate_all` | — | Validate all registered tools against schema |
 | `plugin_list_custom` | — | List all loaded third-party tools from `Saved/UEFN_Toolbelt/Custom_Plugins` |
-| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 270 tools with full parameter signatures (name, type, required, default) for AI-agent and automation use |
+| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 287 tools with full parameter signatures (name, type, required, default) for AI-agent and automation use |
 
 **Online Plugin Hub** — the Plugin Hub dashboard tab fetches `registry.json` live from GitHub.
 - **Core Tools** (green/BUILT-IN): 10 flagship modules by Ocean Bennett, already built in
@@ -1117,6 +1169,7 @@ Low-frequency tools — check these exist before re-implementing similar functio
 |---|---|---|
 | `project_setup` | Project Admin | One-command setup: scaffold + Verse game manager skeleton |
 | `system_backup_project` | Project Admin | Timestamped .zip backup of the Content folder |
+| `save_all_dirty` | Project Admin | Save every unsaved asset and map in one call — no dialog. Run before switching levels or at end of session |
 | `system_perf_audit` | Project Admin | Fast performance check of the current level |
 | `publish_audit` | Project Admin | **Fortnite publish-readiness audit** — actor budget, required devices, lights, rogue actors, Verse build status, unsaved changes, redirectors, level name, memory. Returns `ready`/`warnings`/`blocked` with score and ordered next steps. |
 | `select_by_property` | Selection | Select actors where a property matches a value |

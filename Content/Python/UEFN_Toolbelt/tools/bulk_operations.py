@@ -421,3 +421,70 @@ def run_face_camera(**kwargs) -> dict:
 
     log_info(f"Rotated {len(actors)} actors to face camera.")
     return {"count": len(actors)}
+
+
+@register_tool(
+    name="mesh_merge_selection",
+    category="Bulk Ops",
+    description=(
+        "Merge all selected StaticMesh actors into a single mesh asset — "
+        "one draw call instead of N. Saves to /Game/UEFN_Toolbelt/Merged/ by default."
+    ),
+    tags=["merge", "static mesh", "optimization", "draw call", "bulk", "performance"],
+)
+def run_mesh_merge_selection(
+    dest_path: str = "/Game/UEFN_Toolbelt/Merged",
+    asset_name: str = "MergedMesh",
+    replace_originals: bool = False,
+    **kwargs,
+) -> dict:
+    """
+    Merge selected StaticMesh actors into one combined StaticMesh asset.
+
+    Args:
+        dest_path:         Content Browser folder for the new asset (default /Game/UEFN_Toolbelt/Merged)
+        asset_name:        Name of the resulting mesh asset (default MergedMesh)
+        replace_originals: If True, delete source actors after merge (default False — keep originals)
+
+    Note:
+        Requires UnrealEditor-MeshMergeUtilities. If UEFN sandboxes this API,
+        the tool returns a clear error — no harm done.
+    """
+    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    actors = actor_sub.get_selected_level_actors()
+    mesh_actors = [a for a in actors if isinstance(a, unreal.StaticMeshActor)]
+    if not mesh_actors:
+        return {"status": "error", "error": "No StaticMesh actors selected. Select the meshes you want to merge."}
+
+    try:
+        merge_options = unreal.MeshMergingSettings()
+        merge_options.pivot_point_at_zero = False
+        merge_options.merge_physics_data = False
+
+        result = unreal.EditorLevelLibrary.merge_static_mesh_actors(
+            mesh_actors,
+            merge_options,
+            dest_path,
+            asset_name,
+            True,    # spawn merged actor in level
+            replace_originals,
+        )
+
+        if result:
+            log_info(f"mesh_merge_selection: merged {len(mesh_actors)} meshes → {dest_path}/{asset_name}")
+            return {
+                "status": "ok",
+                "source_actors": len(mesh_actors),
+                "asset_path": f"{dest_path}/{asset_name}",
+                "originals_replaced": replace_originals,
+            }
+        return {"status": "error", "error": "Merge returned no result — check Output Log."}
+    except AttributeError as e:
+        return {
+            "status": "error",
+            "error": f"merge_static_mesh_actors not available in this UEFN build: {e}",
+            "tip": "This API may be sandboxed. Use scatter_hism for identical-mesh batching instead.",
+        }
+    except Exception as e:
+        log_error(f"mesh_merge_selection failed: {e}")
+        return {"status": "error", "error": str(e)}

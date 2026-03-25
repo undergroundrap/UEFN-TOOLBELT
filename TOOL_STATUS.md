@@ -1,6 +1,6 @@
 # UEFN Toolbelt — Tool Status & Testing
 
-UEFN Toolbelt contains **270 tools across 35+ modules**. Because many tools actively modify the viewport, spawn actors, or depend on specific Content Browser selections, **the `integration_test.py` suite uses temporary fixtures to automate verification of context-dependent tools.**
+UEFN Toolbelt contains **287 tools across 35+ modules**. Because many tools actively modify the viewport, spawn actors, or depend on specific Content Browser selections, **the `integration_test.py` suite uses temporary fixtures to automate verification of context-dependent tools.**
 
 ### Phase 21 — Complete AI Return Loop
 As of Phase 21, **every registered tool returns a structured `dict`** — `{"status": "ok"/"error", ...}`. Zero `None` returns remain anywhere in the codebase. This means AI agents using the MCP bridge can act on results programmatically: no log parsing, no guessing. The `describe_tool` MCP command was also added for per-tool manifest lookup.
@@ -11,7 +11,7 @@ As of Phase 21, **every registered tool returns a structured `dict`** — `{"sta
 
 This document outlines the current testing status of the toolbelt and categorizes which tools are verified by the automated smoke test, and which require manual verification.
 
-## 🟡 Automated Verification Status: **186 / 270 Tools (69% Coverage)**
+## 🟡 Automated Verification Status: **186 / 287 Tools (69% Coverage)**
 Integration suite has **115 test sections written** (103 verified live + 12 Batch 9 written, pending live UEFN run).
 
 > **Coverage gap:** 75 tools were added after v1.6.0 (zones, stamps, actor org, proximity placement, advanced alignment, signs, audio, post-process, level health, config, lighting extended, world state). Batch 9 integration tests are written and syntax-checked — pending one live UEFN run to confirm green.
@@ -213,7 +213,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 4. Verifies the result (properties, file outputs)
 5. Cleans up with a single `undo_transaction`
 
-**Current Integration Coverage (270 tools — 115 sections written, 103 live-verified):**
+**Current Integration Coverage (287 tools — 115 sections written, 103 live-verified):**
 
 > ✅ = Confirmed passing in live UEFN
 > 🔵 = Written + syntax-checked, pending first live run (Batch 9)
@@ -261,7 +261,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 
 **What the smoke test proves:**
 - All modules import and register without errors
-- All 270 tools register into the registry with valid metadata
+- All 287 tools register into the registry with valid metadata
 - Safe tools execute end-to-end and return correct results
 - MCP bridge, PySide6, and Verse infrastructure all functional
 

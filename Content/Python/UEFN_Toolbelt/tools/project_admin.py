@@ -91,3 +91,45 @@ def run_system_perf_audit(**kwargs) -> dict:
 
     log_info("════════════════════════════════════════════════════════════")
     return {"status": "ok", "actor_count": len(all_actors), "light_count": light_count, "mesh_count": len(mesh_actors)}
+
+
+@register_tool(
+    name="save_all_dirty",
+    category="Project Admin",
+    description=(
+        "Save every unsaved asset and map in the project with one command. "
+        "No dialog — runs silently. Use before switching levels or calling it a day."
+    ),
+    tags=["save", "dirty", "assets", "level", "admin", "team"],
+)
+def run_save_all_dirty(**kwargs) -> dict:
+    """
+    Save all modified (dirty) packages — assets and current map — without a dialog.
+    Equivalent to Edit → Save All in the editor, but callable from MCP or a macro.
+    """
+    try:
+        # Save the current level first
+        level_saved = False
+        try:
+            unreal.EditorLevelLibrary.save_current_level()
+            level_saved = True
+        except Exception:
+            pass
+
+        # Save all dirty content packages
+        packages_saved = False
+        try:
+            unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)
+            packages_saved = True
+        except Exception:
+            pass
+
+        log_info(f"save_all_dirty: level={'saved' if level_saved else 'skipped'}, packages={'saved' if packages_saved else 'skipped'}")
+        return {
+            "status": "ok",
+            "level_saved": level_saved,
+            "packages_saved": packages_saved,
+        }
+    except Exception as e:
+        log_error(f"save_all_dirty failed: {e}")
+        return {"status": "error", "error": str(e)}

@@ -163,7 +163,7 @@ A 26-tab PySide6 floating window. Each tab maps to a tool category.
 
 - Built with `ToolbeltWindow` (subclasses `QMainWindow`, auto-applies theme, handles Slate tick)
 - Tab content is generated dynamically from `registry.list_tools()` — no hardcoded tool lists
-- Search bar filters across all 270 tools in real time
+- Search bar filters across all 287 tools in real time
 - All colors come from `core/theme.py` — never hardcoded in the dashboard
 
 **Theming:** Edit `core/theme.py` → `PALETTE` dict to change the platform's appearance everywhere. The dashboard, all tool windows, and the Plugin Hub all read from this one dict.
