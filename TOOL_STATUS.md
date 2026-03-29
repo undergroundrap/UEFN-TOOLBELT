@@ -1,6 +1,6 @@
 # UEFN Toolbelt — Tool Status & Testing
 
-UEFN Toolbelt contains **291 tools across 35+ modules**. Because many tools actively modify the viewport, spawn actors, or depend on specific Content Browser selections, **the `integration_test.py` suite uses temporary fixtures to automate verification of context-dependent tools.**
+UEFN Toolbelt contains **296 tools across 35+ modules**. Because many tools actively modify the viewport, spawn actors, or depend on specific Content Browser selections, **the `integration_test.py` suite uses temporary fixtures to automate verification of context-dependent tools.**
 
 ### Phase 21 — Complete AI Return Loop
 As of Phase 21, **every registered tool returns a structured `dict`** — `{"status": "ok"/"error", ...}`. Zero `None` returns remain anywhere in the codebase. This means AI agents using the MCP bridge can act on results programmatically: no log parsing, no guessing. The `describe_tool` MCP command was also added for per-tool manifest lookup.
@@ -11,7 +11,7 @@ As of Phase 21, **every registered tool returns a structured `dict`** — `{"sta
 
 This document outlines the current testing status of the toolbelt and categorizes which tools are verified by the automated smoke test, and which require manual verification.
 
-## 🟡 Automated Verification Status: **186 / 291 Tools (69% Coverage)**
+## 🟡 Automated Verification Status: **186 / 296 Tools (69% Coverage)**
 Integration suite has **115 test sections written** (103 verified live + 12 Batch 9 written, pending live UEFN run).
 
 > **Coverage gap:** 75 tools were added after v1.6.0 (zones, stamps, actor org, proximity placement, advanced alignment, signs, audio, post-process, level health, config, lighting extended, world state). Batch 9 integration tests are written and syntax-checked — pending one live UEFN run to confirm green.
@@ -213,7 +213,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 4. Verifies the result (properties, file outputs)
 5. Cleans up with a single `undo_transaction`
 
-**Current Integration Coverage (291 tools — 115 sections written, 103 live-verified):**
+**Current Integration Coverage (296 tools — 115 sections written, 103 live-verified):**
 
 > ✅ = Confirmed passing in live UEFN
 > 🔵 = Written + syntax-checked, pending first live run (Batch 9)
@@ -261,7 +261,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 
 **What the smoke test proves:**
 - All modules import and register without errors
-- All 291 tools register into the registry with valid metadata
+- All 296 tools register into the registry with valid metadata
 - Safe tools execute end-to-end and return correct results
 - MCP bridge, PySide6, and Verse infrastructure all functional
 
@@ -325,11 +325,18 @@ All materials, bulk ops, patterns, scatter, splines, snapshots, crawler, assets,
 
 **To complete Batch 10:** run `tb.run("toolbelt_integration_test")` in UEFN on a clean template level. Look for Visibility, Viewport, SelectionSets, and ProjectAdmin sections in the output.
 
-### **Batch 11: v1.9.7 Verse Template Library (manually verified live 2026-03-29)**
+### **Batch 11: Verse Template Library (manually verified live 2026-03-29)**
 - [x] `verse_template_list` — returns 6 templates with descriptions and device lists
 - [x] `verse_template_get` — returns full Verse source + `devices_needed` + `next_step` for named template
 - [x] `verse_template_deploy` — delegates to `verse_write_file`; writes template to Verse source dir
 - [x] `verse_build_status` — returns `SUCCESS`/`FAILED`/`UNKNOWN` + ISO timestamp + staleness flag
+
+### **Batch 12: Cooker Optimizer (pending live UEFN test)**
+- [ ] `cooker_scan` — returns actor counts by type and editor-only status
+- [ ] `cooker_mark_batch` — marks N% of scanned actors as editor-only, with dry_run support
+- [ ] `cooker_unmark_all` — clears editor-only on all scanned actors
+- [ ] `cooker_mark_selection` — marks/clears editor-only on viewport selection
+- [ ] `cooker_open` — PySide6 window with scan, batch controls, and cook feedback/confidence
 
 ### **Batch 20–21: AI-Agent Readiness (COMPLETE)**
 - [x] **Tool Manifest**: `plugin_export_manifest` — full parameter signatures for all tools

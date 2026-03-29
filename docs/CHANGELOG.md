@@ -5,6 +5,30 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [1.9.8] — 2026-03-29
+
+### feat: Cooker Optimizer — native absorption of BiomeForge's UEFNCookerOptimizer (291 → 296 tools)
+
+**New module: `cooker_optimizer.py` (5 tools) — "Optimization" category**
+- `cooker_scan` — scan level actors for cook candidates (blueprints, static meshes, optional landscapes); caches results for the window + MCP tools
+- `cooker_mark_batch` — mark the cheapest N% of actors as editor-only via `is_editor_only_actor`; `dry_run=True` by default; wrapped in `ScopedEditorTransaction` for Ctrl+Z undo
+- `cooker_unmark_all` — remove editor-only flag from every previously marked actor; fully undoable
+- `cooker_mark_selection` — mark/unmark the current viewport selection directly; `mark=True` to set, `False` to clear
+- `cooker_open` — open the Cooker Optimizer window (PySide6, `ToolbeltWindow` subclass)
+
+**`cooker_open` window features:**
+- Scan + Undo All toolbar buttons in topbar
+- Actor count, cook candidates, marked count stat cards with live update
+- Batch slider (0–100%) + dry-run toggle → Mark/Unmark actions
+- Cook Feedback panel: Yes/No buttons to record whether the cook succeeded after marking
+- Weighted nearest-neighbour confidence estimator preserved from original BiomeForge algorithm
+- Cook feedback persisted to `Saved/UEFN_Toolbelt/cooker_feedback.json` (survives restarts; original was session-only)
+- Help dialog with BiomeForge credit and full MCP tool reference
+
+**Attribution:** Full credit to BiomeForge (EDMIRE2k) for the original UEFNCookerOptimizer — editor-only batching workflow and confidence estimation algorithm. Listed in About tab attributions.
+
+---
+
 ## [1.9.7] — 2026-03-25
 
 ### feat: Verse template library + build status watcher (287 → 291 tools)
