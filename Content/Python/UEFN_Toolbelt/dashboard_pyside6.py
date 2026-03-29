@@ -303,7 +303,7 @@ def _tab_quick_actions(R) -> "QScrollArea":
     if not os.path.exists(_cfg_path):
         banner = QLabel(
             "👋  First time here? Start with the AI Project Setup section below, "
-            "or browse any tab to explore all 287 tools. "
+            "or browse any tab to explore all 291 tools. "
             "Full docs: github.com/undergroundrap/UEFN-TOOLBELT"
         )
         banner.setWordWrap(True)
@@ -1776,7 +1776,7 @@ def _tab_mcp(R) -> "QScrollArea":
         '     {"command": "python",\n'
         '      "args": ["<path>/mcp_server.py"]}}}\n'
         "4. Restart Claude Code — it auto-connects\n\n"
-        "Claude can then run all 287 tools, spawn/move actors,\n"
+        "Claude can then run all 291 tools, spawn/move actors,\n"
         "write Verse code, and read your level — without leaving\n"
         "the conversation.\n\n"
         "When done: click ■ Stop Listener above, or run\n"
@@ -2684,7 +2684,7 @@ def _tab_about(_R=None) -> "QScrollArea":
     L.addWidget(tagline)
 
     from . import __version__ as _tbv
-    version = QLabel(f"v{_tbv}  ·  287 tools  ·  UEFN 40.00+  ·  Python 3.11  ·  March 2026")
+    version = QLabel(f"v{_tbv}  ·  291 tools  ·  UEFN 40.00+  ·  Python 3.11  ·  March 2026")
     version.setStyleSheet(f"font-size: 11px; color: {_color('muted')}; padding-bottom: 12px;")
     version.setAlignment(Qt.AlignCenter)
     L.addWidget(version)

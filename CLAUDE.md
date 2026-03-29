@@ -4,7 +4,7 @@
 > It gives Claude full knowledge of the UEFN Toolbelt so you can use natural language
 > to control UEFN without looking up tool names or parameters.
 
-<!-- last full audit: v1.9.6 — 2026-03-24 -->
+<!-- last full audit: v1.9.7 — 2026-03-24 -->
 
 ---
 
@@ -147,7 +147,7 @@ This keeps the tool count honest, the dashboard scannable, and the MCP manifest 
 ## What This Project Is
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
-It runs inside the editor and exposes 287 tools through:
+It runs inside the editor and exposes 291 tools through:
 - A persistent top-menu entry (`Toolbelt ▾`) in the UEFN editor bar
 - A 26-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
 - An MCP HTTP bridge so Claude Code can control UEFN directly
@@ -194,7 +194,7 @@ This file contains every registered tool with its full Python parameter signatur
   }
 }
 ```
-All 287 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
+All 291 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as of Phase 21. Zero `None` returns remain in the codebase — MCP callers can read every result directly without parsing log output.
 
 **Schema utility functions** (`schema_utils.py`):
 - `schema_utils.validate_property(class_name, prop)` — check if a property exists and is writable
@@ -373,7 +373,7 @@ See `docs/plugin_dev_guide.md` for full details. You can generate plugins for th
 
 ```python
 import UEFN_Toolbelt as tb
-tb.register_all_tools()   # ← required — registers all 287 tools
+tb.register_all_tools()   # ← required — registers all 291 tools
 
 # Basic
 tb.run("tool_name")
@@ -421,14 +421,14 @@ import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in
 Two separate test systems. Know which is which before running either.
 
 ### Smoke Test — `tb.run("toolbelt_smoke_test")`
-**What it proves:** All 287 tools *registered* correctly. The registry loaded, all modules imported, and a set of "safe" tools ran end-to-end without exceptions.
+**What it proves:** All 291 tools *registered* correctly. The registry loaded, all modules imported, and a set of "safe" tools ran end-to-end without exceptions.
 **What it does NOT prove:** That tools produce correct output on real actors. It cannot test anything selection-dependent or level-state-dependent.
 **Safe to run:** Anywhere, any project, any time. ~5 seconds.
 **Run after:** Every code change, before committing.
 
 ### Integration Test — `tb.run("toolbelt_integration_test")`
 **What it proves:** 163 tools *work* in a live UEFN editor. The harness spawns real actor fixtures, runs each tool against them, verifies the result (property changed, actor count correct, file written), and cleans up.
-**Coverage:** All 287 tools across 21 test sections — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
+**Coverage:** All 291 tools across 21 test sections — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
 **⚠️ INVASIVE — only run in a blank template level.** It spawns and deletes actors. Never run in a production project.
 **Run after:** Before any PR. After adding a new tool. After major refactors. ~35 seconds.
 
@@ -439,7 +439,7 @@ If the editor crashes mid-run, the file contains partial results up to the last 
 
 | | Smoke Test | Integration Test |
 |---|---|---|
-| Tests registration? | ✅ All 287 tools | ✅ |
+| Tests registration? | ✅ All 291 tools | ✅ |
 | Tests live execution? | Partial (safe tools only) | ✅ 163 tests on real actors |
 | Safe in production? | ✅ Yes | ❌ Blank level only |
 | Runtime | ~5s | ~35s |
@@ -1045,6 +1045,10 @@ tb.run("screenshot_focus_selection", width=1920, height=1080, name="prop_focus")
 | `system_build_verse` | — | Trigger Verse compilation + parse errors back as structured JSON |
 | `system_get_last_build_log` | — | Read last 100 lines of the UEFN log for error analysis |
 | `verse_patch_errors` | `verse_file=""` | **Phase 5 error loop** — reads build log, extracts errors with `file/line/col/message` + `error_type` (undefined_identifier, type_mismatch, missing_override, syntax_error, etc.) + `fix_hint` per error. Returns `errors_by_file` dict and `error_type_summary` for at-a-glance categorisation. Full content of every erroring .verse file included so Claude can fix and redeploy in one shot. |
+| `verse_build_status` | `stale_threshold_sec=300` | **Lightweight build check** — reads the latest log, returns `SUCCESS`/`FAILED`/`UNKNOWN`, ISO timestamp, staleness flag, and error count. Call this after telling the user to click Build Verse to detect whether a fresh build has happened. Much lighter than `verse_patch_errors`. |
+| `verse_template_list` | — | List all 6 battle-tested Verse game templates — `game_skeleton`, `elimination_scoring`, `zone_capture`, `round_flow`, `item_spawner_cycle`, `countdown_race`. Claude reads this first to pick the right template for the game mode it is building. |
+| `verse_template_get` | `name` | Return full Verse source for a named template + `devices_needed` list + `next_step` instructions. Claude fills device labels from `world_state_export` then deploys. |
+| `verse_template_deploy` | `name`, `filename`, `custom_source=""`, `overwrite=False` | Write a template (raw or Claude-edited) directly to the Verse source directory. Shortcut for `verse_template_get` + `verse_write_file` in one call. |
 | `spline_to_verse_points` | `sample_count=0` | Spline → Verse `vector3` array |
 | `spline_to_verse_patrol` | — | Full patrol AI skeleton from spline |
 | `spline_to_verse_zone_boundary` | — | Zone boundary + IsPointInZone helper |
@@ -1139,7 +1143,7 @@ tb.run("config_reset", key="all")   # wipe all customisations
 | `level_health_open` | — | Open the Level Health Dashboard window — colour-coded category cards, per-issue drilldown, live audit progress. |
 | `plugin_validate_all` | — | Validate all registered tools against schema |
 | `plugin_list_custom` | — | List all loaded third-party tools from `Saved/UEFN_Toolbelt/Custom_Plugins` |
-| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 287 tools with full parameter signatures (name, type, required, default) + `example` call string for AI-agent and automation use |
+| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 291 tools with full parameter signatures (name, type, required, default) + `example` call string for AI-agent and automation use |
 
 **Online Plugin Hub** — the Plugin Hub dashboard tab fetches `registry.json` live from GitHub.
 - **Core Tools** (green/BUILT-IN): 10 flagship modules by Ocean Bennett, already built in

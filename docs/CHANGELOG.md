@@ -5,6 +5,26 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [1.9.7] — 2026-03-25
+
+### feat: Verse template library + build status watcher (287 → 291 tools)
+
+**New module: `verse_templates.py` (3 tools) — "Verse Helpers" category**
+- `verse_template_list` — list all 6 battle-tested Verse game templates with descriptions and required device lists
+- `verse_template_get` — return full Verse source for a named template; Claude fills device labels from `world_state_export` and deploys
+- `verse_template_deploy` — write a template (raw or Claude-edited) directly to the Verse source directory; delegates to `verse_write_file`
+- 6 templates: `game_skeleton`, `elimination_scoring`, `zone_capture`, `round_flow`, `item_spawner_cycle`, `countdown_race`
+- All templates use confirmed Verse syntax matching patterns in `verse_snippet_generator.py` — zero hallucinated API names
+
+**`system_build.py` addition (1 tool)**
+- `verse_build_status` — lightweight build status check with ISO timestamp and staleness flag; Claude uses this to detect whether the user has clicked Build Verse since its last change, without the overhead of `verse_patch_errors`
+
+**AI autonomy impact:**
+- Template library eliminates Verse syntax hallucination — Claude assembles from proven patterns instead of generating from scratch
+- Build status + timestamp lets Claude reason about build freshness in the autonomous loop: act → tell user to click Build → check status → fix errors → repeat
+
+---
+
 ## [1.9.6] — 2026-03-25
 
 ### feat: team workflow tools — visibility, selection sets, bookmarks, merge (270 → 287 tools)

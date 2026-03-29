@@ -383,3 +383,118 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
         "log_path":        latest_log,
         "next_step":       next_step,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  verse_build_status — lightweight build-complete check
+# ─────────────────────────────────────────────────────────────────────────────
+
+@register_tool(
+    name="verse_build_status",
+    category="System",
+    description=(
+        "Quick Verse build status check. Reads the latest log once and returns "
+        "SUCCESS/FAILED/UNKNOWN with the log timestamp and staleness flag. "
+        "Use this to detect whether the user has clicked Build Verse since your "
+        "last change — much lighter than verse_patch_errors."
+    ),
+    tags=["verse", "build", "status", "check", "ai", "automation", "loop"],
+    example='tb.run("verse_build_status")',
+)
+def verse_build_status(stale_threshold_sec: float = 300.0, **kwargs) -> dict:
+    """
+    Lightweight build status snapshot. Call after telling the user to click
+    Build Verse — compare the returned timestamp against your last call to
+    know whether a fresh build has happened.
+
+    Args:
+        stale_threshold_sec: Seconds after which the log is considered stale
+                             (default 300 = 5 minutes).
+
+    Returns:
+        {
+          "status":       "ok",
+          "build_status": "SUCCESS" | "FAILED" | "UNKNOWN",
+          "log_modified":  str,     # ISO timestamp of the log file
+          "stale":         bool,    # True if log is older than stale_threshold_sec
+          "stale_seconds": float,   # age of the log in seconds
+          "error_count":   int,     # quick count of error lines (no file content)
+          "log_path":      str,
+          "tip":           str
+        }
+    """
+    import time
+    from datetime import datetime, timezone
+
+    # -- Find latest log --
+    log_dir = os.path.join(unreal.Paths.project_saved_dir(), "Logs")
+    if not os.path.exists(log_dir):
+        return {"status": "no_log", "build_status": "UNKNOWN",
+                "error_count": 0, "stale": True, "tip": "Log directory not found."}
+
+    log_files = [os.path.join(log_dir, f)
+                 for f in os.listdir(log_dir) if f.endswith(".log")]
+    if not log_files:
+        return {"status": "no_log", "build_status": "UNKNOWN",
+                "error_count": 0, "stale": True, "tip": "No log files found."}
+
+    latest_log = max(log_files, key=os.path.getmtime)
+    log_mtime = os.path.getmtime(latest_log)
+    age_sec = time.time() - log_mtime
+    is_stale = age_sec > stale_threshold_sec
+    log_modified_iso = datetime.fromtimestamp(log_mtime, tz=timezone.utc).isoformat()
+
+    # -- Quick scan for build status --
+    build_status = "UNKNOWN"
+    error_count = 0
+
+    success_pat = re.compile(
+        r'(VerseBuild.*SUCCESS|LogSolLoadCompiler.*finished.*SUCCESS|LogSolaris.*VerseBuild.*SUCCESS)',
+        re.IGNORECASE
+    )
+    failed_pat = re.compile(
+        r'(VerseBuild.*(?:FAIL|ERROR)|LogSolLoadCompiler.*finished.*(?:FAIL|ERROR))',
+        re.IGNORECASE
+    )
+    error_line_pat = re.compile(
+        r'[^\s]+\.verse\(\d+(?::\d+)?\)\s*:.*(?:error\s+)?.+',
+        re.IGNORECASE
+    )
+
+    try:
+        with open(latest_log, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                if success_pat.search(line):
+                    build_status = "SUCCESS"
+                elif failed_pat.search(line):
+                    if build_status != "SUCCESS":
+                        build_status = "FAILED"
+                if error_line_pat.search(line):
+                    error_count += 1
+    except Exception as e:
+        log_error(f"verse_build_status: failed to read log: {e}")
+        return {"status": "error", "error": str(e)}
+
+    # -- Tip --
+    if build_status == "SUCCESS":
+        tip = "Build succeeded. Call world_state_export or publish_audit to verify."
+    elif build_status == "FAILED":
+        tip = f"{error_count} error(s) detected. Call verse_patch_errors for full diagnostics."
+    elif is_stale:
+        tip = f"Log is {age_sec:.0f}s old — ask the user to click Build Verse."
+    else:
+        tip = "No build result found in log. Ask the user to Build Verse."
+
+    log_info(f"[verse_build_status] {build_status}  errors={error_count}  "
+             f"age={age_sec:.0f}s  stale={is_stale}")
+
+    return {
+        "status":       "ok",
+        "build_status": build_status,
+        "log_modified":  log_modified_iso,
+        "stale":         is_stale,
+        "stale_seconds": round(age_sec, 1),
+        "error_count":   error_count,
+        "log_path":      latest_log,
+        "tip":           tip,
+    }
