@@ -24,6 +24,22 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 - Added `MaterialFunctionMaterialLayerBlend` to `CLASS_TO_TYPE` map
 - `_do_organize` redirector count removed (was using `ar.get_assets_by_path(scan_root)` — same crash vector as the scan)
 
+### fix: organize_open — mount detection, CB path building, organize loop (v1.9.9 patch)
+
+**Root causes found and fixed during live UEFN testing:**
+
+1. **Wrong project mount** — `detect_project_mount()` uses "most AR entries" heuristic, which returns `BRCosmetics` (Fortnite game paks with 1M+ entries) instead of the user's project. Fixed: derive mount name from `__file__` walkup — `os.path.basename(os.path.dirname(content_dir))`. Always correct regardless of AR state.
+
+2. **Double `Content/Content` in CB paths** — `_content_in_cb` probe (`does_directory_exist("/{mount}/Content")`) returns `True` when the user has a folder literally named `Content` inside their project's Content directory. This caused a spurious extra `/Content/` segment in all generated CB paths. Fixed: removed the probe entirely. In UEFN the project mount always maps directly to `Content/` on disk — no layout variation requires the extra segment.
+
+3. **`scan_paths_synchronous` crash** — calling AR scan APIs on pak-heavy CB directories (even targeted ones) crashes UEFN. Removed entirely.
+
+4. **`unreal.load_asset()` freeze** — loading assets in a loop inside a Slate tick callback triggers full dependency resolution (materials → textures → etc.), stalling the main thread indefinitely. Removed entirely.
+
+5. **Dest-already-exists cleanup** — previous partial organize runs left source duplicates on disk alongside destination copies in `Organized/`. `eal.rename_asset()` correctly refuses to overwrite. Fix: after rename fails, check `does_asset_exist(target)` — if destination already has the asset, delete the stale source duplicate via `eal.delete_asset()`.
+
+**Net result:** scan finds 0 planned moves on a fully-organized project (correct), organizes assets end-to-end without AR scans, crashes, or freezes.
+
 ---
 
 ## [1.9.8] — 2026-03-29

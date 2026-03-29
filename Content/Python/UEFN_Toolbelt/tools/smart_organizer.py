@@ -412,9 +412,26 @@ def _build_organizer_window():
             super().__init__(title="UEFN Toolbelt — Auto Organizer")
             self._plan: List[Dict[str, Any]] = []
             self._help_win = None
+            # Derive the project mount name from __file__ (walk up to find Content/).
+            # detect_project_mount() uses "most AR entries" which returns BRCosmetics
+            # (Fortnite game paks) instead of the user's project on pak-heavy installs.
             try:
-                from ..core import detect_project_mount
-                self._default_root = f"/{detect_project_mount()}"
+                import os as _os
+                _curr = _os.path.abspath(__file__)
+                _cdir = None
+                while True:
+                    _par = _os.path.dirname(_curr)
+                    if _par == _curr:
+                        break
+                    if _os.path.basename(_curr) == "Content":
+                        _cdir = _curr
+                        break
+                    _curr = _par
+                if _cdir:
+                    _mount_name = _os.path.basename(_os.path.dirname(_cdir))
+                    self._default_root = f"/{_mount_name}"
+                else:
+                    self._default_root = "/Game"
             except Exception:
                 self._default_root = "/Game"
             self._build_ui()
@@ -704,11 +721,17 @@ def _build_organizer_window():
                         skipped += 1
                         continue
 
-                    # Rebuild Content Browser path from disk path
-                    rel = os.path.relpath(fp, content_dir).replace("\\", "/")  # "Folder/SM_Rock.uasset"
-                    rel_no_ext   = rel.rsplit(".", 1)[0]                         # "Folder/SM_Rock"
-                    package_name = f"/{mount}/{rel_no_ext}"                      # "/BRCosmetics/Folder/SM_Rock"
-                    source       = f"{package_name}.{asset_name}"
+                    # Rebuild Content Browser path from disk path.
+                    # In UEFN the project mount always maps directly to Content/ on disk.
+                    # A file at Content/Folder/Asset.uasset → /{mount}/Folder/Asset.
+                    # Never add an extra "/Content/" segment — if the user has a folder
+                    # literally named "Content" inside Content/, it naturally appears in
+                    # the rel path (e.g. "Content/Assets/...") and the CB path becomes
+                    # /{mount}/Content/Assets/... which is correct.
+                    rel        = os.path.relpath(fp, content_dir).replace("\\", "/")
+                    rel_no_ext = rel.rsplit(".", 1)[0]
+                    package_name = f"/{mount}/{rel_no_ext}"
+                    source = f"{package_name}.{asset_name}"
 
                     if package_name.startswith(org_root):
                         skipped += 1
@@ -775,13 +798,29 @@ def _build_organizer_window():
             self._status_lbl.setText("Organizing …")
 
             for row in self._plan:
+                ok = False
                 try:
                     ok = eal.rename_asset(row["source"], row["target"])
-                    if ok:
-                        moved += 1
-                    else:
-                        failed += 1
                 except Exception:
+                    pass
+
+                if not ok:
+                    # Rename failed — check if destination already has this asset.
+                    # This happens when a previous organize run moved the file but
+                    # left the source copy behind. Delete the stale source; the
+                    # destination copy is the authoritative one.
+                    target_pkg = row["target"].rsplit(".", 1)[0]
+                    source_pkg = row["source"].rsplit(".", 1)[0]
+                    try:
+                        if eal.does_asset_exist(target_pkg):
+                            eal.delete_asset(source_pkg)
+                            ok = True
+                    except Exception as _del_e:
+                        log_warning(f"smart_organizer: could not clean up duplicate {row['name']}: {_del_e}")
+
+                if ok:
+                    moved += 1
+                else:
                     failed += 1
 
             self._status_lbl.setText(f"Done — Moved: {moved}  Failed: {failed}")

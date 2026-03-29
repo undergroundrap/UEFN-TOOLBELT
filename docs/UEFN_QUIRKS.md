@@ -1122,3 +1122,38 @@ for dirpath, _dirs, filenames in os.walk(content_dir):
 **For the Organize step,** targeted `eal.rename_asset(source, dest)` calls on specific known paths are safe — the crash only happens when scanning/enumerating across the entire mount point.
 
 **Reference implementation:** `tools/smart_organizer.py` → `OrganizerWindow._execute_scan()`.
+
+---
+
+## Quirk #33 — `does_directory_exist("/{mount}/Content")` Is a False-Positive Mount Probe (Discovered: March 2026)
+
+### The Trap
+
+A common pattern to detect whether a UEFN project mount includes `Content` as a CB path segment is:
+
+```python
+_content_in_cb = unreal.EditorAssetLibrary.does_directory_exist(f"/{mount}/Content")
+```
+
+The intent: if True, the mount maps to the project root and paths look like `/{mount}/Content/Assets/...`. If False, the mount maps directly to `Content/` and paths look like `/{mount}/Assets/...`.
+
+**This probe is wrong.** It returns `True` whenever the user has a folder literally named `Content` inside their project's `Content/` directory — which is common (e.g. `Content/Content/Assets/` is a valid user folder structure). The mount does NOT map to the project root; it maps directly to `Content/` on disk as always. The `True` result causes a spurious extra `/Content/` segment in all generated CB paths, producing double paths like `/{mount}/Content/Content/Assets/...`.
+
+### The Reality
+
+In UEFN, **the project mount always maps directly to `Content/` on disk.** There is no layout variant where you need to insert an extra `/Content/` segment. A file at `Content/SubFolder/MyAsset.uasset` always maps to `/{mount}/SubFolder/MyAsset` in the CB — period.
+
+### The Fix
+
+Never use `does_directory_exist` to probe CB layout. Always build CB paths as:
+
+```python
+rel        = os.path.relpath(disk_file_path, content_dir).replace("\\", "/")
+rel_no_ext = rel.rsplit(".", 1)[0]
+package_name = f"/{mount}/{rel_no_ext}"   # ← always correct, no Content probe needed
+```
+
+If the user has a folder named `Content` inside `Content/`, the `rel` path naturally includes it (e.g. `"Content/Assets/M_Locker"`) and the CB path becomes `/{mount}/Content/Assets/M_Locker` — which is exactly right.
+
+**Reference implementation:** `tools/smart_organizer.py` → `OrganizerWindow._execute_scan()`.
+
