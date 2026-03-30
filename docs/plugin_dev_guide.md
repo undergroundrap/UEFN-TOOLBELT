@@ -213,7 +213,7 @@ Users install it with one click: the dashboard downloads the raw `.py` into thei
 
 ### Path B — Contribute to the Core Toolbelt
 
-If you think your tool belongs in the 343 built-in tools:
+If you think your tool belongs in the 355 built-in tools:
 1. Fork the UEFN-TOOLBELT repository.
 2. Move your `.py` file into `Content/Python/UEFN_Toolbelt/tools/`.
 3. Import it in `tools/__init__.py`.

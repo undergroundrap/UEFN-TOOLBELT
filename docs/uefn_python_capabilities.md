@@ -417,7 +417,7 @@ Things that would take hours manually, now one click:
 - **Localization** — bulk-export/import level text manifest for global map support
 - **Level snapshots** — save/restore/diff actor transforms as JSON checkpoints
 - **Asset tagging** — searchable metadata on any Content Browser asset
-- **MCP bridge** — let Claude Code directly control UEFN: spawn, move, run any of the 247 registered tools
+- **MCP bridge** — let any MCP-compatible AI directly control UEFN: spawn, move, run any of the 355 registered tools
 
 ---
 

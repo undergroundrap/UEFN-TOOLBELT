@@ -36,7 +36,7 @@ __version__ = "2.2.0"
 __tool_count__ = 355
 
 # Total tool categories — update when adding a new category to any tool module.
-# Shown in the reload message: "269 tools registered across 42 categories."
+# Shown in the reload message: "355 tools registered across 54 categories."
 # Checked by scripts/drift_check.py to catch stale category counts across docs.
 __category_count__ = 54
 

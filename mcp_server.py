@@ -37,7 +37,7 @@ After that, Claude Code has full control over UEFN — 355 tools, live actor dat
 arbitrary Python execution, viewport control, and more.
 
 What this exposes (beyond Kirch's original 22 tools):
-    run_toolbelt_tool   — call any of the 247 registered toolbelt tools by name
+    run_toolbelt_tool   — call any of the 355 registered toolbelt tools by name
     list_toolbelt_tools — list every available tool with category and description
     mcp_get_log         — read the last N lines of the MCP listener log ring
 
@@ -181,7 +181,7 @@ mcp = FastMCP(
         "IMPORTANT: Start the listener in UEFN first:\n"
         "  import UEFN_Toolbelt as tb; tb.run('mcp_start')\n\n"
         "Key tools:\n"
-        "  run_toolbelt_tool   — run ANY of the 247 registered toolbelt tools\n"
+        "  run_toolbelt_tool   — run ANY of the 355 registered toolbelt tools\n"
         "  execute_python      — run arbitrary Python inside UEFN with full unreal.*\n"
         "  list_toolbelt_tools — see every tool available\n"
         "  get_all_actors      — snapshot the level\n"

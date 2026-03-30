@@ -31,7 +31,7 @@ Why the queue + tick pattern:
 
 What's new vs Kirch's original:
     • run_tool command — call any registered UEFN Toolbelt tool by name,
-      passing kwargs as JSON. Exposes all 171 toolbelt tools to Claude Code.
+      passing kwargs as JSON. Exposes all 355 toolbelt tools to any MCP client.
     • All 32 commands: Kirch's originals (system, actors, assets, level,
       viewport) + set_actor_property, import_asset, run_tool, describe_tool, and more.
     • Toolbelt-aware: pre-populated globals in execute_python include `tb`.
@@ -277,7 +277,7 @@ def _c_execute_python(code: str) -> dict:
 def _c_run_tool(tool_name: str, kwargs: dict | None = None) -> dict:
     """
     Run any registered UEFN Toolbelt tool by name.
-    This exposes all 171 toolbelt tools to Claude Code in one command.
+    This exposes all 355 toolbelt tools to any MCP client in one command.
 
     Args:
         tool_name: The registered tool name (e.g. "material_apply_preset").

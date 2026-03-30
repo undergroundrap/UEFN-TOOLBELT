@@ -96,7 +96,7 @@ import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in
 ## ⚠️ MANDATORY: Check the Registry Before Adding Any Tool
 
 **Never build a new tool without first auditing what already exists.**
-With 269 registered tools, the risk of duplicating or fragmenting existing functionality is high.
+With 355 registered tools, the risk of duplicating or fragmenting existing functionality is high.
 A new tool that overlaps an existing one wastes time, inflates the count, and confuses users.
 
 ### Pre-build checklist — required before writing a single line of tool code
@@ -350,7 +350,7 @@ Then restart Claude Code — it connects automatically.
 
 ### What Claude Code can now do
 
-- Run any of the 269 registered tools by name
+- Run any of the 355 registered tools by name
 - Spawn, move, delete actors
 - List/rename/import/tag assets
 - Take screenshots, save level snapshots
@@ -1297,7 +1297,7 @@ When the listener is running, Claude Code can call these directly:
 | `ping` | — | Health check + command list |
 | `get_log` | `last_n=50` | Return last N lines from the MCP command log ring |
 | `execute_python` | `code` | Run Python in UEFN (pre-populated: `unreal`, `actor_sub`, `asset_sub`, `level_sub`, `tb`) |
-| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 269 registered tools |
+| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 355 registered tools |
 | `list_tools` | `category=""` | List all registered tools |
 | `describe_tool` | `tool_name` | Full manifest entry for one tool (name, description, parameters, tags) |
 | `batch_exec` | `commands=[{command, params}]` | Multiple commands in one tick |

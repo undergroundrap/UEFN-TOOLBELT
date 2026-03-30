@@ -1,0 +1,71 @@
+# UEFN Toolbelt
+
+> Python automation framework for Unreal Editor for Fortnite (UEFN).
+> Exposes 355 tools through a PySide6 dashboard, an editor top-menu, and an MCP HTTP bridge.
+> Any MCP-compatible AI (Claude Code, Cursor, Windsurf, Zed, OpenClaw, NemoClaw, etc.) can control UEFN directly.
+
+## What this is
+
+UEFN Toolbelt is an open-source (AGPL-3.0) tool suite for UEFN 40.00+ (March 2026).
+It covers ~97% of the UEFN Python API surface. The remaining 3% is locked by Epic
+(heightmap editing, Blueprint graph nodes, Verse compiler trigger, match control, Cloth/Hair sim).
+
+Tools are registered with `@register_tool` and called via `tb.run("tool_name", **kwargs)`.
+Every tool returns `{"status": "ok"/"error", ...data}` — zero None returns, zero log parsing needed.
+
+## How to use
+
+```python
+# In the UEFN Python console — nuclear reload + launch dashboard
+import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.launch_qt()
+
+# Run any tool
+tb.run("world_state_export")
+tb.run("scatter_hism", asset_path="/Engine/BasicShapes/Cube", count=200, radius=3000)
+tb.run("verse_template_deploy", name="elimination_scoring", filename="game.verse", overwrite=True)
+```
+
+## MCP bridge (AI ↔ UEFN)
+
+```python
+# 1. Start listener in UEFN
+tb.run("mcp_start")   # → http://127.0.0.1:8765
+
+# 2. .mcp.json is pre-configured in this repo — any MCP client auto-connects
+```
+
+Once connected, an AI agent can call all 355 tools, spawn/move/delete actors,
+execute arbitrary Python with full `unreal.*` access, and read structured results.
+
+## Key files for AI agents
+
+- `CLAUDE.md` — full codebase context, every tool table, mandatory rules
+- `docs/PIPELINE.md` — 6-phase autonomous game-building pipeline
+- `docs/UEFN_QUIRKS.md` — non-obvious UEFN Python behaviors (crashes, thread lock, mount detection)
+- `docs/ui_style_guide.md` — mandatory for any PySide6 UI work
+- `TOOL_STATUS.md` — per-tool test coverage status
+- `ARCHITECTURE.md` — system design, directory map, data flow
+- `.agents/workflows/` — step-by-step agent workflows (add_new_tool, run_tests)
+- `scripts/drift_check.py` — validates version/tool-count consistency across all docs
+
+## Tool categories (54 total)
+
+Lighting · Post-Process · Audio · Materials · Procedural/Layout · Bulk Operations ·
+Advanced Alignment · Actor Organization · Zone Tools · Proximity Placement · Level Stamps ·
+Foliage/Scatter · LOD & Optimization · Nanite · UV Channels · DataTable · Textures ·
+Skeletal Mesh · Curves · Blueprints · Landscape · Sound Assets · Asset Management ·
+Reference Auditor · Level Snapshot · Asset Tagger · Viewport Navigation · Visibility & Lock ·
+Selection Sets · Screenshot · Text & Signs · Verse Tools · Project Scaffold · API Explorer ·
+Config · Plugin Management · Level Health · Entities · Environmental · Generative ·
+Pipeline · Project Admin · Selection · Sequencer · Simulation · System · MCP Bridge ·
+Measurement · Localization · DataTable · World State · Device Catalog · Schema Utils
+
+## Mandatory rules for AI agents
+
+1. **Never commit without a live UEFN test** — syntax checks do not catch runtime failures.
+2. **Always run `deploy.bat` before testing** — repo and UEFN project are separate directories.
+3. **Run `python scripts/drift_check.py`** before every commit to catch stale tool counts.
+4. **Bump `__tool_count__` and `__category_count__`** in `Content/Python/UEFN_Toolbelt/__init__.py` when adding tools.
+5. **Nuclear reload is unsafe for new modules** — use full UEFN restart when adding a new entry to `tools/__init__.py`. See UEFN_QUIRKS.md Quirk #26.
+6. **All PySide6 windows must subclass `ToolbeltWindow`** — see `docs/ui_style_guide.md`.
+7. **Check the tool registry before adding anything** — 355 tools exist; search first.

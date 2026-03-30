@@ -32,4 +32,4 @@ import UEFN_Toolbelt as tb; tb.run("toolbelt_smoke_test")
 ```python
 import UEFN_Toolbelt as tb; tb.run("toolbelt_integration_test")
 ```
-Check the Output Log for `INTEGRATION TEST COMPLETE — Passed: 92/92`.
+Check the Output Log for `INTEGRATION TEST COMPLETE — Passed: N/N`. See `TOOL_STATUS.md` for the current verified count (103+ live sections as of v2.2.0).

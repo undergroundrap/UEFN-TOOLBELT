@@ -2803,12 +2803,18 @@ def _tab_about(_R=None) -> "QScrollArea":
     # ── Stats ─────────────────────────────────────────────────────────────────
     g_stats = _group(L, "What's Inside")
 
+    try:
+        _tool_count = str(len(_tb.registry.list_tools()))
+        _cat_count  = str(len({t.get("category","") for t in _tb.registry.list_tools() if t.get("category")}))
+    except Exception:
+        _tool_count = "355"
+        _cat_count  = "54"
     stats = [
-        ("171", "registered tools"),
-        ("30",  "categories"),
-        ("6",   "smoke-test layers"),
-        ("0",   "network calls — fully offline"),
-        ("1",   "Ctrl+Z to undo anything"),
+        (_tool_count, "registered tools"),
+        (_cat_count,  "categories"),
+        ("6",         "smoke-test layers"),
+        ("0",         "network calls — fully offline"),
+        ("1",         "Ctrl+Z to undo anything"),
     ]
     for num, label in stats:
         row = QLabel(f"  {num:>4}   {label}")

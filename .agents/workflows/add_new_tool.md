@@ -90,5 +90,14 @@ Run the "Nuclear Reload" to see your new tool in action immediately without rest
 import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_integration_test")
 ```
 
-## 4. Update Health Dashboard
+## 4. Bump the tool count and run drift check
+In `Content/Python/UEFN_Toolbelt/__init__.py`, increment `__tool_count__` by the number of new `@register_tool` entries you added. If you added a new category, increment `__category_count__` too. Both values are read by `scripts/drift_check.py` as the single source of truth.
+
+```bash
+python scripts/drift_check.py
+```
+
+This must pass (`PASS — No drift found`) before committing. If it fails, fix the stale references it reports.
+
+## 5. Update Health Dashboard
 Mark your tool as **[A]** (Automated Verified) in `TOOL_STATUS.md`.

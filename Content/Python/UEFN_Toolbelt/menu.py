@@ -294,7 +294,7 @@ def build_toolbelt_menu() -> None:
     # ── MCP Bridge ────────────────────────────────────────────────────────────
     _entry("MCPBridge", "MCPStart",
            "MCP: Start Listener",
-           "Start the HTTP listener so Claude Code can control UEFN directly",
+           "Start the HTTP listener so any MCP-compatible AI can control UEFN directly",
            "import UEFN_Toolbelt as tb; tb.run('mcp_start')")
 
     _entry("MCPBridge", "MCPStop",
