@@ -147,6 +147,8 @@ This keeps the tool count honest, the dashboard scannable, and the MCP manifest 
 ## What This Project Is
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
+It covers ~97% of the UEFN Python API surface (the remaining 3% is locked by Epic — heightmap editing,
+Blueprint graph nodes, Verse compiler trigger, match control, and Cloth/Hair simulation have no Python API yet).
 It runs inside the editor and exposes 355 tools through:
 - A persistent top-menu entry (`Toolbelt ▾`) in the UEFN editor bar
 - A 26-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
@@ -833,6 +835,73 @@ tb.run("stamp_delete", name="guard_post")
 tb.run("lod_audit_folder", folder_path="/Game/Meshes")
 tb.run("memory_top_offenders", limit=10)
 ```
+
+---
+
+### DataTable
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `datatable_list` | `scan_path`, `max_results=200` | List all DataTable assets — returns path, row struct, row count |
+| `datatable_row_names` | `asset_path` | List all row names in a DataTable |
+| `datatable_inspect` | `asset_path` | Row struct name, row count, first 10 row names |
+| `datatable_export` | `asset_path`, `output_path=""` | Export row names + metadata to JSON |
+| `datatable_audit` | `scan_path`, `min_rows=1` | Health check — empty tables, missing struct, low row count |
+
+### Textures
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `texture_audit` | `scan_path`, `max_results=200` | List compression, texture group, sRGB, size for all Texture2D assets |
+| `texture_set_compression` | `scan_path`, `compression="TC_DEFAULT"`, `dry_run=True` | Batch-set TextureCompressionSettings |
+| `texture_set_group` | `scan_path`, `group="world"`, `dry_run=True` | Batch-set TextureGroup (LOD group) |
+| `texture_set_srgb` | `scan_path`, `srgb=True`, `dry_run=True` | Batch-set sRGB flag |
+| `texture_apply_preset` | `scan_path`, `preset="game"`, `dry_run=True` | Apply named preset: `game`, `ui`, `normal`, `mask`, `hdr`, `icon`, `grayscale` |
+
+### Skeletal Mesh
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `skel_list` | `scan_path`, `max_results=200` | List all SkeletalMesh assets — skeleton ref, physics asset |
+| `skel_audit` | `scan_path`, `max_results=200` | Audit for missing skeleton ref or physics asset |
+| `skel_list_sockets` | `asset_path` | List all sockets on a SkeletalMesh — name, bone, transform |
+| `skel_set_physics_asset` | `mesh_path`, `physics_path`, `dry_run=True` | Assign a PhysicsAsset to a SkeletalMesh |
+
+### Curves
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `curve_list` | `scan_path`, `curve_type="all"`, `max_results=200` | List CurveFloat/CurveVector/CurveLinearColor assets. Filter: `float`, `vector`, `color` |
+| `curve_inspect` | `asset_path` | Read all key time/value pairs from a CurveFloat |
+| `curve_export` | `scan_path`, `output_path=""` | Export all curves in a folder to JSON |
+| `curve_create` | `name="CM_NewCurve"`, `destination="/Game/Curves/"` | Create a new empty CurveFloat asset |
+
+### Blueprints
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `blueprint_list` | `scan_path`, `max_results=200` | List all Blueprint assets — parent class, Blueprint type |
+| `blueprint_inspect` | `asset_path` | Variables, functions, and parent class of one Blueprint |
+| `blueprint_audit` | `scan_path`, `max_results=200` | Check compile status — returns issue list |
+| `blueprint_compile_folder` | `scan_path`, `dry_run=True`, `max_assets=50` | Compile all Blueprints in a folder |
+
+### Landscape
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `landscape_list` | — | List all Landscape actors in level — label, material, component count |
+| `landscape_audit` | `warn_components=256` | Check for missing material or high component count |
+| `landscape_info` | `label=""` | Detailed info on one landscape — section size, quads, render props |
+| `landscape_set_material` | `material_path`, `label=""`, `dry_run=True` | Assign a material to a Landscape actor |
+
+### Sound Assets
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `sound_asset_list` | `scan_path`, `sound_type="all"`, `max_results=200` | List SoundWave/SoundCue assets — duration, channels, sample rate. Filter: `wave`, `cue` |
+| `sound_asset_audit` | `scan_path`, `warn_duration_sec=60` | Find SoundWaves missing SoundClass or over duration threshold |
+| `sound_attenuation_list` | `scan_path`, `max_results=200` | List all SoundAttenuation assets |
+| `sound_class_list` | `scan_path`, `max_results=200` | List all SoundClass assets |
 
 ---
 

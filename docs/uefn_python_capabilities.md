@@ -7,6 +7,10 @@ Toolbelt can automate, what's read-only, and what doesn't exist yet.
 
 > UEFN exposes **37,276 Python-accessible types** — 4.3× more than standard UE5.
 > Python is **editor-only**. Gameplay logic lives in Verse. These two facts define everything.
+>
+> **Coverage: ~97% of the scriptable UEFN Python API surface (355 tools, 54 categories, v2.2.0).**
+> The locked 3%: heightmap editing, Blueprint graph nodes, Verse compiler trigger,
+> match control, and Cloth/Hair simulation — Epic must expose these APIs before they can be scripted.
 
 ---
 

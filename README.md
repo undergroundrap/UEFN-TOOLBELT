@@ -1,5 +1,5 @@
 # UEFN TOOLBELT
-**343 Professional Tools for UEFN Python Integration.**
+**355 Professional Tools for UEFN Python Integration.**
 
 > Built by **Ocean Bennett** — 2026
 
@@ -1338,7 +1338,7 @@ Expected output in the log:
 |---|---|---|
 | **Layer 1** — Python Environment | stdlib, threading, sockets, HTTP server, file I/O | 13 |
 | **Layer 2** — UEFN API Surface | `unreal` module, subsystems, AutomationLibrary, Materials | 13 |
-| **Layer 3** — Toolbelt Core | All 38 modules loaded, 247 tools registered, 23 safe tools executed | 40 |
+| **Layer 3** — Toolbelt Core | All 76 modules loaded, 355 tools registered | 40 |
 | **Layer 4** — MCP Bridge | 31 command handlers, HTTP listener state | 4 |
 | **Layer 5** — Dashboard (PySide6) | PySide6 importable, QApplication, ToolbeltDashboard | 3 |
 | **Layer 6** — Verse Book | clone present, git reachable, 22 chapters parsed | 12 |
@@ -2318,14 +2318,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full 5-step contributor loop with
 UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** for the UEFN community. It is the definitive way to **add, test, update, verify, and document** UEFN Python tools:
 - **Adding & Updating**: Drop any Python script into the `Custom_Plugins` folder and it instantly acquires a beautiful UI card in the PySide6 Dashboard with its author, version, and external documentation links.
 - **Security Verification**: Every plugin passes through a 4-Gate strict security audit (Size constraints, AST malicious import scanning, Namespace protection, and SHA-256 hashing) before it can ever execute. You can see the health of every script live in the UI.
-- **Testing**: A 90-step programmatic `integration_test.py` validates that your tools work perfectly against the live UEFN C++ API, giving developers total confidence after engine updates.
+- **Testing**: A programmatic `integration_test.py` validates that your tools work perfectly against the live UEFN C++ API, giving developers total confidence after engine updates.
 
 | Feature | UEFN Toolbelt | Everyone else |
 |---|---|---|
 | Ecosystem Moat | **Rich Plugin Hub, automatic UI generation** | Scattered, undocumented gists |
 | Security Model | **4-Gate Audit (AST scanning, SHA-256)** | Blind execution of untrusted code |
 | Verification | **Automated Integration Test Suite** | Manual testing only |
-| Tool count | **250 tools, 38 modules** | Single-purpose scripts |
+| Tool count | **355 tools, 76 modules** | Single-purpose scripts |
 | AI integration | **Full MCP bridge + model-agnostic HTTP client + tool manifest** | None |
 | Local model support | **LM Studio, Ollama, any HTTP agent** | None |
 | Verse code gen | **Live spec-backed (27K line reference)** | Static templates |
@@ -2341,7 +2341,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 The UEFN Toolbelt includes a professional-grade testing suite to ensure stability across UEFN updates.
 
 ### 1. Smoke Test (Healthy Schema Check)
-Verifies all 38 modules are loaded, all 247 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
+Verifies all 76 modules are loaded, all 355 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
 ```python
 import UEFN_Toolbelt as tb
 tb.run("toolbelt_smoke_test")
