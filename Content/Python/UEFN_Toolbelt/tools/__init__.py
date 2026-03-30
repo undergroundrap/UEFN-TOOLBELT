@@ -79,3 +79,7 @@ from . import enhanced_input_tools
 from . import animation_tools
 from . import audio_design_tools
 from . import world_partition_tools
+from . import datatable_tools
+from . import texture_tools
+from . import skeletal_mesh_tools
+from . import curve_tools

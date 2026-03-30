@@ -29,16 +29,16 @@ config = get_config()
 # Single source of truth — used in audit logs, reload messages, and manifests.
 # Bump this when shipping a release so plugin_audit.json records which version
 # of the platform each plugin was loaded against.
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 # Total registered tools — update alongside __version__ when adding/removing tools.
 # Checked by scripts/drift_check.py to catch stale counts across docs and UI.
-__tool_count__ = 318
+__tool_count__ = 343
 
 # Total tool categories — update when adding a new category to any tool module.
 # Shown in the reload message: "269 tools registered across 42 categories."
 # Checked by scripts/drift_check.py to catch stale category counts across docs.
-__category_count__ = 46
+__category_count__ = 51
 
 # API contract version — plugins declare MIN_TOOLBELT_VERSION = "x.y.z" to
 # signal the oldest platform release they support. Checked at load time.

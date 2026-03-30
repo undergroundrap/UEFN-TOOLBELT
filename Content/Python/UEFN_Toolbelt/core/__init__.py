@@ -11,6 +11,7 @@ from .theme import PALETTE, QSS, color as theme_color  # noqa: F401 — re-expor
 
 import contextlib
 import math
+import os
 import random
 from typing import Generator, Iterable, List, Optional
 
@@ -22,11 +23,19 @@ import unreal
 #  See docs/UEFN_QUIRKS.md Quirk #23 for the full explanation.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Engine and known Epic plugin mounts that are never the user's project.
-# Add entries here as new plugins are discovered — never remove existing ones.
+# Engine, known Epic plugin mounts, and Fortnite game pak mounts that are
+# never the user's project.  Add entries here as new paks are discovered.
 PLUGIN_MOUNTS: frozenset = frozenset({
-    "Engine", "FortniteGame", "Fortnite", "Epic", "Paper2D", "Script",
-    "QualityAssistEd", "Niagara", "EnhancedInput", "ModelingEditorAssets", "ControlRig",
+    # Core engine
+    "Engine", "Script", "Epic",
+    # Fortnite game paks — these dwarf any user project in AR entry count
+    "Game", "FortniteGame", "Fortnite", "BRCosmetics", "BRSharedContent",
+    "BRShooting", "BRLimitedTime", "BRItems", "Fort", "FortItemContents",
+    "Athena", "AthenaContent", "FortCosmetics", "FortCreative",
+    "CampFire", "CampFireCore",
+    # Epic plugin mounts
+    "Paper2D", "QualityAssistEd", "Niagara", "EnhancedInput",
+    "ModelingEditorAssets", "ControlRig",
     "ACLPlugin", "AnimationLocomotionLibrary", "AnimationWarping", "CommonUI",
     "GameplayAbilities", "GameplayTasks", "GameplayMessageRouter", "StructUtils",
     "Chooser", "UIExtension", "ModularGameplay", "ModularGameplayActors",
@@ -39,16 +48,29 @@ def detect_project_mount() -> str:
     """
     Return the user's project Content Browser mount point.
 
-    Strategy: count Asset Registry cached paths per mount root and return
-    the one with the most entries.  The user's project always has hundreds
-    or thousands of paths; every Epic plugin has fewer than ~50.  This is
-    reliable regardless of which plugins are installed.
+    Primary strategy: walk up from __file__ to find the folder that contains
+    the 'Content' directory — that folder's name IS the project mount.  This
+    is the only 100% reliable method; AR-count heuristics fail when Fortnite
+    game paks (BRCosmetics, etc.) are loaded, as they have far more entries.
 
-    Never use candidates[0] (first alphabetical) — plugin mounts like
-    /ACLPlugin/ sort before user projects and cause silent mislocation.
+    Fallback: AR path count excluding PLUGIN_MOUNTS (catches edge cases where
+    __file__ walkup is unavailable or returns an unexpected path).
 
-    Returns e.g. "BRCosmetics" or "Device_API_Mapping" (no leading slash).
+    Returns e.g. "Device_API_Mapping" (no leading slash).
     """
+    # ── Primary: __file__ walkup ──────────────────────────────────────────
+    try:
+        path = os.path.abspath(__file__).replace("\\", "/")
+        parts = path.split("/")
+        for i, part in enumerate(parts):
+            if part == "Content" and i > 0:
+                candidate = parts[i - 1]
+                if candidate and candidate not in PLUGIN_MOUNTS:
+                    return candidate
+    except Exception:
+        pass
+
+    # ── Fallback: AR entry count (skips all known game/plugin mounts) ─────
     try:
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
         counts: dict = {}

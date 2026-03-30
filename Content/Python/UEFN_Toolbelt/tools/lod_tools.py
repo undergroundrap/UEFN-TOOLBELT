@@ -385,3 +385,348 @@ def run_lod_audit_folder(
         "no_collision_count": len(no_collision),
         "records": records,
     }
+
+
+# ── Nanite Tools ───────────────────────────────────────────────────────────────
+
+@register_tool(
+    name="nanite_audit",
+    category="Static Meshes",
+    description=(
+        "Audit all StaticMesh assets in a folder for Nanite status. "
+        "Returns meshes with Nanite enabled vs disabled and vertex counts. "
+        "Use this to decide which high-poly meshes benefit most from Nanite."
+    ),
+    tags=["nanite", "mesh", "audit", "lod", "performance"],
+    example='tb.run("nanite_audit", scan_path="/Game/Meshes")',
+)
+def run_nanite_audit(scan_path: str = "/Game/", max_results: int = 200, **kwargs) -> dict:
+    # Uses AR tag data only — never calls load_asset(), safe on pak-heavy projects.
+    try:
+        ar = unreal.AssetRegistryHelpers.get_asset_registry()
+        filt = unreal.ARFilter(
+            class_names=["StaticMesh"],
+            package_paths=[scan_path],
+            recursive_paths=True,
+        )
+        assets = ar.get_assets(filt)[:max_results]
+        enabled = []
+        disabled = []
+        for a in assets:
+            name = str(a.asset_name)
+            path = str(a.package_name)
+            # NaniteSettings.Enabled is cached as an AR tag in UE5
+            nanite_tag = a.get_tag_value("NaniteEnabled") or a.get_tag_value("bNaniteEnabled") or ""
+            is_enabled = nanite_tag.lower() in ("true", "1", "yes")
+            entry = {"name": name, "path": path}
+            (enabled if is_enabled else disabled).append(entry)
+
+        log_info(f"[nanite_audit] {len(enabled)} enabled, {len(disabled)} disabled in {scan_path}")
+        return {
+            "status": "ok",
+            "total": len(enabled) + len(disabled),
+            "nanite_enabled": len(enabled),
+            "nanite_disabled": len(disabled),
+            "enabled": enabled,
+            "disabled": disabled,
+            "tip": "Nanite tag may not be cached in AR — use nanite_enable_folder dry_run=True to check per-mesh.",
+        }
+    except Exception as e:
+        log_error(f"[nanite_audit] {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@register_tool(
+    name="nanite_enable_folder",
+    category="Static Meshes",
+    description=(
+        "Enable or disable Nanite on all StaticMesh assets in a Content Browser folder. "
+        "Nanite works best for high-polygon hero assets. Skip low-poly or tiling meshes. "
+        "Always dry_run=True first to preview which meshes will be affected."
+    ),
+    tags=["nanite", "mesh", "enable", "batch", "lod"],
+    example='tb.run("nanite_enable_folder", scan_path="/Game/Meshes/Props", enable=True, dry_run=False)',
+)
+def run_nanite_enable_folder(
+    scan_path: str = "/Game/",
+    enable: bool = True,
+    dry_run: bool = True,
+    **kwargs,
+) -> dict:
+    try:
+        mesh_sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
+        if mesh_sub is None:
+            return {"status": "error", "message": "StaticMeshEditorSubsystem not available."}
+
+        meshes = _get_meshes_in_folder(scan_path)
+        changed = []
+        skipped = []
+
+        for asset_path in meshes:
+            mesh = _get_mesh_from_path(asset_path)
+            if mesh is None:
+                continue
+            try:
+                nanite_settings = mesh.get_editor_property("nanite_settings")
+                current = nanite_settings.get_editor_property("enabled") if nanite_settings else False
+                if current == enable:
+                    skipped.append(mesh.get_name())
+                    continue
+                if not dry_run:
+                    mesh_sub.enable_nanite(mesh, enable)
+                    unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                changed.append(mesh.get_name())
+            except Exception as ex:
+                log_warning(f"[nanite_enable_folder] {asset_path}: {ex}")
+
+        action = "Would set" if dry_run else "Set"
+        state = "enabled" if enable else "disabled"
+        log_info(f"[nanite_enable_folder] {action} Nanite {state} on {len(changed)} meshes")
+        return {
+            "status": "ok",
+            "dry_run": dry_run,
+            "nanite_enabled": enable,
+            "changed": len(changed),
+            "skipped": len(skipped),
+            "meshes": changed,
+        }
+    except Exception as e:
+        log_error(f"[nanite_enable_folder] {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@register_tool(
+    name="nanite_enable_selection",
+    category="Static Meshes",
+    description=(
+        "Enable or disable Nanite on the StaticMesh assets used by all selected level actors. "
+        "Select actors in the viewport, then call this tool. "
+        "Saves each modified mesh asset immediately."
+    ),
+    tags=["nanite", "mesh", "enable", "selection"],
+    example='tb.run("nanite_enable_selection", enable=True)',
+)
+def run_nanite_enable_selection(enable: bool = True, dry_run: bool = False, **kwargs) -> dict:
+    try:
+        mesh_sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
+        if mesh_sub is None:
+            return {"status": "error", "message": "StaticMeshEditorSubsystem not available."}
+
+        actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_selected_level_actors()
+        if not actors:
+            return {"status": "error", "message": "No actors selected. Select actors in the viewport first."}
+
+        smc_class = unreal.StaticMeshComponent.static_class()
+        changed = []
+        seen = set()
+        for actor in actors:
+            for comp in actor.get_components_by_class(smc_class):
+                mesh = comp.get_editor_property("static_mesh")
+                if mesh is None or mesh.get_path_name() in seen:
+                    continue
+                seen.add(mesh.get_path_name())
+                try:
+                    if not dry_run:
+                        mesh_sub.enable_nanite(mesh, enable)
+                        unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                    changed.append(mesh.get_name())
+                except Exception as ex:
+                    log_warning(f"[nanite_enable_selection] {mesh.get_name()}: {ex}")
+
+        action = "Would set" if dry_run else "Set"
+        state = "enabled" if enable else "disabled"
+        log_info(f"[nanite_enable_selection] {action} Nanite {state} on {len(changed)} meshes")
+        return {"status": "ok", "dry_run": dry_run, "nanite_enabled": enable, "changed": len(changed), "meshes": changed}
+    except Exception as e:
+        log_error(f"[nanite_enable_selection] {e}")
+        return {"status": "error", "message": str(e)}
+
+
+# ── UV Channel Tools ───────────────────────────────────────────────────────────
+
+@register_tool(
+    name="uv_list_channels",
+    category="Static Meshes",
+    description=(
+        "List all UV channels on the StaticMesh assets used by selected actors. "
+        "Returns UV channel count per mesh. "
+        "Channel 0 is typically diffuse UV. Channel 1 is the lightmap UV."
+    ),
+    tags=["uv", "channels", "mesh", "list", "lightmap"],
+    example='tb.run("uv_list_channels")',
+)
+def run_uv_list_channels(**kwargs) -> dict:
+    try:
+        mesh_sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
+        actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_selected_level_actors()
+        if not actors:
+            return {"status": "error", "message": "No actors selected."}
+
+        smc_class = unreal.StaticMeshComponent.static_class()
+        results = []
+        seen = set()
+        for actor in actors:
+            for comp in actor.get_components_by_class(smc_class):
+                mesh = comp.get_editor_property("static_mesh")
+                if mesh is None or mesh.get_path_name() in seen:
+                    continue
+                seen.add(mesh.get_path_name())
+                try:
+                    num_uvs = mesh_sub.get_num_uv_channels(mesh, 0) if mesh_sub else None
+                    results.append({"name": mesh.get_name(), "uv_channels": num_uvs})
+                except Exception as ex:
+                    results.append({"name": mesh.get_name(), "uv_channels": None, "error": str(ex)})
+
+        return {"status": "ok", "count": len(results), "meshes": results}
+    except Exception as e:
+        log_error(f"[uv_list_channels] {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@register_tool(
+    name="uv_generate_planar",
+    category="Static Meshes",
+    description=(
+        "Generate planar UVs on a UV channel for the selected actors' StaticMesh assets. "
+        "Planar projection is best for flat surfaces: floors, walls, decals. "
+        "Saves modified mesh assets automatically."
+    ),
+    tags=["uv", "generate", "planar", "mesh", "channel"],
+    example='tb.run("uv_generate_planar", channel=0, size=100.0)',
+)
+def run_uv_generate_planar(
+    channel: int = 0,
+    size: float = 100.0,
+    dry_run: bool = False,
+    **kwargs,
+) -> dict:
+    try:
+        mesh_sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
+        actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_selected_level_actors()
+        if not actors:
+            return {"status": "error", "message": "No actors selected."}
+
+        smc_class = unreal.StaticMeshComponent.static_class()
+        changed = []
+        seen = set()
+        for actor in actors:
+            for comp in actor.get_components_by_class(smc_class):
+                mesh = comp.get_editor_property("static_mesh")
+                if mesh is None or mesh.get_path_name() in seen:
+                    continue
+                seen.add(mesh.get_path_name())
+                try:
+                    if not dry_run and mesh_sub:
+                        mesh_sub.generate_planar_uv_channel(
+                            mesh, 0, channel,
+                            unreal.Vector(0, 0, 0),
+                            unreal.Rotator(0, 0, 0),
+                            unreal.Vector2D(size, size),
+                        )
+                        unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                    changed.append(mesh.get_name())
+                except Exception as ex:
+                    log_warning(f"[uv_generate_planar] {mesh.get_name()}: {ex}")
+
+        action = "Would generate" if dry_run else "Generated"
+        log_info(f"[uv_generate_planar] {action} planar UV ch{channel} on {len(changed)} meshes")
+        return {"status": "ok", "dry_run": dry_run, "channel": channel, "size": size, "changed": len(changed), "meshes": changed}
+    except Exception as e:
+        log_error(f"[uv_generate_planar] {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@register_tool(
+    name="uv_generate_box",
+    category="Static Meshes",
+    description=(
+        "Generate box (triplanar) UVs on a UV channel for the selected actors' StaticMesh assets. "
+        "Box projection works well for blocky props, buildings, and any mesh without a natural unwrap. "
+        "Saves modified mesh assets automatically."
+    ),
+    tags=["uv", "generate", "box", "triplanar", "mesh"],
+    example='tb.run("uv_generate_box", channel=0, size=100.0)',
+)
+def run_uv_generate_box(
+    channel: int = 0,
+    size: float = 100.0,
+    dry_run: bool = False,
+    **kwargs,
+) -> dict:
+    try:
+        mesh_sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
+        actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_selected_level_actors()
+        if not actors:
+            return {"status": "error", "message": "No actors selected."}
+
+        smc_class = unreal.StaticMeshComponent.static_class()
+        changed = []
+        seen = set()
+        for actor in actors:
+            for comp in actor.get_components_by_class(smc_class):
+                mesh = comp.get_editor_property("static_mesh")
+                if mesh is None or mesh.get_path_name() in seen:
+                    continue
+                seen.add(mesh.get_path_name())
+                try:
+                    if not dry_run and mesh_sub:
+                        mesh_sub.generate_box_uv_channel(
+                            mesh, 0, channel,
+                            unreal.Vector(0, 0, 0),
+                            unreal.Rotator(0, 0, 0),
+                            unreal.Vector(size, size, size),
+                        )
+                        unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                    changed.append(mesh.get_name())
+                except Exception as ex:
+                    log_warning(f"[uv_generate_box] {mesh.get_name()}: {ex}")
+
+        action = "Would generate" if dry_run else "Generated"
+        log_info(f"[uv_generate_box] {action} box UV ch{channel} on {len(changed)} meshes")
+        return {"status": "ok", "dry_run": dry_run, "channel": channel, "size": size, "changed": len(changed), "meshes": changed}
+    except Exception as e:
+        log_error(f"[uv_generate_box] {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@register_tool(
+    name="uv_add_channel",
+    category="Static Meshes",
+    description=(
+        "Add a new empty UV channel to the selected actors' StaticMesh assets. "
+        "Adds after the last existing channel. Useful before running "
+        "geometry_generate_lightmap_uvs on meshes that only have channel 0."
+    ),
+    tags=["uv", "channel", "add", "mesh", "lightmap"],
+    example='tb.run("uv_add_channel")',
+)
+def run_uv_add_channel(dry_run: bool = False, **kwargs) -> dict:
+    try:
+        mesh_sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
+        actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_selected_level_actors()
+        if not actors:
+            return {"status": "error", "message": "No actors selected."}
+
+        smc_class = unreal.StaticMeshComponent.static_class()
+        changed = []
+        seen = set()
+        for actor in actors:
+            for comp in actor.get_components_by_class(smc_class):
+                mesh = comp.get_editor_property("static_mesh")
+                if mesh is None or mesh.get_path_name() in seen:
+                    continue
+                seen.add(mesh.get_path_name())
+                try:
+                    if not dry_run and mesh_sub:
+                        mesh_sub.add_uv_channel(mesh, 0)
+                        unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                    changed.append(mesh.get_name())
+                except Exception as ex:
+                    log_warning(f"[uv_add_channel] {mesh.get_name()}: {ex}")
+
+        action = "Would add" if dry_run else "Added"
+        log_info(f"[uv_add_channel] {action} UV channel on {len(changed)} meshes")
+        return {"status": "ok", "dry_run": dry_run, "changed": len(changed), "meshes": changed}
+    except Exception as e:
+        log_error(f"[uv_add_channel] {e}")
+        return {"status": "error", "message": str(e)}

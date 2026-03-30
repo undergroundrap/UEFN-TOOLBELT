@@ -17,19 +17,24 @@ Toolbelt can automate, what's read-only, and what doesn't exist yet.
 | Asset Pipeline | Full | asset_renamer, smart_importer, reference_auditor, asset_tagger | `EditorAssetLibrary` (62), `EditorAssetSubsystem` (66) |
 | Actors & Levels | Full | bulk_operations, prop_patterns, foliage_tools, level_snapshot | `EditorActorSubsystem` (45), `LevelEditorSubsystem` (49) |
 | Materials | Full | material_master | `MaterialEditingLibrary` (89) |
-| Static Meshes | Full | lod_tools, memory_profiler | `StaticMeshEditorSubsystem` (87) |
-| Geometry Scripting | Full | geometry_tools | `GeometryScriptingCore` (46 classes, 145+ ops) |
-| PCG | Full | — future module | `PCG` (597 types) |
+| Static Meshes | Full | lod_tools (LOD, collision, Nanite, UV channels) | `StaticMeshEditorSubsystem` (87) |
+| Geometry Scripting | Full | geometry_tools (boolean, repair, UV gen) | `GeometryScriptingCore` (46 classes, 145+ ops) |
+| PCG | Full | pcg_tools | `PCG` (597 types) |
 | Screenshots | Full | screenshot_tools | `AutomationLibrary` (58) |
-| Movie Render | Full | — future module | `MovieRenderPipelineCore` (145 classes) |
+| Movie Render | Full | movie_render_tools | `MovieRenderPipelineCore` (145 classes) |
 | Sequencer | High | sequencer_tools | `SequencerScripting`, `MovieScene` (86) |
 | Measurement | High | measurement_tools | `EditorActorSubsystem`, `Vector` math |
 | Localization | High | localization_tools | `TextRenderActor`, `AssetTools` |
-| Niagara VFX | High | — future module | `Niagara` (260 types) |
-| Audio / MetaSound | High | audio_design_tools | `AudioMixer`, `MetasoundEngine` |
+| Niagara VFX | High | niagara_tools | `Niagara` (260 types) |
+| Audio / MetaSound | High | audio_design_tools, audio_tools | `AudioMixer`, `MetasoundEngine` |
 | Animation | Good | animation_tools | `AnimGraph` (97), `AnimGraphRuntime` (152) |
+| Skeletal Mesh | Good | skeletal_mesh_tools (audit, sockets, physics asset) | `SkeletalMesh`, `SkeletalMeshComponent` |
+| DataTable | Good | datatable_tools (list, read, export, audit) | `DataTableFunctionLibrary` |
+| Textures | Good | texture_tools (audit, compression, group, sRGB, presets) | `Texture2D`, `TextureCompressionSettings` |
+| Curves | Good | curve_tools (list, inspect, export, create) | `CurveFloat`, `CurveVector`, `CurveLinearColor` |
 | Enhanced Input | Good | enhanced_input_tools | `EnhancedInput` (75 types) |
 | Import / Interchange | Good | smart_importer | `InterchangeImport` (73) |
+| World Partition | Good | world_partition_tools | `DataLayerEditorSubsystem`, `WorldPartition` |
 | Fortnite Classes | Read-only | verse_device_editor (inspection) | 28,850 types — mostly locked |
 
 ---
@@ -196,7 +201,7 @@ StaticMeshEditorSubsystem.has_vertex_colors(mesh)
 ## Geometry Scripting
 
 **`GeometryScriptingCore` — 46 classes, 83 enums, 145 structs.** Full programmatic mesh editing.
-Not yet in the Toolbelt — next major module.
+**Toolbelt module:** `geometry_tools` — boolean ops, weld, fill holes, normals, lightmap UV gen.
 
 ### Mesh I/O
 ```python
@@ -231,7 +236,7 @@ GeometryScript_Bake.bake_render_capture_to_texture(mesh, targets, settings)  # n
 ## PCG — Procedural Content Generation
 
 **`PCG` — 372 classes, 152 enums, 73 structs (597 total).** Trigger and read PCG graphs from Python.
-Not yet in the Toolbelt — next major module.
+**Toolbelt module:** `pcg_tools` — list graphs, execute, set seed, refresh all.
 
 ```python
 # Trigger a PCG graph on an actor
@@ -278,7 +283,7 @@ AutomationLibrary.compare_image_against_reference(image_path, tolerance)
 ## Movie Render Pipeline
 
 **`MovieRenderPipelineCore` — 145 classes, 30 enums, 35 structs.** Batch cinematic rendering.
-Not yet in the Toolbelt — planned.
+**Toolbelt module:** `movie_render_tools` — queue sequence, apply preset, check render status.
 
 ```python
 job = unreal.MoviePipelineExecutorJob()

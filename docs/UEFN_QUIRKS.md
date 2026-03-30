@@ -524,27 +524,36 @@ Known Epic plugin mounts to exclude (not exhaustive — new ones appear with eng
 `StateTreeEditorModule`, `GameFeatures`, `ReplicationGraph`, `PhysicsControl`,
 `Niagara`, `EnhancedInput`, `ControlRig`, `ModelingEditorAssets`, `QualityAssistEd`
 
-### The Canonical Solution — "Most Paths" Detection
+### ⚠️ "Most Paths" Detection FAILS With Game Pak Mounts
 
-**Do not take the first alphabetical mount. Count cached paths per mount and take the largest.**
-The user's project always has hundreds or thousands of content paths. Every Epic plugin has
-fewer than ~50. This is reliable regardless of what plugins are installed:
+The "most AR entries" heuristic was the original canonical solution, but **it breaks on any
+project that has Fortnite game paks mounted** (e.g. `/BRCosmetics/`). BRCosmetics alone
+contains hundreds of thousands of AR entries — far more than any user project — so it
+always wins the count. Confirmed broken in March 2026 live testing.
+
+### The Canonical Solution — `__file__` Walkup (Primary)
+
+**Walk up the file path to find the `Content` directory; the folder above it is the project
+mount.** The Toolbelt always lives at `[Project]/Content/Python/UEFN_Toolbelt/...`, so this
+is guaranteed correct regardless of what paks are loaded:
 
 ```python
-_SKIP_MOUNTS = frozenset({
-    # Engine / runtime
-    "Engine", "FortniteGame", "FortniteGame.com", "Fortnite", "Paper2D", "Script",
-    # Epic editor plugins (add more as discovered — never remove entries)
-    "QualityAssistEd", "Niagara", "EnhancedInput", "ModelingEditorAssets", "ControlRig",
-    "ACLPlugin", "AnimationLocomotionLibrary", "AnimationWarping", "CommonUI",
-    "GameplayAbilities", "GameplayTasks", "GameplayMessageRouter", "StructUtils",
-    "Chooser", "UIExtension", "ModularGameplay", "ModularGameplayActors",
-    "DataRegistry", "SmartObjects", "StateTreeEditorModule", "GameFeatures",
-    "ReplicationGraph", "PhysicsControl",
-})
+import os
 
 def _detect_project_mount() -> str:
-    """Return the user's project Content Browser mount — the mount with the most paths."""
+    # Primary: derive from __file__ — pak-safe, always correct
+    try:
+        path = os.path.abspath(__file__).replace("\\", "/")
+        parts = path.split("/")
+        for i, part in enumerate(parts):
+            if part == "Content" and i > 0:
+                candidate = parts[i - 1]
+                if candidate and candidate not in _SKIP_MOUNTS:
+                    return candidate
+    except Exception:
+        pass
+
+    # Fallback: AR path count (skips all known game/plugin mounts)
     try:
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
         counts: dict = {}
@@ -553,11 +562,36 @@ def _detect_project_mount() -> str:
             if root and root not in _SKIP_MOUNTS:
                 counts[root] = counts.get(root, 0) + 1
         if counts:
-            return max(counts, key=counts.get)   # user project wins every time
+            return max(counts, key=counts.get)
     except Exception:
         pass
     return "Game"
 ```
+
+The `_SKIP_MOUNTS` set must include Fortnite game pak mounts (not just plugin mounts):
+
+```python
+_SKIP_MOUNTS = frozenset({
+    # Core engine
+    "Engine", "Script", "Epic",
+    # Fortnite game paks — dwarf any user project in AR entry count
+    "Game", "FortniteGame", "Fortnite", "BRCosmetics", "BRSharedContent",
+    "BRShooting", "BRLimitedTime", "BRItems", "Fort", "FortItemContents",
+    "Athena", "AthenaContent", "FortCosmetics", "FortCreative",
+    "CampFire", "CampFireCore",
+    # Epic editor plugins
+    "Paper2D", "QualityAssistEd", "Niagara", "EnhancedInput",
+    "ModelingEditorAssets", "ControlRig",
+    "ACLPlugin", "AnimationLocomotionLibrary", "AnimationWarping", "CommonUI",
+    "GameplayAbilities", "GameplayTasks", "GameplayMessageRouter", "StructUtils",
+    "Chooser", "UIExtension", "ModularGameplay", "ModularGameplayActors",
+    "DataRegistry", "SmartObjects", "StateTreeEditorModule", "GameFeatures",
+    "ReplicationGraph", "PhysicsControl",
+})
+```
+
+Canonical implementation: `core/__init__.py` → `detect_project_mount()`. Import with
+`from ..core import detect_project_mount`. Never reimplement per-tool.
 
 ### Fallback: User-Driven Detection (Most Reliable of All)
 

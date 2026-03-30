@@ -33,7 +33,7 @@ Claude Code config — add to .mcp.json in your project root:
 Then in UEFN (Output Log or Toolbelt dashboard):
     import UEFN_Toolbelt as tb; tb.run("mcp_start")
 
-After that, Claude Code has full control over UEFN — 318 tools, live actor data,
+After that, Claude Code has full control over UEFN — 343 tools, live actor data,
 arbitrary Python execution, viewport control, and more.
 
 What this exposes (beyond Kirch's original 22 tools):
@@ -256,7 +256,7 @@ def mcp_get_log(last_n: int = 50) -> str:
 def run_toolbelt_tool(tool_name: str, kwargs: dict | None = None) -> str:
     """Run any registered UEFN Toolbelt tool by name.
 
-    This is the single most powerful MCP tool — it exposes all 318 toolbelt tools
+    This is the single most powerful MCP tool — it exposes all 343 toolbelt tools
     to Claude Code through one command. Instead of writing custom execute_python
     code, just name the tool and pass its arguments as a dict.
 
