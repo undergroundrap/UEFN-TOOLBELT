@@ -10,7 +10,7 @@ Toolbelt can automate, what's read-only, and what doesn't exist yet.
 >
 > **Coverage: ~97% of the scriptable UEFN Python API surface (355 tools, 54 categories, v2.2.0).**
 > The locked 3%: heightmap editing, Blueprint graph nodes, Verse compiler trigger,
-> match control, and Cloth/Hair simulation — Epic must expose these APIs before they can be scripted.
+> match control, session launch/stop, V2 device game-logic properties, and Blueprint graph nodes — Epic must expose these APIs before they can be scripted.
 
 ---
 

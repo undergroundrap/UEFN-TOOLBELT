@@ -148,7 +148,7 @@ This keeps the tool count honest, the dashboard scannable, and the MCP manifest 
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
 It covers ~97% of the UEFN Python API surface (the remaining 3% is locked by Epic — heightmap editing,
-Blueprint graph nodes, Verse compiler trigger, match control, and Cloth/Hair simulation have no Python API yet).
+Blueprint graph nodes, Verse compiler trigger, match control, session launch/stop, and V2 device game-logic properties have no Python API yet).
 It runs inside the editor and exposes 355 tools through:
 - A persistent top-menu entry (`Toolbelt ▾`) in the UEFN editor bar
 - A 26-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)

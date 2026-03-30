@@ -8,7 +8,7 @@
 
 UEFN Toolbelt is an open-source (AGPL-3.0) tool suite for UEFN 40.00+ (March 2026).
 It covers ~97% of the UEFN Python API surface. The remaining 3% is locked by Epic
-(heightmap editing, Blueprint graph nodes, Verse compiler trigger, match control, Cloth/Hair sim).
+(heightmap editing, Blueprint graph nodes, Verse compiler trigger, match control, session launch/stop, V2 device game-logic properties).
 
 Tools are registered with `@register_tool` and called via `tb.run("tool_name", **kwargs)`.
 Every tool returns `{"status": "ok"/"error", ...data}` — zero None returns, zero log parsing needed.
