@@ -306,6 +306,58 @@ The UEFN Toolbelt exists because manual work doesn't scale, but scripts do. We s
 
 ---
 
+## AI Return Contract — 100% Machine-Readable
+
+Every single one of the 355 tools returns a clean, structured `dict`. No `None` returns. No bare primitives. No output that requires parsing log lines. This was completed as Phase 21 and applies to every tool added since.
+
+### What Claude gets back
+
+```python
+# Asset scan
+{"status": "ok", "count": 4, "textures": [
+  {"name": "T_Rock", "path": "/Device_API_Mapping/Textures/T_Rock",
+   "compression": "TC_DEFAULT", "srgb": "true", "size_x": "2048", "size_y": "2048"}
+]}
+
+# Audit
+{"status": "ok", "total": 12, "clean": 10, "issues": 2, "issue_list": [
+  {"name": "SK_Hero", "path": "/Device_API_Mapping/Characters/SK_Hero",
+   "issues": ["No physics asset assigned"]}
+]}
+
+# Write op (dry_run)
+{"status": "ok", "dry_run": true, "changed": 8, "skipped": 3, "changes": [
+  {"name": "T_Wall", "from": "TC_DEFAULT", "to": "TC_NORMALMAP"}
+]}
+
+# Error — always catchable
+{"status": "error", "message": "Could not load asset at '/Game/Missing'."}
+```
+
+### The full MCP chain
+
+```
+Claude Code → MCP server → run_tool → registry.execute() → _serialize(result) → JSON response → Claude reads it
+```
+
+Claude never has to parse a log line. Every domain follows the same shape:
+
+| Domain | Keys Claude reads |
+|---|---|
+| Asset scans | `count` + array with `name/path/type` per asset |
+| Audits | `total/clean/issues` + `issue_list` with per-item details |
+| Write ops | `dry_run` + `changed/skipped` + `changes` array |
+| Level actors | `count` + array with `label/class/location` |
+| Inspections | Full property dict for the specific asset |
+| Exports | `output_path` + `count` |
+| Errors | `{"status": "error", "message": "..."}` — always catchable |
+
+### Tool discovery before first call
+
+`tb.run("plugin_export_manifest")` writes `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of all 355 tools with full parameter signatures (name, type, required, default) and a concrete `example` call string for every tool. Claude reads this once and knows exactly what params to pass to any tool without guessing.
+
+---
+
 ## The Workflow Loop — Efficiency Mechanic
 
 This is the core philosophy. We solve the **"Iteration Tax"** — the time lost between an
