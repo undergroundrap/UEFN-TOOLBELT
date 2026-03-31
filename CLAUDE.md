@@ -513,6 +513,23 @@ UEFN does not natively reload modified Python modules. Use the **"Nuclear Reload
 
 ---
 
+## Compact Instructions
+
+When compacting this conversation, always preserve:
+- Current `__version__` and `__tool_count__` and `__category_count__` values from `Content/Python/UEFN_Toolbelt/__init__.py`
+- Names and registration names of any tools added or modified this session
+- Any UEFN quirk numbers encountered and the root cause discovered
+- Exact Python syntax errors and their fixes
+- Which tools were confirmed working in live UEFN (user pasted log output)
+- Whether `deploy.bat` was run and whether the nuclear reload was done
+- Any Epic API limitations newly discovered
+- Current git branch and last commit hash
+
+Never drop: tool counts, version numbers, live test confirmations, or quirk numbers.
+Always include full code snippets for any newly added `@register_tool` functions.
+
+---
+
 @.claude/tool_tables.md
 
 ---
