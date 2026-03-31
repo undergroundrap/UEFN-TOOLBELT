@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "attribution": {
     "commit": "",
     "pr": ""
@@ -6,6 +7,39 @@
   "includeGitInstructions": false,
   "enableAllProjectMcpServers": true,
   "cleanupPeriodDays": 90,
+  "autoMemoryEnabled": true,
+  "plansDirectory": ".claude/plans",
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/drift_check.py)",
+      "Bash(python scripts/compact_hook.py)",
+      "Bash(python scripts/post_tool_hook.py)",
+      "Bash(python -c *)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git add*)",
+      "Bash(ls*)",
+      "Bash(find*)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf*)"
+    ]
+  },
+  "autoMode": {
+    "environment": [
+      "UEFN Toolbelt — Python tool framework running inside Unreal Editor for Fortnite. Edits to Content/Python/ only take effect in the editor after deploy.bat is run.",
+      "The UEFN Python console runs inside the editor process (not a standard terminal). tb.run() calls execute there.",
+      "Nuclear reload clears Python module cache: import sys; [sys.modules.pop(k) for k in list(sys.modules) if 'UEFN_Toolbelt' in k]; import UEFN_Toolbelt as tb; tb.register_all_tools()",
+      "MCP bridge may be running at localhost:8765 — Claude Code connects to it via .mcp.json.",
+      "Never commit without a live UEFN test. drift_check.py must pass before every commit."
+    ]
+  },
   "hooks": {
     "PreCompact": [
       {
@@ -26,6 +60,7 @@
             "type": "command",
             "command": "python scripts/post_tool_hook.py",
             "statusMessage": "Validating Python syntax...",
+            "if": "Edit(Content/**)",
             "async": true
           }
         ]
@@ -37,6 +72,7 @@
             "type": "command",
             "command": "python scripts/post_tool_hook.py",
             "statusMessage": "Validating Python syntax...",
+            "if": "Write(Content/**)",
             "async": true
           }
         ]
