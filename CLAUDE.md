@@ -530,8 +530,8 @@ Always include full code snippets for any newly added `@register_tool` functions
 
 ---
 
-@.claude/tool_tables.md
+@./.claude/tool_tables.md
 
 ---
 
-@.claude/mcp_reference.md
+@./.claude/mcp_reference.md
