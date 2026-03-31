@@ -1,0 +1,46 @@
+{
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "includeGitInstructions": false,
+  "enableAllProjectMcpServers": true,
+  "cleanupPeriodDays": 90,
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python scripts/compact_hook.py",
+            "statusMessage": "Injecting version state into compact..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python scripts/post_tool_hook.py",
+            "statusMessage": "Validating Python syntax...",
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python scripts/post_tool_hook.py",
+            "statusMessage": "Validating Python syntax...",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

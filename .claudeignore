@@ -1,0 +1,21 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# UEFN runtime output — large, regenerated on demand, not useful for AI context
+Saved/
+
+# Large generated JSON schemas (1.6MB+ each — use tb.run("api_crawl_level_classes") to regenerate)
+docs/uefn_reference_schema.json
+docs/api_level_classes_schema.json
+
+# Generated Python stubs (use tb.run("api_export_full") to regenerate)
+Content/Python/UEFN_Toolbelt/stubs/
+
+# Install artifacts
+*.egg-info/
+dist/
+build/
+node_modules/
