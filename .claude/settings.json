@@ -9,6 +9,10 @@
   "cleanupPeriodDays": 90,
   "autoMemoryEnabled": true,
   "plansDirectory": ".claude/plans",
+  "fileSuggestion": {
+    "type": "command",
+    "command": "python scripts/file_suggestions.py"
+  },
   "permissions": {
     "allow": [
       "Bash(python scripts/drift_check.py)",
