@@ -34,7 +34,10 @@ _LOADER_MARKER = "# [UEFN_TOOLBELT_LOADER]"
 _LOADER_BLOCK = """
 # [UEFN_TOOLBELT_LOADER] — added by UEFN Toolbelt installer
 import sys as _sys, os as _os, importlib as _importlib
-_PYTHON_DIR = _os.path.join(__import__("unreal").Paths.project_content_dir(), "Python")
+# __file__ is Content/Python/init_unreal.py — its directory IS the Python dir.
+# unreal.Paths.project_content_dir() returns the FortniteGame engine path in UEFN
+# (Quirk #23) and cannot be used here.
+_PYTHON_DIR = _os.path.dirname(_os.path.abspath(__file__))
 if _PYTHON_DIR not in _sys.path:
     _sys.path.insert(0, _PYTHON_DIR)
 for _name in sorted(_os.listdir(_PYTHON_DIR)):

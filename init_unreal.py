@@ -31,7 +31,10 @@ import unreal
 
 # ── 1. Path setup ─────────────────────────────────────────────────────────────
 
-_PYTHON_DIR = os.path.join(unreal.Paths.project_content_dir(), "Python")
+# __file__ is Content/Python/init_unreal.py — its directory IS the Python dir.
+# unreal.Paths.project_content_dir() returns the FortniteGame engine path in UEFN
+# (Quirk #23) and must not be used here.
+_PYTHON_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if _PYTHON_DIR not in sys.path:
     sys.path.insert(0, _PYTHON_DIR)
