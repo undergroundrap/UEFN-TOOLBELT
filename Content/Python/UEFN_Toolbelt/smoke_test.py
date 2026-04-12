@@ -135,12 +135,9 @@ def _layer_python() -> None:
     else:
         _record("Layer 1", "TCP socket bind", False, "ports 8765-8770 all blocked")
 
-    # Daemon thread
-    flag = {"ok": False}
-    def _worker(): flag["ok"] = True
-    t = threading.Thread(target=_worker, daemon=True)
-    t.start(); t.join(timeout=2)
-    _record("Layer 1", "Daemon thread", flag["ok"])
+    # Daemon thread class available (creation/join removed — t.join pumps Windows messages
+    # via WaitForMultipleObjectsEx, which can fire pending Slate callbacks mid-test → crash)
+    _record("Layer 1", "threading.Thread available", hasattr(threading, "Thread"))
 
     # HTTP server class instantiable (daemon thread round-trip removed — unsafe in UEFN Slate tick)
     try:
@@ -179,39 +176,32 @@ def _layer_uefn() -> None:
     has_tick = hasattr(unreal, "register_slate_post_tick_callback")
     _record("Layer 2", "register_slate_post_tick_callback", has_tick)
 
-    # Key subsystems
+    # Key subsystems — hasattr only, no get_editor_subsystem() call.
+    # Calling get_editor_subsystem() with a class not registered in UEFN writes to null at C++ level,
+    # which Python try/except cannot catch. StaticMeshEditorSubsystem in particular may not exist in UEFN.
     for name in ["EditorActorSubsystem", "EditorAssetSubsystem",
                  "LevelEditorSubsystem", "StaticMeshEditorSubsystem"]:
-        try:
-            sub = unreal.get_editor_subsystem(getattr(unreal, name))
-            _record("Layer 2", name, sub is not None)
-        except Exception as e:
-            _record("Layer 2", name, False, str(e))
+        ok = hasattr(unreal, name)
+        _record("Layer 2", name, ok)
 
-    # Key libraries
+    # Key libraries — attribute existence only
     for lib in ["EditorAssetLibrary", "EditorLevelLibrary",
                 "EditorUtilityLibrary", "MaterialEditingLibrary",
                 "AutomationLibrary"]:
         ok = hasattr(unreal, lib)
         _record("Layer 2", lib, ok)
 
-    # AutomationLibrary.take_high_res_screenshot signature check
-    try:
-        fn = getattr(unreal.AutomationLibrary, "take_high_res_screenshot", None)
-        _record("Layer 2", "AutomationLibrary.take_high_res_screenshot", fn is not None)
-    except Exception as e:
-        _record("Layer 2", "AutomationLibrary.take_high_res_screenshot", False, str(e))
+    # AutomationLibrary method check — attribute only, no call
+    ok = hasattr(unreal, "AutomationLibrary") and \
+         hasattr(unreal.AutomationLibrary, "take_high_res_screenshot")
+    _record("Layer 2", "AutomationLibrary.take_high_res_screenshot", ok)
 
-    # Saved dir writable
+    # Saved dir path available (no write — Paths.project_saved_dir() is safe)
     try:
         saved = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt")
-        os.makedirs(saved, exist_ok=True)
-        probe = os.path.join(saved, "_smoke.tmp")
-        with open(probe, "w") as f: f.write("ok")
-        os.remove(probe)
-        _record("Layer 2", "Saved/UEFN_Toolbelt/ writable", True, saved)
+        _record("Layer 2", "Paths.project_saved_dir()", True, saved)
     except Exception as e:
-        _record("Layer 2", "Saved/UEFN_Toolbelt/ writable", False, str(e))
+        _record("Layer 2", "Paths.project_saved_dir()", False, str(e))
 
 
 # ─── Layer 3: Toolbelt core ───────────────────────────────────────────────────
@@ -268,49 +258,14 @@ def _layer_toolbelt() -> None:
     except Exception as e:
         _record("Layer 3", "tb.run() returns values", False, str(e))
 
-    # Key tools explicitly registered
+    # Key tools explicitly registered — registry lookup only, no execution.
+    # Tool execution is the integration test's job (tb.run("toolbelt_integration_test")).
+    # Running tools here risks Asset Registry crashes (Quirk #32), Slate callback
+    # re-registration, and Qt module-level side effects — all can write to null in UEFN.
     for tool_name in ["verse_gen_custom", "snapshot_save", "material_apply_preset",
                       "mcp_start", "scatter_hism", "tag_add"]:
         ok = tool_name in tb.registry
         _record("Layer 3", f"tool: {tool_name}", ok)
-
-    # Execute Safe Tools (No Actor Needed)
-    safe_tools_to_test = [
-        # Core utilities
-        "api_list_subsystems",
-        "api_search",
-        "config_list",
-        "config_get",
-        "mcp_status",
-        # mcp_restart intentionally excluded — registers Slate tick callbacks mid-test → crash
-        "plugin_export_manifest",
-        "plugin_validate_all",
-        "plugin_list_custom",
-        # Scaffold / project
-        "scaffold_list_templates",
-        # Snapshots
-        "snapshot_list",
-        # Materials
-        "material_list_presets",
-        # Text
-        "text_list_styles",
-        # Theme
-        "theme_list",
-        "theme_get",
-        # Verse
-        "verse_list_snippets",
-        "verse_graph_scan",
-        # Measurement
-        "spline_measure",
-        # LOD / memory (read-only scans)
-        "lod_audit_folder",
-    ]
-    for safe_tool in safe_tools_to_test:
-        try:
-            tb.run(safe_tool)
-            _record("Layer 3", f"Execute {safe_tool}", True)
-        except Exception as e:
-            _record("Layer 3", f"Execute {safe_tool}", False, str(e))
 
 
 # ─── Layer 4: MCP bridge ──────────────────────────────────────────────────────
