@@ -327,13 +327,15 @@ def _layer_dashboard() -> None:
 
     # QApplication instantiation skipped — creating one mid-tick and letting it
     # GC immediately causes EXCEPTION_ACCESS_VIOLATION in UEFN's Slate loop.
+    # Check that QApplication.instance() is callable (no crash) — both None and
+    # a live instance are valid; None just means the dashboard hasn't launched yet.
     try:
         from PySide6.QtWidgets import QApplication
         app = QApplication.instance()
-        _record("Layer 5", "QApplication (existing)", app is not None,
-                "None = dashboard not yet launched (normal)" if app is None else "running")
+        detail = "running" if app is not None else "not launched yet (normal)"
+        _record("Layer 5", "QApplication accessible", True, detail)
     except Exception as e:
-        _record("Layer 5", "QApplication check", False, str(e))
+        _record("Layer 5", "QApplication accessible", False, str(e))
 
     try:
         from UEFN_Toolbelt.dashboard_pyside6 import ToolbeltDashboard
