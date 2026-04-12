@@ -281,8 +281,7 @@ def smoke_test(**kwargs) -> bool:
     Returns True if all checks pass.
     """
     import sys, os
-    _CONTENT_PYTHON = os.path.join(__file__, "..", "..", "..")
-    test_path = os.path.normpath(os.path.join(_CONTENT_PYTHON, "..", "tests", "smoke_test.py"))
+    test_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "smoke_test.py")
     if test_path not in sys.path:
         sys.path.insert(0, os.path.dirname(test_path))
     import importlib.util
