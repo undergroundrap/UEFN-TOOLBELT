@@ -23,7 +23,6 @@ Results are printed to the Output Log and saved to:
 
 from __future__ import annotations
 
-import json
 import os
 import socket
 import sys
@@ -143,26 +142,16 @@ def _layer_python() -> None:
     t.start(); t.join(timeout=2)
     _record("Layer 1", "Daemon thread", flag["ok"])
 
-    # HTTP server round-trip (use a different port to avoid conflicts)
+    # HTTP server class instantiable (daemon thread round-trip removed — unsafe in UEFN Slate tick)
     try:
         class _H(BaseHTTPRequestHandler):
-            def do_GET(self):
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(b'{"ok":true}')
+            def do_GET(self): pass
             def log_message(self, *a): pass
-
-        srv = HTTPServer(("127.0.0.1", 18765), _H)
-        th = threading.Thread(target=srv.serve_forever, daemon=True)
-        th.start()
-        import urllib.request
-        resp = urllib.request.urlopen("http://127.0.0.1:18765/", timeout=3)
-        body = json.loads(resp.read())
-        srv.shutdown()
-        _record("Layer 1", "HTTP server round-trip", body.get("ok") is True)
+        srv = HTTPServer(("127.0.0.1", 0), _H)  # port 0 = OS assigns, never serve_forever
+        srv.server_close()
+        _record("Layer 1", "HTTPServer instantiable", True)
     except Exception as e:
-        _record("Layer 1", "HTTP server round-trip", False, str(e))
+        _record("Layer 1", "HTTPServer instantiable", False, str(e))
 
     # File write
     try:
@@ -293,7 +282,7 @@ def _layer_toolbelt() -> None:
         "config_list",
         "config_get",
         "mcp_status",
-        "mcp_restart",
+        # mcp_restart intentionally excluded — registers Slate tick callbacks mid-test → crash
         "plugin_export_manifest",
         "plugin_validate_all",
         "plugin_list_custom",
@@ -381,12 +370,15 @@ def _layer_dashboard() -> None:
                 "run: <UE>/Engine/Binaries/ThirdParty/Python3/Win64/python.exe -m pip install PySide6")
         return
 
+    # QApplication instantiation skipped — creating one mid-tick and letting it
+    # GC immediately causes EXCEPTION_ACCESS_VIOLATION in UEFN's Slate loop.
     try:
         from PySide6.QtWidgets import QApplication
-        app = QApplication.instance() or QApplication(sys.argv)
-        _record("Layer 5", "QApplication", app is not None)
+        app = QApplication.instance()
+        _record("Layer 5", "QApplication (existing)", app is not None,
+                "None = dashboard not yet launched (normal)" if app is None else "running")
     except Exception as e:
-        _record("Layer 5", "QApplication", False, str(e))
+        _record("Layer 5", "QApplication check", False, str(e))
 
     try:
         from UEFN_Toolbelt.dashboard_pyside6 import ToolbeltDashboard
@@ -400,9 +392,9 @@ def _layer_dashboard() -> None:
 def _layer_verse_book() -> None:
     _header("Layer 6 — Verse Book (Spec Reference)")
 
-    # Locate verse-book relative to this file (tests/ → project root → verse-book)
+    # smoke_test.py lives at Content/Python/UEFN_Toolbelt/ — go 3 levels up to project root
     here = os.path.dirname(os.path.abspath(__file__))
-    book_root = os.path.normpath(os.path.join(here, "..", "verse-book"))
+    book_root = os.path.normpath(os.path.join(here, "..", "..", "..", "verse-book"))
     docs_path = os.path.join(book_root, "docs")
 
     # Clone present
