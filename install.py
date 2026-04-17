@@ -232,7 +232,22 @@ def _install_toolbelt(project_path: str):
             existing = f.read()
 
         if _LOADER_MARKER in existing:
-            print(f"  ✓ init_unreal.py already contains the Toolbelt loader — no changes needed")
+            # Marker present — replace the old block with the current one so
+            # future installs always update the loader (e.g. after a bug fix).
+            import re as _re
+            new_content = _re.sub(
+                r"# \[UEFN_TOOLBELT_LOADER\].*?# \[/UEFN_TOOLBELT_LOADER\]",
+                _LOADER_BLOCK.strip(),
+                existing,
+                flags=_re.DOTALL,
+            )
+            try:
+                with open(dest_init, "w", encoding="utf-8") as f:
+                    f.write(new_content)
+                print(f"  ✓ Updated Toolbelt loader block in init_unreal.py")
+            except Exception as e:
+                print(f"  ✗ Failed to update init_unreal.py: {e}")
+                sys.exit(1)
         else:
             try:
                 with open(dest_init, "a", encoding="utf-8") as f:
