@@ -67,29 +67,53 @@ _UE_PYTHON_SEARCH_ROOTS = [
 ]
 
 
+_UE_PYTHON_SUFFIX = os.path.join("Engine", "Binaries", "ThirdParty", "Python3", "Win64", "python.exe")
+
+
 def _find_ue_python() -> str | None:
     """
     Find the python.exe embedded in the Unreal Engine install.
-    Tries known paths first, then scans Program Files for any Epic Games install.
+    1. Try hardcoded common paths.
+    2. Read Epic's LauncherInstalled.dat — authoritative list of all installs.
+    3. Scan all drives with common subfolder patterns as a fallback.
     Returns the path string, or None if not found.
     """
-    # 1. Try all known hardcoded paths
+    # 1. Hardcoded common paths
     for path in _UE_PYTHON_SEARCH_ROOTS:
         if os.path.exists(path):
             return path
 
-    # 2. Scan all drives for Epic Games installs
+    # 2. Epic Games Launcher manifest — most reliable, works with any custom install path
+    if sys.platform == "win32":
+        import json as _json
+        manifest = os.path.join(
+            os.environ.get("PROGRAMDATA", r"C:\ProgramData"),
+            "Epic Games", "UnrealEngineLauncher", "LauncherInstalled.dat"
+        )
+        if os.path.exists(manifest):
+            try:
+                with open(manifest, encoding="utf-8") as f:
+                    data = _json.load(f)
+                for entry in data.get("InstallationList", []):
+                    install_loc = entry.get("InstallLocation", "")
+                    if install_loc:
+                        candidate = os.path.join(install_loc, _UE_PYTHON_SUFFIX)
+                        if os.path.exists(candidate):
+                            return candidate
+            except Exception:
+                pass
+
+    # 3. Scan all drive letters with common subfolder patterns
     if sys.platform == "win32":
         import string
         drives = [f"{d}:\\" for d in string.ascii_uppercase if os.path.exists(f"{d}:\\")]
         for drive in drives:
-            for base in ["Program Files", "Program Files (x86)", "Epic Games", "Games"]:
-                candidate = os.path.join(
-                    drive, base, "Epic Games", "Fortnite",
-                    "Engine", "Binaries", "ThirdParty", "Python3", "Win64", "python.exe"
-                )
-                if os.path.exists(candidate):
-                    return candidate
+            for base in ["Program Files", "Program Files (x86)", "Epic Games", "Games", "UEFN", ""]:
+                for app in ["Fortnite", "FortniteGame", "UEFNFortnite", "EpicGames\\Fortnite"]:
+                    candidate = os.path.join(drive, base, app, _UE_PYTHON_SUFFIX) if base else \
+                                os.path.join(drive, app, _UE_PYTHON_SUFFIX)
+                    if os.path.exists(candidate):
+                        return candidate
 
     return None
 
