@@ -17,9 +17,9 @@ Generic loader contract:
 
 from typing import Any
 
-from .registry import ToolRegistry, get_registry, register_tool
 from . import core
 from .core.config import get_config
+from .registry import ToolRegistry, get_registry, register_tool
 
 # tb.config — persistent user settings, survives install.py updates
 # Lives at Saved/UEFN_Toolbelt/config.json
@@ -29,11 +29,11 @@ config = get_config()
 # Single source of truth — used in audit logs, reload messages, and manifests.
 # Bump this when shipping a release so plugin_audit.json records which version
 # of the platform each plugin was loaded against.
-__version__ = "2.2.1"
+__version__ = "2.3.6"
 
 # Total registered tools — update alongside __version__ when adding/removing tools.
 # Checked by scripts/drift_check.py to catch stale counts across docs and UI.
-__tool_count__ = 358
+__tool_count__ = 361
 
 # Total tool categories — update when adding a new category to any tool module.
 # Shown in the reload message: "355 tools registered across 54 categories."
@@ -48,6 +48,27 @@ TOOLBELT_API_VERSION = __version__
 registry: ToolRegistry = get_registry()
 
 
+# True once register() has run, i.e. init_unreal.py reached us at editor start.
+# Read by the smoke test — see startup_ran() for why this is worth tracking.
+_STARTUP_RAN = False
+
+
+def startup_ran() -> bool:
+    """
+    Did init_unreal.py actually start Toolbelt this session?
+
+    On UEFN 42.00, enabling Project Settings → Beta Access → **UEFN MCP
+    Toolsets** stops the project's init_unreal.py from running at all. Epic's
+    Toolsets plugins force-enable Python early, before the project's script
+    paths are registered, so only their own start-up scripts are scanned.
+
+    Nothing raises. Toolbelt simply never starts: the tool count is 1 instead of
+    361 and every tb.run() answers "Unknown tool", which reads as a Toolbelt bug
+    and is not one. This flag turns that silent failure into a diagnosable one.
+    """
+    return _STARTUP_RAN
+
+
 def register() -> None:
     """
     Generic loader entry point — called by init_unreal.py on editor startup.
@@ -55,7 +76,9 @@ def register() -> None:
     Any Python package placed in Content/Python/ that exposes this function
     will be picked up automatically by the generic loader.
     """
+    global _STARTUP_RAN
     import unreal
+    _STARTUP_RAN = True
     register_all_tools()
     load_custom_plugins()
     unreal.log("[TOOLBELT] ✓ All tools registered.")
@@ -90,21 +113,40 @@ def _schedule_menu() -> None:
 
 def register_all_tools() -> None:
     """Import every tool module so their @register_tool decorators fire."""
-    from . import tools as _tools  # noqa: F401 — triggers all sub-imports
-    from . import diagnostics as _diag  # noqa: F401 — registers debug tools
-    from . import dashboard_pyside6 as _dash  # noqa: F401 — registers launch_qt tool
     import unreal
+
+    from . import dashboard_pyside6 as _dash  # noqa: F401 — registers launch_qt tool
+    from . import diagnostics as _diag  # noqa: F401 — registers debug tools
+    from . import tools as _tools  # noqa: F401 — triggers all sub-imports
     unreal.log(f"[TOOLBELT] {len(registry)} tools registered across {len(registry.categories())} categories.")
+
+    # Offer the catalogue to Epic's official Unreal MCP, if this build has it.
+    # No-ops with a log line when the Experimental ToolsetRegistry plugin or the
+    # UEFN MCP beta flag is off, which is the common case — never a hard failure,
+    # and never allowed to take the 358 registered tools down with it.
+    try:
+        from . import epic_toolset
+        epic_toolset.register()
+    except Exception as _e:
+        unreal.log_warning(f"[TOOLBELT] Epic MCP registration skipped: {_e}")
 
 
 def load_custom_plugins() -> None:
     """Load user-provided tools from Saved/UEFN_Toolbelt/Custom_Plugins."""
-    import os, sys, glob, importlib, ast, hashlib, json, unreal
+    import ast
+    import glob
+    import hashlib
+    import importlib
+    import json
+    import os
+    import sys
     from datetime import datetime
+
+    import unreal
     custom_plugins_dir = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "Custom_Plugins")
     if not os.path.exists(custom_plugins_dir):
         return
-        
+
     if custom_plugins_dir not in sys.path:
         sys.path.insert(0, custom_plugins_dir)
 
@@ -119,12 +161,12 @@ def load_custom_plugins() -> None:
 
     def _scan_plugin(filepath: str) -> list:
         """Parse a .py file via AST (without executing it) and flag dangerous imports."""
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             try:
                 tree = ast.parse(f.read(), filename=filepath)
             except SyntaxError as e:
                 return [f"SyntaxError: {e}"]
-        
+
         violations = []
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -175,14 +217,14 @@ def load_custom_plugins() -> None:
 
         # Gate 2.5: API version compatibility check
         import re as _re
-        with open(p, "r", encoding="utf-8") as _vf:
+        with open(p, encoding="utf-8") as _vf:
             _src = _vf.read()
         _ver_match = _re.search(r'^MIN_TOOLBELT_VERSION\s*=\s*["\']([^"\']+)["\']', _src, _re.MULTILINE)
         if _ver_match:
             _required = _ver_match.group(1)
             def _ver_tuple(v):
                 try: return tuple(int(x) for x in v.split("."))
-                except: return (0,)
+                except Exception: return (0,)
             if _ver_tuple(_required) > _ver_tuple(__version__):
                 unreal.log_warning(
                     f"[TOOLBELT] ⚠ Plugin '{module_name}' requires Toolbelt v{_required} "
@@ -192,7 +234,7 @@ def load_custom_plugins() -> None:
 
         # Gate 3: SHA-256 integrity hash
         file_hash = _sha256(p)
-        
+
         try:
             importlib.import_module(module_name)
             valid_count += 1
@@ -280,7 +322,8 @@ def smoke_test(**kwargs) -> bool:
     Results printed to Output Log and saved to Saved/UEFN_Toolbelt/smoke_test_results.txt.
     Returns True if all checks pass.
     """
-    import sys, os
+    import os
+    import sys
     test_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "smoke_test.py")
     if test_path not in sys.path:
         sys.path.insert(0, os.path.dirname(test_path))
@@ -305,25 +348,25 @@ def _print_tool_list() -> None:
         "",
     ]
     unreal.log("\n".join(lines))
-    
+
 
 def reload() -> None:
     """Reload all Toolbelt modules and the registry."""
     import importlib
-    import unreal
-    from . import registry
-    from . import core
-    from . import tools
     import os
-    
+
+    import unreal
+
+    from . import core, registry, tools
+
     # 1. Reload core and registry
     importlib.reload(core)
     importlib.reload(registry)
-    
+
     # 2. Reset the registry singleton
     reg = registry.get_registry()
     reg._tools.clear()
-    
+
     # 3. Reload all tool modules in the tools package
     tools_pkg_path = os.path.dirname(tools.__file__)
     for f in os.listdir(tools_pkg_path):
@@ -335,7 +378,7 @@ def reload() -> None:
                     importlib.reload(submod)
             except Exception as e:
                 unreal.log_warning(f"[TOOLBELT] Reload failed for {mod_name}: {e}")
-                
+
     # 4. Finally, reload the tools/__init__.py to re-run all registrations
     importlib.reload(tools)
     unreal.log(f"[TOOLBELT] ↻ All modules reloaded and registry rebuilt. (v{__version__})")

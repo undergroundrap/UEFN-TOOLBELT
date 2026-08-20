@@ -30,11 +30,11 @@ import inspect
 import os
 import time
 import traceback
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
-import unreal
-from .core import log_info, log_error, log_warning
+from .core import log_error, log_info, log_warning
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Data model
@@ -48,7 +48,7 @@ class ToolEntry:
     description: str = ""               # tooltip / help text
     icon: str = ""                      # optional Content Browser icon path
     shortcut: str = ""                  # optional keyboard shortcut hint
-    tags: List[str] = field(default_factory=list)  # searchable tags
+    tags: list[str] = field(default_factory=list)  # searchable tags
     source: str = ""                    # filename for custom plugins; empty = core tool
     # Extensible Metadata (for Plugin Hub)
     author: str = ""
@@ -74,7 +74,7 @@ class ToolRegistry:
     """
 
     def __init__(self) -> None:
-        self._tools: Dict[str, ToolEntry] = {}
+        self._tools: dict[str, ToolEntry] = {}
 
     # ── Registration ─────────────────────────────────────────────────────────
 
@@ -86,7 +86,7 @@ class ToolRegistry:
         description: str = "",
         icon: str = "",
         shortcut: str = "",
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         source: str = "",
         author: str = "",
         version: str = "1.0.0",
@@ -100,20 +100,20 @@ class ToolRegistry:
                 source = inspect.getfile(fn)
             except Exception:
                 source = ""
-                
+
         is_custom = "Custom_Plugins" in source.replace("\\", "/")
-        
+
         if name in self._tools:
             existing_source = self._tools[name].source
             existing_is_custom = "Custom_Plugins" in existing_source.replace("\\", "/")
-            
+
             # Namespace Protection: Do not allow custom plugins to overwrite core tools
             if is_custom and not existing_is_custom:
                 log_error(f"[SECURITY] Custom plugin attempted to overwrite core OS tool '{name}'. Registration rejected.")
                 return
-                
+
             log_warning(f"Re-registering tool '{name}' (hot-reload?).")
-                
+
         self._tools[name] = ToolEntry(
             name=name,
             fn=fn,
@@ -138,7 +138,7 @@ class ToolRegistry:
         description: str = "",
         icon: str = "",
         shortcut: str = "",
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         source: str = "",
         author: str = "",
         version: str = "1.0.0",
@@ -159,6 +159,50 @@ class ToolRegistry:
 
     # ── Execution ─────────────────────────────────────────────────────────────
 
+    def execute_strict(self, tool_id: str, **kwargs) -> Any:
+        """
+        Execute a tool by name, letting failures propagate to the caller.
+
+        `execute()` swallows every exception and returns None. That is correct
+        for the dashboard — one broken tool must never take down an editor
+        session — but wrong for any caller that has to report the failure
+        onward. An MCP client cannot tell "the tool returned nothing" from "the
+        tool raised" when both arrive as None.
+
+        Every call is still recorded in the rolling activity log.
+
+        Raises:
+            KeyError:   if no tool is registered under tool_id.
+            Exception:  whatever the tool itself raised.
+        """
+        if tool_id not in self._tools:
+            raise KeyError(
+                f"Unknown tool: '{tool_id}'. Call list_tools() to see available tools.")
+
+        entry = self._tools[tool_id]
+        log_info(f"Running tool: {tool_id}")
+        _start = time.perf_counter()
+        try:
+            result = entry.fn(**kwargs)
+        except Exception:
+            _duration_ms = (time.perf_counter() - _start) * 1000
+            _tb = traceback.format_exc()
+            try:
+                from .core.activity_log import record as _record
+                _record(tool_id=tool_id, status="error", duration_ms=_duration_ms,
+                        error=_tb.strip().splitlines()[-1] if _tb.strip() else "Unknown error")
+            except Exception:
+                pass
+            raise
+
+        _duration_ms = (time.perf_counter() - _start) * 1000
+        try:
+            from .core.activity_log import record as _record
+            _record(tool_id=tool_id, status="ok", duration_ms=_duration_ms)
+        except Exception:
+            pass  # Never let logging crash a successful tool run
+        return result
+
     def execute(self, tool_id: str, **kwargs) -> Any:
         """
         Execute a tool by name. All exceptions are caught and logged so a
@@ -167,37 +211,18 @@ class ToolRegistry:
         Returns the tool's return value, or None on failure.
         Every call is recorded in the rolling activity log (core/activity_log.py).
         """
-        if tool_id not in self._tools:
-            log_error(f"Unknown tool: '{tool_id}'. Call list_tools() to see available tools.")
-            return None
-
-        entry = self._tools[tool_id]
-        log_info(f"Running tool: {tool_id}")
-        _start = time.perf_counter()
         try:
-            result = entry.fn(**kwargs)
-            _duration_ms = (time.perf_counter() - _start) * 1000
-            try:
-                from .core.activity_log import record as _record
-                _record(tool_id=tool_id, status="ok", duration_ms=_duration_ms)
-            except Exception:
-                pass  # Never let logging crash a successful tool run
-            return result
+            return self.execute_strict(tool_id, **kwargs)
+        except KeyError as e:
+            log_error(str(e.args[0]) if e.args else f"Unknown tool: '{tool_id}'")
+            return None
         except Exception:
-            _duration_ms = (time.perf_counter() - _start) * 1000
-            _tb = traceback.format_exc()
-            log_error(f"Tool '{tool_id}' raised an exception:\n{_tb}")
-            try:
-                from .core.activity_log import record as _record
-                _record(tool_id=tool_id, status="error", duration_ms=_duration_ms,
-                        error=_tb.strip().splitlines()[-1] if _tb.strip() else "Unknown error")
-            except Exception:
-                pass
+            log_error(f"Tool '{tool_id}' raised an exception:\n{traceback.format_exc()}")
             return None
 
     # ── Validation ────────────────────────────────────────────────────────────
 
-    def validate(self, tool_name: Optional[str] = None) -> List[str]:
+    def validate(self, tool_name: str | None = None) -> list[str]:
         """
         Validate tools for correct schema and standard conventions.
         Returns a list of warning/error strings. Empty list means perfect health.
@@ -208,7 +233,7 @@ class ToolRegistry:
             if name not in self._tools:
                 errors.append(f"[{name}] Tool not found.")
                 continue
-                
+
             entry = self._tools[name]
             if not name.islower() or " " in name:
                 errors.append(f"[{name}] Name must be snake_case without spaces.")
@@ -216,22 +241,22 @@ class ToolRegistry:
                 errors.append(f"[{name}] Missing description. UI will be blank.")
             if not entry.category:
                 errors.append(f"[{name}] Missing category. UI tab will be undefined.")
-            
+
             sig = inspect.signature(entry.fn)
             if not any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
                 errors.append(f"[{name}] Function signature should accept **kwargs.")
-                
+
         return errors
 
     # ── Querying ──────────────────────────────────────────────────────────────
 
-    def list_tools(self, category: Optional[str] = None) -> List[Dict[str, str]]:
+    def list_tools(self, category: str | None = None) -> list[dict[str, Any]]:
         """
         Return list-of-dict summaries, optionally filtered by category.
 
         Each dict has keys: name, category, description, icon, shortcut.
         """
-        entries = self._tools.values()
+        entries: Iterable[ToolEntry] = self._tools.values()
         if category:
             entries = (e for e in entries if e.category == category)
         return [
@@ -251,16 +276,16 @@ class ToolRegistry:
             for e in entries
         ]
 
-    def to_manifest(self) -> Dict[str, Any]:
+    def to_manifest(self) -> dict[str, Any]:
         """
         Return a full machine-readable manifest of all registered tools.
         Introspects each function's signature to expose parameter names,
         types, defaults, and required status. Designed for AI-agent
         consumption via MCP or tool_manifest.json export.
         """
-        manifest: Dict[str, Any] = {}
+        manifest: dict[str, Any] = {}
         for name, entry in self._tools.items():
-            params: Dict[str, Any] = {}
+            params: dict[str, Any] = {}
             try:
                 sig = inspect.signature(entry.fn)
                 for p_name, p in sig.parameters.items():
@@ -299,11 +324,11 @@ class ToolRegistry:
             }
         return manifest
 
-    def categories(self) -> List[str]:
+    def categories(self) -> list[str]:
         """Return sorted unique category names — used to build sidebar tabs."""
         return sorted({e.category for e in self._tools.values()})
 
-    def search(self, query: str) -> List[Dict[str, str]]:
+    def search(self, query: str) -> list[dict[str, str]]:
         """
         Case-insensitive substring search across name, description, and tags.
         """
@@ -330,7 +355,7 @@ class ToolRegistry:
 #  Singleton accessor & convenience decorator
 # ─────────────────────────────────────────────────────────────────────────────
 
-_REGISTRY: Optional[ToolRegistry] = None
+_REGISTRY: ToolRegistry | None = None
 
 
 def get_registry() -> ToolRegistry:
@@ -347,7 +372,7 @@ def register_tool(
     description: str = "",
     icon: str = "",
     shortcut: str = "",
-    tags: Optional[List[str]] = None,
+    tags: list[str] | None = None,
     author: str = "",
     version: str = "1.0.0",
     url: str = "",
