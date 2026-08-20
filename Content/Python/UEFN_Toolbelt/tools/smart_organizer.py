@@ -23,19 +23,20 @@ USAGE (REPL):
 
 from __future__ import annotations
 
-import unreal
 import re
 from collections import deque
-from typing import Optional, List, Dict, Set, Tuple, Any
+from typing import Any
 
-from ..core import log_info, log_warning, log_error, with_progress, load_asset, resolve_scan_path
+import unreal
+
+from ..core import log_error, log_info, log_warning, resolve_scan_path, with_progress
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Mappings & Heuristics
 # ─────────────────────────────────────────────────────────────────────────────
 
-CLASS_TO_TYPE: Dict[str, str] = {
+CLASS_TO_TYPE: dict[str, str] = {
     # Textures
     "Texture2D": "Textures",
     "TextureCube": "Textures",
@@ -80,7 +81,7 @@ CLASS_TO_TYPE: Dict[str, str] = {
     "DataLayerAsset": "WorldPartition",
 }
 
-CATEGORY_RULES: List[Tuple[str, Set[str]]] = [
+CATEGORY_RULES: list[tuple[str, set[str]]] = [
     ("Trees", {"tree", "trees", "oak", "pine", "birch", "branch", "stump", "log"}),
     ("Foliage", {"grass", "bush", "fern", "leaf", "shrub", "plant", "ivy", "flower"}),
     ("Rocks", {"rock", "rocks", "stone", "cliff", "boulder", "ore", "pebble"}),
@@ -109,7 +110,7 @@ def _sanitize_folder_name(name: str) -> str:
     name = re.sub(r"\s+", "_", name).strip("_")
     return name or "Misc"
 
-def _tokenize_name(name: str) -> List[str]:
+def _tokenize_name(name: str) -> list[str]:
     base = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)
     base = re.sub(r"[_\-\.]+", " ", base)
     return [t.lower() for t in base.split() if t.strip()]
@@ -135,7 +136,7 @@ def _guess_category(asset_name: str, asset_type: str) -> str:
     if asset_type == "WorldPartition": return "DataLayers"
     return "Misc"
 
-def _get_current_level_referenced_packages() -> Set[str]:
+def _get_current_level_referenced_packages() -> set[str]:
     try:
         world = unreal.EditorLevelLibrary.get_editor_world()
         world_path = str(world.get_path_name()).split(".")[0]
@@ -161,7 +162,7 @@ def _get_current_level_referenced_packages() -> Set[str]:
         pkg = queue.popleft()
         if not pkg or pkg in visited:
             continue
-            
+
         visited.add(pkg)
         try:
             deps = ar.get_dependencies(pkg, dep_options) if dep_options else ar.get_dependencies(pkg)
@@ -194,10 +195,10 @@ def run_smart_categorize(
     """
     Scans a folder path, detects the asset type, guesses a functional category using regex keywords on the asset name,
     and moves them to a structured destination.
-    
-    Example: 
+
+    Example:
       `T_Log_01` -> /Game/Organized/Textures/Trees/T_Log_01
-      
+
     Args:
         scan_path:      Folder to scan for messy assets.
         organized_root: Target baseline folder for the organized assets.
@@ -222,16 +223,16 @@ def run_smart_categorize(
         log_info("Collating level dependencies (this may take a moment)...")
         level_refs = _get_current_level_referenced_packages()
 
-    plan: List[Dict[str, Any]] = []
+    plan: list[dict[str, Any]] = []
     skipped = 0
 
     for path in asset_paths:
         package_name = path.rsplit(".", 1)[0]
-        
+
         if not include_unused and level_refs and package_name not in level_refs:
             skipped += 1
             continue
-            
+
         if package_name.startswith(organized_root):
             skipped += 1
             continue
@@ -312,7 +313,7 @@ _organizer_window = None  # singleton
 # Prefix → type mapping used by the window scan.
 # Zero per-asset API calls — pure string matching on the asset name.
 # Covers Epic naming conventions used in UEFN projects.
-_PREFIX_TO_TYPE: Dict[str, str] = {
+_PREFIX_TO_TYPE: dict[str, str] = {
     "T_":    "Textures",
     "TX_":   "Textures",
     "SM_":   "Meshes",
@@ -357,12 +358,19 @@ _ALL_TYPES = [
 def _build_organizer_window():
     """Deferred PySide6 build — returns OrganizerWindow instance."""
     from PySide6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-        QCheckBox, QFrame, QScrollArea, QTextEdit, QMessageBox,
+        QCheckBox,
+        QFrame,
+        QHBoxLayout,
+        QLabel,
+        QLineEdit,
+        QMessageBox,
+        QScrollArea,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
     )
-    from PySide6.QtCore import Qt
+
     from ..core.base_window import ToolbeltWindow
-    from ..core.theme import PALETTE
 
     class _HelpDialog(ToolbeltWindow):
         def __init__(self, parent=None):
@@ -411,7 +419,7 @@ def _build_organizer_window():
     class OrganizerWindow(ToolbeltWindow):
         def __init__(self):
             super().__init__(title="UEFN Toolbelt — Auto Organizer")
-            self._plan: List[Dict[str, Any]] = []
+            self._plan: list[dict[str, Any]] = []
             self._help_win = None
             # Derive the project mount name from __file__ (walk up to find Content/).
             # detect_project_mount() uses "most AR entries" which returns BRCosmetics
@@ -504,7 +512,7 @@ def _build_organizer_window():
 
             # ── Type checkboxes ──────────────────────────────────────────────
             types_frame, types_l = self._section("Asset Types to Organize")
-            self._type_checks: Dict[str, QCheckBox] = {}
+            self._type_checks: dict[str, QCheckBox] = {}
             row_a = QHBoxLayout()
             row_b = QHBoxLayout()
             for i, t in enumerate(_ALL_TYPES):
@@ -567,7 +575,7 @@ def _build_organizer_window():
 
         def _section(self, title: str):
             """Returns (frame, content_layout) with a titled section box."""
-            from PySide6.QtWidgets import QVBoxLayout, QLabel
+            from PySide6.QtWidgets import QLabel, QVBoxLayout
             frame = QFrame()
             frame.setStyleSheet(
                 f"QFrame {{ background:{self.hex('card')}; border:1px solid {self.hex('border')}; "
@@ -696,7 +704,7 @@ def _build_organizer_window():
                     return
 
                 # Collect .uasset files from disk
-                uasset_files: List[str] = []
+                uasset_files: list[str] = []
                 if recursive:
                     for dirpath, _dirs, filenames in os.walk(disk_root):
                         for fn in filenames:
@@ -779,11 +787,10 @@ def _build_organizer_window():
             )
 
         def _do_organize(self):
-            from PySide6.QtWidgets import QMessageBox
             if not self._plan:
                 return
             org_root   = self._plan[0]["org_root"]
-            scan_root  = self._plan[0]["scan_root"]
+            _scan_root  = self._plan[0]["scan_root"]
             msg = QMessageBox(self)
             msg.setWindowTitle("UEFN Toolbelt — Confirm Organize")
             msg.setText(
@@ -796,6 +803,7 @@ def _build_organizer_window():
 
             eal = unreal.EditorAssetLibrary
             moved, failed = 0, 0
+            collisions: list[tuple[str, str]] = []
             self._status_lbl.setText("Organizing …")
 
             for row in self._plan:
@@ -806,30 +814,56 @@ def _build_organizer_window():
                     pass
 
                 if not ok:
-                    # Rename failed — check if destination already has this asset.
-                    # This happens when a previous organize run moved the file but
-                    # left the source copy behind. Delete the stale source; the
-                    # destination copy is the authoritative one.
+                    # A failed rename with something already at the target used to
+                    # be treated as "a previous run already moved this asset", and
+                    # the source was DELETED while the row was counted as moved.
+                    #
+                    # That is wrong twice over. Two assets from different source
+                    # folders can categorise to the same target name, in which case
+                    # this deletes an unrelated asset. And even when the guess is
+                    # right, deleting the source without fixing up redirectors
+                    # leaves every referencer pointing at a dead path — which
+                    # orphans the destination copy. Verified on a live project: an
+                    # entire prop set (mesh + material + 3 textures) severed this
+                    # way, every piece left unreferenced.
+                    #
+                    # Name collisions are reported for the user to resolve. Nothing
+                    # is deleted here; asset deletion is not undoable.
                     target_pkg = row["target"].rsplit(".", 1)[0]
-                    source_pkg = row["source"].rsplit(".", 1)[0]
                     try:
                         if eal.does_asset_exist(target_pkg):
-                            eal.delete_asset(source_pkg)
-                            ok = True
-                    except Exception as _del_e:
-                        log_warning(f"smart_organizer: could not clean up duplicate {row['name']}: {_del_e}")
+                            collisions.append((row["source"], row["target"]))
+                    except Exception as e:
+                        log_warning(f"smart_organizer: could not inspect {row['name']}: {e}")
 
                 if ok:
                     moved += 1
                 else:
                     failed += 1
 
-            self._status_lbl.setText(f"Done — Moved: {moved}  Failed: {failed}")
-            self._summary_lbl.setText(
+            for source, target in collisions:
+                log_warning(
+                    f"smart_organizer: name collision — left '{source}' in place; "
+                    f"'{target}' already exists. Nothing was deleted."
+                )
+
+            self._status_lbl.setText(
+                f"Done — Moved: {moved}  Failed: {failed}"
+                + (f"  (collisions: {len(collisions)})" if collisions else "")
+            )
+            summary = (
                 f"Organize complete. Moved {moved} assets. "
                 f"Redirectors are normal and keep references valid — "
                 f"run Edit → Fix Up Redirectors to clean them up."
             )
+            if collisions:
+                summary += (
+                    f"\n\n{len(collisions)} asset(s) were left in place because "
+                    f"something already exists at the target name. Nothing was "
+                    f"deleted — see the Output Log for the full list, then rename "
+                    f"or remove the conflict and organize again."
+                )
+            self._summary_lbl.setText(summary)
             self._plan = []
             self._org_btn.setEnabled(False)
 

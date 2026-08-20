@@ -37,13 +37,17 @@ MESH PATHS:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 import unreal
 
 from ..core import (
-    undo_transaction, log_info, log_warning, log_error,
-    spawn_static_mesh_actor, load_asset, ensure_folder, get_config,
+    detect_project_mount,
+    get_config,
+    log_error,
+    log_info,
+    log_warning,
+    spawn_static_mesh_actor,
+    undo_transaction,
 )
 from ..registry import register_tool
 
@@ -52,10 +56,30 @@ from ..registry import register_tool
 # ─────────────────────────────────────────────────────────────────────────────
 
 # A simple 1×1×1 unit floor tile / cube mesh.
-MESH_FLOOR     = "/Game/UEFN_Toolbelt/Meshes/SM_Floor_Tile"
-MESH_WALL      = "/Game/UEFN_Toolbelt/Meshes/SM_Wall_Panel"
-MESH_PLATFORM  = "/Game/UEFN_Toolbelt/Meshes/SM_Platform"
-MESH_SPAWN_PAD = "/Game/UEFN_Toolbelt/Meshes/SM_SpawnPad"
+# Asset NAMES, not paths. The mount is resolved at call time -- see
+# _project_asset_path() for why a hardcoded /Game/ prefix was wrong.
+MESH_FLOOR     = "SM_Floor_Tile"
+MESH_WALL      = "SM_Wall_Panel"
+MESH_PLATFORM  = "SM_Platform"
+MESH_SPAWN_PAD = "SM_SpawnPad"
+
+_MESH_SUBPATH = "UEFN_Toolbelt/Meshes"
+_MAT_SUBPATH  = "UEFN_Toolbelt/Materials"
+
+
+def _project_asset_path(subpath: str, name: str) -> str:
+    """
+    Build a path under the USER'S project mount, e.g. /MyIsland/UEFN_Toolbelt/...
+
+    In UEFN, /Game/ does not mean the creator's project -- it resolves to Epic's
+    Fortnite install under FortniteGame/Content (UEFN_QUIRKS.md #23). Reads from a
+    hardcoded /Game/ path therefore never resolve, and writes land somewhere the
+    project cannot reference, leaving every actor that uses the asset pointing at
+    a dangling reference.
+
+    Resolved at call time, not import time: mount detection needs a live editor.
+    """
+    return f"/{detect_project_mount()}/{subpath}/{name}"
 
 # Fallback: use Engine primitives if custom meshes are missing
 MESH_FALLBACK  = "/Engine/BasicShapes/Cube"
@@ -113,20 +137,21 @@ ARENA_PRESETS = {
 #  Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _resolve_mesh(preferred: str) -> str:
-    """Use preferred mesh, fall back to config fallback if it doesn't exist."""
+def _resolve_mesh(name: str) -> str:
+    """Use the bundled mesh if present, else the configured fallback."""
+    preferred = _project_asset_path(_MESH_SUBPATH, name)
     if unreal.EditorAssetLibrary.does_asset_exist(preferred):
         return preferred
     fallback = get_config().get("arena.fallback_mesh")
     log_warning(f"Mesh not found: '{preferred}' — using fallback '{fallback}'. "
-                f"Set a custom fallback: tb.run('config_set', key='arena.fallback_mesh', value='/Game/YourMesh')")
+                f"Set a custom fallback: tb.run('config_set', key='arena.fallback_mesh', value='/YourProject/YourMesh')")
     return fallback
 
 
 def _place_floor(
     cfg: ArenaConfig,
     origin: unreal.Vector,
-    placed: List[unreal.Actor],
+    placed: list[unreal.Actor],
 ) -> None:
     mesh = _resolve_mesh(MESH_FLOOR)
     scale = unreal.Vector(cfg.tile_size / 100.0, cfg.tile_size / 100.0, 1.0)
@@ -150,8 +175,8 @@ def _place_floor(
 def _place_walls(
     cfg: ArenaConfig,
     origin: unreal.Vector,
-    placed: List[unreal.Actor],
-) -> Tuple[List[unreal.Actor], List[unreal.Actor]]:
+    placed: list[unreal.Actor],
+) -> tuple[list[unreal.Actor], list[unreal.Actor]]:
     """Place perimeter walls. Returns (red_wall_actors, blue_wall_actors)."""
     mesh = _resolve_mesh(MESH_WALL)
     half_x = (cfg.floor_tiles_x * cfg.tile_size) / 2.0
@@ -159,8 +184,8 @@ def _place_walls(
     ts = cfg.tile_size
     wall_scale_h = unreal.Vector(ts / 100.0, ts / 100.0, ts / 100.0)
 
-    red_walls: List[unreal.Actor] = []
-    blue_walls: List[unreal.Actor] = []
+    red_walls: list[unreal.Actor] = []
+    blue_walls: list[unreal.Actor] = []
 
     def place_wall_row(start_x, start_y, count, step_x, step_y, rot_yaw, prefix):
         for i in range(count):
@@ -197,7 +222,7 @@ def _place_walls(
 def _place_center_platform(
     cfg: ArenaConfig,
     origin: unreal.Vector,
-    placed: List[unreal.Actor],
+    placed: list[unreal.Actor],
 ) -> None:
     mesh = _resolve_mesh(MESH_PLATFORM)
     pt = cfg.platform_tiles
@@ -224,15 +249,15 @@ def _place_center_platform(
 def _place_spawns(
     cfg: ArenaConfig,
     origin: unreal.Vector,
-    placed: List[unreal.Actor],
-) -> List[Tuple[List[unreal.Actor], List[unreal.Actor]]]:
+    placed: list[unreal.Actor],
+) -> list[tuple[list[unreal.Actor], list[unreal.Actor]]]:
     """Place Red and Blue spawn pads. Returns (red_actors, blue_actors)."""
     import math
     mesh = _resolve_mesh(MESH_SPAWN_PAD)
     half_x = (cfg.floor_tiles_x * cfg.tile_size) / 2.0
 
-    red_actors: List[unreal.Actor]  = []
-    blue_actors: List[unreal.Actor] = []
+    red_actors: list[unreal.Actor]  = []
+    blue_actors: list[unreal.Actor] = []
 
     for team, sign, team_actors in [("Red", 1, red_actors), ("Blue", -1, blue_actors)]:
         for i in range(cfg.spawn_count):
@@ -258,11 +283,17 @@ def _place_spawns(
 #  Direct color fallback (no M_ToolbeltBase required)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Paths where auto-generated team materials are stored.
-# Created once on first arena spawn, reused on every subsequent call.
-_MAT_RED_PATH  = "/Game/UEFN_Toolbelt/Materials/M_Arena_TeamRed"
-_MAT_BLUE_PATH = "/Game/UEFN_Toolbelt/Materials/M_Arena_TeamBlue"
-_MAT_FOLDER    = "/Game/UEFN_Toolbelt/Materials"
+# Where auto-generated team materials are stored. Created once on first arena
+# spawn, reused on every subsequent call. These are WRITES, so a wrong mount does
+# not just fail to find something -- it produces assets the project cannot
+# reference. Resolved per call against the project mount.
+
+def _mat_red_path() -> str:
+    return _project_asset_path(_MAT_SUBPATH, "M_Arena_TeamRed")
+
+
+def _mat_blue_path() -> str:
+    return _project_asset_path(_MAT_SUBPATH, "M_Arena_TeamBlue")
 
 
 def _create_flat_color_material(asset_path: str, r: float, g: float, b: float):
@@ -307,8 +338,8 @@ def _get_team_materials():
     Return (red_mat, blue_mat). Creates them on first call if they don't exist.
     Falls back to WorldGridMaterial for blue if creation fails.
     """
-    red_mat  = _create_flat_color_material(_MAT_RED_PATH,  1.0, 0.05, 0.05)
-    blue_mat = _create_flat_color_material(_MAT_BLUE_PATH, 0.05, 0.2,  1.0)
+    red_mat  = _create_flat_color_material(_mat_red_path(),  1.0, 0.05, 0.05)
+    blue_mat = _create_flat_color_material(_mat_blue_path(), 0.05, 0.2,  1.0)
 
     # Last resort for blue: WorldGridMaterial always exists
     if blue_mat is None:
@@ -317,7 +348,7 @@ def _get_team_materials():
     return red_mat, blue_mat
 
 
-def _set_material_on_actors(actors: List[unreal.Actor], mat) -> int:
+def _set_material_on_actors(actors: list[unreal.Actor], mat) -> int:
     """Apply mat to every material slot on every StaticMeshComponent in actors list."""
     colored = 0
     for actor in actors:
@@ -333,12 +364,12 @@ def _set_material_on_actors(actors: List[unreal.Actor], mat) -> int:
 
 
 def _apply_team_colors(
-    red_actors: List[unreal.Actor],
-    blue_actors: List[unreal.Actor],
+    red_actors: list[unreal.Actor],
+    blue_actors: list[unreal.Actor],
 ) -> None:
     """
     Apply solid red/blue materials to the given actor lists.
-    Creates /Game/UEFN_Toolbelt/Materials/M_Arena_TeamRed|Blue on first run,
+    Creates <ProjectMount>/UEFN_Toolbelt/Materials/M_Arena_TeamRed|Blue on first run,
     then reuses them. No custom parent material (M_ToolbeltBase) required.
     """
     red_mat, blue_mat = _get_team_materials()
@@ -367,7 +398,7 @@ def _apply_team_colors(
 )
 def run_generate(
     size: str = "medium",
-    origin: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    origin: tuple[float, float, float] = (0.0, 0.0, 0.0),
     apply_team_colors: bool = True,
     **kwargs,
 ) -> dict:
@@ -384,7 +415,7 @@ def run_generate(
 
     cfg = ARENA_PRESETS[size]
     origin_vec = unreal.Vector(*origin)
-    all_placed: List[unreal.Actor] = []
+    all_placed: list[unreal.Actor] = []
 
     log_info(f"Generating '{size}' arena at {origin}…")
 

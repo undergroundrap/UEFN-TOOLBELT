@@ -36,8 +36,8 @@ from typing import Any
 
 import unreal
 
-from UEFN_Toolbelt.registry import register_tool
 from UEFN_Toolbelt.core import resolve_scan_path
+from UEFN_Toolbelt.registry import register_tool
 
 # ─── Output ───────────────────────────────────────────────────────────────────
 
@@ -78,12 +78,122 @@ def _list_all_assets(scan_path: str, class_names: list[str] | None = None) -> li
     return results
 
 
-def _get_referencers(asset_path: str) -> list[str]:
-    """Return packages that reference this asset."""
+class ReferenceLookupUnavailable(RuntimeError):
+    """
+    Raised when this engine build exposes no working reference-lookup API.
+
+    UEFN 42.00 (UE 6.0) removed EditorAssetLibrary.find_package_referencers.
+    This MUST NOT be swallowed into an empty list. Every orphan check in this
+    module inverts the answer -- "no referencers" means "safe to delete" -- and
+    ref_delete_orphans acts on it permanently. Returning [] on a missing API is
+    indistinguishable from "delete everything in the project".
+    """
+
+
+# Resolved once per session: callable(asset_path) -> list[str], or None.
+_REF_LOOKUP = None
+_REF_LOOKUP_PROBED = False
+
+
+def _strategy_works(fn) -> bool:
+    """
+    Verify a lookup strategy is actually callable on this build, not merely
+    present. Attribute existence is not enough: an API can survive a rename of
+    its parameters, in which case every call raises TypeError deep inside a scan
+    loop and the tool returns None instead of a clean refusal.
+
+    A signature or availability problem (TypeError / AttributeError) disqualifies
+    the strategy. Any other exception means the API is real and callable and the
+    probe path simply is not a valid asset -- which is expected.
+    """
     try:
-        return list(unreal.EditorAssetLibrary.find_package_referencers(asset_path))
+        fn("/Engine/Transient")
+    except (TypeError, AttributeError):
+        return False
     except Exception:
-        return []
+        return True
+    return True
+
+
+def _resolve_ref_lookup():
+    """Pick a reference-lookup strategy that works on this engine build."""
+    global _REF_LOOKUP, _REF_LOOKUP_PROBED
+    if _REF_LOOKUP_PROBED:
+        return _REF_LOOKUP
+    _REF_LOOKUP_PROBED = True
+
+    # Strategy 1 -- UEFN <= 41.x (UE 5.x).
+    legacy = getattr(unreal.EditorAssetLibrary, "find_package_referencers", None)
+    if callable(legacy):
+        def _via_legacy(p: str) -> list[str]:
+            return [str(x) for x in (legacy(p) or [])]
+        _REF_LOOKUP = _via_legacy
+        return _REF_LOOKUP
+
+    # Strategy 2 -- UE 6.0 Asset Registry.
+    try:
+        ar = unreal.AssetRegistryHelpers.get_asset_registry()
+        if callable(getattr(ar, "get_referencers", None)):
+            def _via_registry(p: str) -> list[str]:
+                pkg = p.split(".")[0]
+                try:
+                    opts = unreal.AssetRegistryDependencyOptions(
+                        include_hard_package_references=True,
+                        include_soft_package_references=True,
+                    )
+                    refs = ar.get_referencers(pkg, opts)
+                except TypeError:
+                    refs = ar.get_referencers(pkg)
+                return [str(x) for x in (refs or [])]
+
+            if _strategy_works(_via_registry):
+                _REF_LOOKUP = _via_registry
+                return _REF_LOOKUP
+    except Exception:
+        pass
+
+    _REF_LOOKUP = None
+    return None
+
+
+def reference_lookup_available() -> bool:
+    """True if this build can answer 'what references this asset?'."""
+    return _resolve_ref_lookup() is not None
+
+
+NO_REF_API_MSG = (
+    "Reference lookup is unavailable in this engine build. UEFN 42.00 (UE 6.0) "
+    "removed EditorAssetLibrary.find_package_referencers and no Asset Registry "
+    "fallback resolved. Orphan and unused-texture detection are DISABLED rather "
+    "than reporting every asset as unreferenced -- acting on that answer would "
+    "delete your project. Redirector and duplicate-name scans still work."
+)
+
+
+def _get_referencers(asset_path: str) -> list[str]:
+    """
+    Return packages that reference this asset.
+
+    Raises ReferenceLookupUnavailable when the engine cannot answer. Never
+    returns [] to mean "could not determine" -- callers read [] as "orphan".
+    """
+    lookup = _resolve_ref_lookup()
+    if lookup is None:
+        raise ReferenceLookupUnavailable(NO_REF_API_MSG)
+    return lookup(asset_path)
+
+
+def _count_referencers_soft(asset_path: str):
+    """
+    Referencer count for display only; None when unknown.
+
+    Safe for the redirector scan, which prints the count but never deletes
+    based on it.
+    """
+    try:
+        return len(_get_referencers(asset_path))
+    except Exception:
+        return None
 
 
 def _get_asset_class_name(asset_path: str) -> str:
@@ -102,6 +212,52 @@ def _icon(severity: str) -> str:
 
 # ─── Scan: Orphans ────────────────────────────────────────────────────────────
 
+# Assets that are reference-tree ROOTS. Nothing in the asset graph points at
+# them, so a referencer count of 0 is their normal, healthy state -- not a sign
+# they are unused. Verified against a live UEFN 42.00 project: GameFeatureData
+# and the default HLOD layer both report 0 referencers while being load-bearing.
+ROOT_ASSET_CLASSES = frozenset({
+    "World", "Blueprint", "BlueprintGeneratedClass",
+    "WidgetBlueprint", "EditorUtilityWidget", "EditorUtilityBlueprint",
+    "EditorUtilityWidgetBlueprint", "AnimBlueprint", "LevelSequence",
+    # Project plumbing -- referenced by .uplugin / WorldSettings / cook rules,
+    # none of which are packages, so the Asset Registry cannot see the link.
+    "GameFeatureData",        # the plugin descriptor asset; deleting it kills the project
+    "HLODLayer",              # referenced by WorldSettings, never by a package
+    "PrimaryAssetLabel",      # a cook root by design
+    "WorldPartitionMiniMap",
+})
+
+
+def _is_scannable_asset(path: str) -> bool:
+    """
+    False for object paths that are not standalone, deletable assets.
+
+    ':' marks a sub-object inside a package -- e.g.
+    /P/MyLevel.MyLevel:PersistentLevel.ActorFolder_UID_xxx. Thousands of these
+    exist under one-file-per-actor, they all resolve to the same owning package,
+    and none can be deleted individually.
+
+    '$' appears in UEFN 42.00 Verse digest paths, which EditorAssetSubsystem
+    rejects outright ("Can't convert the path $Digest"), logging an editor error
+    on every single lookup.
+    """
+    return ":" not in path and "$" not in path
+
+
+def _is_root_level_package(path: str) -> bool:
+    """
+    True if the asset sits directly at the mount root, e.g.
+    /MyProject/GameFeatureData.
+
+    Project-level plumbing lives there and is referenced by configuration rather
+    than by other packages, so it always reads as a clean orphan. Real content
+    lives in subfolders, so this costs almost nothing and closes the case where
+    class-name lookup fails or a future engine renames one of these types.
+    """
+    return len(path.strip("/").split("/")) <= 2
+
+
 def _scan_orphans(scan_path: str, excluded_classes: list[str]) -> list[dict[str, Any]]:
     """
     Find assets with zero referencers.
@@ -109,25 +265,41 @@ def _scan_orphans(scan_path: str, excluded_classes: list[str]) -> list[dict[str,
     Maps, Blueprints, and World assets are skipped — they are typically
     the roots of reference trees and will always appear orphaned by this check.
     """
-    skip_classes = set(excluded_classes) | {
-        "World", "Blueprint", "BlueprintGeneratedClass",
-        "WidgetBlueprint", "EditorUtilityWidget",
-        "AnimBlueprint", "LevelSequence",
-    }
+    skip_classes = set(excluded_classes) | ROOT_ASSET_CLASSES
 
     all_paths = _list_all_assets(scan_path)
     orphans: list[dict[str, Any]] = []
 
     unreal.log(f"[RefAuditor] Scanning {len(all_paths)} assets for orphans…")
 
+    protected = 0
+    subobjects = 0
     for path in all_paths:
+        if not _is_scannable_asset(path):
+            subobjects += 1
+            continue
         cls = _get_asset_class_name(path)
-        if cls in skip_classes:
+        if cls in skip_classes or _is_root_level_package(path):
+            protected += 1
             continue
         refs = _get_referencers(path)
         if not refs:
             orphans.append({"path": path, "class": cls})
 
+    if subobjects:
+        unreal.log(
+            f"[RefAuditor] {subobjects} level sub-object(s) skipped — not "
+            f"standalone assets."
+        )
+    if protected:
+        unreal.log(
+            f"[RefAuditor] {protected} reference-root asset(s) protected from "
+            f"orphan classification (project plumbing, maps, blueprints)."
+        )
+    unreal.log(
+        f"[RefAuditor] {len(all_paths) - subobjects - protected} asset(s) "
+        f"evaluated → {len(orphans)} orphaned."
+    )
     return orphans
 
 
@@ -141,11 +313,11 @@ def _scan_redirectors(scan_path: str) -> list[dict[str, Any]]:
     for path in all_paths:
         cls = _get_asset_class_name(path)
         if "redirector" in cls.lower() or "objectredirector" in cls.lower():
-            refs = _get_referencers(path)
+            count = _count_referencers_soft(path)
             redirectors.append({
                 "path": path,
                 "class": cls,
-                "referencer_count": len(refs),
+                "referencer_count": count if count is not None else -1,
             })
 
     return redirectors
@@ -275,6 +447,19 @@ def _delete_orphans(
     """
     orphans = _scan_orphans(scan_path, excluded_classes)
 
+    # Defence in depth. _scan_orphans already filters these, but deletion is
+    # permanent and not undoable -- a refactor there must not be able to silently
+    # unprotect the project descriptor. Re-filter at the point of no return.
+    refused = [o for o in orphans
+               if _is_root_level_package(o["path"]) or o["class"] in ROOT_ASSET_CLASSES]
+    if refused:
+        orphans = [o for o in orphans if o not in refused]
+        for o in refused:
+            unreal.log_warning(
+                f"[RefAuditor] REFUSED to delete reference-root asset: {o['path']} "
+                f"({o['class']}) -- 0 referencers is normal for this asset type."
+            )
+
     if not orphans:
         unreal.log("[RefAuditor] No orphaned assets found.")
         return 0
@@ -306,18 +491,26 @@ def _delete_orphans(
 # ─── Full report ──────────────────────────────────────────────────────────────
 
 def _full_report(scan_path: str, excluded_classes: list[str]) -> dict[str, Any]:
-    orphans       = _scan_orphans(scan_path, excluded_classes)
-    redirectors   = _scan_redirectors(scan_path)
-    duplicates    = _scan_duplicates(scan_path)
-    unused_tex    = _scan_unused_textures(scan_path)
+    # Redirector and duplicate scans never need reference lookup, so they still
+    # run on builds where it is gone. Orphan / unused-texture sections degrade
+    # to an explicit "unavailable" instead of silently reporting zero.
+    ref_ok = reference_lookup_available()
+    orphans     = _scan_orphans(scan_path, excluded_classes) if ref_ok else []
+    unused_tex  = _scan_unused_textures(scan_path)           if ref_ok else []
+    redirectors = _scan_redirectors(scan_path)
+    duplicates  = _scan_duplicates(scan_path)
+
+    if not ref_ok:
+        unreal.log_warning("[RefAuditor] " + NO_REF_API_MSG)
 
     report: dict[str, Any] = {
         "scan_path": scan_path,
+        "reference_lookup_available": ref_ok,
         "summary": {
-            "orphaned_assets":    len(orphans),
+            "orphaned_assets":    len(orphans) if ref_ok else "unavailable",
             "redirectors":        len(redirectors),
             "duplicate_names":    len(duplicates),
-            "unused_textures":    len(unused_tex),
+            "unused_textures":    len(unused_tex) if ref_ok else "unavailable",
         },
         "orphans":      orphans,
         "redirectors":  redirectors,
@@ -335,13 +528,14 @@ def _full_report(scan_path: str, excluded_classes: list[str]) -> dict[str, Any]:
 def _print_summary(report: dict[str, Any]) -> None:
     s = report["summary"]
     unreal.log(f"\n[RefAuditor] ═══ Audit Report: {report['scan_path']} ═══")
-    unreal.log(f"  {_icon('warning' if s['orphaned_assets']  else 'ok')}  Orphaned assets:  {s['orphaned_assets']}")
+    _unavail = "unavailable"
+    unreal.log(f"  {_icon('critical' if s['orphaned_assets'] == _unavail else ('warning' if s['orphaned_assets'] else 'ok'))}  Orphaned assets:  {s['orphaned_assets']}")
     unreal.log(f"  {_icon('warning' if s['redirectors']      else 'ok')}  Redirectors:      {s['redirectors']}")
     unreal.log(f"  {_icon('warning' if s['duplicate_names']  else 'ok')}  Duplicate names:  {s['duplicate_names']}")
-    unreal.log(f"  {_icon('warning' if s['unused_textures']  else 'ok')}  Unused textures:  {s['unused_textures']}")
+    unreal.log(f"  {_icon('critical' if s['unused_textures'] == _unavail else ('warning' if s['unused_textures'] else 'ok'))}  Unused textures:  {s['unused_textures']}")
     unreal.log(f"\n  Full report → {_REPORT_PATH}\n")
 
-    if s["orphaned_assets"]:
+    if s["orphaned_assets"] and s["orphaned_assets"] != _unavail:
         unreal.log("  Top orphans:")
         for o in report["orphans"][:10]:
             unreal.log(f"    {o['class']:30s}  {o['path']}")
@@ -379,6 +573,10 @@ def ref_audit_orphans(
         dict: {"status", "count", "orphans": [{"path", "class"}]}
     """
     scan_path = resolve_scan_path(scan_path)
+    if not reference_lookup_available():
+        unreal.log_warning("[RefAuditor] " + NO_REF_API_MSG)
+        return {"status": "error", "reason": "reference_api_unavailable",
+                "message": NO_REF_API_MSG}
     excluded = excluded_classes or []
     orphans = _scan_orphans(scan_path, excluded)
 
@@ -469,6 +667,10 @@ def ref_audit_unused_textures(scan_path: str = "", **kwargs) -> dict:
         dict: {"status", "count", "textures": [{"path", "class"}]}
     """
     scan_path = resolve_scan_path(scan_path)
+    if not reference_lookup_available():
+        unreal.log_warning("[RefAuditor] " + NO_REF_API_MSG)
+        return {"status": "error", "reason": "reference_api_unavailable",
+                "message": NO_REF_API_MSG}
     unused = _scan_unused_textures(scan_path)
 
     if not unused:
@@ -537,6 +739,10 @@ def ref_delete_orphans(
         dict: {"status", "deleted", "dry_run"}
     """
     scan_path = resolve_scan_path(scan_path)
+    if not reference_lookup_available():
+        unreal.log_warning("[RefAuditor] " + NO_REF_API_MSG)
+        return {"status": "error", "reason": "reference_api_unavailable",
+                "message": NO_REF_API_MSG, "deleted": 0, "dry_run": dry_run}
     excluded = excluded_classes or []
     count = _delete_orphans(scan_path, dry_run, excluded)
     if not dry_run and count:
