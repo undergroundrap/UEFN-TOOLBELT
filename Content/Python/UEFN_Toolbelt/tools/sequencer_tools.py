@@ -5,9 +5,12 @@ Cinematic automation for Level Sequences.
 """
 
 from __future__ import annotations
+
 import unreal
-from ..core import log_info, log_error, undo_transaction, require_selection
+
+from ..core import log_error, log_info, require_selection, undo_transaction
 from ..registry import register_tool
+
 
 @register_tool(
     name="seq_actor_to_spline",
@@ -54,10 +57,10 @@ def run_actor_to_spline(duration: float = 5.0, fps: int = 30, **kwargs) -> dict:
         asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
         seq_name = f"LS_Path_{target_actor.get_actor_label()}"
         seq_path = "/Game/UEFN_Toolbelt/Sequences"
-        
+
         # Ensure folder exists
         unreal.EditorAssetLibrary.make_directory(seq_path)
-        
+
         ls = asset_tools.create_asset(seq_name, seq_path, unreal.LevelSequence, unreal.LevelSequenceFactoryNew())
         if not ls:
             log_error("Failed to create Level Sequence.")
@@ -69,7 +72,7 @@ def run_actor_to_spline(duration: float = 5.0, fps: int = 30, **kwargs) -> dict:
 
         # Add Possessable
         possessable = ls.add_possessable(target_actor)
-        
+
         # Add Transform Track
         transform_track = possessable.add_track(unreal.MovieScene3DTransformTrack)
         transform_section = transform_track.add_section()
@@ -81,15 +84,15 @@ def run_actor_to_spline(duration: float = 5.0, fps: int = 30, **kwargs) -> dict:
             dist = t * length
             pos = spline.get_location_at_distance_along_spline(dist, unreal.SplineCoordinateSpace.WORLD)
             rot = spline.get_rotation_at_distance_along_spline(dist, unreal.SplineCoordinateSpace.WORLD)
-            
+
             # Add keys to the transform channels
             # Note: In UEFN we use the MovieScene scripting API
             for i, val in enumerate([pos.x, pos.y, pos.z]):
                 channel = transform_section.get_channels()[i] # Location X, Y, Z
                 channel.add_key(unreal.FrameNumber(frame), val)
-                
+
             for i, val in enumerate([rot.roll, rot.pitch, rot.yaw]):
-                channel = transform_section.get_channels()[idx := i + 3] # Rotation R, P, Y
+                channel = transform_section.get_channels()[_idx := i + 3] # Rotation R, P, Y
                 channel.add_key(unreal.FrameNumber(frame), val)
 
     log_info(f"Created Level Sequence: {seq_path}/{seq_name}")

@@ -28,15 +28,15 @@ NOTE:
 """
 
 import unreal
-from ..core import log_info, log_warning, get_selected_actors
+
+from ..core import get_selected_actors, log_info, log_warning
 from ..registry import register_tool
 
 
 def _get_mesh_component(actor):
     """Return the first StaticMeshComponent on an actor, or None."""
     try:
-        comp = actor.get_component_by_class(unreal.StaticMeshComponent)
-        return comp
+        return actor.get_component_by_class(unreal.StaticMeshComponent)
     except Exception:
         return None
 

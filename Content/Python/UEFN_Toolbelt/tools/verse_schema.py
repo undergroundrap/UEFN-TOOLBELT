@@ -1,16 +1,18 @@
 import os
 import re
-import json
+
 import unreal
+
+from ..core import log_info, log_warning
 from ..registry import register_tool
-from ..core import log_info, log_error, log_warning
+
 
 class VerseSchemaParser:
     """
     Parses Verse .digest files (fortnite.digest, verse.digest, unreal.digest)
     to build a native schema of device types and properties.
     """
-    
+
     def __init__(self):
         self.device_schemas = {}
         self.loaded = False
@@ -26,17 +28,17 @@ class VerseSchemaParser:
             if os.path.basename(curr) == "Content":
                 proj_root = os.path.dirname(curr)
                 break
-        
+
         if not proj_root:
             proj_root = unreal.Paths.project_dir()
 
         # UEFN 5.4+ often stores digests in the Local AppData folder
         appdata = os.path.expandvars("%LOCALAPPDATA%")
         saved_verse = os.path.join(appdata, "UnrealEditorFortnite", "Saved", "VerseProject")
-        
+
         search_paths = [
             proj_root,
-            os.path.join(proj_root, ".verse"), 
+            os.path.join(proj_root, ".verse"),
             saved_verse,
             unreal.Paths.project_content_dir(),
             unreal.Paths.project_plugins_dir(),
@@ -45,9 +47,9 @@ class VerseSchemaParser:
             unreal.Paths.engine_content_dir(),
             unreal.Paths.engine_plugins_dir()
         ]
-        
-        search_paths = list(set([os.path.abspath(p) for p in search_paths if p and os.path.exists(p)]))
-        
+
+        search_paths = list({os.path.abspath(p) for p in search_paths if p and os.path.exists(p)})
+
         digest_files = []
         for path in search_paths:
             for root, _, files in os.walk(path):
@@ -56,26 +58,26 @@ class VerseSchemaParser:
                 for file in files:
                     lower_file = file.lower()
                     if "digest" in lower_file:
-                        if lower_file.endswith(".verse") or lower_file.endswith(".digest"):
+                        if lower_file.endswith((".verse", ".digest")):
                             digest_files.append(os.path.join(root, file))
-        
+
         for file in set(digest_files):
             try:
                 self._parse_file(file)
             except Exception as e:
                 log_warning(f"Failed to parse digest {file}: {str(e)}")
-        
+
         self.loaded = True
         log_info(f"Verse Schema updated: {len(self.device_schemas)} definitions loaded.")
 
     def _parse_file(self, file_path):
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             content = f.read()
-            
+
         lines = content.splitlines()
         current_class = None
         base_indent = 0
-        
+
         # Regex patterns from FortniteForge logic
         # Regex patterns - handling <public>, <concrete>, etc. more robustly
         # class_pattern: name<visibility> := class<specifiers>(parent)
@@ -85,11 +87,11 @@ class VerseSchemaParser:
 
         for line in lines:
             trimmed = line.lstrip()
-            if not trimmed or trimmed.startswith("#") or trimmed.startswith("//"):
+            if not trimmed or trimmed.startswith(("#", "//")):
                 continue
-            
+
             indent = len(line) - len(trimmed)
-            
+
             # Detect class
             class_match = class_pattern.match(trimmed)
             if class_match:
@@ -105,14 +107,14 @@ class VerseSchemaParser:
                 self.device_schemas[class_name] = current_class
                 base_indent = indent
                 continue
-            
+
             # Detect members
             if current_class and indent > base_indent:
                 prop_match = prop_pattern.match(trimmed)
                 if prop_match:
                     name = prop_match.group(1)
                     prop_type = prop_match.group(2).strip()
-                    
+
                     if "event" in prop_type or "listenable" in prop_type:
                         current_class["events"].append(name)
                     elif "(" in prop_type and ")" in prop_type:

@@ -28,12 +28,9 @@ USAGE:
 
 from __future__ import annotations
 
-import math
-from typing import Any
-
 import unreal
 
-from ..core import log_info, log_warning, log_error
+from ..core import log_info
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -281,7 +278,7 @@ def _run_health_report(on_progress=None) -> dict:
     grade = _grade(score)
 
     log_info(f"Level Health Report: {score}/100 ({grade})")
-    for cid, cdata in category_results.items():
+    for _cid, cdata in category_results.items():
         status = "✅" if cdata["ratio"] >= 0.9 else ("⚠️" if cdata["ratio"] >= 0.6 else "❌")
         log_info(f"  {status} {cdata['label']}: {cdata['score']:.1f}/{cdata['max']} — {cdata['summary']}")
 

@@ -43,14 +43,17 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
-from typing import List, Optional
 
 import unreal
 
 from ..core import (
-    log_info, log_warning, log_error,
-    ensure_folder, load_asset, create_material_instance,
-    spawn_static_mesh_actor, with_progress,
+    create_material_instance,
+    ensure_folder,
+    load_asset,
+    log_error,
+    log_info,
+    log_warning,
+    spawn_static_mesh_actor,
 )
 from ..registry import register_tool
 
@@ -105,7 +108,7 @@ def _build_import_task(
     return task
 
 
-def _run_import_tasks(tasks: List[unreal.AssetImportTask]) -> List[str]:
+def _run_import_tasks(tasks: list[unreal.AssetImportTask]) -> list[str]:
     """Execute import tasks and return list of imported asset paths."""
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
     imported = []

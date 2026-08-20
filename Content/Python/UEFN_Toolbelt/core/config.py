@@ -84,16 +84,19 @@ class Config:
     def _load(self) -> None:
         if os.path.exists(self._path):
             try:
-                with open(self._path, "r", encoding="utf-8") as f:
+                with open(self._path, encoding="utf-8") as f:
                     self._data = json.load(f)
             except Exception:
                 self._data = {}
         else:
             self._data = {}
 
-    def _ensure_loaded(self) -> None:
+    def _ensure_loaded(self) -> dict[str, Any]:
+        """Load on first use and return the (now non-None) data dict."""
         if self._data is None:
             self._load()
+        assert self._data is not None  # _load() always assigns a dict
+        return self._data
 
     def _save(self) -> None:
         os.makedirs(os.path.dirname(self._path), exist_ok=True)
@@ -107,17 +110,17 @@ class Config:
         Return the value for key.
         Priority: user config → DEFAULTS → fallback argument.
         """
-        self._ensure_loaded()
-        if key in self._data:
-            return self._data[key]
+        data = self._ensure_loaded()
+        if key in data:
+            return data[key]
         if key in DEFAULTS:
             return DEFAULTS[key]
         return fallback
 
     def set(self, key: str, value: Any) -> None:
         """Set a value and immediately persist it to disk."""
-        self._ensure_loaded()
-        self._data[key] = value
+        data = self._ensure_loaded()
+        data[key] = value
         self._save()
 
     def reset(self, key: str) -> bool:
@@ -125,9 +128,9 @@ class Config:
         Remove a user-set value, restoring the default.
         Returns True if the key existed, False if it wasn't set.
         """
-        self._ensure_loaded()
-        if key in self._data:
-            del self._data[key]
+        data = self._ensure_loaded()
+        if key in data:
+            del data[key]
             self._save()
             return True
         return False
@@ -139,15 +142,14 @@ class Config:
         customised show the default value with an 'is_default' marker in
         config_list output (not in this dict — this is the clean merged view).
         """
-        self._ensure_loaded()
+        data = self._ensure_loaded()
         merged = dict(DEFAULTS)
-        merged.update(self._data)
+        merged.update(data)
         return merged
 
     def is_default(self, key: str) -> bool:
         """True if the user has not customised this key."""
-        self._ensure_loaded()
-        return key not in self._data
+        return key not in self._ensure_loaded()
 
 
 # ── Singleton ──────────────────────────────────────────────────────────────────

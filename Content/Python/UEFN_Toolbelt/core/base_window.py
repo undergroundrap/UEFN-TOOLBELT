@@ -33,7 +33,7 @@ See docs/ui_style_guide.md for the full color palette and widget reference.
 
 from __future__ import annotations
 
-from typing import Callable, Optional, Tuple
+from collections.abc import Callable
 
 from .theme import PALETTE, QSS, subscribe, unsubscribe
 
@@ -41,25 +41,32 @@ from .theme import PALETTE, QSS, subscribe, unsubscribe
 
 _PYSIDE6 = False
 try:
+    from PySide6.QtCore import QPointF, Qt
+    from PySide6.QtGui import QBrush, QColor, QFont, QIcon, QPainter, QPixmap, QPolygonF
     from PySide6.QtWidgets import (
-        QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-        QPushButton, QLabel, QFrame, QTextEdit, QScrollArea,
+        QFrame,
+        QHBoxLayout,
+        QLabel,
+        QMainWindow,
+        QPushButton,
+        QScrollArea,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
     )
-    from PySide6.QtGui import QColor, QFont, QIcon, QPixmap, QPainter, QBrush, QPolygonF
-    from PySide6.QtCore import Qt, QPointF
     _PYSIDE6 = True
 except ImportError:
     QMainWindow = object  # type: ignore[misc,assignment]
 
 
-def make_toolbelt_icon() -> "QIcon":
+def make_toolbelt_icon() -> QIcon:
     """
     Create the canonical UEFN Toolbelt window icon — blue hexagon with 'TB' text.
     Used by ToolbeltWindow (auto-applied) and ToolbeltDashboard.
     Import this wherever you need the icon; never recreate it inline.
     """
     if not _PYSIDE6:
-        return None  # type: ignore[return-value]
+        return None
     import math
     size = 64
     pm = QPixmap(size, size)
@@ -106,7 +113,7 @@ if _PYSIDE6:
             title: str = "TOOLBELT",
             width: int = 900,
             height: int = 600,
-            parent: Optional[QWidget] = None,
+            parent: QWidget | None = None,
         ) -> None:
             super().__init__(parent)
             self.setWindowTitle(title)
@@ -148,7 +155,7 @@ if _PYSIDE6:
             because Qt's event loop is never pumped (Unreal owns the thread).
             Call this instead of show().
             """
-            import unreal  # type: ignore[import]
+            import unreal
             from PySide6.QtWidgets import QApplication
 
             app = QApplication.instance() or QApplication([])
@@ -178,7 +185,7 @@ if _PYSIDE6:
             """Close the window and unregister the Slate tick cleanly."""
             self.close()
             try:
-                import unreal  # type: ignore[import]
+                import unreal
                 if self._slate_tick_handle[0] is not None:
                     unreal.unregister_slate_post_tick_callback(
                         self._slate_tick_handle[0]
@@ -188,7 +195,7 @@ if _PYSIDE6:
 
         # ── Widget factory helpers ────────────────────────────────────────────
 
-        def make_topbar(self, title: str) -> Tuple[QWidget, QHBoxLayout]:
+        def make_topbar(self, title: str) -> tuple[QWidget, QHBoxLayout]:
             """
             Standard 46px Toolbelt top bar with brand-red title.
             Returns (bar_widget, bar_layout).
@@ -222,7 +229,7 @@ if _PYSIDE6:
             self,
             text: str,
             accent: bool = False,
-            cb: Optional[Callable] = None,
+            cb: Callable | None = None,
             height: int = 28,
             width: int = 0,
         ) -> QPushButton:
@@ -330,7 +337,7 @@ if _PYSIDE6:
                 self.hex("warn")  if value >= warn_threshold else
                 self.hex("error")
             )
-            h = bar.height() or height
+            h = bar.height() or 4   # 4 = make_hbar() default height
             bar.setStyleSheet(
                 f"background:qlineargradient(x1:0,y1:0,x2:1,y2:0,"
                 f"stop:0 {col},stop:{pct:.3f} {col},"
@@ -343,7 +350,7 @@ if _PYSIDE6:
             self,
             width: int = 314,
             border_left: bool = True,
-        ) -> Tuple[QScrollArea, QWidget]:
+        ) -> tuple[QScrollArea, QWidget]:
             """
             Standard side panel scroll area.
             Returns (scroll_area, inner_widget).

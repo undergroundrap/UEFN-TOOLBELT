@@ -32,17 +32,17 @@ from __future__ import annotations
 
 import math
 import random
-from typing import List
 
 import unreal
 
 from ..core import (
-    undo_transaction, require_selection, get_selected_actors,
-    log_info, log_warning, log_error,
-    actors_bounding_box, clamp,
+    actors_bounding_box,
+    log_error,
+    log_info,
+    require_selection,
+    undo_transaction,
 )
 from ..registry import register_tool
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Alignment
@@ -301,7 +301,7 @@ def run_stack(gap: float = 0.0, **kwargs) -> dict:
             # Approximate height from bounding box
             origin, box_extent = actor.get_actor_bounds(False)
             height = box_extent.z * 2
-            
+
             # SCHEMA HARDENING: Account for pivot_offset (discovered in schema)
             # pivot_offset is relative to the actor origin. Use getattr — get_editor_property
             # raises on Verse-driven properties that aren't tagged as editor properties.
@@ -309,7 +309,7 @@ def run_stack(gap: float = 0.0, **kwargs) -> dict:
                 pivot = getattr(actor, "pivot_offset", unreal.Vector(0, 0, 0))
             except Exception:
                 pivot = unreal.Vector(0, 0, 0)
-            
+
             actor.set_actor_location(
                 unreal.Vector(loc.x, loc.y, current_z + box_extent.z - pivot.z),
                 False, False,

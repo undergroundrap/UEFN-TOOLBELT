@@ -46,7 +46,6 @@ from __future__ import annotations
 import math
 import os
 import time
-from typing import Optional
 
 import unreal
 
@@ -138,7 +137,7 @@ def _take_shot(
     out_path: str,
     width: int,
     height: int,
-    camera: Optional[unreal.CameraActor] = None,
+    camera: unreal.CameraActor | None = None,
     capture_hdr: bool = False,
     force_game_view: bool = False,
 ) -> bool:
@@ -175,9 +174,8 @@ def _do_take(name: str, width: int, height: int,
     if ok:
         unreal.log(f"[Screenshot] ✓  {out}")
         return out
-    else:
-        unreal.log_warning(f"[Screenshot] ✗  Capture may have failed — check {_SHOT_DIR}")
-        return ""
+    unreal.log_warning(f"[Screenshot] ✗  Capture may have failed — check {_SHOT_DIR}")
+    return ""
 
 
 def _do_focus_selection(

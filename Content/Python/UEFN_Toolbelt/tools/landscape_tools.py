@@ -21,8 +21,9 @@ API: EditorActorSubsystem, Landscape, LandscapeProxy, LandscapeComponent
 from __future__ import annotations
 
 import unreal
+
+from ..core import log_error, log_info
 from ..registry import register_tool
-from ..core import log_info, log_error, log_warning
 
 
 def _actor_sub():

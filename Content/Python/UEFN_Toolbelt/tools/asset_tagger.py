@@ -152,11 +152,11 @@ def _get_all_toolbelt_tags(asset_path: str) -> dict[str, str]:
 
         # Enumerate every tag key in the unreal metadata map
         try:
-            all_tag_keys = unreal.EditorAssetLibrary.get_metadata_tag_values(
+            _all_tag_keys = unreal.EditorAssetLibrary.get_metadata_tag_values(
                 asset, unreal.Name("")
             )
         except Exception:
-            all_tag_keys = []
+            _all_tag_keys = []
 
         # Fallback: iterate dir(asset) is not useful for metadata.
         # Instead, we use the AssetData tag map.
@@ -487,7 +487,7 @@ def tag_list_all(folder: str = "/Game", **kwargs) -> dict:
 
     if not counts:
         unreal.log(f"[AssetTagger] No Toolbelt tags found under {folder}.")
-        unreal.log(f"  Apply tags with: tb.run('tag_add', tag_name='my_tag')")
+        unreal.log("  Apply tags with: tb.run('tag_add', tag_name='my_tag')")
         return {"status": "ok", "count": 0, "tags": {}}
 
     unreal.log(f"\n[AssetTagger] {len(counts)} tag key(s) under {folder}:\n")

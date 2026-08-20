@@ -1,9 +1,13 @@
 import os
-import subprocess
 import re
+import subprocess
+from datetime import UTC
+
 import unreal
+
+from ..core import log_error, log_info, log_warning, with_progress
 from ..registry import register_tool
-from ..core import log_info, log_error, log_warning, with_progress
+
 
 class VerseBuildService:
     @staticmethod
@@ -15,7 +19,7 @@ class VerseBuildService:
             os.path.join(program_files, "Epic Games", "Fortnite", "FortniteGame", "Binaries", "Win64", "UnrealEditor-Cmd.exe"),
             os.path.join(program_files, "Epic Games", "Fortnite", "Engine", "Binaries", "Win64", "UnrealEditor-Cmd.exe")
         ]
-        
+
         for path in possible_paths:
             if os.path.exists(path):
                 return path
@@ -27,11 +31,11 @@ class VerseBuildService:
         uefn_exe = VerseBuildService.find_uefn_cmd()
         if not uefn_exe:
             return None, "Error: UEFN (UnrealEditor-Cmd.exe) not found. Please set the path manually."
-            
+
         project_file = unreal.Paths.get_project_file_path()
         if not project_file or not os.path.exists(project_file):
             return None, "Error: No active .uproject file found."
-            
+
         # Command line arguments for Verse compilation
         # -run=VerseBuilder is a common UEFN pattern
         args = [
@@ -42,7 +46,7 @@ class VerseBuildService:
             "-silent",
             "-stdout"
         ]
-        
+
         try:
             log_info(f"Triggering Verse Build: {os.path.basename(project_file)}")
             result = subprocess.run(
@@ -61,7 +65,7 @@ class VerseBuildService:
         errors = []
         # Pattern: filepath(line:col): error message
         pattern = re.compile(r'(.+\.verse)\((\d+)(?::(\d+))?\)\s*:\s*(?:error\s*)?(.+)', re.IGNORECASE)
-        
+
         for line in output.splitlines():
             match = pattern.search(line)
             if match:
@@ -79,14 +83,14 @@ def system_build_verse(**kwargs) -> dict:
     Triggers a background UEFN build to compile Verse and return errors.
     This replaces the manual 'Push Changes' loop for rapid AI diagnostics.
     """
-    with with_progress("Compiling Verse...") as progress:
+    with with_progress("Compiling Verse...") as _progress:
         output, err = VerseBuildService.trigger_build()
         if err:
             log_error(err)
             return {"status": "error", "message": err}
-            
+
         errors = VerseBuildService.parse_verse_errors(output)
-        
+
         if errors:
             log_warning(f"Build failed with {len(errors)} Verse errors.")
             return {
@@ -94,7 +98,7 @@ def system_build_verse(**kwargs) -> dict:
                 "count": len(errors),
                 "errors": errors
             }
-        
+
         log_info("Verse Build Successful.")
         return {"status": "success", "message": "Verse compiled with 0 errors."}
 
@@ -110,7 +114,7 @@ def system_get_last_build_log(**kwargs) -> dict:
         return {"status": "error", "path": None, "tail": "No log files found."}
 
     latest_log = max(logs, key=os.path.getmtime)
-    with open(latest_log, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(latest_log, encoding='utf-8', errors='ignore') as f:
         content = f.read().splitlines()
 
     return {"status": "ok", "path": latest_log, "tail": "\n".join(content[-100:])}
@@ -212,7 +216,7 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
 
     latest_log = max(log_files, key=os.path.getmtime)
 
-    with open(latest_log, "r", encoding="utf-8", errors="ignore") as f:
+    with open(latest_log, encoding="utf-8", errors="ignore") as f:
         log_lines = f.readlines()
 
     # -- 2. Parse errors and build status ------------------------------------
@@ -235,7 +239,7 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
         re.IGNORECASE
     )
     # LogSolaris error lines (another common pattern)
-    solaris_error   = re.compile(r'LogSolaris.*Error.*\.verse', re.IGNORECASE)
+    _solaris_error   = re.compile(r'LogSolaris.*Error.*\.verse', re.IGNORECASE)
 
     def _classify_error(message: str):
         """Return (error_type, fix_hint) for a Verse error message."""
@@ -317,7 +321,7 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
                 if fname in fnames:
                     fpath = os.path.join(root, fname)
                     try:
-                        with open(fpath, "r", encoding="utf-8") as f:
+                        with open(fpath, encoding="utf-8") as f:
                             files_out[fname] = f.read()
                         found = True
                         break
@@ -329,7 +333,7 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
             for e in errors:
                 if e["file"] == fname and os.path.isfile(e.get("raw_path", "")):
                     try:
-                        with open(e["raw_path"], "r", encoding="utf-8") as f:
+                        with open(e["raw_path"], encoding="utf-8") as f:
                             files_out[fname] = f.read()
                         break
                     except Exception:
@@ -424,7 +428,7 @@ def verse_build_status(stale_threshold_sec: float = 300.0, **kwargs) -> dict:
         }
     """
     import time
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     # -- Find latest log --
     log_dir = os.path.join(unreal.Paths.project_saved_dir(), "Logs")
@@ -442,7 +446,7 @@ def verse_build_status(stale_threshold_sec: float = 300.0, **kwargs) -> dict:
     log_mtime = os.path.getmtime(latest_log)
     age_sec = time.time() - log_mtime
     is_stale = age_sec > stale_threshold_sec
-    log_modified_iso = datetime.fromtimestamp(log_mtime, tz=timezone.utc).isoformat()
+    log_modified_iso = datetime.fromtimestamp(log_mtime, tz=UTC).isoformat()
 
     # -- Quick scan for build status --
     build_status = "UNKNOWN"
@@ -462,7 +466,7 @@ def verse_build_status(stale_threshold_sec: float = 300.0, **kwargs) -> dict:
     )
 
     try:
-        with open(latest_log, "r", encoding="utf-8", errors="ignore") as f:
+        with open(latest_log, encoding="utf-8", errors="ignore") as f:
             for line in f:
                 if success_pat.search(line):
                     build_status = "SUCCESS"

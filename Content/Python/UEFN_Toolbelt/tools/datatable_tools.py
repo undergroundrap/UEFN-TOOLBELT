@@ -27,8 +27,9 @@ import json
 import os
 
 import unreal
+
+from ..core import log_error, log_info
 from ..registry import register_tool
-from ..core import log_info, log_error, log_warning
 
 
 def _ar():
@@ -132,11 +133,11 @@ def run_datatable_inspect(asset_path: str = "", **kwargs) -> dict:
             pass
 
         # Try to get the struct's property names if possible
-        properties = []
+        _properties = []
         try:
             row_struct = table.get_editor_property("row_struct")
             if row_struct:
-                for prop in unreal.StructBase.__subclasses__():
+                for _prop in unreal.StructBase.__subclasses__():
                     pass  # not directly iterable — use reflection
         except Exception:
             pass

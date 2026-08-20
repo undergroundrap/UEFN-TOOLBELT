@@ -42,10 +42,10 @@ def _read_constants() -> tuple[str, int, int]:
                         version = str(node.value.value)
                 if isinstance(t, ast.Name) and t.id == "__tool_count__":
                     if isinstance(node.value, ast.Constant):
-                        tool_count = int(node.value.value)
+                        tool_count = int(node.value.value)  # type: ignore[arg-type]
                 if isinstance(t, ast.Name) and t.id == "__category_count__":
                     if isinstance(node.value, ast.Constant):
-                        category_count = int(node.value.value)
+                        category_count = int(node.value.value)  # type: ignore[arg-type]
     if version is None:
         raise RuntimeError("Could not read __version__ from __init__.py")
     if tool_count is None:
@@ -247,7 +247,7 @@ def scan_file(rel_path: str, version: str, tool_count: int, category_count: int 
 def run() -> int:
     # Force UTF-8 output on Windows to handle emoji/arrows in file content
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
 
     print(f"\n[drift_check] Ground truth: version={VERSION}  tools={TOOL_COUNT}  categories={CATEGORY_COUNT}")
     print(f"[drift_check] Scanning {len(SCAN_FILES)} files...\n")

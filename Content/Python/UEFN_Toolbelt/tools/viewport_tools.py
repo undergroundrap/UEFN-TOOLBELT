@@ -16,8 +16,9 @@ Use cases:
 from __future__ import annotations
 
 import unreal
+
+from ..core import log_error, log_info
 from ..registry import register_tool
-from ..core import log_info, log_error, log_warning
 
 
 def _get_camera() -> tuple:
@@ -250,11 +251,12 @@ def _bookmarks_path() -> str:
 
 
 def _load_bookmarks() -> dict:
-    import json, os
+    import json
+    import os
     p = _bookmarks_path()
     if os.path.exists(p):
         try:
-            with open(p, "r", encoding="utf-8") as f:
+            with open(p, encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             pass

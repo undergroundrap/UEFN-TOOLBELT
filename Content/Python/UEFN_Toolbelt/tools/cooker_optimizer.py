@@ -20,12 +20,14 @@ Credits:
   Native Toolbelt implementation: Ocean Bennett (UEFN Toolbelt v1.9.8+)
 """
 
-import os
 import json
 import math
+import os
+
 import unreal
+
+from ..core import log_error, log_info, log_warning
 from ..registry import register_tool
-from ..core import log_info, log_warning, log_error
 
 # ── Module-level scan cache (shared between headless tools and the window) ─────
 _scan_cache: dict = {
@@ -47,7 +49,7 @@ def _load_feedback() -> list:
     try:
         p = _feedback_path()
         if os.path.exists(p):
-            with open(p, "r", encoding="utf-8") as f:
+            with open(p, encoding="utf-8") as f:
                 data = json.load(f)
             return data if isinstance(data, list) else []
     except Exception:
@@ -488,10 +490,17 @@ def cooker_open(**kwargs) -> dict:
 def _build_cooker_window():
     """Construct and return the Cooker Optimizer window (deferred PySide6 import)."""
     from PySide6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox,
-        QPushButton, QLineEdit, QFrame, QScrollArea, QTextEdit,
+        QCheckBox,
+        QFrame,
+        QHBoxLayout,
+        QLabel,
+        QLineEdit,
+        QScrollArea,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
     )
-    from PySide6.QtCore import Qt
+
     from ..core.base_window import ToolbeltWindow
 
     # ── Help dialog ───────────────────────────────────────────────────────────

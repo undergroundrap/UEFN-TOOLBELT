@@ -31,20 +31,27 @@ import tempfile
 
 import unreal
 
-from ..core import log_info, log_warning, log_error, detect_project_mount
+from ..core import detect_project_mount, log_error, log_info, log_warning
 from ..core.base_window import ToolbeltWindow
 from ..registry import register_tool
 
 # ── PySide6 guard ─────────────────────────────────────────────────────────────
 _PYSIDE6 = False
 try:
-    from PySide6.QtWidgets import (
-        QApplication, QVBoxLayout, QHBoxLayout,
-        QLabel, QLineEdit, QComboBox, QFrame,
-        QFileDialog, QSizePolicy, QTextEdit,
-    )
-    from PySide6.QtGui import QPixmap, QImage, QDragEnterEvent, QDropEvent
     from PySide6.QtCore import Qt
+    from PySide6.QtGui import QDragEnterEvent, QDropEvent, QImage, QPixmap
+    from PySide6.QtWidgets import (
+        QApplication,
+        QComboBox,
+        QFileDialog,
+        QFrame,
+        QHBoxLayout,
+        QLabel,
+        QLineEdit,
+        QSizePolicy,
+        QTextEdit,
+        QVBoxLayout,
+    )
     _PYSIDE6 = True
 except ImportError:
     pass

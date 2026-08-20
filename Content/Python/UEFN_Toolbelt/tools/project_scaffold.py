@@ -70,13 +70,15 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
-from typing import Dict, List, Optional
 
 import unreal
 
 from ..core import (
-    log_info, log_warning, log_error,
-    load_asset, with_progress,
+    load_asset,
+    log_error,
+    log_info,
+    log_warning,
+    with_progress,
 )
 from ..registry import register_tool
 
@@ -94,7 +96,7 @@ TEMPLATES_FILE = os.path.join(
 #  Use {project} as a placeholder — it gets replaced with project_name.
 # ─────────────────────────────────────────────────────────────────────────────
 
-BUILTIN_TEMPLATES: Dict[str, List[str]] = {
+BUILTIN_TEMPLATES: dict[str, list[str]] = {
 
     # ── Full production structure (Epic-recommended + community best practices)
     "uefn_standard": [
@@ -259,7 +261,7 @@ _ASSET_FOLDER_MAP = {
 #  Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _load_custom_templates() -> Dict[str, List[str]]:
+def _load_custom_templates() -> dict[str, list[str]]:
     if not os.path.exists(TEMPLATES_FILE):
         return {}
     try:
@@ -270,19 +272,19 @@ def _load_custom_templates() -> Dict[str, List[str]]:
         return {}
 
 
-def _save_custom_templates(data: Dict[str, List[str]]) -> None:
+def _save_custom_templates(data: dict[str, list[str]]) -> None:
     os.makedirs(os.path.dirname(TEMPLATES_FILE), exist_ok=True)
     with open(TEMPLATES_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
 
-def _all_templates() -> Dict[str, List[str]]:
+def _all_templates() -> dict[str, list[str]]:
     merged = dict(BUILTIN_TEMPLATES)
     merged.update(_load_custom_templates())
     return merged
 
 
-def _resolve_paths(folders: List[str], project_name: str, base: str) -> List[str]:
+def _resolve_paths(folders: list[str], project_name: str, base: str) -> list[str]:
     """Build full /Game/ content paths from relative folder list."""
     root = f"{base}/{project_name}" if project_name else base
     return [f"{root}/{f}" for f in folders]
@@ -482,7 +484,7 @@ def run_scaffold_generate(
 )
 def run_scaffold_save_template(
     template_name: str = "MyTemplate",
-    folders: Optional[List[str]] = None,
+    folders: list[str] | None = None,
     **kwargs,
 ) -> dict:
     """

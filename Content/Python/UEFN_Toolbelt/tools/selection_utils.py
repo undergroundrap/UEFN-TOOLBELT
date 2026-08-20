@@ -1,7 +1,10 @@
 import os
+
 import unreal
+
+from ..core import log_error, log_info
 from ..registry import register_tool
-from ..core import log_info, log_error, undo_transaction
+
 
 @register_tool(
     name="select_in_radius",
@@ -34,10 +37,7 @@ def run_select_in_radius(radius: float = 1000.0, actor_class_name: str = "Static
 
     for actor in all_actors:
         # Match by Python type if possible
-        if target_cls and isinstance(actor, target_cls):
-            match = True
-        # Fallback to name matching (for UEFN specifics like FortStaticMeshActor)
-        elif actor_class_name.lower() in actor.get_class().get_name().lower():
+        if target_cls and isinstance(actor, target_cls) or actor_class_name.lower() in actor.get_class().get_name().lower():
             match = True
         else:
             match = False
@@ -164,7 +164,7 @@ def _load_sets() -> dict:
     p = _sets_path()
     if os.path.exists(p):
         try:
-            with open(p, "r", encoding="utf-8") as f:
+            with open(p, encoding="utf-8") as f:
                 return _json.load(f)
         except Exception:
             pass

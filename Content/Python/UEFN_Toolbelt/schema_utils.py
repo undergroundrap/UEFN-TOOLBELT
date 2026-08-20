@@ -1,16 +1,17 @@
 """
 UEFN TOOLBELT — Schema Utilities
 ========================================
-Helper functions to query the 1.6MB High-Fidelity Schema for 
+Helper functions to query the 1.6MB High-Fidelity Schema for
 runtime validation and property intelligence.
 """
 
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any
+
 import unreal
 
-_SCHEMA_CACHE: Dict[str, Any] = {}
+_SCHEMA_CACHE: dict[str, Any] = {}
 
 def get_schema_path() -> str:
     """Find the reference schema in the project docs."""
@@ -21,38 +22,38 @@ def get_schema_path() -> str:
         if os.path.basename(curr) == "Content":
             project_root = os.path.dirname(curr)
             break
-            
+
     if not project_root:
         project_root = unreal.Paths.project_dir()
-        
+
     return os.path.join(project_root, "docs", "uefn_reference_schema.json")
 
 
-def load_schema() -> Dict[str, Any]:
+def load_schema() -> dict[str, Any]:
     """Load the full reference schema into memory (cached)."""
     global _SCHEMA_CACHE
     if _SCHEMA_CACHE:
         return _SCHEMA_CACHE
-        
+
     path = get_schema_path()
     if not os.path.exists(path):
         return {}
-        
+
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             _SCHEMA_CACHE = json.load(f)
             return _SCHEMA_CACHE
     except Exception:
         return {}
 
 
-def get_class_info(class_name: str) -> Optional[Dict[str, Any]]:
+def get_class_info(class_name: str) -> dict[str, Any] | None:
     """Get the schema definition for a specific class."""
     schema = load_schema()
     return schema.get("classes", {}).get(class_name)
 
 
-def validate_property(class_name: str, property_name: str) -> Dict[str, Any]:
+def validate_property(class_name: str, property_name: str) -> dict[str, Any]:
     """
     Check if a property exists on a class and return its metadata.
     Returns {"exists": False} if not found.
@@ -74,7 +75,7 @@ def list_classes() -> list:
     return list(schema.get("classes", {}).keys())
 
 
-def discover_properties(class_name: str) -> Dict[str, Any]:
+def discover_properties(class_name: str) -> dict[str, Any]:
     """
     Return all schema-known properties for a class as {name: meta_dict}.
     Returns an empty dict if the class isn't in the reference schema.

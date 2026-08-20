@@ -1,6 +1,8 @@
+
 import unreal
-import json
+
 from ..registry import register_tool
+
 
 @register_tool(
     name="debug_dump_verse_actor",
@@ -13,19 +15,19 @@ def dump_actor_info(**kwargs):
     if not sel:
         print("[DIAGNOSTIC] No actor selected.")
         return
-        
+
     actor = sel[0]
     print(f"[DIAGNOSTIC] Actor: {actor.get_actor_label()}")
     print(f"[DIAGNOSTIC] Class: {actor.get_class().get_name()}")
     print(f"[DIAGNOSTIC] Class Path: {actor.get_class().get_path_name()}")
-    
+
     # 1. Try to list all tags
     print(f"[DIAGNOSTIC] Tags: {actor.tags}")
-    
+
     # 2. Try to list all editor properties
     print("[DIAGNOSTIC] Listing all accessible editor properties...")
     try:
-        props = unreal.EditorLevelLibrary.get_all_level_actors()[0].get_class().get_name() # just to check lib
+        _props = unreal.EditorLevelLibrary.get_all_level_actors()[0].get_class().get_name() # just to check lib
         for prop in actor.get_class().list_properties():
             try:
                 val = actor.get_editor_property(prop.get_name())

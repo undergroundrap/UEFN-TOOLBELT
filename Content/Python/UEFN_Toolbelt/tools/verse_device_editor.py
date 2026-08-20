@@ -42,16 +42,18 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import unreal
 
+from .. import schema_utils
 from ..core import (
-    undo_transaction, get_selected_actors, require_selection,
-    log_info, log_warning, log_error,
+    log_info,
+    log_warning,
+    require_selection,
+    undo_transaction,
 )
 from ..registry import register_tool
-from .. import schema_utils
 
 # Fallback property list used when the reference schema has no entry for a class.
 # Covers the most common shared Verse/Creative device properties.
@@ -95,14 +97,14 @@ def _is_verse_device(actor: unreal.Actor) -> bool:
     return any(hint in class_name for hint in _DEVICE_HINTS)
 
 
-def _get_all_devices() -> List[unreal.Actor]:
+def _get_all_devices() -> list[unreal.Actor]:
     """Return all device-like actors in the current level."""
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     all_actors = actor_sub.get_all_level_actors()
     return [a for a in all_actors if _is_verse_device(a)]
 
 
-def _get_actor_properties(actor: unreal.Actor) -> Dict[str, Any]:
+def _get_actor_properties(actor: unreal.Actor) -> dict[str, Any]:
     """
     Read all discoverable properties from an actor.
 
@@ -125,7 +127,7 @@ def _get_actor_properties(actor: unreal.Actor) -> Dict[str, Any]:
     else:
         prop_names = _FALLBACK_PROPS
 
-    result: Dict[str, Any] = {}
+    result: dict[str, Any] = {}
     for prop in prop_names:
         # Quirk #7: use getattr — get_editor_property raises on Verse-driven props
         try:
@@ -406,7 +408,7 @@ def device_call_method(
         except Exception:
             continue
 
-        if actor_path and (actor_path == path or actor_path == label):
+        if actor_path and (actor_path in (path, label)):
             matched.append(actor)
             continue
 
@@ -532,7 +534,7 @@ def device_set_property(
         except Exception:
             continue
 
-        if actor_path and (actor_path == path or actor_path == label):
+        if actor_path and (actor_path in (path, label)):
             matched.append(actor)
             continue
 

@@ -11,8 +11,8 @@ which tools your AI agent has been calling.
 
 from __future__ import annotations
 
-from ..registry import register_tool
 from ..core import log_info
+from ..registry import register_tool
 
 
 @register_tool(

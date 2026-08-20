@@ -48,13 +48,13 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
 import unreal
 
 from ..core import (
-    log_info, log_warning, log_error,
-    load_asset, with_progress, resolve_scan_path,
+    load_asset,
+    log_info,
+    resolve_scan_path,
 )
 from ..registry import register_tool
 
@@ -78,7 +78,7 @@ SOUND_CRIT_SECS  = 120.0
 #  Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _list_assets_of_class(scan_path: str, class_name: str) -> List[Tuple[str, unreal.Object]]:
+def _list_assets_of_class(scan_path: str, class_name: str) -> list[tuple[str, unreal.Object]]:
     """Return (path, asset) pairs for all assets of a given class in a folder."""
     all_paths = unreal.EditorAssetLibrary.list_assets(
         scan_path, recursive=True, include_folder=False
@@ -91,7 +91,7 @@ def _list_assets_of_class(scan_path: str, class_name: str) -> List[Tuple[str, un
     return results
 
 
-def _texture_info(asset: unreal.Texture2D) -> Dict:
+def _texture_info(asset: unreal.Texture2D) -> dict:
     """Extract resolution and estimated memory from a Texture2D."""
     try:
         w = asset.get_editor_property("blueprint_width")
@@ -124,7 +124,7 @@ def _texture_info(asset: unreal.Texture2D) -> Dict:
     }
 
 
-def _mesh_info(asset: unreal.StaticMesh) -> Dict:
+def _mesh_info(asset: unreal.StaticMesh) -> dict:
     """Extract triangle count and LOD info from a StaticMesh."""
     mesh_sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
 
@@ -155,7 +155,7 @@ def _mesh_info(asset: unreal.StaticMesh) -> Dict:
     }
 
 
-def _sound_info(asset: unreal.SoundWave) -> Dict:
+def _sound_info(asset: unreal.SoundWave) -> dict:
     """Extract duration and compression info from a SoundWave."""
     try:
         duration = asset.get_editor_property("duration")
@@ -211,7 +211,7 @@ def run_memory_scan(scan_path: str = "", **kwargs) -> dict:
     scan_path = resolve_scan_path(scan_path)
     log_info(f"Memory scan: {scan_path} …")
 
-    report: Dict = {
+    report: dict = {
         "timestamp": datetime.now().isoformat(),
         "scan_path": scan_path,
         "textures": [],

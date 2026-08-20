@@ -42,13 +42,11 @@ USAGE:
 from __future__ import annotations
 
 import math
-from typing import List, Tuple
 
 import unreal
 
-from ..core import log_info, log_error, log_warning
+from ..core import log_info, log_warning
 from ..registry import register_tool
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Internal helpers
@@ -58,15 +56,15 @@ def _actor_sub() -> unreal.EditorActorSubsystem:
     return unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 
 
-def _get_selected() -> List[unreal.Actor]:
+def _get_selected() -> list[unreal.Actor]:
     return list(_actor_sub().get_selected_level_actors() or [])
 
 
-def _get_all_level_actors() -> List[unreal.Actor]:
+def _get_all_level_actors() -> list[unreal.Actor]:
     return list(_actor_sub().get_all_level_actors() or [])
 
 
-def _get_bounds(actor: unreal.Actor) -> Tuple[unreal.Vector, unreal.Vector]:
+def _get_bounds(actor: unreal.Actor) -> tuple[unreal.Vector, unreal.Vector]:
     """Return (world_center, half_extents)."""
     return actor.get_actor_bounds(False)
 

@@ -71,15 +71,17 @@ HOW TextRenderActor WORKS IN UEFN:
 from __future__ import annotations
 
 import json
-import math
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import unreal
 
 from ..core import (
-    undo_transaction, get_selected_actors, require_selection,
-    log_info, log_warning, log_error, color_from_hex,
+    log_error,
+    log_info,
+    log_warning,
+    require_selection,
+    undo_transaction,
 )
 from ..registry import register_tool
 
@@ -97,7 +99,7 @@ TEXT_FOLDER = "ToolbeltText"
 #  Default style
 # ─────────────────────────────────────────────────────────────────────────────
 
-DEFAULT_STYLE: Dict[str, Any] = {
+DEFAULT_STYLE: dict[str, Any] = {
     "color":        "#FFFFFF",
     "world_size":   100.0,
     "h_align":      "center",   # "left", "center", "right"
@@ -139,7 +141,7 @@ except AttributeError:
 #  Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _load_styles() -> Dict[str, Any]:
+def _load_styles() -> dict[str, Any]:
     if not os.path.exists(STYLES_FILE):
         return {}
     try:
@@ -150,13 +152,13 @@ def _load_styles() -> Dict[str, Any]:
         return {}
 
 
-def _save_styles(data: Dict[str, Any]) -> None:
+def _save_styles(data: dict[str, Any]) -> None:
     os.makedirs(os.path.dirname(STYLES_FILE), exist_ok=True)
     with open(STYLES_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
 
-def _resolve_style(style_name: Optional[str], overrides: Dict[str, Any]) -> Dict[str, Any]:
+def _resolve_style(style_name: str | None, overrides: dict[str, Any]) -> dict[str, Any]:
     """
     Build a final style dict by layering: defaults → saved preset → call-time overrides.
     """
@@ -185,10 +187,10 @@ def _spawn_text_actor(
     text: str,
     location: unreal.Vector,
     rotation: unreal.Rotator,
-    style: Dict[str, Any],
+    style: dict[str, Any],
     label: str = "TextActor",
     folder: str = TEXT_FOLDER,
-) -> Optional[unreal.TextRenderActor]:
+) -> unreal.TextRenderActor | None:
     """
     Core spawn function. Creates a TextRenderActor and applies all style properties.
     Returns the actor or None on failure.
@@ -251,13 +253,13 @@ def _spawn_text_actor(
 )
 def run_text_place(
     text: str = "TOOLBELT",
-    location: Tuple[float, float, float] = (0.0, 0.0, 200.0),
+    location: tuple[float, float, float] = (0.0, 0.0, 200.0),
     rotation_yaw: float = 0.0,
-    color: Optional[str] = None,
-    world_size: Optional[float] = None,
-    h_align: Optional[str] = None,
-    v_align: Optional[str] = None,
-    style: Optional[str] = None,
+    color: str | None = None,
+    world_size: float | None = None,
+    h_align: str | None = None,
+    v_align: str | None = None,
+    style: str | None = None,
     folder: str = TEXT_FOLDER,
     **kwargs,
 ) -> dict:
@@ -305,7 +307,7 @@ def run_text_label_selection(
     offset_z: float = 200.0,
     color: str = "#00FFCC",
     world_size: float = 60.0,
-    style: Optional[str] = None,
+    style: str | None = None,
     rotation_yaw: float = 0.0,
     **kwargs,
 ) -> dict:
@@ -353,11 +355,11 @@ def run_text_label_selection(
 def run_text_paint_grid(
     cols: int = 4,
     rows: int = 4,
-    origin: Tuple[float, float, float] = (0.0, 0.0, 10.0),
+    origin: tuple[float, float, float] = (0.0, 0.0, 10.0),
     cell_size: float = 2000.0,
     color: str = "#FFDD00",
     world_size: float = 100.0,
-    style: Optional[str] = None,
+    style: str | None = None,
     rotation_yaw: float = 0.0,
     folder: str = TEXT_FOLDER,
     **kwargs,
@@ -413,8 +415,8 @@ def run_text_paint_grid(
     tags=["text", "color", "cycle", "palette", "multi"],
 )
 def run_text_color_cycle(
-    texts: Optional[List[str]] = None,
-    start_location: Tuple[float, float, float] = (0.0, 0.0, 200.0),
+    texts: list[str] | None = None,
+    start_location: tuple[float, float, float] = (0.0, 0.0, 200.0),
     spacing_x: float = 800.0,
     world_size: float = 100.0,
     rotation_yaw: float = 0.0,

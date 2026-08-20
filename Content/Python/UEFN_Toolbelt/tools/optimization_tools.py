@@ -30,18 +30,17 @@ USAGE:
 
 from __future__ import annotations
 
-import math
-import os
-from typing import Dict, List, Tuple
-
 import unreal
 
 from ..core import (
-    get_selected_actors, log_info, log_warning, log_error,
-    load_asset, save_asset, undo_transaction, with_progress, resolve_scan_path,
+    get_selected_actors,
+    log_error,
+    log_info,
+    log_warning,
+    resolve_scan_path,
+    undo_transaction,
 )
 from ..registry import register_tool
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  rogue_actor_scan
@@ -57,7 +56,7 @@ _ROGUE_CHECKS = {
 }
 
 
-def _check_actor(actor) -> List[str]:
+def _check_actor(actor) -> list[str]:
     issues = []
     try:
         loc   = actor.get_actor_location()
@@ -112,8 +111,8 @@ def run_rogue_actor_scan(
     except Exception as exc:
         return {"status": "error", "message": str(exc)}
 
-    rogues: List[Dict] = []
-    issue_counts: Dict[str, int] = {k: 0 for k in _ROGUE_CHECKS}
+    rogues: list[dict] = []
+    issue_counts: dict[str, int] = dict.fromkeys(_ROGUE_CHECKS, 0)
 
     for actor in actors:
         issues = _check_actor(actor)
@@ -198,7 +197,7 @@ def run_convert_to_hism(
         return {"status": "error", "message": "No actors selected."}
 
     # Group StaticMeshActors by their mesh asset path
-    groups: Dict[str, Dict] = {}
+    groups: dict[str, dict] = {}
     skipped = 0
     for actor in actors:
         if not isinstance(actor, unreal.StaticMeshActor):
@@ -227,7 +226,7 @@ def run_convert_to_hism(
     # Report
     total_actors = sum(len(g["actors"]) for g in mergeable.values())
     log_info(f"convert_to_hism: {len(mergeable)} group(s), {total_actors} actor(s) → {len(mergeable)} HISM actor(s)")
-    for mp, g in mergeable.items():
+    for _mp, g in mergeable.items():
         log_info(f"  {g['mesh_name']}: {len(g['actors'])} actors")
 
     if dry_run:
@@ -246,7 +245,7 @@ def run_convert_to_hism(
     hism_actors_created = 0
 
     with undo_transaction(f"Convert to HISM: {len(mergeable)} group(s)"):
-        for mesh_path, g in mergeable.items():
+        for _mesh_path, g in mergeable.items():
             mesh   = g["mesh"]
             actors_in_group = g["actors"]
 
@@ -347,9 +346,9 @@ def run_material_parent_audit(
     if not assets:
         return {"status": "ok", "message": f"No material instances found in {scan_path}.", "total": 0}
 
-    mel = unreal.MaterialEditingLibrary
-    parent_groups: Dict[str, List[str]] = {}
-    orphans: List[str] = []
+    _mel = unreal.MaterialEditingLibrary
+    parent_groups: dict[str, list[str]] = {}
+    orphans: list[str] = []
 
     for asset_data in assets:
         try:

@@ -8,11 +8,10 @@ Requested by the community for obby and obstacle course optimization.
 from __future__ import annotations
 
 import math
-from typing import List, Tuple, Optional
 
 import unreal
 
-from ..core import log_info, log_warning, log_error, get_selected_actors
+from ..core import get_selected_actors, log_error, log_info, log_warning
 from ..registry import register_tool
 
 # ── Configuration ─────────────────────────────────────────────────────────────

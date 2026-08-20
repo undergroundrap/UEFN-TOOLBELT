@@ -3,9 +3,9 @@ PostToolUse hook — runs after Edit/Write tool calls.
 If the edited file is a Python tool, validate syntax immediately.
 Claude Code passes tool context via CLAUDE_TOOL_NAME and CLAUDE_TOOL_INPUT env vars.
 """
-import os
 import ast
 import json
+import os
 import sys
 
 tool_name = os.environ.get("CLAUDE_TOOL_NAME", "")

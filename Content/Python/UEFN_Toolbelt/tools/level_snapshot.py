@@ -235,7 +235,7 @@ def _do_restore(name: str, restore_location: bool,
         unreal.log_warning(f"[Snapshot] Snapshot '{name}' not found at {path}")
         return {"status": "error", "message": f"Snapshot '{name}' not found."}
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         snapshot = json.load(f)
 
     actors = snapshot.get("actors", [])
@@ -390,7 +390,7 @@ def snapshot_list(**kwargs) -> dict:
     for fname in files:
         fpath = os.path.join(_SNAP_DIR, fname)
         try:
-            with open(fpath, "r", encoding="utf-8") as f:
+            with open(fpath, encoding="utf-8") as f:
                 data = json.load(f)
             unreal.log(
                 f"  📸  {data['name']:30s}  "
@@ -442,9 +442,9 @@ def snapshot_diff(name_a: str = "", name_b: str = "", **kwargs) -> dict:
             unreal.log_warning(f"[Snapshot] Snapshot '{name}' not found at {path}")
             return {"status": "error", "message": f"Snapshot '{name}' not found."}
 
-    with open(path_a, "r", encoding="utf-8") as f:
+    with open(path_a, encoding="utf-8") as f:
         snap_a = json.load(f)
-    with open(path_b, "r", encoding="utf-8") as f:
+    with open(path_b, encoding="utf-8") as f:
         snap_b = json.load(f)
 
     diff = _diff_snapshots(snap_a, snap_b)
@@ -562,7 +562,7 @@ def snapshot_import(import_path: str = "", name: str = "", **kwargs) -> dict:
         unreal.log_warning(f"[Snapshot] File not found: '{import_path}'")
         return {"status": "error", "message": f"File not found: '{import_path}'"}
 
-    with open(import_path, "r", encoding="utf-8") as f:
+    with open(import_path, encoding="utf-8") as f:
         data = json.load(f)
 
     snap_name = name or data.get("name", "imported_snapshot")
@@ -619,9 +619,9 @@ def snapshot_compare_live(name: str = "", **kwargs) -> dict:
             pass
         return {"status": "error", "message": f"Snapshot '{name}' not found."}
 
-    with open(path_saved, "r", encoding="utf-8") as f:
+    with open(path_saved, encoding="utf-8") as f:
         snap_saved = json.load(f)
-    with open(path_live, "r", encoding="utf-8") as f:
+    with open(path_live, encoding="utf-8") as f:
         snap_live = json.load(f)
 
     # Rename for display

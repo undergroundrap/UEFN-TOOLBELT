@@ -26,8 +26,7 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
-from typing import Any, Optional
-
+from typing import Any
 
 # ─── Exceptions ───────────────────────────────────────────────────────────────
 
@@ -45,12 +44,10 @@ class ToolbeltError(Exception):
 
 class NotConnected(ToolbeltError):
     """The UEFN listener is not running."""
-    pass
 
 
 class CommandTimeout(ToolbeltError):
     """The command timed out waiting for UEFN to respond."""
-    pass
 
 
 # ─── Client ───────────────────────────────────────────────────────────────────
@@ -211,8 +208,8 @@ class ToolbeltClient:
         self,
         asset_path: str = "",
         actor_class: str = "",
-        location: Optional[list[float]] = None,
-        rotation: Optional[list[float]] = None,
+        location: list[float] | None = None,
+        rotation: list[float] | None = None,
         label: str = "",
     ) -> dict:
         """Spawn an actor. Provide asset_path OR actor_class."""
@@ -237,9 +234,9 @@ class ToolbeltClient:
     def set_actor_transform(
         self,
         actor_path: str,
-        location: Optional[list[float]] = None,
-        rotation: Optional[list[float]] = None,
-        scale:    Optional[list[float]] = None,
+        location: list[float] | None = None,
+        rotation: list[float] | None = None,
+        scale:    list[float] | None = None,
     ) -> dict:
         """Set location, rotation and/or scale on an actor."""
         params: dict[str, Any] = {"actor_path": actor_path}
@@ -303,9 +300,9 @@ class ToolbeltClient:
         parent_path: str,
         instance_name: str,
         destination: str = "/Game/Materials",
-        scalar_params: Optional[dict[str, float]] = None,
-        vector_params: Optional[dict[str, list[float]]] = None,
-        texture_params: Optional[dict[str, str]] = None,
+        scalar_params: dict[str, float] | None = None,
+        vector_params: dict[str, list[float]] | None = None,
+        texture_params: dict[str, str] | None = None,
     ) -> str:
         """
         Create a new MaterialInstanceConstant from a parent material.
@@ -345,8 +342,8 @@ class ToolbeltClient:
 
     def set_camera(
         self,
-        location: Optional[list[float]] = None,
-        rotation: Optional[list[float]] = None,
+        location: list[float] | None = None,
+        rotation: list[float] | None = None,
     ) -> dict:
         """Move the viewport camera."""
         params: dict[str, Any] = {}

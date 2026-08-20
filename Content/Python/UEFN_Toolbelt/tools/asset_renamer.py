@@ -78,15 +78,17 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
 import unreal
 
 from ..core import (
-    log_info, log_warning, log_error,
-    load_asset, ensure_folder, with_progress, resolve_scan_path,
+    load_asset,
+    log_error,
+    log_info,
+    log_warning,
+    resolve_scan_path,
+    with_progress,
 )
 from ..registry import register_tool
 
@@ -95,7 +97,7 @@ from ..registry import register_tool
 #  Key: unreal class name string → correct prefix
 # ─────────────────────────────────────────────────────────────────────────────
 
-CONVENTION: Dict[str, str] = {
+CONVENTION: dict[str, str] = {
     "StaticMesh":                    "SM_",
     "SkeletalMesh":                  "SK_",
     "Material":                      "M_",
@@ -141,7 +143,7 @@ def _strip_any_prefix(name: str) -> str:
     return name
 
 
-def _correct_name(asset_name: str, class_name: str) -> Optional[str]:
+def _correct_name(asset_name: str, class_name: str) -> str | None:
     """
     Return the corrected asset name if it violates convention, or None if
     it's already correct.
@@ -160,8 +162,8 @@ def _correct_name(asset_name: str, class_name: str) -> Optional[str]:
 
 def _scan_folder(
     scan_path: str,
-    class_filter: Optional[str] = None,
-) -> List[Tuple[str, str, str, Optional[str]]]:
+    class_filter: str | None = None,
+) -> list[tuple[str, str, str, str | None]]:
     """
     Scan a Content Browser folder and return a list of:
         (asset_path, asset_name, class_name, correct_name_or_None)
@@ -223,7 +225,7 @@ def _write_report(records: list, mode: str) -> str:
 )
 def run_dry_run(
     scan_path: str = "",
-    class_filter: Optional[str] = None,
+    class_filter: str | None = None,
     **kwargs,
 ) -> dict:
     """
@@ -270,7 +272,7 @@ def run_dry_run(
 )
 def run_enforce_conventions(
     scan_path: str = "",
-    class_filter: Optional[str] = None,
+    class_filter: str | None = None,
     dry_run: bool = False,
     **kwargs,
 ) -> dict:
@@ -361,7 +363,7 @@ def run_strip_prefix(
         return {"status": "ok", "done": 0, "total": 0, "dry_run": dry_run}
 
     log_info(f"{'[DRY RUN] ' if dry_run else ''}Stripping '{prefix}' from {len(targets)} assets:")
-    for path, old, folder, new in targets:
+    for _path, old, _folder, new in targets:
         log_info(f"  {old}  →  {new}")
 
     if dry_run:

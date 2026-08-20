@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import math
 import random
+
 import unreal
 
-from ..core import log_info, log_error, log_warning, with_progress
+from ..core import log_error, log_info, with_progress
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -94,7 +95,7 @@ def run_procedural_wire_create(
                     # Group them together in the outliner
                     a.set_folder_path("ProceduralWires")
                     spawned.append(a)
-                    
+
     log_info(f"Successfully drew a wire using {len(spawned)} procedural cylinders.")
     return {"status": "ok", "segments_created": len(spawned)}
 
@@ -122,7 +123,7 @@ def run_procedural_volume_scatter(
     if not asset_obj:
         log_error(f"Asset not found: {asset_path}")
         return {"status": "error", "message": f"Asset not found: {asset_path}"}
-        
+
     # Attempt to center around currently selected actor, otherwise absolute zero
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     selected = actor_sub.get_selected_level_actors()
@@ -156,6 +157,6 @@ def run_procedural_volume_scatter(
                     a.set_actor_scale3d(unreal.Vector(sc, sc, sc))
                     a.set_folder_path("ProceduralScatter")
                     spawned += 1
-                    
+
     log_info(f"Successfully scattered {spawned} meshes into the {shape} volume.")
     return {"status": "ok", "count": spawned}

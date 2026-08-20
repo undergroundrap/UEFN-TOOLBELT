@@ -24,9 +24,10 @@ Example:
         # ... register tools, menus, etc.
 """
 
-import sys
-import os
 import importlib
+import os
+import sys
+
 import unreal
 
 # ── 1. Path setup ─────────────────────────────────────────────────────────────

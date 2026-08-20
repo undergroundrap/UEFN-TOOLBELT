@@ -15,16 +15,16 @@ Usage:
 """
 
 from __future__ import annotations
+
 VERSION = "V11-ULTIMATE-171"
 import os
 import time
 from datetime import datetime
-from typing import Any, List, Optional, Tuple
 
 import unreal
 
-from UEFN_Toolbelt.registry import register_tool
 from UEFN_Toolbelt.core import undo_transaction
+from UEFN_Toolbelt.registry import register_tool
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -157,19 +157,19 @@ def _ensure_folder(path: str) -> None:
 def _test_materials() -> None:
     _header("1. Materials")
     import UEFN_Toolbelt as tb
-    
+
     # Test 1: Apply override
     actor = _spawn_fixture()
     if not actor:
         _record("Materials", "Apply Preset", False, "Fixture spawn failed")
         return
-        
+
     _select_fixture([actor])
     try:
         # Use a built-in preset
         target_preset = "gold"
         tb.run("material_apply_preset", preset=target_preset)
-        
+
         # Verify material changed via Asset Registry or Fallback
         # Note: If M_ToolbeltBase is missing, we use a built-in engine material for verification
         PARENT_MATERIAL_PATH = "/UEFN_Toolbelt/Materials/M_ToolbeltBase"
@@ -194,17 +194,17 @@ def _test_materials() -> None:
 def _test_bulk_ops() -> None:
     _header("2. Bulk Operations")
     import UEFN_Toolbelt as tb
-    
+
     a1 = _spawn_fixture(location=unreal.Vector(0, 0, 0))
     a2 = _spawn_fixture(location=unreal.Vector(100, 200, 50))
     a3 = _spawn_fixture(location=unreal.Vector(-50, 400, 100))
-    
+
     if not (a1 and a2 and a3):
         _record("Bulk Ops", "Alignment", False, "Fixture spawn failed")
         return
-        
+
     _select_fixture([a1, a2, a3])
-    
+
     # Test alignment (X) - aligns to first selected actor (a1 at X=0)
     try:
         tb.run("bulk_align", axis="X")
@@ -218,7 +218,7 @@ def _test_bulk_ops() -> None:
 def _test_bulk_ops_advanced() -> None:
     _header("2.1 Bulk Operations (Advanced)")
     import UEFN_Toolbelt as tb
-    
+
     # --- Test Distribute ---
     a1 = _spawn_fixture(location=unreal.Vector(0, 0, 0))
     a2 = _spawn_fixture(location=unreal.Vector(10, 0, 0))
@@ -263,7 +263,7 @@ def _test_bulk_ops_advanced() -> None:
     _select_fixture([a_low, a_high])
     try:
         tb.run("bulk_stack")
-        # a_high should now be at Z=150.0 
+        # a_high should now be at Z=150.0
         # (a_low moved to Z=50 center-pivot height, a_high stacked 100 units above that)
         l = a_high.get_actor_location()
         passed = _assert_delta(l.z, 150.0)
@@ -288,7 +288,7 @@ def _test_bulk_ops_advanced() -> None:
 def _test_bulk_ops_extensions() -> None:
     _header("2.2 Bulk Operations (Extensions)")
     import UEFN_Toolbelt as tb
-    
+
     # --- Test Mirror ---
     a_mirror = _spawn_fixture(location=unreal.Vector(100, 50, 0))
     _select_fixture([a_mirror])
@@ -298,10 +298,9 @@ def _test_bulk_ops_extensions() -> None:
         # Wait, if there's only 1 actor, the "center" of selection is just its location.
         # Mirroring a single actor about its own center does nothing to location, but it flips the mesh/rotation.
         # So we'll spawn 2 actors to test mirror properly.
+    except Exception:
         pass
-    except Exception as e:
-        pass
-        
+
     a_mirror_1 = _spawn_fixture(location=unreal.Vector(100, 0, 0))
     a_mirror_2 = _spawn_fixture(location=unreal.Vector(200, 0, 0))
     # Center of X is 150.
@@ -313,7 +312,7 @@ def _test_bulk_ops_extensions() -> None:
         _record("Bulk Ops", "Mirror X", passed)
     except Exception as e:
         _record("Bulk Ops", "Mirror X", False, str(e))
-        
+
     # --- Test Normalize Scale ---
     a_scale = _spawn_fixture(location=unreal.Vector(0,0,0))
     a_scale.set_actor_scale3d(unreal.Vector(2.0, 3.5, 4.1))
@@ -325,7 +324,7 @@ def _test_bulk_ops_extensions() -> None:
         _record("Bulk Ops", "Normalize Scale", passed, f"Scale: {s}")
     except Exception as e:
         _record("Bulk Ops", "Normalize Scale", False, str(e))
-        
+
     # --- Test Face Camera ---
     a_face = _spawn_fixture(location=unreal.Vector(0,0,0))
     _select_fixture([a_face])
@@ -339,17 +338,17 @@ def _test_bulk_ops_extensions() -> None:
 def _test_patterns() -> None:
     _header("3. Prop Patterns")
     import UEFN_Toolbelt as tb
-    
+
     try:
         # Run a small grid
         tb.run("pattern_grid", cols=2, rows=2, spacing_x=500, spacing_y=500)
-        
+
         # Count actors with the tag
         all_actors = unreal.EditorLevelLibrary.get_all_level_actors()
         pattern_actors = [a for a in all_actors if "TOOLBELT_PATTERN" in [str(t) for t in a.get_editor_property("tags")]]
-        
+
         _record("Patterns", "Grid Spawn (2x2)", len(pattern_actors) >= 4, f"Found {len(pattern_actors)} actors")
-        
+
         # Test clear
         tb.run("pattern_clear")
         all_actors = unreal.EditorLevelLibrary.get_all_level_actors()
@@ -361,19 +360,19 @@ def _test_patterns() -> None:
 def _test_patterns_advanced() -> None:
     _header("3.1 Prop Patterns (Advanced)")
     import UEFN_Toolbelt as tb
-    
+
     # --- Test Circle ---
     try:
         radius = 1000.0
         count = 8
         tb.run("pattern_circle", radius=radius, count=count)
-        
+
         all_actors = unreal.EditorLevelLibrary.get_all_level_actors()
         pattern_actors = [a for a in all_actors if "TOOLBELT_PATTERN" in [str(t) for t in a.get_editor_property("tags")]]
-        
+
         # Verify count
         passed_count = len(pattern_actors) >= count
-        
+
         # Verify distance from center (0,0,0)
         passed_dist = True
         if pattern_actors:
@@ -382,7 +381,7 @@ def _test_patterns_advanced() -> None:
                 if not _assert_delta(dist, radius, tolerance=10.0):
                     passed_dist = False
                     break
-                    
+
         _record("Patterns", "Circle (Radius/Count)", passed_count and passed_dist, f"Count: {len(pattern_actors)}, Dist: {radius}")
         tb.run("pattern_clear")
     except Exception as e:
@@ -431,7 +430,7 @@ def _test_patterns_advanced() -> None:
 def _test_advanced_patterns() -> None:
     _header("3.2 Prop Patterns (Advanced / Scatter)")
     import UEFN_Toolbelt as tb
-    
+
     # --- Test Helix ---
     try:
         tb.run("pattern_helix", count=24, radius=600, turns=2.0)
@@ -457,11 +456,11 @@ def _test_advanced_patterns() -> None:
     try:
         pts = [(0.0, 0.0, 0.0), (1000.0, 0.0, 0.0)]
         tb.run("scatter_along_path", path_points=pts, count_per_point=3, folder="TestScatterPath")
-        
+
         all_actors = unreal.EditorLevelLibrary.get_all_level_actors()
         scatter_actors = [a for a in all_actors if a.get_folder_path() and "TestScatterPath" in str(a.get_folder_path())]
         _record("Procedural", "Scatter Along Path (Count=6)", len(scatter_actors) == 6, f"Found {len(scatter_actors)}")
-        
+
         # Cleanup
         tb.run("scatter_clear", folder="TestScatterPath")
     except Exception as e:
@@ -470,40 +469,40 @@ def _test_advanced_patterns() -> None:
 def _test_snapshots() -> None:
     _header("4. Level Snapshots")
     import UEFN_Toolbelt as tb
-    
+
     try:
         snap_name = "test_integration_snap_A"
-        
+
         # 1. Save Snapshot A
         tb.run("snapshot_save", name=snap_name)
         snap_dir = os.path.join(_SAVED, "snapshots")
         snap_file = os.path.join(snap_dir, f"{snap_name}.json")
         passed = os.path.exists(snap_file)
         _record("Snapshots", "Save JSON", passed)
-        
+
         # 2. Export Snapshot
         export_path = os.path.join(_SAVED, "exported_snap_A.json")
         tb.run("snapshot_export", name=snap_name, export_path=export_path)
         _record("Snapshots", "Export JSON", os.path.exists(export_path))
-        
+
         # 3. Import Snapshot
         tb.run("snapshot_import", import_path=export_path, name="test_integration_snap_Imported")
         imported_file = os.path.join(snap_dir, "test_integration_snap_Imported.json")
         _record("Snapshots", "Import JSON", os.path.exists(imported_file))
-        
+
         # Spawn an actor to create a diff
         a_diff = _spawn_fixture(location=unreal.Vector(100, 200, 300))
-        
+
         # 4. Compare Live
         tb.run("snapshot_compare_live", name=snap_name)
         _record("Snapshots", "Compare Live", True) # Just testing no crash
-        
+
         # 5. Save Snapshot B & Diff
         snap_name_b = "test_integration_snap_B"
         tb.run("snapshot_save", name=snap_name_b)
         tb.run("snapshot_diff", name_a=snap_name, name_b=snap_name_b)
         _record("Snapshots", "Diff JSON", True)
-        
+
         # 6. Restore
         a_diff.set_actor_location(unreal.Vector(999, 999, 999), False, False)
         tb.run("snapshot_restore", name=snap_name_b)
@@ -517,22 +516,22 @@ def _test_snapshots() -> None:
             tb.run("snapshot_delete", name="test_integration_snap_Imported")
             if os.path.exists(export_path):
                 os.remove(export_path)
-            
+
             _record("Snapshots", "Delete JSON", not os.path.exists(snap_file))
             if a_diff:
                 a_diff.destroy_actor()
-                
+
     except Exception as e:
         _record("Snapshots", "Execution", False, str(e))
 
 def _test_crawler() -> None:
     _header("5. API Capability Crawler")
     import UEFN_Toolbelt as tb
-    
+
     try:
         # Crawl the level (fast read-only)
         tb.run("api_crawl_level_classes")
-        
+
         # Verify file
         out_path = os.path.join(_SAVED, "api_level_classes_schema.json")
         _record("Crawler", "Level Crawl JSON", os.path.exists(out_path))
@@ -541,49 +540,49 @@ def _test_crawler() -> None:
         actor = _spawn_fixture()
         _select_fixture([actor])
         tb.run("api_crawl_selection")
-        
+
         # Output is typically api_selection_crawl.json
         out_path_sel = os.path.join(_SAVED, "api_selection_crawl.json")
         _record("Crawler", "Selection Crawl JSON", os.path.exists(out_path_sel))
-        
+
     except Exception as e:
         _record("Crawler", "Execution", False, str(e))
 
 def _test_asset_tagger() -> None:
     _header("6. Asset Tagger")
     import UEFN_Toolbelt as tb
-    
+
     # Spawn a fixture to have something to tag
     actor = _spawn_fixture()
     if not actor:
         _record("Asset Tagger", "Add Tag", False, "Fixture spawn failed")
         return
-        
+
     try:
         # Asset path of basic cube
         asset_path = _CUBE_MESH
         tag_name = "TEST_INTEGRATION_TAG"
-        
+
         # Add tag (passing explicit asset_paths to bypass selection)
         tb.run("tag_add", asset_paths=[asset_path], tag_name=tag_name, value="verified")
         _record("Asset Tagger", "Add Tag", True)
-        
+
         # Select and Show tags
         _select_fixture([actor])
         tb.run("tag_show")
         _record("Asset Tagger", "Show Tags", True)
-        
+
         # Search & List
         search_folder = "/Engine/BasicShapes"
         tb.run("tag_search", tag_name=tag_name, value="verified", folder=search_folder)
         tb.run("tag_list_all", folder=search_folder)
         _record("Asset Tagger", "Search & List All", True)
-        
+
         # Export
         tb.run("tag_export", folder=search_folder)
         export_path = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "tag_export.json")
         _record("Asset Tagger", "Export Tags", os.path.exists(export_path))
-        
+
         # Remove tag
         tb.run("tag_remove", asset_paths=[asset_path], tag_name=tag_name)
         _record("Asset Tagger", "Remove Tag", True)
@@ -593,12 +592,12 @@ def _test_asset_tagger() -> None:
 def _test_verse() -> None:
     _header("7. Verse Helpers")
     import UEFN_Toolbelt as tb
-    
+
     try:
         # Test snippet listing
         tb.run("verse_list_snippets")
         _record("Verse", "List Snippets", True)
-        
+
         # Test device generation (requires selection)
         actor = _spawn_fixture()
         _select_fixture([actor])
@@ -610,7 +609,7 @@ def _test_verse() -> None:
 def _test_verse_advanced() -> None:
     _header("7.2 Verse Layout & Boilerplate")
     import UEFN_Toolbelt as tb
-    
+
     try:
         # Code Generators
         tb.run("verse_gen_custom", code="# custom test snippet", description="pytest")
@@ -619,28 +618,28 @@ def _test_verse_advanced() -> None:
         tb.run("verse_gen_prop_spawner")
         tb.run("verse_gen_scoring_tracker", max_score=50)
         _record("Verse", "CodeGen Boilerplates", True)
-        
+
         # Device Editors
         tb.run("verse_list_devices")
         tb.run("verse_export_report")
-        
+
         actor = _spawn_fixture()
         _select_fixture([actor])
-        
+
         # Select by name fallback (will likely select 0 devices, but shouldn't crash)
         tb.run("verse_select_by_name", name_filter="RandomNonExistentString123")
         tb.run("verse_select_by_class", class_filter="RandomNonExistentString123")
-        
+
         # Re-select the fixture actor for property sets
         _select_fixture([actor])
         tb.run("verse_bulk_set_property", property_name="bHidden", value=True, use_all_devices=False)
         passed_prop = actor.get_editor_property("bHidden") is True
         _record("Verse", "Bulk Set Property", passed_prop)
-        
+
         # Snippets Open Directory (just test execution path)
         # Note: actually executing this spawns windows explorer, which is annoying for automation.
-        # tb.run("verse_open_snippets_folder") 
-        
+        # tb.run("verse_open_snippets_folder")
+
         # Cleanup
         actor.destroy_actor()
     except Exception as e:
@@ -653,27 +652,27 @@ def _test_screenshots() -> None:
         # Take a screenshot (full resolution)
         shot_name = "integration_test_shot"
         path = tb.run("screenshot_take", name=shot_name, width=1920, height=1080)
-        
+
         # Test Focus Selection
         a1 = _spawn_fixture()
         _select_fixture([a1])
         tb.run("screenshot_focus_selection", name="focus_shot", width=1280, height=720, restore_camera=False)
         _record("Screenshots", "Focus Selection", True)
-        
+
         # Test Timed Series (short interval for speed)
         tb.run("screenshot_timed_series", name="series_shot", count=2, width=1280, height=720, interval_sec=0.1)
         _record("Screenshots", "Timed Series", True)
-        
+
         # Test Open Folder
         tb.run("screenshot_open_folder")
-        
+
         a1.destroy_actor()
-        
+
         # Note: AutomationLibrary.take_high_res_screenshot is ASYNCHRONOUS.
         # It only writes the file AFTER this Python script finishes and the engine ticks.
         # We verify that the command was successfully sent and the path is valid.
         passed = bool(path and "screenshots" in str(path))
-            
+
         _record("Screenshots", "Capture Paths", passed, f"Queued → {path}" if passed else "Capture request failed")
     except Exception as e:
         _record("Screenshot", "Capture Error", False, str(e))
@@ -685,7 +684,7 @@ def _test_scatter() -> None:
     try:
         # Pre-cleanup
         tb.run("scatter_clear", folder="TestScatter")
-        
+
         # --- Test Props Scatter ---
         tb.run("scatter_props", count=10, radius=500.0, folder="TestScatter")
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -719,39 +718,39 @@ def _test_splines() -> None:
     try:
         # Pre-cleanup to ensure accurate actor counts
         tb.run("spline_clear_props", folder_name="TestSplineProps")
-        
+
         # Setup: Spawn actor + SplineComponent
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
         spline_host = actor_sub.spawn_actor_from_class(unreal.Actor, unreal.Vector(0,0,0))
         spline_host.set_actor_label("TestSplineHost")
-        
-        spline_comp = unreal.SplineComponent(spline_host)
-        
+
+        _spline_comp = unreal.SplineComponent(spline_host)
+
         # Select it
         _select_fixture([spline_host])
-        
+
         # Run placement (default count=10)
         tb.run("spline_place_props", count=5, folder_name="TestSplineProps")
-        
+
         props = [a for a in actor_sub.get_all_level_actors() if "TestSplineProps" in str(a.get_folder_path())]
         _record("Spline", "Place Props", len(props) == 5, f"Spawned {len(props)} props along spline")
-        
+
         # 2. Spline to Verse routines
         tb.run("spline_to_verse_points", sample_count=10)
         tb.run("spline_to_verse_patrol", device_name="TestSplinePatrol")
         tb.run("spline_to_verse_zone_boundary", zone_name="TestSplineZone")
         _record("Spline", "Code Generate Verse", True)
-        
+
         # 3. Spline Export
         tb.run("spline_export_json", sample_count=5, include_tangents=True)
         export_path = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "spline_export.json")
         _record("Spline", "Export JSON", os.path.exists(export_path))
-        
+
         # Cleanup
         tb.run("spline_clear_props", folder_name="TestSplineProps")
         spline_host.destroy_actor()
         _record("Spline", "Clear Props", True)
-        
+
     except Exception as e:
         _record("Spline", "Error", False, str(e))
 
@@ -765,37 +764,37 @@ def _test_assets() -> None:
         report_path = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "rename_report.json")
         passed = os.path.exists(report_path)
         _record("Assets", "Rename Dry Run", passed, f"Report generated: {passed}")
-        
+
         # --- Asset Creation for invasive tests ---
         test_dir = "/Game/TOOLBELT_TEST"
         unreal.EditorAssetLibrary.make_directory(test_dir)
-        
-        # We cannot duplicate engine assets because they are cooked. 
+
+        # We cannot duplicate engine assets because they are cooked.
         # Instead, we will create dummy Material Instances.
         factory = unreal.MaterialInstanceConstantFactoryNew()
         asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
-        
+
         asset_tools.create_asset("BadNameMat", test_dir, unreal.MaterialInstanceConstant, factory)
         asset_tools.create_asset("M_WrongPrefix", test_dir, unreal.MaterialInstanceConstant, factory)
-        
-        # Note: Unreal's AssetRegistry caches paths. Sequential rename operations 
+
+        # Note: Unreal's AssetRegistry caches paths. Sequential rename operations
         # inside the same tick won't see the updated paths from previous steps.
         # We verify that the tools execute properly against the created assets without crashing.
-        
+
         # Test Report
         tb.run("rename_report", scan_path=test_dir)
         _record("Assets", "Rename Report", os.path.exists(report_path), "JSON Report created")
-        
+
         # Test Enforce
         tb.run("rename_enforce_conventions", scan_path=test_dir)
         _record("Assets", "Enforce Conventions", True, "Tool executed and processed assets")
-        
+
         # Test Strip
         # Spawn a fresh asset for strip_prefix so it's in the registry's initial state
         asset_tools.create_asset("MI_StripMe", test_dir, unreal.MaterialInstanceConstant, factory)
         tb.run("rename_strip_prefix", scan_path=test_dir, prefix="MI_", dry_run=False)
         _record("Assets", "Strip Prefix", True, "Tool executed without errors")
-        
+
         # Cleanup
         unreal.EditorAssetLibrary.delete_directory(test_dir)
 
@@ -812,27 +811,27 @@ def _test_memory() -> None:
         report_path = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "memory_report.json")
         passed = os.path.exists(report_path)
         _record("Optimization", "Memory Scan JSON", passed, f"Report generated: {passed}")
-        
+
         # Run specific scans (read-only)
         tb.run("memory_scan_textures", scan_path="/Engine/EngineMaterials")
         _record("Optimization", "Scan Textures", True)
-        
+
         tb.run("memory_scan_meshes", scan_path="/Engine/BasicShapes")
         _record("Optimization", "Scan Meshes", True)
-        
+
         tb.run("memory_top_offenders", scan_path="/Engine/BasicShapes", top_n=5)
         _record("Optimization", "Top Offenders", True)
-        
+
         # Test Auto-Fix LODs
-        # We cannot duplicate engine meshes because they are cooked. 
-        # So we just run the tool on an empty directory to ensure it doesn't crash 
+        # We cannot duplicate engine meshes because they are cooked.
+        # So we just run the tool on an empty directory to ensure it doesn't crash
         # when traversing the Asset Registry.
         test_dir = "/Game/TOOLBELT_TEST_MEM"
         unreal.EditorAssetLibrary.make_directory(test_dir)
-        
+
         tb.run("memory_autofix_lods", scan_path=test_dir, num_lods=3)
         _record("Optimization", "Auto-Fix LODs", True, "Tool runs safely on Empty Dir")
-        
+
         # Cleanup
         unreal.EditorAssetLibrary.delete_directory(test_dir)
 
@@ -848,21 +847,21 @@ def _test_reference_auditor() -> None:
         # Run audit scans on engine shapes (we don't delete them, just verify tools run)
         tb.run("ref_audit_orphans", scan_path="/Engine/BasicShapes", excluded_classes=[])
         _record("Assets", "Audit Orphans", True)
-        
+
         tb.run("ref_audit_redirectors", scan_path="/Engine/BasicShapes")
         _record("Assets", "Audit Redirectors", True)
-        
+
         tb.run("ref_audit_duplicates", scan_path="/Engine/BasicShapes")
         _record("Assets", "Audit Duplicates", True)
-        
+
         tb.run("ref_audit_unused_textures", scan_path="/Engine/EngineMaterials")
         _record("Assets", "Audit Unused Textures", True)
-        
+
         tb.run("ref_full_report", scan_path="/Engine/BasicShapes", excluded_classes=[])
         report_path = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "ref_audit_report.json")
         passed = os.path.exists(report_path)
         _record("Assets", "Ref Aud Full Report", passed, f"Report generated: {passed}")
-        
+
     except Exception as e:
         _record("Assets", "Reference Auditor Error", False, str(e))
 
@@ -875,28 +874,28 @@ def _test_project_scaffold() -> None:
         test_project = "ScaffoldTest"
         test_base = "/Game/TOOLBELT_TEST"
         root_path = f"{test_base}/{test_project}"
-        
+
         # 1. Preview
         tb.run("scaffold_preview", template="solo_dev", project_name=test_project, base=test_base)
         _record("Project", "Scaffold Preview", True)
-        
+
         # 2. Generate
         tb.run("scaffold_generate", template="solo_dev", project_name=test_project, base=test_base)
         maps_path = f"{root_path}/Maps"
         passed = unreal.EditorAssetLibrary.does_directory_exist(maps_path)
         _record("Project", "Scaffold Generate", passed, f"Maps folder created: {passed}")
-        
+
         # 3. Save Custom Template
         tb.run("scaffold_save_template", template_name="TEST_Tmpl", folders=["A", "B/C"])
         _record("Project", "Scaffold Save Template", True)
-        
+
         # 4. Delete Custom Template
         tb.run("scaffold_delete_template", template_name="TEST_Tmpl")
         _record("Project", "Scaffold Delete Template", True)
-        
+
         # Cleanup
         unreal.EditorAssetLibrary.delete_directory(test_base)
-        
+
     except Exception as e:
         _record("Project", "Scaffold Error", False, str(e))
 
@@ -909,39 +908,39 @@ def _test_text_painter() -> None:
         result1 = tb.run("text_place", text="UNIT_TEST", location=(0,0,1000), folder="TestTextProps")
         passed = isinstance(result1, dict) and result1.get("status") == "ok"
         _record("Procedural", "Text Place", passed)
-        
+
         # 2. Paint Grid
         tb.run("text_paint_grid", cols=2, rows=2, origin=(0,0,2000), cell_size=200, folder="TestTextGrid")
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
         grid_actors = [
-            a for a in actor_sub.get_all_level_actors() 
+            a for a in actor_sub.get_all_level_actors()
             if isinstance(a, unreal.TextRenderActor) and "TestTextGrid" in str(a.get_folder_path())
         ]
         passed_grid = len(grid_actors) == 4
         _record("Procedural", "Text Paint Grid", passed_grid, f"Found {len(grid_actors)} actors, expected 4")
-        
+
         # 3. Save Style & List Styles
         tb.run("text_save_style", style_name="TEST_Style", color="#FF0000")
         _record("Procedural", "Text Save Style", True)
         tb.run("text_list_styles")
-        
+
         # 4. Color Cycle & Label Selection
         tb.run("text_color_cycle", start_location=(0,500,1000), spacing_x=200)
         _record("Procedural", "Text Color Cycle", True)
-        
+
         a1 = _spawn_fixture()
         _select_fixture([a1])
         tb.run("text_label_selection", offset_z=100.0, color="#FF00FF")
         _record("Procedural", "Text Label Selection", True)
         a1.destroy_actor()
-        
+
         # 5. Clear Folder
         tb.run("text_clear_folder", folder="TestTextProps")
         tb.run("text_clear_folder", folder="TestTextGrid")
         tb.run("text_clear_folder", folder="ToolbeltText")
-        
+
         remaining = [
-            a for a in actor_sub.get_all_level_actors() 
+            a for a in actor_sub.get_all_level_actors()
             if isinstance(a, unreal.TextRenderActor) and ("TestText" in str(a.get_folder_path()) or "ToolbeltText" in str(a.get_folder_path()))
         ]
         passed_clear = len(remaining) == 0
@@ -956,52 +955,52 @@ def _test_advanced_materials() -> None:
     import UEFN_Toolbelt as tb
     try:
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-        
+
         # Spawn 3 cubes for material testing
         a1 = _spawn_fixture(location=unreal.Vector(0, 0, 0))
         a2 = _spawn_fixture(location=unreal.Vector(200, 0, 0))
         a3 = _spawn_fixture(location=unreal.Vector(400, 0, 0))
         actor_sub.set_selected_level_actors([a1, a2, a3])
-        
+
         # 1. Randomize Colors
         tb.run("material_randomize_colors", saturation=0.8)
         _record("Materials", "Randomize Colors", True)
-        
+
         # 2. Gradient Painter
         tb.run("material_gradient_painter", color_a="#0000FF", color_b="#FF0000", axis="X")
         _record("Materials", "Gradient Painter", True)
-        
+
         # 3. Team Color Split
         tb.run("material_team_color_split")
         _record("Materials", "Team Color Split", True)
-        
+
         # 4. Pattern Painter
         tb.run("material_pattern_painter", pattern="checkerboard", preset_a="neon", preset_b="rubber")
         _record("Materials", "Pattern Painter", True)
-        
+
         # 5. Glow Pulse Preview
         tb.run("material_glow_pulse_preview", intensity=10.0)
         _record("Materials", "Glow Pulse Preview", True)
-        
+
         # 6. Color Harmony
         tb.run("material_color_harmony", harmony="triadic")
         _record("Materials", "Color Harmony", True)
-        
+
         # 7. Save Preset / List Presets
         actor_sub.set_selected_level_actors([a1])
         tb.run("material_apply_preset", preset="chrome")
         tb.run("material_save_preset", preset_name="TEST_Integration_Preset")
         tb.run("material_list_presets")
         _record("Materials", "Save & List Presets", True)
-        
+
         # 8. Bulk Swap (Basic verification without precise paths)
-        # Apply neon to all 3, then swap neon for rubber. We use the engine fallback since we don't have exact material paths 
+        # Apply neon to all 3, then swap neon for rubber. We use the engine fallback since we don't have exact material paths
         # stored easily. However, `material_bulk_swap` requires exact string paths.
         # So we'll run it with dummy paths expecting it to exit cleanly without erroring.
         actor_sub.set_selected_level_actors([a1, a2, a3])
         tb.run("material_bulk_swap", old_material_path="/Engine/BasicShapes/BasicShapeMaterial", new_material_path="/Engine/EngineMaterials/DefaultMaterial", scope="selection")
         _record("Materials", "Bulk Swap", True)
-        
+
         # Cleanup
         for a in [a1, a2, a3]:
             a.destroy_actor()
@@ -1027,11 +1026,11 @@ def toolbelt_integration_test(**kwargs) -> None:
     global _results, _start_time
     _results = []
     _start_time = time.time()
-    
+
     unreal.log("══════════════════════════════════════════════════════")
     unreal.log("  UEFN TOOLBELT INTEGRATION TEST — STARTING")
     unreal.log("══════════════════════════════════════════════════════")
-    
+
     with undo_transaction("Toolbelt Integration Test"):
         try:
             _test_materials()
@@ -1055,7 +1054,7 @@ def toolbelt_integration_test(**kwargs) -> None:
             _test_verse()
             _test_verse_advanced()
             _test_screenshots()
-            
+
             # --- Batch 8 (Careful/Non-Invasive) ---
             _test_lods_safe()
             _test_optimization_safe()
@@ -1094,16 +1093,16 @@ def toolbelt_integration_test(**kwargs) -> None:
             # Finalize
             _cleanup_fixtures()
             report_path = _save_report()
-            
+
             passed = sum(1 for r in _results if r["passed"])
             total = len(_results)
-            
+
             unreal.log("\n══════════════════════════════════════════════════════")
             unreal.log("  INTEGRATION TEST COMPLETE")
             unreal.log(f"  Passed: {passed}/{total}")
             unreal.log(f"  Results: {report_path}")
             unreal.log("══════════════════════════════════════════════════════")
-            
+
         except Exception as e:
             unreal.log_error(f"FATAL ERROR IN INTEGRATION TEST: {e}")
             _cleanup_fixtures()
@@ -1118,13 +1117,13 @@ def _test_lods_safe() -> None:
         # Restriction: Only use the TOOLBELT_TEST folder
         test_folder = "/Game/TOOLBELT_TEST/LODs"
         unreal.EditorAssetLibrary.make_directory(test_folder)
-        
+
         # 1. Spawn a fresh test mesh (Material Instance + Proxy)
-        # Instead of duplicating project meshes (which might be cooked), 
+        # Instead of duplicating project meshes (which might be cooked),
         # we'll test the audit and folder tools which are the main goal.
         tb.run("lod_audit_folder", folder_path=test_folder)
         _record("LODs", "Audit Folder", True, "Audit executed on test folder")
-        
+
     except Exception as e:
         _record("LODs", "Error", False, str(e))
 
@@ -1134,11 +1133,11 @@ def _test_optimization_safe() -> None:
     try:
         # Restriction: Never scan /Game. Only scan the test folder.
         test_folder = "/Game/TOOLBELT_TEST"
-        
+
         tb.run("memory_scan_textures", scan_path=test_folder)
         tb.run("memory_scan_meshes", scan_path=test_folder)
         _record("Optimization", "Safe Scans", True, f"Scanned: {test_folder}")
-        
+
     except Exception as e:
         _record("Optimization", "Error", False, str(e))
 
@@ -1148,17 +1147,17 @@ def _test_arena_safe() -> None:
     try:
         # Run a SMALL arena generation
         tb.run("arena_generate", size="small", apply_team_colors=False)
-        
+
         # Verify spawning - check for actors containing 'Arena' or 'Base' in folder
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
         arena_actors = [a for a in actor_sub.get_all_level_actors() if "Arena" in str(a.get_folder_path())]
         _record("Arena", "Generate", len(arena_actors) > 10, f"Spawned {len(arena_actors)} actors")
-        
+
         # MANDATORY CLEANUP: Mass destroy everything in the Arena folder
         for a in arena_actors:
             a.destroy_actor()
         _record("Arena", "Cleanup", True, "All arena actors destroyed")
-        
+
     except Exception as e:
         _record("Arena", "Error", False, str(e))
 
@@ -1170,15 +1169,15 @@ def _test_scatter_advanced_safe() -> None:
         # 1. Scatter Along Path (Linear)
         pts = [(0,0,0), (1000,0,0)]
         tb.run("scatter_along_path", path_points=pts, count_per_point=2, folder=test_folder)
-        
+
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
         actors = [a for a in actor_sub.get_all_level_actors() if test_folder in str(a.get_folder_path())]
         _record("Scatter", "Along Path", len(actors) == 4, f"Found {len(actors)} actors")
-        
+
         # CLEANUP
         tb.run("scatter_clear", folder=test_folder)
         _record("Scatter", "Cleanup", True, "Test folder cleared")
-        
+
     except Exception as e:
         _record("Scatter", "Error", False, str(e))
 
@@ -1190,25 +1189,25 @@ def _test_assets_advanced_safe() -> None:
         test_dir = "/Game/TOOLBELT_TEST/AssetOps"
         # Fix: use full unreal path creation to avoid scope issues
         unreal.EditorAssetLibrary.make_directory(test_dir)
-        
+
         # Create a Material Instance to test renaming
         asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
-        mi = asset_tools.create_asset("mi_bad_Name", test_dir, 
+        mi = asset_tools.create_asset("mi_bad_Name", test_dir,
                                       unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
-        
+
         if mi:
             # Test enforce (mi_ -> MI_)
             tb.run("rename_enforce_conventions", scan_path=test_dir)
             _record("Assets", "Enforce Conventions", True, "Tool executed on specific path")
-            
+
             # Test organize
             tb.run("organize_assets", source_path=test_dir, target_base="/Game/TOOLBELT_TEST/Organized")
             _record("Assets", "Organize Assets", True, "Tool executed on specific path")
-            
+
         # Cleanup
         unreal.EditorAssetLibrary.delete_directory("/Game/TOOLBELT_TEST/AssetOps")
         unreal.EditorAssetLibrary.delete_directory("/Game/TOOLBELT_TEST/Organized")
-        
+
     except Exception as e:
         _record("Assets", "Error", False, str(e))
 
@@ -1227,19 +1226,19 @@ def _test_bridge_safe() -> None:
 def _test_measurement() -> None:
     _header("9. Measurement Tools")
     import UEFN_Toolbelt as tb
-    
+
     # Setup: 2 actors at known distance
     a1 = _spawn_fixture(location=unreal.Vector(0,0,0))
     a2 = _spawn_fixture(location=unreal.Vector(1000,0,0))
     _select_fixture([a1, a2])
-    
+
     try:
         # Test Distance
         dist_result = tb.run("measure_distance")
         dist = dist_result.get("distance_cm", 0.0) if isinstance(dist_result, dict) else float(dist_result)
         passed_dist = _assert_delta(dist, 1000.0)
         _record("Measurement", "Measure Distance", passed_dist, f"Dist: {dist}")
-        
+
         # Test Travel Time (Run speed ~450 cm/s)
         res = tb.run("measure_travel_time", speed_type="Run")
         passed_time = _assert_delta(res["time_seconds"], 1000.0 / 450.0, tolerance=0.1)
@@ -1253,36 +1252,36 @@ def _test_measurement() -> None:
 def _test_localization() -> None:
     _header("10. Localization Tools")
     import UEFN_Toolbelt as tb
-    
+
     # Setup: TextRenderActor
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     txt_actor = actor_sub.spawn_actor_from_class(unreal.TextRenderActor, unreal.Vector(0,0,0))
     txt_actor.set_actor_label("Grok_Test_Actor")
     txt_actor.text_render.set_editor_property("text", "Grok_Test_String")
-    
+
     try:
         # Test Export
         exp_result = tb.run("text_export_manifest", format="json")
         out_path = exp_result.get("path") if isinstance(exp_result, dict) else exp_result
         passed_exp = out_path is not None and os.path.exists(out_path)
         _record("Localization", "Export Manifest", passed_exp)
-        
+
         # Modify manifest to "Grok_Translated"
         if passed_exp:
             import json
-            with open(out_path, "r", encoding="utf-8") as f:
+            with open(out_path, encoding="utf-8") as f:
                 data = json.load(f)
-            
+
             found = False
             for entry in data:
                 if entry["original_text"] == "Grok_Test_String":
                     entry["translated_text"] = "Grok_Translated"
                     found = True
-            
+
             if found:
                 with open(out_path, "w", encoding="utf-8") as f:
                     json.dump(data, f)
-                    
+
                 # Test Apply
                 tb.run("text_apply_translation", manifest_path=out_path)
                 # Note: set_text takes a string, but get_text might return an unreal.Text
@@ -1291,7 +1290,7 @@ def _test_localization() -> None:
                 _record("Localization", "Apply Translation", passed_apply, f"Current: {current_text}")
             else:
                 _record("Localization", "Apply Translation", False, "Test string not found in manifest")
-        
+
     except Exception as e:
         _record("Localization", "Error", False, str(e))
     finally:
@@ -1328,14 +1327,14 @@ def _test_entities() -> None:
         # availability varies by UEFN build so exact spawn count is not reliable.
         spawned = tb.run("entity_spawn_kit", kit_name="Teleport Link")
         _record("Entities", "Spawn Kit", spawned.get("status") == "ok", f"count={spawned.get('count')}")
-        
+
         # Verify and Cleanup
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
         actors = actor_sub.get_all_level_actors()
         for a in actors:
             if "Teleport_" in a.get_actor_label():
                 a.destroy_actor()
-                
+
     except Exception as e:
         _record("Entities", "Error", False, str(e))
 
@@ -1346,7 +1345,7 @@ def _test_selection() -> None:
     a1 = _spawn_fixture(location=unreal.Vector(0,0,0))
     a2 = _spawn_fixture(location=unreal.Vector(500,0,0))
     a3 = _spawn_fixture(location=unreal.Vector(2000,0,0))
-    
+
     try:
         # Test Radius Selection
         actor_sub.set_selected_level_actors([a1])
@@ -1365,7 +1364,7 @@ def _test_selection() -> None:
     except Exception as e:
         _record("Selection", "Error", False, str(e))
     finally:
-        for a in [a1, a2, a3]: 
+        for a in [a1, a2, a3]:
             if a: actor_sub.destroy_actor(a)
 
 def _test_lighting_integration() -> None:
@@ -1511,7 +1510,7 @@ def _test_stamp_tools() -> None:
 def _test_actor_org_tools() -> None:
     _header("9.3 Actor Org Tools")
     import UEFN_Toolbelt as tb
-    actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    _actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     try:
         a1 = _spawn_fixture(_CUBE_MESH, unreal.Vector(0, 500, 0))
         a2 = _spawn_fixture(_CUBE_MESH, unreal.Vector(200, 500, 0))

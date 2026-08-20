@@ -44,15 +44,13 @@ import os
 import random
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple
 
 import unreal
 
-from ..core import log_info, log_warning, log_error, get_config, notify
-from ..core.theme import PALETTE as _PALETTE
+from ..core import get_config, log_error, log_info, log_warning
 from ..core.base_window import ToolbeltWindow
+from ..core.theme import PALETTE as _PALETTE
 from ..registry import register_tool
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  PySide6 guard  (mirrors the project-wide convention)
@@ -60,17 +58,38 @@ from ..registry import register_tool
 
 _PYSIDE6 = False
 try:
-    from PySide6.QtWidgets import (
-        QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-        QSplitter, QPushButton, QLabel, QLineEdit, QTextEdit, QScrollArea,
-        QFrame, QFileDialog, QGraphicsView, QGraphicsScene,
-        QGraphicsItem, QGraphicsObject, QGraphicsTextItem,
-        QInputDialog, QMenu, QComboBox,
-    )
-    from PySide6.QtCore import Qt, QTimer, QRectF, QPointF, Signal
+    from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
     from PySide6.QtGui import (
-        QPainter, QPen, QBrush, QColor, QFont,
-        QPainterPath, QLinearGradient, QRadialGradient,
+        QBrush,
+        QColor,
+        QFont,
+        QLinearGradient,
+        QPainter,
+        QPainterPath,
+        QPen,
+        QRadialGradient,
+    )
+    from PySide6.QtWidgets import (
+        QApplication,
+        QComboBox,
+        QFileDialog,
+        QFrame,
+        QGraphicsItem,
+        QGraphicsObject,
+        QGraphicsScene,
+        QGraphicsTextItem,
+        QGraphicsView,
+        QHBoxLayout,
+        QInputDialog,
+        QLabel,
+        QLineEdit,
+        QMenu,
+        QPushButton,
+        QScrollArea,
+        QSplitter,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
     )
     _PYSIDE6 = True
 except ImportError:
@@ -84,7 +103,7 @@ except ImportError:
 _NODE_W = 200
 _NODE_H = 76
 
-_CAT_COLORS: Dict[str, str] = {
+_CAT_COLORS: dict[str, str] = {
     "verse":       "#e94560",
     "elimination": "#ff6b35",
     "spawner":     "#27ae60",
@@ -103,7 +122,7 @@ _CAT_COLORS: Dict[str, str] = {
     "generic":     "#5d6d7e",
 }
 
-_EDGE_COLORS: Dict[str, str] = {
+_EDGE_COLORS: dict[str, str] = {
     "editable": "#e94560",
     "event":    "#2ecc71",
     "call":     "#3498db",
@@ -120,17 +139,17 @@ class DeviceNode:
     class_name: str
     category: str
     color: str
-    world_loc: Tuple[float, float, float]
+    world_loc: tuple[float, float, float]
     actor: object  # unreal.Actor or None
     verse_file: str = ""
     verse_path: str = ""
-    editables: List[Dict] = field(default_factory=list)
-    events:    List[Dict] = field(default_factory=list)
-    calls:     List[Dict] = field(default_factory=list)
-    functions: List[str]  = field(default_factory=list)
-    called_functions: Set[str] = field(default_factory=set)
-    warnings: List[str] = field(default_factory=list)
-    errors:   List[str] = field(default_factory=list)
+    editables: list[dict] = field(default_factory=list)
+    events:    list[dict] = field(default_factory=list)
+    calls:     list[dict] = field(default_factory=list)
+    functions: list[str]  = field(default_factory=list)
+    called_functions: set[str] = field(default_factory=set)
+    warnings: list[str] = field(default_factory=list)
+    errors:   list[str] = field(default_factory=list)
     note: str = ""
     cluster_id: int = -1
     folder: str = ""
@@ -150,9 +169,9 @@ class GraphEdge:
 
 @dataclass
 class GraphData:
-    nodes: List[DeviceNode]
-    edges: List[GraphEdge]
-    warnings: List[str]
+    nodes: list[DeviceNode]
+    edges: list[GraphEdge]
+    warnings: list[str]
     health_score: int
     cluster_count: int
     verse_file_count: int
@@ -183,14 +202,14 @@ class _VerseParser:
                      "block", "spawn", "await", "return"])
 
     @classmethod
-    def parse(cls, filepath: str) -> Optional[Dict]:
+    def parse(cls, filepath: str) -> dict | None:
         try:
-            with open(filepath, "r", encoding="utf-8", errors="replace") as fh:
+            with open(filepath, encoding="utf-8", errors="replace") as fh:
                 src = fh.read()
         except OSError:
             return None
 
-        out: Dict = {
+        out: dict = {
             "file": os.path.basename(filepath),
             "filepath": filepath,
             "device": "",
@@ -224,7 +243,7 @@ class _VerseParser:
                 if fn not in ("Subscribe", "Unsubscribe", "SubscribeOnce"):
                     out["calls"].append({"target": en, "func": fn})
 
-        seen_funcs: Dict[str, None] = {}  # ordered dedup
+        seen_funcs: dict[str, None] = {}  # ordered dedup
         for m in cls._FUNC_DEF.finditer(src):
             fname = m.group(1)
             if fname not in cls._KW:
@@ -253,7 +272,7 @@ class _VerseParser:
 #  Category classifier
 # ─────────────────────────────────────────────────────────────────────────────
 
-_EXTRA_KW: Dict[str, str] = {
+_EXTRA_KW: dict[str, str] = {
     "capture": "zone", "area": "zone",
     "weapon": "item", "chest": "item",
     "bot": "guard", "ai": "guard",
@@ -278,10 +297,10 @@ def _classify(class_name: str, label: str) -> str:
 class _GraphBuilder:
 
     @staticmethod
-    def build(level_devs: List[Dict], verse_data: List[Dict]) -> GraphData:
-        nodes: List[DeviceNode] = []
-        edges: List[GraphEdge] = []
-        all_warnings: List[str] = []
+    def build(level_devs: list[dict], verse_data: list[dict]) -> GraphData:
+        nodes: list[DeviceNode] = []
+        edges: list[GraphEdge] = []
+        all_warnings: list[str] = []
 
         # ── Nodes from level scan ────────────────────────────────────────
         for i, dev in enumerate(level_devs):
@@ -353,7 +372,7 @@ class _GraphBuilder:
                     ))
 
         # ── Orphan detection ─────────────────────────────────────────────
-        connected: Set[str] = set()
+        connected: set[str] = set()
         for e in edges:
             connected.add(e.source_id)
             connected.add(e.target_id)
@@ -378,8 +397,8 @@ class _GraphBuilder:
         cluster_count = _GraphBuilder._assign_clusters(nodes, edges)
 
         # ── Deduplicate edges ────────────────────────────────────────────
-        seen_edges: Set[Tuple] = set()
-        unique_edges: List[GraphEdge] = []
+        seen_edges: set[tuple] = set()
+        unique_edges: list[GraphEdge] = []
         for e in edges:
             k = (e.source_id, e.target_id, e.label)
             if k not in seen_edges:
@@ -397,7 +416,7 @@ class _GraphBuilder:
     # ── Helpers ──────────────────────────────────────────────────────────
 
     @staticmethod
-    def _match(nodes: List[DeviceNode], verse_name: str) -> Optional[DeviceNode]:
+    def _match(nodes: list[DeviceNode], verse_name: str) -> DeviceNode | None:
         vn = verse_name.lower().replace("_", "")
         for n in nodes:
             nl = n.label.lower().replace(" ", "").replace("_", "")
@@ -406,7 +425,7 @@ class _GraphBuilder:
         return None
 
     @staticmethod
-    def _find_target(nodes: List[DeviceNode], src_id: str, type_key: str) -> Optional[DeviceNode]:
+    def _find_target(nodes: list[DeviceNode], src_id: str, type_key: str) -> DeviceNode | None:
         best, best_score = None, 0
         for n in nodes:
             if n.id == src_id:
@@ -419,7 +438,7 @@ class _GraphBuilder:
         return best if best_score > 0 else None
 
     @staticmethod
-    def _find_by_label(nodes: List[DeviceNode], src_id: str, key: str) -> Optional[DeviceNode]:
+    def _find_by_label(nodes: list[DeviceNode], src_id: str, key: str) -> DeviceNode | None:
         for n in nodes:
             if n.id == src_id:
                 continue
@@ -429,7 +448,7 @@ class _GraphBuilder:
         return None
 
     @staticmethod
-    def _assign_clusters(nodes: List[DeviceNode], edges: List[GraphEdge]) -> int:
+    def _assign_clusters(nodes: list[DeviceNode], edges: list[GraphEdge]) -> int:
         parent = {n.id: n.id for n in nodes}
 
         def find(x: str) -> str:
@@ -445,7 +464,7 @@ class _GraphBuilder:
             if e.source_id in parent and e.target_id in parent:
                 union(e.source_id, e.target_id)
 
-        cluster_map: Dict[str, int] = {}
+        cluster_map: dict[str, int] = {}
         cid = 0
         for node in nodes:
             root = find(node.id)
@@ -457,7 +476,7 @@ class _GraphBuilder:
         return cid
 
     @staticmethod
-    def _health_score(nodes: List[DeviceNode], edges: List[GraphEdge]) -> int:
+    def _health_score(nodes: list[DeviceNode], edges: list[GraphEdge]) -> int:
         """
         Architecture Health Score (0–100).
           Orphan penalty  — up to 30 pts
@@ -502,7 +521,7 @@ def _class_to_verse_type(class_name: str) -> str:
     return result or "creative_device"
 
 
-def _build_wiring_code(graph: "GraphData", has_verse_path: bool = True) -> str:
+def _build_wiring_code(graph: GraphData, has_verse_path: bool = True) -> str:
     """
     Generate a Verse creative_device class stub from the current graph.
     Produces @editable declarations, OnBegin subscriptions, and handler stubs.
@@ -510,7 +529,7 @@ def _build_wiring_code(graph: "GraphData", has_verse_path: bool = True) -> str:
     nodes_by_id = {n.id: n for n in graph.nodes}
 
     # Collect @editable device refs (editable edges)
-    editable_decls: List[str] = []
+    editable_decls: list[str] = []
     seen_decls: set = set()
     for edge in graph.edges:
         if edge.edge_type != "editable":
@@ -535,8 +554,8 @@ def _build_wiring_code(graph: "GraphData", has_verse_path: bool = True) -> str:
             editable_decls.append(f"    @editable {name} : {vtype} = {vtype}{{}}")
 
     # Collect subscriptions (event edges)
-    subscriptions: List[str] = []
-    handlers: List[str] = []
+    subscriptions: list[str] = []
+    handlers: list[str] = []
     seen_subs: set = set()
     for edge in graph.edges:
         if edge.edge_type != "event":
@@ -546,7 +565,7 @@ def _build_wiring_code(graph: "GraphData", has_verse_path: bool = True) -> str:
             continue
         # Find the @editable ref name for this source device
         ref_name = None
-        for ed in nodes_by_id.get(edge.target_id, DeviceNode(
+        for _ed in nodes_by_id.get(edge.target_id, DeviceNode(
                 "", "", "", "", "", (0,0,0), None)).editables:
             pass  # unused path
         # Use label with spaces removed as ref name
@@ -579,7 +598,7 @@ def _build_wiring_code(graph: "GraphData", has_verse_path: bool = True) -> str:
             )
 
     # Assemble
-    lines: List[str] = [
+    lines: list[str] = [
         "# ─────────────────────────────────────────────────────────────────",
         "# Generated by UEFN Toolbelt — Verse Device Graph",
         f"# Devices: {len(graph.nodes)}  ·  Connections: {len(graph.edges)}",
@@ -641,8 +660,8 @@ _DEV_KEYWORDS = frozenset([
 ])
 
 
-def _scan_level() -> List[Dict]:
-    result: List[Dict] = []
+def _scan_level() -> list[dict]:
+    result: list[dict] = []
     try:
         sub    = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
         actors = sub.get_all_level_actors()
@@ -670,8 +689,8 @@ def _scan_level() -> List[Dict]:
     return result
 
 
-def _find_verse_files(root: str) -> List[str]:
-    files: List[str] = []
+def _find_verse_files(root: str) -> list[str]:
+    files: list[str] = []
     if not root or not os.path.exists(root):
         return files
     for dirpath, _, fnames in os.walk(root):
@@ -809,7 +828,7 @@ def _make_node_tooltip(nd: DeviceNode) -> str:
     # Cluster badge (top-left number)
     if nd.cluster_id >= 0:
         lines.append(f"#{nd.cluster_id}  Cluster ID — all devices sharing this number are")
-        lines.append(f"     connected into the same logic group (Union-Find).")
+        lines.append("     connected into the same logic group (Union-Find).")
 
     # Verse badge
     if nd.verse_file:
@@ -1375,7 +1394,7 @@ TIPS
     class _NoteEditDialog(ToolbeltWindow):
         """Fully-themed editor for a comment box's title + body text."""
 
-        def __init__(self, box: "_CommentBox") -> None:
+        def __init__(self, box: _CommentBox) -> None:
             super().__init__(title="UEFN Toolbelt — Edit Note", width=440, height=320)
             self._box = box
             self._build_ui()
@@ -1452,7 +1471,7 @@ TIPS
             "scan":  "#9b59b6",
         }
 
-        def __init__(self, main_view: "QGraphicsView") -> None:
+        def __init__(self, main_view: QGraphicsView) -> None:
             super().__init__(main_view)
             self._entries: list = []   # [(time_str, msg, level), ...]
             self.setFixedSize(self._W, self._H)
@@ -1521,8 +1540,8 @@ TIPS
         _W, _H = 200, 130
         _PAD   = 6
 
-        def __init__(self, scene: "QGraphicsScene", main_view: "QGraphicsView",
-                     node_items_fn: "callable") -> None:
+        def __init__(self, scene: QGraphicsScene, main_view: QGraphicsView,
+                     node_items_fn: callable) -> None:
             super().__init__(main_view)
             self._scene      = scene
             self._main       = main_view
@@ -1668,17 +1687,17 @@ TIPS
             self.setBackgroundBrush(QBrush(QColor("#181818")))
             self.setFrameStyle(0)
             self.setStyleSheet("background: #181818; border: none;")
-            self._minimap: Optional["_MiniMap"] = None
-            self._actlog:  Optional["_ActivityLog"] = None
+            self._minimap: _MiniMap | None = None
+            self._actlog:  _ActivityLog | None = None
 
-        def set_minimap(self, mm: "_MiniMap") -> None:
+        def set_minimap(self, mm: _MiniMap) -> None:
             self._minimap = mm
             mm.setParent(self.viewport())
             mm.show()
             mm.raise_()
             self._position_minimap()
 
-        def set_actlog(self, al: "_ActivityLog") -> None:
+        def set_actlog(self, al: _ActivityLog) -> None:
             self._actlog = al
             al.setParent(self.viewport())
             al.show()
@@ -1889,7 +1908,7 @@ TIPS
                 "\n".join(f"{e['source']}.{e['event']} → {e['handler']}" for e in nd.events) or "none"
             )
 
-            fn_lines: List[str] = []
+            fn_lines: list[str] = []
             lc = nd.called_functions
             for fn in nd.functions:
                 tag = "" if fn in lc or fn in ("OnBegin", "OnEnd") else " [UNUSED]"
@@ -1933,29 +1952,29 @@ TIPS
             super().__init__(title="UEFN Toolbelt — Verse Device Graph", width=1400, height=860)
 
             self._verse_path   = verse_path
-            self._graph: Optional[GraphData] = None
-            self._node_items:  Dict[str, _NodeItem] = {}
-            self._edge_items:  List[_EdgeItem]      = []
-            self._selected:    Optional[DeviceNode]  = None
+            self._graph: GraphData | None = None
+            self._node_items:  dict[str, _NodeItem] = {}
+            self._edge_items:  list[_EdgeItem]      = []
+            self._selected:    DeviceNode | None  = None
             self._health_score = 0
-            self._comment_items:    List[_CommentBox]       = []
-            self._cat_header_items: List[QGraphicsTextItem] = []
+            self._comment_items:    list[_CommentBox]       = []
+            self._cat_header_items: list[QGraphicsTextItem] = []
             self._hover_active   = False
             self._layout_loaded  = False   # True after first successful layout restore
 
             # Live sync state
             self._live_sync   = False
-            self._live_timer: Optional[QTimer] = None
+            self._live_timer: QTimer | None = None
             self._actor_fingerprint = ""
 
             # Layout animation state
-            self._ltimer:  Optional[QTimer] = None
+            self._ltimer:  QTimer | None = None
             self._l_step   = 0
             self._l_temp   = 0.0
             self._l_cool   = 0.0
             self._l_k      = 260.0
-            self._l_nodes: List[DeviceNode] = []
-            self._l_edges: List[GraphEdge]  = []
+            self._l_nodes: list[DeviceNode] = []
+            self._l_edges: list[GraphEdge]  = []
             self._l_vw = 1200.0
             self._l_vh = 800.0
 
@@ -2376,7 +2395,7 @@ TIPS
             self._comment_items.append(box)
             self._view.centerOn(box)
 
-        def _remove_comment(self, box: "_CommentBox") -> None:
+        def _remove_comment(self, box: _CommentBox) -> None:
             if box in self._comment_items:
                 self._comment_items.remove(box)
             if box.scene():
@@ -2396,7 +2415,7 @@ TIPS
 
             # Group by category
             from collections import defaultdict
-            groups: Dict[str, List[DeviceNode]] = defaultdict(list)
+            groups: dict[str, list[DeviceNode]] = defaultdict(list)
             for nd in self._graph.nodes:
                 groups[nd.category].append(nd)
 
@@ -2493,7 +2512,7 @@ TIPS
                 path = self._layout_path()
                 if not os.path.exists(path):
                     return
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     data = json.load(fh)
 
                 # Restore node positions (always — covers re-scans too)
@@ -2580,7 +2599,7 @@ TIPS
         def _do_live_scan(self) -> None:
             """Re-scan and update graph without disturbing existing node positions."""
             # Cache current node positions from scene items
-            pos_cache: Dict[str, Tuple[float, float]] = {}
+            pos_cache: dict[str, tuple[float, float]] = {}
             if self._graph:
                 for nd in self._graph.nodes:
                     item = self._node_items.get(nd.id)
@@ -2833,7 +2852,7 @@ TIPS
             vw    = self._l_vw
             vh    = self._l_vh
 
-            forces: Dict[str, List[float]] = {nd.id: [0.0, 0.0] for nd in nodes}
+            forces: dict[str, list[float]] = {nd.id: [0.0, 0.0] for nd in nodes}
 
             # Repulsion between all node pairs
             for i in range(n):
@@ -2878,7 +2897,7 @@ TIPS
             self._l_step += 1
 
         def _sync_positions(self) -> None:
-            for nid, item in self._node_items.items():
+            for _nid, item in self._node_items.items():
                 item.setPos(item.data.x, item.data.y)
             self._scene.update()
 

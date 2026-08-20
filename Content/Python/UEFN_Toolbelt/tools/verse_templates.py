@@ -19,10 +19,8 @@ Workflow:
   7. tb.run("verse_patch_errors")          # fix any API name mismatches
 """
 
-import unreal
-import os
+from ..core import log_error, log_info
 from ..registry import register_tool
-from ..core import log_info, log_error
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Template library
@@ -511,10 +509,10 @@ def verse_template_deploy(
             result["template"] = name
             result["devices_needed"] = _TEMPLATES[name]["devices_needed"]
             result["next_step"] = (
-                f"File written. Now:\n"
-                f"1. Open UEFN and wire the @editable devices in the Details panel.\n"
-                f"2. Click Build Verse.\n"
-                f"3. Call tb.run('verse_patch_errors') to check for errors."
+                "File written. Now:\n"
+                "1. Open UEFN and wire the @editable devices in the Details panel.\n"
+                "2. Click Build Verse.\n"
+                "3. Call tb.run('verse_patch_errors') to check for errors."
             )
         return result or {"status": "error", "error": "verse_write_file returned None"}
     except Exception as e:

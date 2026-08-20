@@ -25,8 +25,9 @@ Compatible with UEFN Python 3.11 experimental (v40.00+, March 2026)
 API ground truth: Built-in API Explorer: tb.run("api_export_full") for IDE autocomplete stubs.
 """
 
-import sys
 import os
+import sys
+
 import unreal
 
 # ── 1. Path setup ─────────────────────────────────────────────────────────────

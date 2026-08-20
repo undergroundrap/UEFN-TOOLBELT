@@ -1,0 +1,144 @@
+#  UEFN TOOLBELT — tooling configuration
+#  ============================================================================
+#  This file configures ruff (lint), mypy (types), and pytest (tests).
+#  It deliberately does NOT declare the project as a pip-installable package:
+#  the Toolbelt is installed by copying Content/Python/UEFN_Toolbelt into a
+#  UEFN project (see install.py), not via pip.
+#
+#  Local setup:
+#      python -m pip install -r requirements-dev.txt
+#      python -m ruff check .
+#      python -m mypy
+#      python -m pytest
+#
+#  A note on `unreal`:
+#      Every tool module imports `unreal`, which only exists inside the UEFN
+#      editor process. The real generated stub is ~367 MB / 37k classes, so it
+#      is NOT vendored — it is gitignored and generated locally on demand
+#      (see docs/unreal_key_classes.pyi for the curated ~50-class doc extract).
+#      Both ruff and mypy are therefore configured to treat `unreal` as an
+#      untyped third-party module rather than an error.
+
+# ─── Ruff — linting ───────────────────────────────────────────────────────────
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"          # UEFN 41.x/42.x embeds CPython 3.11
+extend-exclude = [
+    "verse-book",                 # gitignored external clone of verselang/book
+    "docs/*.pyi",                 # curated doc extract, not a valid standalone stub
+    "__pycache__",
+    "Content/Python/UEFN_Toolbelt/vendor",
+]
+
+[tool.ruff.lint]
+# Bug-catching first. Style rules that would require sweeping rewrites of
+# 45k LOC are deliberately left off for now — tighten them incrementally
+# rather than in one unreviewable diff.
+select = [
+    "F",      # pyflakes — undefined names, unused imports, real bugs
+    "E4",     # import formatting
+    "E7",     # statement-level errors
+    "E9",     # syntax / IO errors
+    "W",      # whitespace
+    "I",      # import sorting
+    "B",      # flake8-bugbear — likely bugs (mutable defaults, loop closures)
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "RET",    # flake8-return
+    "UP",     # pyupgrade
+    "PIE",    # flake8-pie — misc lints
+]
+ignore = [
+    # ── Deliberate house style — not intended to change ──────────────────────
+    "E501",    # line length — the codebase uses deliberate column alignment
+    "E701",    # multiple statements on one line (colon) — used in compact guards
+    "E702",    # multiple statements on one line (semicolon) — the UEFN REPL idiom
+    "E402",    # module import not at top — imports follow sys.path setup
+    "B008",    # function call in default arg — intentional in a few tool signatures
+    "SIM105",  # contextlib.suppress — try/except/pass is clearer in editor callbacks
+    "SIM112",  # false positive on Windows: `ProgramFiles` is the canonical casing
+               #   and os.environ is case-insensitive on win32
+
+    # ── Ratchet targets — known pre-existing violations, safe to fix later ───
+    # These restructure control flow. Per CLAUDE.md, behavioural changes need a
+    # live UEFN test before committing, so they are NOT bundled into the tooling
+    # change. Remove an entry here and fix its sites as a separate, tested PR.
+    "E741",    # 11 sites — ambiguous names (l/I/O)
+    "SIM102",  #  8 sites — collapsible nested if
+    "SIM108",  #  5 sites — if/else that could be a ternary
+    "SIM117",  #  5 sites — nested with statements
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tool modules are dispatched by name through the registry with **kwargs;
+# unused imports in __init__ files are the registration side effect.
+"Content/Python/UEFN_Toolbelt/tools/__init__.py" = ["F401"]
+"Content/Python/UEFN_Toolbelt/core/__init__.py"  = ["F401"]
+"Content/Python/UEFN_Toolbelt/__init__.py"       = ["F401"]
+"tests/*"                                        = ["F401", "F811"]
+# These three modules import a batch of Qt symbols inside a
+# `try: ... except ImportError:` availability guard. Some names are unused today
+# but the grouped import is the probe that sets _PYSIDE6 — leave it intact.
+"Content/Python/UEFN_Toolbelt/dashboard_pyside6.py"       = ["F401"]
+"Content/Python/UEFN_Toolbelt/core/base_window.py"        = ["F401"]
+"Content/Python/UEFN_Toolbelt/tools/prefab_migrator.py"   = ["F401"]
+"Content/Python/UEFN_Toolbelt/tools/verse_device_graph.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["UEFN_Toolbelt"]
+
+# NOTE: `ruff format` is intentionally NOT wired into CI. The codebase uses
+# hand-aligned assignment columns and box-drawing section headers throughout;
+# autoformatting would produce a ~45k-line diff and destroy that layout.
+
+# ─── Mypy — type checking ─────────────────────────────────────────────────────
+
+[tool.mypy]
+python_version = "3.11"
+# Typed-island strategy: start with the modules that define the platform
+# contract (registry, core, the MCP bridge) and widen `files` over time.
+# Adding a module here should be a deliberate, reviewable step.
+files = [
+    "Content/Python/UEFN_Toolbelt/registry.py",
+    "Content/Python/UEFN_Toolbelt/core/",
+    "scripts/",
+]
+exclude = "(verse-book|__pycache__|docs/.*\\.pyi)"
+# Type-check ONLY the modules listed above. Imports are resolved (so calls are
+# checked against real signatures) but errors inside not-yet-adopted modules are
+# not reported — otherwise adding one file to the island reports the whole
+# 45k-LOC package. Widen `files`, not this setting.
+follow_imports = "silent"
+
+warn_unused_configs = true
+warn_redundant_casts = true
+# Off by design: PySide6 is an optional dependency, so whether a given
+# `type: ignore` is 'unused' depends on whether PySide6 is installed.
+# CI has it absent, dev machines have it present — this would flag one or
+# the other every run.
+warn_unused_ignores = false
+no_implicit_optional = true
+check_untyped_defs = true
+# Deliberately lenient for now — this is a large codebase that was never
+# type-checked. Ratchet these to `true` module by module.
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+ignore_missing_imports = false
+
+[[tool.mypy.overrides]]
+# `unreal` only exists inside the editor; PySide6 is optional at import time.
+module = ["unreal", "PySide6.*"]
+ignore_missing_imports = true
+
+# ─── Pytest ───────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# smoke_test.py runs *inside* UEFN against a live editor — it is not a pytest
+# target and must never be collected here.
+python_files = ["test_*.py"]
+addopts = "-q --strict-markers"
+markers = [
+    "editor: requires a live UEFN editor process (not run in CI)",
+]

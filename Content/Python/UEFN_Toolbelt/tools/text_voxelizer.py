@@ -2,7 +2,7 @@
 UEFN TOOLBELT — Text Voxelizer
 ========================================
 Render raw text strings into Texture2D masks, or voxelize them into 3D using
-dense grids of StaticMesh blocks. 
+dense grids of StaticMesh blocks.
 
 FEATURES:
   • Uses a headless PowerShell script to hook native Windows GDI/System.Drawing
@@ -15,10 +15,10 @@ from __future__ import annotations
 import os
 import subprocess
 import tempfile
-import unreal
-from typing import Tuple, List
 
-from ..core import log_info, log_error, log_warning, with_progress
+import unreal
+
+from ..core import log_error, log_info
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -42,16 +42,16 @@ def _find_unique_name(directory: str, base: str) -> str:
 
 def _render_text_via_powershell(
     text: str, font_size: int, w: int, h: int, step: int
-) -> Tuple[str, List[Tuple[int, int]]]:
+) -> tuple[str, list[tuple[int, int]]]:
     """Generates a PNG and a voxel array via hidden Powershell System.Drawing"""
     tmp_png = os.path.join(tempfile.gettempdir(), "uefntoolbelt_text_cache.png")
     tmp_pts = os.path.join(tempfile.gettempdir(), "uefntoolbelt_text_pts_cache.txt")
-    
+
     ps_png = tmp_png.replace("\\", "\\\\")
     ps_pts = tmp_pts.replace("\\", "\\\\")
     safe_text = text.replace("`", "'")
     step_safe = max(1, step)
-    
+
     script = f"""
 Add-Type -AssemblyName System.Drawing
 $b = New-Object System.Drawing.Bitmap({w}, {h}, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -83,7 +83,7 @@ $sw.Close()
 $g.Dispose()
 $b.Dispose()
     """
-    
+
     try:
         proc = subprocess.run(
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
@@ -98,12 +98,12 @@ $b.Dispose()
 
     pts = []
     if os.path.exists(tmp_pts):
-        with open(tmp_pts, "r") as f:
+        with open(tmp_pts) as f:
             for line in f:
                 parts = line.strip().split(",")
                 if len(parts) == 2:
                     pts.append((int(parts[0]), int(parts[1])))
-                    
+
     return tmp_png if os.path.exists(tmp_png) else "", pts
 
 
@@ -111,30 +111,30 @@ def _merge_voxel_actors(actors: list, target_path: str) -> str:
     eal = unreal.EditorAssetLibrary
     ell = getattr(unreal, "EditorLevelLibrary", None)
     opts_cls = getattr(unreal, "EditorScriptingMergeStaticMeshActorsOptions", None)
-    
+
     if not ell or not hasattr(ell, "merge_static_mesh_actors") or not opts_cls:
         log_error("Asset Merge API is unavailable in this Unreal iteration.")
         return ""
-        
+
     try:
         opts = opts_cls()
         if hasattr(opts, "base_package_name"): opts.base_package_name = target_path
         if hasattr(opts, "destroy_source_actors"): opts.destroy_source_actors = True
         if hasattr(opts, "spawn_merged_actor"): opts.spawn_merged_actor = True
-        
+
         ell.merge_static_mesh_actors(actors, opts)
     except Exception as e:
         log_error(f"Voxel block merge failed: {e}")
         return ""
-        
+
     if eal.does_asset_exist(target_path):
         return target_path
-    
+
     # Check object path syntax
     obj_path = f"{target_path}.{target_path.rsplit('/',1)[-1]}"
     if eal.does_asset_exist(obj_path):
         return obj_path
-        
+
     return ""
 
 
@@ -159,29 +159,29 @@ def run_text_render_texture(
 ) -> dict:
     if not text.strip():
         return {"error": "Text is empty"}
-        
+
     png_path, _ = _render_text_via_powershell(text, max(8, font_size), max(64, width), max(64, height), 16)
     if not png_path:
         return {"error": "GDI pipeline failed"}
-        
+
     unique_path = _find_unique_name(asset_dir, asset_name)
     leaf = unique_path.split("/")[-1]
-    
+
     task = unreal.AssetImportTask()
     task.filename = png_path
     task.destination_path = asset_dir
     task.destination_name = leaf
     task.automated = True
     task.save = True
-    
+
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
     imported = task.get_editor_property("imported_object_paths")
-    
+
     if imported:
         unreal.EditorAssetLibrary.sync_browser_to_objects(imported)
         log_info(f"Rendered Text Texture saved to {imported[0]}")
         return {"status": "success", "asset_path": imported[0]}
-        
+
     return {"error": "Engine import failed"}
 
 
@@ -203,25 +203,25 @@ def run_text_voxelize_3d(
 ) -> dict:
     if not text.strip():
         return {"error": "Text is empty"}
-        
+
     _, pts = _render_text_via_powershell(text, max(12, font_size), 1024, 512, max(2, pixel_step))
     if not pts:
         return {"error": "GDI masking failed. Null pixels returned."}
-        
+
     cube_obj = unreal.load_asset(fallback_cube)
     if not cube_obj or not isinstance(cube_obj, unreal.StaticMesh):
         log_error(f"Fallback cube required to voxelize: {fallback_cube}")
         return {"error": "Missing fallback cube geometry"}
-        
+
     unique_path = _find_unique_name(asset_dir, asset_name)
     ell = unreal.EditorLevelLibrary
     actors = []
-    
+
     unit = 50.0  # Cube native size * scale
     half_w, half_h = 512.0, 256.0
-    
+
     log_info(f"Voxelizing '{text}' mapped to {len(pts)} 2D coordinates across depth_blocks={depth_blocks}...")
-    
+
     with unreal.ScopedEditorTransaction("Spawn Text Voxels"):
         for (x, y) in pts:
             px = (x - half_w) * (unit / float(max(1, pixel_step)))
@@ -233,21 +233,21 @@ def run_text_voxelize_3d(
                     a.static_mesh_component.set_static_mesh(cube_obj)
                     a.set_actor_scale3d(unreal.Vector(0.5, 0.5, 0.5))
                     actors.append(a)
-                    
+
         if not actors:
             return {"error": "Failed to spawn actor grid."}
-            
+
         merged_path = _merge_voxel_actors(actors, unique_path)
         if not merged_path:
             log_error("Mesh merge failed. Leaving independent actors in level.")
             return {"error": "Merge failed", "spawned_count": len(actors)}
-            
+
     # Save the output geometry
     try:
         unreal.EditorAssetLibrary.save_asset(merged_path)
         unreal.EditorAssetLibrary.sync_browser_to_objects([merged_path])
     except Exception:
         pass
-        
+
     log_info(f"Successfully Voxelized Text to Solid Mesh: {merged_path} (from {len(actors)} cubes)")
     return {"status": "success", "asset_path": merged_path, "cubes_used": len(actors)}

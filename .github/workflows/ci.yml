@@ -1,4 +1,4 @@
-name: CI — Syntax Check
+name: CI
 
 on:
   push:
@@ -6,9 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  syntax-check:
-    name: Python Syntax Check
+  check:
+    name: Lint, types, tests
     runs-on: ubuntu-latest
 
     steps:
@@ -17,52 +21,28 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
+          # UEFN 41.x/42.x embeds CPython 3.11 — match it so version-specific
+          # syntax or stdlib differences surface here rather than in the editor.
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
 
-      - name: Check all Python files parse cleanly
-        run: |
-          python - <<'EOF'
-          import ast, sys, pathlib
+      - name: Install dev dependencies
+        run: python -m pip install -r requirements-dev.txt
 
-          errors = []
-          root = pathlib.Path(".")
-          files = list(root.glob("Content/Python/**/*.py")) + \
-                  [root / "mcp_server.py", root / "client.py", root / "install.py"]
+      - name: Ruff (lint)
+        run: python -m ruff check --output-format=github .
 
-          for f in files:
-              try:
-                  ast.parse(f.read_text(encoding="utf-8"))
-              except SyntaxError as e:
-                  errors.append(f"SYNTAX ERROR {f}: {e}")
+      - name: Mypy (types)
+        # Scoped to the typed island declared in pyproject.toml, not the whole
+        # 45k-LOC tree. Widen [tool.mypy] files to grow coverage.
+        run: python -m mypy
 
-          if errors:
-              print("\n".join(errors))
-              sys.exit(1)
-          else:
-              print(f"✓ {len(files)} files — no syntax errors")
-          EOF
+      - name: Pytest
+        # Covers the pure-Python contract layer (registry, config, repo
+        # integrity) using the fake `unreal` module in tests/conftest.py.
+        run: python -m pytest -v
 
-      - name: Validate registry.json
-        run: |
-          python - <<'EOF'
-          import json, sys
-
-          with open("registry.json", encoding="utf-8") as f:
-              data = json.load(f)
-
-          base_fields = ["id", "name", "version", "author", "type", "description",
-                         "category", "url", "min_toolbelt_version"]
-          community_fields = base_fields + ["download_url"]
-          errors = []
-          for plugin in data.get("plugins", []):
-              required_fields = community_fields if plugin.get("type") == "community" else base_fields
-              for field in required_fields:
-                  if field not in plugin:
-                      errors.append(f"Plugin '{plugin.get('id','?')}' missing field: {field}")
-
-          if errors:
-              print("\n".join(errors))
-              sys.exit(1)
-          else:
-              print(f"✓ registry.json — {len(data['plugins'])} plugins valid")
-          EOF
+  # Everything above runs off-editor. It cannot prove a tool works against a
+  # live UEFN session — see the mandatory in-editor test policy in CLAUDE.md
+  # (deploy.bat -> nuclear reload -> tb.run(...)) before merging behavioural changes.

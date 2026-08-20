@@ -40,7 +40,7 @@ from datetime import datetime
 
 import unreal
 
-from ..core import log_info, log_warning
+from ..core import log_info
 from ..registry import register_tool
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ def _check_required_devices(req_list: list[str], actors: list) -> dict:
         "pass":     not missing,
         "missing":  missing,
         "severity": "fail" if missing else "ok",
-        "note":     f"All required devices present ✓" if not missing
+        "note":     "All required devices present ✓" if not missing
                     else f"Missing required devices: {missing}",
     }
 
@@ -130,7 +130,7 @@ def _check_rogue_actors(actors: list) -> dict:
         "count":    len(rogues),
         "rogues":   rogues[:10],
         "severity": "warn" if rogues else "ok",
-        "note":     f"No rogue actors ✓" if not rogues
+        "note":     "No rogue actors ✓" if not rogues
                     else f"{len(rogues)} actors with scale/location issues — run rogue_actor_scan for details",
     }
 
@@ -146,7 +146,7 @@ def _check_verse_build(project_saved_dir: str) -> dict:
             return {"pass": None, "status": "UNKNOWN", "severity": "warn",
                     "note": "No build log found — run a Verse build first"}
         latest = max(logs, key=os.path.getmtime)
-        with open(latest, "r", encoding="utf-8", errors="ignore") as f:
+        with open(latest, encoding="utf-8", errors="ignore") as f:
             content = f.read()
         if re.search(
             r"VerseBuild.*SUCCESS|LogSolLoadCompiler.*finished.*SUCCESS",
@@ -200,7 +200,7 @@ def _check_redirectors() -> dict:
             "pass":     count == 0,
             "count":    count,
             "severity": "warn" if count > 0 else "ok",
-            "note":     f"No stale redirectors ✓" if count == 0
+            "note":     "No stale redirectors ✓" if count == 0
                         else f"{count} stale redirectors — run ref_fix_redirectors",
         }
     except Exception as e:

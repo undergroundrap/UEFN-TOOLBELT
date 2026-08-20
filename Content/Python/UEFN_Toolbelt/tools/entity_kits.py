@@ -8,7 +8,8 @@ Bypasses the multi-step manual placement process.
 from __future__ import annotations
 
 import unreal
-from ..core import log_info, log_error, log_warning, undo_transaction
+
+from ..core import log_error, log_info, log_warning, undo_transaction
 from ..registry import register_tool
 
 # ─── Kit Definitions ─────────────────────────────────────────────────────────
@@ -35,7 +36,7 @@ def _load_uefn_class(name: str) -> unreal.Class | None:
     """Helper to find a UEFN class by name or full path."""
     if "/" in name:
         return unreal.load_class(None, name)
-    
+
     # Try common Fortnite/Engine prefixes
     for prefix in ["/Script/FortniteGame.", "/Script/Engine."]:
         cls = unreal.load_class(None, f"{prefix}{name}")
@@ -58,7 +59,7 @@ def run_entity_spawn_kit(kit_name: str = "Lobby Starter", **kwargs) -> dict:
         return {"status": "error", "message": f"Kit '{kit_name}' not found.", "available": list(KITS.keys())}
 
     kit_data = KITS[kit_name]
-    
+
     # Get current cursor location or absolute zero
     selected = unreal.EditorLevelLibrary.get_selected_level_actors()
     base_loc = selected[0].get_actor_location() if selected else unreal.Vector(0, 0, 0)
@@ -69,10 +70,10 @@ def run_entity_spawn_kit(kit_name: str = "Lobby Starter", **kwargs) -> dict:
             cls_spec = item["class"]
             # Extract name if it's a full path
             cls_name = cls_spec.split(".")[-1] if "." in cls_spec else cls_spec
-            
+
             # Try fuzzy load
             cls = _load_uefn_class(cls_name)
-            
+
             # Final attempt: fuzzy search dir(unreal) with a shortened term.
             # Strip common UEFN class decorators so "FortItemSpawnerCreative"
             # becomes "itemspawner" — far more likely to match a real class.
@@ -99,7 +100,7 @@ def run_entity_spawn_kit(kit_name: str = "Lobby Starter", **kwargs) -> dict:
                 continue
 
             loc = unreal.Vector(base_loc.x + item["loc"][0], base_loc.y + item["loc"][1], base_loc.z + item["loc"][2])
-            
+
             actor = unreal.EditorLevelLibrary.spawn_actor_from_class(cls, loc)
             if actor:
                 actor.set_actor_label(item["label"])

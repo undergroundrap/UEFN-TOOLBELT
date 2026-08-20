@@ -71,13 +71,16 @@ import json
 import math
 import os
 import random
-from typing import List, Optional, Tuple
 
 import unreal
 
 from ..core import (
-    undo_transaction, log_info, log_warning, log_error,
-    load_asset, spawn_static_mesh_actor, with_progress,
+    load_asset,
+    log_error,
+    log_info,
+    log_warning,
+    spawn_static_mesh_actor,
+    undo_transaction,
 )
 from ..registry import register_tool
 
@@ -96,7 +99,7 @@ def _poisson_disk_2d(
     radius: float,
     min_dist: float,
     rng: random.Random,
-) -> List[Tuple[float, float]]:
+) -> list[tuple[float, float]]:
     """
     Generate `count` 2D points within a circle of `radius` using
     rejection sampling with a minimum separation of `min_dist`.
@@ -104,11 +107,11 @@ def _poisson_disk_2d(
     Falls back to pure random if min_dist constraints can't be met
     after 30 attempts per point (prevents infinite loops on dense fills).
     """
-    points: List[Tuple[float, float]] = []
+    points: list[tuple[float, float]] = []
     max_attempts = 30
 
     for _ in range(count):
-        for attempt in range(max_attempts):
+        for _attempt in range(max_attempts):
             # Random point inside circle
             angle = rng.uniform(0, math.tau)
             r     = math.sqrt(rng.uniform(0, 1)) * radius
@@ -176,7 +179,7 @@ def run_scatter_props(
     mesh_path: str = "/Engine/BasicShapes/Sphere",
     count: int = 50,
     radius: float = 3000.0,
-    center: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    center: tuple[float, float, float] = (0.0, 0.0, 0.0),
     min_separation: float = 0.0,      # 0 = no minimum (pure random)
     scale_min: float = 0.8,
     scale_max: float = 1.2,
@@ -259,7 +262,7 @@ def run_scatter_hism(
     mesh_path: str = "/Engine/BasicShapes/Sphere",
     count: int = 500,
     radius: float = 5000.0,
-    center: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    center: tuple[float, float, float] = (0.0, 0.0, 0.0),
     scale_min: float = 0.7,
     scale_max: float = 1.3,
     rot_yaw_range: float = 360.0,
@@ -350,7 +353,7 @@ def run_scatter_hism(
 )
 def run_scatter_along_path(
     mesh_path: str = "/Engine/BasicShapes/Cube",
-    path_points: Optional[List[Tuple[float, float, float]]] = None,
+    path_points: list[tuple[float, float, float]] | None = None,
     spread: float = 300.0,
     count_per_point: int = 3,
     scale_min: float = 0.8,
@@ -501,7 +504,7 @@ def run_scatter_avoid(
     mesh_path: str = "/Engine/BasicShapes/Sphere",
     count: int = 50,
     radius: float = 3000.0,
-    center: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    center: tuple[float, float, float] = (0.0, 0.0, 0.0),
     avoid_class: str = "",
     avoid_radius: float = 500.0,
     avoid_label: str = "",
@@ -541,7 +544,7 @@ def run_scatter_avoid(
 
     # -- Collect obstacle positions --
     # Require at least one filter — otherwise every actor becomes an obstacle
-    obstacles: List[Tuple[float, float]] = []
+    obstacles: list[tuple[float, float]] = []
     if avoid_class or avoid_label:
         all_actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem).get_all_level_actors()
         for actor in (all_actors or []):
@@ -577,7 +580,7 @@ def run_scatter_avoid(
     if mesh is None:
         return {"status": "error", "message": f"Mesh not found: {mesh_path}"}
 
-    placed_pts: List[Tuple[float, float]] = []
+    placed_pts: list[tuple[float, float]] = []
     placed = skipped = 0
 
     with undo_transaction(f"Scatter Avoid: {count}x {mesh_path.split('/')[-1]}"):
@@ -677,7 +680,7 @@ def run_scatter_road_edge(
     #  Build sample list — either from explicit points or selected spline  #
     # ------------------------------------------------------------------ #
     # Each sample: (wx, wy, wz, perp_x, perp_y)
-    samples: List[Tuple[float, float, float, float, float]] = []
+    samples: list[tuple[float, float, float, float, float]] = []
 
     if points:
         # -- Mode 1: waypoint list --

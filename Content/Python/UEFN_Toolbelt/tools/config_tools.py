@@ -15,9 +15,9 @@ Usage:
 
 from __future__ import annotations
 
-from ..core import log_info, log_warning, log_error, get_config
-from ..core.config import DEFAULTS
+from ..core import get_config, log_info, log_warning
 from ..core import theme as _theme
+from ..core.config import DEFAULTS
 from ..registry import register_tool
 
 

@@ -24,7 +24,7 @@ all_tools: set[str] = set()
 for fname in os.listdir(_TOOLS):
     if not fname.endswith(".py"):
         continue
-    with open(os.path.join(_TOOLS, fname), "r", encoding="utf-8") as f:
+    with open(os.path.join(_TOOLS, fname), encoding="utf-8") as f:
         text = f.read()
     for name in re.findall(r'@register_tool\s*\(\s*name=[\'"]([^\'"]+)[\'"]', text):
         all_tools.add(name)
@@ -39,7 +39,7 @@ test_files = [
 for path in test_files:
     if not os.path.exists(path):
         continue
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         text = f.read()
     # Direct run("tool_name") calls
     for name in re.findall(r'run\s*\(\s*[\'"]([^\'"]+)[\'"]', text):
@@ -55,7 +55,7 @@ uncovered = sorted(all_tools - covered_tools)
 covered_count = len(all_tools) - len(uncovered)
 pct = 100 * covered_count / len(all_tools) if all_tools else 0
 
-print(f"\n=== UEFN Toolbelt — Test Coverage Report ===")
+print("\n=== UEFN Toolbelt — Test Coverage Report ===")
 print(f"  Total tools:    {len(all_tools)}")
 print(f"  Covered:        {covered_count}  ({pct:.0f}%)")
 print(f"  Uncovered:      {len(uncovered)}")

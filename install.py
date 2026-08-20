@@ -18,7 +18,6 @@ After running:
 
 import argparse
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -215,7 +214,7 @@ def _pick_project(explicit_path: str | None) -> str:
         print("\nFound UEFN projects:")
         for i, c in enumerate(candidates):
             print(f"  [{i+1}] {c}")
-        print(f"  [0] Enter path manually")
+        print("  [0] Enter path manually")
         choice = input("\nSelect project (number): ").strip()
         if choice.isdigit() and 1 <= int(choice) <= len(candidates):
             return candidates[int(choice) - 1]
@@ -237,7 +236,7 @@ def _install_toolbelt(project_path: str):
     # ── Step 1: Copy the Toolbelt package ─────────────────────────────────────
     try:
         if os.path.exists(dest_tb):
-            print(f"  Updating existing installation...")
+            print("  Updating existing installation...")
             shutil.rmtree(dest_tb)
         shutil.copytree(TOOLBELT_SRC, dest_tb)
         print(f"  ✓ Copied UEFN_Toolbelt → {dest_tb}")
@@ -252,7 +251,7 @@ def _install_toolbelt(project_path: str):
         print(f"  ✓ Created init_unreal.py → {dest_init}")
     else:
         # Existing file — patch it if the loader block isn't already there
-        with open(dest_init, "r", encoding="utf-8") as f:
+        with open(dest_init, encoding="utf-8") as f:
             existing = f.read()
 
         if _LOADER_MARKER in existing:
@@ -268,7 +267,7 @@ def _install_toolbelt(project_path: str):
             try:
                 with open(dest_init, "w", encoding="utf-8") as f:
                     f.write(new_content)
-                print(f"  ✓ Updated Toolbelt loader block in init_unreal.py")
+                print("  ✓ Updated Toolbelt loader block in init_unreal.py")
             except Exception as e:
                 print(f"  ✗ Failed to update init_unreal.py: {e}")
                 sys.exit(1)
@@ -276,11 +275,11 @@ def _install_toolbelt(project_path: str):
             try:
                 with open(dest_init, "a", encoding="utf-8") as f:
                     f.write(_LOADER_BLOCK)
-                print(f"  ✓ Patched existing init_unreal.py with Toolbelt loader block")
-                print(f"    (Your original init_unreal.py content is unchanged above the patch)")
+                print("  ✓ Patched existing init_unreal.py with Toolbelt loader block")
+                print("    (Your original init_unreal.py content is unchanged above the patch)")
             except PermissionError:
-                print(f"  ✗ init_unreal.py is read-only — could not patch it.")
-                print(f"    Make it writable and re-run install.py, or manually append the loader block.")
+                print("  ✗ init_unreal.py is read-only — could not patch it.")
+                print("    Make it writable and re-run install.py, or manually append the loader block.")
                 sys.exit(1)
             except Exception as e:
                 print(f"  ✗ Failed to patch init_unreal.py: {e}")

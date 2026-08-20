@@ -36,13 +36,11 @@ from __future__ import annotations
 
 import math
 import random
-from typing import List, Tuple
 
 import unreal
 
-from ..core import log_info, log_error, log_warning
+from ..core import log_info
 from ..registry import register_tool
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Internal helpers
@@ -52,11 +50,11 @@ def _actor_sub() -> unreal.EditorActorSubsystem:
     return unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 
 
-def _get_selected() -> List[unreal.Actor]:
+def _get_selected() -> list[unreal.Actor]:
     return list(_actor_sub().get_selected_level_actors() or [])
 
 
-def _get_all_level_actors() -> List[unreal.Actor]:
+def _get_all_level_actors() -> list[unreal.Actor]:
     return list(_actor_sub().get_all_level_actors() or [])
 
 
@@ -68,7 +66,7 @@ def _cam_loc() -> unreal.Vector:
         return unreal.Vector(0, 0, 0)
 
 
-def _get_actor_bounds(actor: unreal.Actor) -> Tuple[unreal.Vector, unreal.Vector]:
+def _get_actor_bounds(actor: unreal.Actor) -> tuple[unreal.Vector, unreal.Vector]:
     """Return (world_center, half_extents) for the actor's bounding box."""
     return actor.get_actor_bounds(False)
 
@@ -81,7 +79,7 @@ def _vec_sub(a: unreal.Vector, b: unreal.Vector) -> unreal.Vector:
     return unreal.Vector(a.x - b.x, a.y - b.y, a.z - b.z)
 
 
-def _combined_bounds(actors: List[unreal.Actor]) -> Tuple[unreal.Vector, unreal.Vector]:
+def _combined_bounds(actors: list[unreal.Actor]) -> tuple[unreal.Vector, unreal.Vector]:
     """Compute the combined bounding box of a list of actors.
     Returns (center, half_extents)."""
     mins = [float("inf")] * 3
@@ -379,7 +377,7 @@ def zone_fill_scatter(
             zone_center.z + rng.uniform(-zone_ext.z, zone_ext.z),
         )
 
-    placed_locs: List[unreal.Vector] = []
+    placed_locs: list[unreal.Vector] = []
     spawned = 0
     attempts = 0
     max_attempts = count * 20

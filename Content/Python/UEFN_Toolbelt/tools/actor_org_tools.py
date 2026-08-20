@@ -34,11 +34,9 @@ USAGE:
 from __future__ import annotations
 
 import unreal
-from typing import List, Optional, Tuple
 
-from ..core import log_info, log_error, log_warning
+from ..core import log_error, log_info, log_warning
 from ..registry import register_tool
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Internal helpers
@@ -48,12 +46,12 @@ def _actor_sub() -> unreal.EditorActorSubsystem:
     return unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 
 
-def _get_selected() -> List[unreal.Actor]:
+def _get_selected() -> list[unreal.Actor]:
     selected = _actor_sub().get_selected_level_actors() or []
     return list(selected)
 
 
-def _get_all_level_actors() -> List[unreal.Actor]:
+def _get_all_level_actors() -> list[unreal.Actor]:
     actors = _actor_sub().get_all_level_actors() or []
     return list(actors)
 

@@ -66,12 +66,13 @@ import json
 import math
 import os
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 import unreal
 
 from ..core import (
-    get_selected_actors, log_info, log_warning, log_error,
+    get_selected_actors,
+    log_info,
+    log_warning,
 )
 from ..registry import register_tool
 
@@ -88,7 +89,7 @@ _SUBCAT = "spline_tools"
 #  Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _find_spline(actors: List[unreal.Actor]) -> Optional[Tuple[unreal.Actor, unreal.SplineComponent]]:
+def _find_spline(actors: list[unreal.Actor]) -> tuple[unreal.Actor, unreal.SplineComponent] | None:
     """Find the first actor with a SplineComponent from the list."""
     for actor in actors:
         comps = actor.get_components_by_class(unreal.SplineComponent.static_class())
@@ -97,7 +98,7 @@ def _find_spline(actors: List[unreal.Actor]) -> Optional[Tuple[unreal.Actor, unr
     return None
 
 
-def _sample_spline_world(spline: unreal.SplineComponent, count: int) -> List[Tuple[float, float, float]]:
+def _sample_spline_world(spline: unreal.SplineComponent, count: int) -> list[tuple[float, float, float]]:
     """Sample `count` evenly-spaced world-space points along a spline."""
     total = spline.get_spline_length()
     cs    = unreal.SplineCoordinateSpace.WORLD
@@ -109,7 +110,7 @@ def _sample_spline_world(spline: unreal.SplineComponent, count: int) -> List[Tup
     return pts
 
 
-def _control_points_world(spline: unreal.SplineComponent) -> List[Tuple[float, float, float]]:
+def _control_points_world(spline: unreal.SplineComponent) -> list[tuple[float, float, float]]:
     """Return all spline control point positions in world space."""
     n  = spline.get_number_of_spline_points()
     cs = unreal.SplineCoordinateSpace.WORLD
@@ -121,7 +122,7 @@ def _control_points_world(spline: unreal.SplineComponent) -> List[Tuple[float, f
     ]
 
 
-def _points_to_verse_array(pts: List[Tuple[float, float, float]], var_name: str) -> str:
+def _points_to_verse_array(pts: list[tuple[float, float, float]], var_name: str) -> str:
     """Format a list of (x, y, z) tuples as a Verse vector3 array literal."""
     lines = [f"    {var_name} : []vector3 = array{{"]
     for x, y, z in pts:
@@ -148,7 +149,7 @@ def _try_clipboard(text: str) -> None:
         pass
 
 
-def _require_spline() -> Optional[Tuple[unreal.Actor, unreal.SplineComponent]]:
+def _require_spline() -> tuple[unreal.Actor, unreal.SplineComponent] | None:
     actors = get_selected_actors()
     if not actors:
         log_warning("Select a spline actor in the viewport first.")

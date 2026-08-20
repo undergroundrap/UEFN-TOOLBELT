@@ -24,23 +24,34 @@ from __future__ import annotations
 import os
 import re
 import shutil
-from typing import List, Set, Dict, Tuple
 
 import unreal
 
-from ..core import log_info, log_error, log_warning
+from ..core import log_error
 from ..registry import register_tool
 
 # ── PySide6 guard ─────────────────────────────────────────────────────────────
 try:
-    from PySide6.QtWidgets import (
-        QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-        QPushButton, QLabel, QLineEdit, QTextEdit, QListWidget,
-        QListWidgetItem, QFileDialog, QCheckBox, QTabWidget,
-        QSplitter, QFrame, QScrollArea,
-    )
     from PySide6.QtCore import Qt, QThread, Signal
     from PySide6.QtGui import QColor, QFont
+    from PySide6.QtWidgets import (
+        QApplication,
+        QCheckBox,
+        QFileDialog,
+        QFrame,
+        QHBoxLayout,
+        QLabel,
+        QLineEdit,
+        QListWidget,
+        QListWidgetItem,
+        QPushButton,
+        QScrollArea,
+        QSplitter,
+        QTabWidget,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
+    )
     _PYSIDE6 = True
 except ImportError:
     _PYSIDE6 = False
@@ -81,13 +92,13 @@ def _pkg_to_disk(pkg: str, content_dir: str) -> str:
     return os.path.join(content_dir, relative.replace("/", os.sep) + ".uasset")
 
 
-def _parse_t3d(text: str) -> List[str]:
+def _parse_t3d(text: str) -> list[str]:
     """
     Extract all unique project asset package paths from T3D clipboard text.
     Handles /Game/... paths AND project-mount paths like /SPUNCHBROTHUS/...
     Filters out engine, script, and transient runtime paths.
     """
-    seen: Set[str] = set()
+    seen: set[str] = set()
     for m in _T3D_PATH_RE.finditer(text):
         raw = m.group(1)
         pkg = _normalize_pkg(raw)
@@ -104,7 +115,7 @@ def _parse_t3d(text: str) -> List[str]:
 
 # ── Dependency resolver ───────────────────────────────────────────────────────
 
-def _resolve_deps(packages: List[str], include_deps: bool = True) -> Tuple[Set[str], List[str]]:
+def _resolve_deps(packages: list[str], include_deps: bool = True) -> tuple[set[str], list[str]]:
     """
     Walk the AssetRegistry dependency graph from the seed packages.
     Returns (resolved_set, warnings_list).
@@ -124,8 +135,8 @@ def _resolve_deps(packages: List[str], include_deps: bool = True) -> Tuple[Set[s
     # Skip engine/plugin paths — keep /Game/ and any project mount point (e.g. /MyProject/)
     _SKIP_PREFIXES = ("/Engine/", "/FortniteGame/", "/Paper2D/", "/Script/")
 
-    visited: Set[str] = set()
-    warnings: List[str] = []
+    visited: set[str] = set()
+    warnings: list[str] = []
     queue = [_normalize_pkg(p) for p in packages]
 
     while queue:
@@ -152,18 +163,18 @@ def _resolve_deps(packages: List[str], include_deps: bool = True) -> Tuple[Set[s
 # ── Export engines ────────────────────────────────────────────────────────────
 
 def _export_to_disk(
-    packages: Set[str],
+    packages: set[str],
     src_content: str,
     dst_content: str,
     flatten: bool,
     overwrite: bool,
     dry_run: bool,
-) -> Dict[str, List[str]]:
+) -> dict[str, list[str]]:
     """
     Copy raw .uasset files from src_content to dst_content.
     Returns {"ok": [...], "skip": [...], "missing": [...], "error": [...]}.
     """
-    results: Dict[str, List[str]] = {"ok": [], "skip": [], "missing": [], "error": []}
+    results: dict[str, list[str]] = {"ok": [], "skip": [], "missing": [], "error": []}
 
     for pkg in sorted(packages):
         src_file = _pkg_to_disk(pkg, src_content)
@@ -198,17 +209,17 @@ def _export_to_disk(
 
 
 def _export_within_project(
-    packages: Set[str],
+    packages: set[str],
     dest_folder: str,
     flatten: bool,
     overwrite: bool,
     dry_run: bool,
-) -> Dict[str, List[str]]:
+) -> dict[str, list[str]]:
     """
     Duplicate assets within the same project to dest_folder (/Game/... path).
     """
     eal = unreal.EditorAssetLibrary
-    results: Dict[str, List[str]] = {"ok": [], "skip": [], "missing": [], "error": []}
+    results: dict[str, list[str]] = {"ok": [], "skip": [], "missing": [], "error": []}
     dest_folder = dest_folder.rstrip("/")
 
     for pkg in sorted(packages):
@@ -512,7 +523,7 @@ WHAT IT DOES NOT MIGRATE
             super().__init__(title="UEFN Toolbelt — Prefab Asset Migrator",
                              width=820, height=700)
             self._worker = None
-            self._resolved: Set[str] = set()
+            self._resolved: set[str] = set()
             self._build_ui()
 
         def _build_ui(self) -> None:
@@ -865,7 +876,7 @@ WHAT IT DOES NOT MIGRATE
                     self._export_list.addItem(pkg)
                     self._update_mount_from_path(pkg)
 
-        def _list_packages(self, list_widget: QListWidget) -> List[str]:
+        def _list_packages(self, list_widget: QListWidget) -> list[str]:
             return [list_widget.item(i).text() for i in range(list_widget.count())]
 
         def _categorize(self, pkg: str) -> tuple:
@@ -891,7 +902,7 @@ WHAT IT DOES NOT MIGRATE
             return "Asset",        "#888888"
 
         def _populate_dep_list(self, dep_list: QListWidget,
-                               resolved: Set[str], seeds: List[str]) -> None:
+                               resolved: set[str], seeds: list[str]) -> None:
             dep_list.clear()
             seed_set = set(seeds)
             for pkg in sorted(resolved):

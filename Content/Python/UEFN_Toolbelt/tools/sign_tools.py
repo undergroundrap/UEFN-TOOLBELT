@@ -25,14 +25,9 @@ USAGE:
 
 from __future__ import annotations
 
-import math
-import re
-from typing import List, Optional, Tuple
-
 import unreal
 
-from ..core import log_info, log_error, log_warning
-from ..core.safety_gate import SafetyGate
+from ..core import log_error, log_info, log_warning
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -80,7 +75,7 @@ def _spawn_sign(
     v_align: str,
     label: str,
     folder: str,
-) -> Optional[unreal.TextRenderActor]:
+) -> unreal.TextRenderActor | None:
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     rot = unreal.Rotator(0.0, yaw, 0.0)
     actor: unreal.TextRenderActor = actor_sub.spawn_actor_from_class(
@@ -104,11 +99,11 @@ def _spawn_sign(
 
 def _apply_style_to_actor(
     actor: unreal.TextRenderActor,
-    text:       Optional[str],
-    color:      Optional[str],
-    world_size: Optional[float],
-    h_align:    Optional[str],
-    v_align:    Optional[str],
+    text:       str | None,
+    color:      str | None,
+    world_size: float | None,
+    h_align:    str | None,
+    v_align:    str | None,
 ) -> None:
     trc = actor.text_render
     if text is not None:
@@ -123,7 +118,7 @@ def _apply_style_to_actor(
         trc.set_editor_property("vertical_alignment", _V_ALIGN.get(v_align, _V_ALIGN["center"]))
 
 
-def _get_selected_signs() -> List[unreal.TextRenderActor]:
+def _get_selected_signs() -> list[unreal.TextRenderActor]:
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     selected  = actor_sub.get_selected_level_actors() or []
     return [a for a in selected if isinstance(a, unreal.TextRenderActor)]
@@ -147,7 +142,7 @@ def run_sign_spawn_bulk(
     count:      int   = 6,
     text:       str   = "SIGN",
     prefix:     str   = "Sign",
-    location:   Tuple[float, float, float] = (0.0, 0.0, 200.0),
+    location:   tuple[float, float, float] = (0.0, 0.0, 200.0),
     layout:     str   = "row_x",     # row_x | row_y | grid
     spacing:    float = 400.0,
     cols:       int   = 4,            # used when layout="grid"
@@ -183,9 +178,9 @@ def run_sign_spawn_bulk(
         {"status", "spawned", "folder", "labels"}
     """
     ox, oy, oz = location
-    labels: List[str] = []
+    labels: list[str] = []
 
-    with unreal.ScopedEditorTransaction("Billboard Spawn Bulk") as t:
+    with unreal.ScopedEditorTransaction("Billboard Spawn Bulk") as _t:
         for i in range(count):
             if layout == "row_x":
                 wx, wy, wz = ox + i * spacing, oy, oz
@@ -216,11 +211,11 @@ def run_sign_spawn_bulk(
     tags=["billboard", "sign", "text", "batch", "edit", "color", "size"],
 )
 def run_sign_batch_edit(
-    text:       Optional[str]   = None,
-    color:      Optional[str]   = None,
-    world_size: Optional[float] = None,
-    h_align:    Optional[str]   = None,
-    v_align:    Optional[str]   = None,
+    text:       str | None   = None,
+    color:      str | None   = None,
+    world_size: float | None = None,
+    h_align:    str | None   = None,
+    v_align:    str | None   = None,
     **kwargs,
 ) -> dict:
     """
@@ -248,7 +243,7 @@ def run_sign_batch_edit(
         return {"status": "error", "message": "No fields provided. Pass at least one of: text, color, world_size, h_align, v_align."}
 
     edited = 0
-    with unreal.ScopedEditorTransaction("Billboard Batch Edit") as t:
+    with unreal.ScopedEditorTransaction("Billboard Batch Edit") as _t:
         for actor in signs:
             try:
                 _apply_style_to_actor(actor, text, color, world_size, h_align, v_align)
@@ -256,7 +251,7 @@ def run_sign_batch_edit(
             except Exception as e:
                 log_warning(f"[sign_batch_edit] Skipped {actor.get_actor_label()}: {e}")
 
-    log_info(f"[sign_batch_edit] Edited signs.")
+    log_info("[sign_batch_edit] Edited signs.")
     return {"status": "ok", "edited": edited, "skipped": len(signs) - edited}
 
 
@@ -270,7 +265,7 @@ def run_sign_batch_edit(
     tags=["billboard", "sign", "text", "batch", "set", "individual"],
 )
 def run_sign_batch_set_text(
-    texts: List[str] = None,
+    texts: list[str] = None,
     **kwargs,
 ) -> dict:
     """
@@ -291,8 +286,8 @@ def run_sign_batch_set_text(
         return {"status": "error", "message": "No signs selected. Select signs in the viewport first."}
 
     assigned = 0
-    with unreal.ScopedEditorTransaction("Billboard Batch Set Text") as t:
-        for actor, new_text in zip(signs, texts):
+    with unreal.ScopedEditorTransaction("Billboard Batch Set Text") as _t:
+        for actor, new_text in zip(signs, texts, strict=False):
             try:
                 actor.text_render.set_editor_property("text", new_text)
                 assigned += 1
@@ -334,7 +329,7 @@ def run_sign_batch_rename(
         return {"status": "error", "message": "No signs selected."}
 
     renamed = 0
-    with unreal.ScopedEditorTransaction("Billboard Batch Rename") as t:
+    with unreal.ScopedEditorTransaction("Billboard Batch Rename") as _t:
         for i, actor in enumerate(signs):
             new_label = f"{prefix}_{start + i:02d}"
             actor.set_actor_label(new_label)
@@ -428,7 +423,7 @@ def run_sign_clear(
         log_info(f"[sign_clear] DRY RUN — would delete {len(targets)} signs from '{folder}'.")
         return {"status": "ok", "deleted": 0, "would_delete": len(targets), "dry_run": True}
 
-    with unreal.ScopedEditorTransaction("Billboard Clear") as t:
+    with unreal.ScopedEditorTransaction("Billboard Clear") as _t:
         for actor in targets:
             actor_sub.destroy_actor(actor)
 
@@ -481,7 +476,7 @@ def run_label_attach(
 
     attached = skipped = 0
 
-    with unreal.ScopedEditorTransaction("Label Attach") as t:
+    with unreal.ScopedEditorTransaction("Label Attach") as _t:
         for parent in selected:
             # Skip existing TextRenderActors — don't label a label
             if isinstance(parent, unreal.TextRenderActor):

@@ -17,9 +17,10 @@ import re
 import tempfile
 import urllib.parse
 import urllib.request
+
 import unreal
 
-from ..core import log_info, log_error, log_warning, get_config, detect_project_mount
+from ..core import detect_project_mount, get_config, log_error, log_info, log_warning
 from ..core.safety_gate import SafetyGate
 from ..registry import register_tool
 
@@ -32,8 +33,7 @@ def _sanitize_asset_name(raw_name: str) -> str:
     if not name:
         return ""
     name = re.sub(r"[^A-Za-z0-9_]", "_", name)
-    name = re.sub(r"_+", "_", name).strip("_")
-    return name
+    return re.sub(r"_+", "_", name).strip("_")
 
 def _next_sequential_name(dest_dir: str, base: str = "T_ImportedImage") -> str:
     idx = 1
@@ -47,7 +47,7 @@ def _next_sequential_name(dest_dir: str, base: str = "T_ImportedImage") -> str:
 def _import_file_task(file_path: str, dest_dir: str, asset_name: str) -> str:
     if not os.path.exists(file_path):
         return ""
-        
+
     eal = unreal.EditorAssetLibrary
     if not eal.does_directory_exist(dest_dir):
         eal.make_directory(dest_dir)
@@ -157,20 +157,20 @@ def run_import_image_from_url(
             clean_name = _sanitize_asset_name(leaf.rsplit(".", 1)[0] if "." in leaf else leaf)
         except Exception:
             pass
-            
+
     if not clean_name:
         clean_name = _next_sequential_name(asset_dir)
-        
+
     _, ext = os.path.splitext(urllib.parse.urlparse(url).path)
     ext = (ext or ".png").lower()
     if ext not in (".png", ".jpg", ".jpeg", ".bmp", ".tga", ".exr", ".hdr", ".webp"):
         ext = ".png"
-        
+
     # Phase 14: Safety Gate Validation
     SafetyGate.enforce_safety(asset_dir)
-    
+
     tmp_path = os.path.join(tempfile.gettempdir(), f"uefn_fetch_{clean_name}{ext}")
-    
+
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "UEFN Toolbelt/1.0.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -206,13 +206,13 @@ def run_import_image_from_clipboard(
     clean_name = _sanitize_asset_name(asset_name) or _next_sequential_name(asset_dir)
     # Phase 14: Safety Gate Validation
     SafetyGate.enforce_safety(asset_dir)
-    
+
     tmp_path = os.path.join(tempfile.gettempdir(), f"uefn_clip_{clean_name}.png")
-    
+
     if not _extract_clipboard_png(tmp_path):
         log_error("No valid image found on the Windows clipboard, or extraction failed.")
         return {"error": "Clipboard extraction failed"}
-        
+
     result_path = _import_file_task(tmp_path, asset_dir, clean_name)
     if not result_path:
         log_error("Engine failed to import clipboard PNG.")

@@ -1,6 +1,8 @@
+
 import unreal
-import json
+
 from .registry import register_tool
+
 
 @register_tool(
     name="debug_dump_verse_actor",
@@ -13,13 +15,13 @@ def dump_actor_info(**kwargs) -> dict:
     if not sel:
         unreal.log_warning("[DIAGNOSTIC] No actor selected.")
         return {"status": "error", "message": "No actor selected."}
-        
+
     actor = sel[0]
     unreal.log(f"[DIAGNOSTIC] Actor Label: {actor.get_actor_label()}")
     unreal.log(f"[DIAGNOSTIC] Actor Full Name: {actor.get_full_name()}")
     unreal.log(f"[DIAGNOSTIC] Class Name: {actor.get_class().get_name()}")
     unreal.log(f"[DIAGNOSTIC] Class Path: {actor.get_class().get_path_name()}")
-    
+
     # 1. Inspect Class Hierarchy
     unreal.log("[DIAGNOSTIC] Class Hierarchy:")
     try:
@@ -51,7 +53,7 @@ def dump_actor_info(**kwargs) -> dict:
     unreal.log("[DIAGNOSTIC] Aggressive String Search in Properties...")
     # Safe alternative to inspect.getmembers on Unreal objects
     for name in dir(actor):
-        if name.startswith("__") or name.startswith("get_") or name.startswith("set_"):
+        if name.startswith(("__", "get_", "set_")):
             continue
         try:
             value = getattr(actor, name)
@@ -85,11 +87,11 @@ def dump_actor_info(**kwargs) -> dict:
 def audit_verse_assets(**kwargs) -> dict:
     ar = unreal.AssetRegistryHelpers.get_asset_registry()
     unreal.log("[ASSET AUDIT] Searching for Verse-related assets...")
-    
+
     # Search for anything in the project content
     filter = unreal.ARFilter(package_paths=["/TOOL_TEST"], recursive_paths=True)
     assets = ar.get_assets(filter)
-    
+
     found = False
     for asset in assets:
         name = str(asset.asset_name)
@@ -102,8 +104,8 @@ def audit_verse_assets(**kwargs) -> dict:
             unreal.log(f"  • Asset: {name} (Class: {cls})")
             unreal.log(f"    - Path: {asset.package_name}")
             found = True
-            
+
     if not found:
         unreal.log_warning("[ASSET AUDIT] No student Verse assets found in /TOOL_TEST. Ensure Verse is compiled.")
-    
+
     return {"status": "ok", "found": found}

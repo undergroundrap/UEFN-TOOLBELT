@@ -7,14 +7,13 @@ A major pain point for global UEFN maps.
 
 from __future__ import annotations
 
-import json
 import csv
+import json
 import os
-from typing import List, Dict, Any
 
 import unreal
 
-from ..core import log_info, log_warning, log_error, with_progress
+from ..core import log_error, log_info, log_warning, with_progress
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -40,9 +39,9 @@ def run_text_export_manifest(format: str = "json", **kwargs) -> dict:
     """
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     all_actors = actor_sub.get_all_level_actors()
-    
+
     records = []
-    
+
     with with_progress(all_actors, "Harvesting Text...") as bar:
         for actor in bar:
             # 1. Check for TextRenderActor
@@ -54,7 +53,7 @@ def run_text_export_manifest(format: str = "json", **kwargs) -> dict:
                     "original_text": str(txt),
                     "type": "TextRender"
                 })
-            
+
             # 2. Add logic here for custom Verse dev props if they are exposed to Python
             # (Requires checking specific device classes or looking for String properties)
 
@@ -94,7 +93,7 @@ def run_text_apply_translation(manifest_path: str = "", **kwargs) -> dict:
         return {"status": "error", "applied": 0}
 
     try:
-        with open(manifest_path, "r", encoding="utf-8") as f:
+        with open(manifest_path, encoding="utf-8") as f:
             data = json.load(f)
     except Exception as e:
         log_error(f"Failed to read manifest: {e}")
@@ -105,10 +104,10 @@ def run_text_apply_translation(manifest_path: str = "", **kwargs) -> dict:
         for entry in data:
             path = entry.get("actor_path")
             new_text = entry.get("translated_text") or entry.get("original_text")
-            
+
             if not path or new_text is None:
                 continue
-                
+
             actor = unreal.load_asset(path)
             if actor and isinstance(actor, unreal.TextRenderActor):
                 actor.text_render.set_editor_property("text", new_text)

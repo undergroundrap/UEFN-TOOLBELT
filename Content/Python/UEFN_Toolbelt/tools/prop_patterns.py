@@ -37,15 +37,14 @@ from __future__ import annotations
 
 import math
 import random as _random
-from typing import List, Tuple
 
 import unreal
 
 from UEFN_Toolbelt.core import (
+    get_selected_actors,
+    spawn_static_mesh_actor,
     undo_transaction,
     with_progress,
-    spawn_static_mesh_actor,
-    get_selected_actors,
 )
 from UEFN_Toolbelt.registry import register_tool
 
@@ -60,7 +59,7 @@ _ACTOR_TAG_PROP = "tags"  # unreal.Actor editor property for actor tags
 
 # ─── Math helpers ──────────────────────────────────────────────────────────────
 
-Vec3 = Tuple[float, float, float]
+Vec3 = tuple[float, float, float]
 
 
 def _lerp(a: float, b: float, t: float) -> float:
@@ -140,7 +139,7 @@ def _resolve_scale(
 # ─── Core spawn helper ─────────────────────────────────────────────────────────
 
 def _spawn_pattern(
-    points: List[Vec3],
+    points: list[Vec3],
     center: Vec3,
     mesh_path: str,
     rotation_mode: str,
@@ -194,7 +193,7 @@ def _spawn_pattern(
     mode_str = "[PREVIEW] " if preview else ""
     unreal.log(f"[Patterns] {mode_str}✓ {label}: {spawned}/{total} actors spawned.")
     if preview:
-        unreal.log(f"[Patterns]   Run again with preview=False to place the real mesh.")
+        unreal.log("[Patterns]   Run again with preview=False to place the real mesh.")
     if focus and spawned_actors:
         _camera_align_to_actors(spawned_actors)
     return spawned
@@ -205,7 +204,7 @@ def _spawn_pattern(
 def _points_grid(
     cols: int, rows: int, spacing_x: float, spacing_y: float,
     origin: Vec3, center_origin: bool,
-) -> Tuple[List[Vec3], Vec3]:
+) -> tuple[list[Vec3], Vec3]:
     offset_x = (cols - 1) * spacing_x / 2.0 if center_origin else 0.0
     offset_y = (rows - 1) * spacing_y / 2.0 if center_origin else 0.0
     pts = []
@@ -222,7 +221,7 @@ def _points_grid(
 
 def _points_circle(
     count: int, radius: float, origin: Vec3, start_angle_deg: float,
-) -> Tuple[List[Vec3], Vec3]:
+) -> tuple[list[Vec3], Vec3]:
     pts = []
     for i in range(count):
         angle = math.radians(start_angle_deg + 360.0 * i / count)
@@ -235,7 +234,7 @@ def _points_circle(
 def _points_arc(
     count: int, radius: float, origin: Vec3,
     start_angle_deg: float, end_angle_deg: float,
-) -> Tuple[List[Vec3], Vec3]:
+) -> tuple[list[Vec3], Vec3]:
     pts = []
     for i in range(count):
         t = i / max(count - 1, 1)
@@ -249,7 +248,7 @@ def _points_arc(
 def _points_spiral(
     count: int, turns: float, radius_start: float, radius_end: float,
     origin: Vec3, start_angle_deg: float,
-) -> Tuple[List[Vec3], Vec3]:
+) -> tuple[list[Vec3], Vec3]:
     pts = []
     for i in range(count):
         t = i / max(count - 1, 1)
@@ -263,7 +262,7 @@ def _points_spiral(
 
 def _points_line(
     count: int, start: Vec3, end: Vec3,
-) -> Tuple[List[Vec3], Vec3]:
+) -> tuple[list[Vec3], Vec3]:
     pts = []
     for i in range(count):
         t = i / max(count - 1, 1)
@@ -283,7 +282,7 @@ def _points_line(
 def _points_wave(
     count: int, length: float, amplitude: float, frequency: float,
     origin: Vec3, axis: str,
-) -> Tuple[List[Vec3], Vec3]:
+) -> tuple[list[Vec3], Vec3]:
     pts = []
     axis = axis.upper()
     for i in range(count):
@@ -304,7 +303,7 @@ def _points_wave(
 def _points_helix(
     count: int, radius: float, turns: float, rise_per_turn: float,
     origin: Vec3, start_angle_deg: float,
-) -> Tuple[List[Vec3], Vec3]:
+) -> tuple[list[Vec3], Vec3]:
     pts = []
     for i in range(count):
         t = i / max(count - 1, 1)
@@ -319,7 +318,7 @@ def _points_helix(
 def _points_radial_rows(
     rings: int, props_per_ring: int, radius_step: float,
     origin: Vec3, start_angle_deg: float, include_center: bool,
-) -> Tuple[List[Vec3], Vec3]:
+) -> tuple[list[Vec3], Vec3]:
     pts = []
     if include_center:
         pts.append(origin)

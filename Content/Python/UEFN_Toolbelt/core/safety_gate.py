@@ -1,7 +1,7 @@
-import os
 import unreal
+
+from ..core import PLUGIN_MOUNTS, log_error, log_info, log_warning
 from ..registry import register_tool
-from ..core import log_info, log_warning, log_error, PLUGIN_MOUNTS
 
 # Engine / plugin mounts that must never be written to.
 # Sourced from core.PLUGIN_MOUNTS — single source of truth (see UEFN_QUIRKS.md Quirk #23).
@@ -75,13 +75,13 @@ def core_safety_audit():
     if not actors:
         log_warning("Safety Audit: No actors selected.")
         return "No actors selected."
-        
+
     results = []
     for actor in actors:
         path = actor.get_path_name()
         is_safe, reason = SafetyGate.is_safe_to_modify(path)
         status = "✅ SAFE" if is_safe else "❌ BLOCKED"
         results.append(f"{status} | {actor.get_name()} ({reason})")
-        
+
     log_info(f"Safety Audit complete for {len(actors)} actors.")
     return "\n".join(results)

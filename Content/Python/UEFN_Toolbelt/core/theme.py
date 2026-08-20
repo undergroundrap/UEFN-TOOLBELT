@@ -18,13 +18,11 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Dict, List
-
 # ── Color Palette ──────────────────────────────────────────────────────────────
 # This dict reflects the ACTIVE theme. set_theme() updates it in-place.
 # Always read from PALETTE — never hard-code a hex value elsewhere.
 
-PALETTE: Dict[str, str] = {
+PALETTE: dict[str, str] = {
     "bg":          "#181818",   # window / root background
     "panel":       "#212121",   # input fields, text areas, secondary panels
     "card":        "#1E1E1E",   # elevated surfaces, node bodies
@@ -47,7 +45,7 @@ PALETTE: Dict[str, str] = {
 # Each theme is a full PALETTE override dict.
 # Add a new theme: copy an existing entry and change the values.
 
-THEMES: Dict[str, Dict[str, str]] = {
+THEMES: dict[str, dict[str, str]] = {
 
     "toolbelt_dark": {  # ← Default
         "bg":          "#181818",
@@ -179,7 +177,7 @@ def get_current_theme() -> str:
     return _active_theme
 
 
-def list_themes() -> List[str]:
+def list_themes() -> list[str]:
     """Return all available theme names."""
     return list(THEMES.keys())
 

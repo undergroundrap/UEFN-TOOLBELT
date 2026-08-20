@@ -39,12 +39,13 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import List, Optional
 
 import unreal
 
 from ..core import (
-    get_selected_actors, log_info, log_warning, log_error,
+    get_selected_actors,
+    log_info,
+    log_warning,
 )
 from ..registry import register_tool
 

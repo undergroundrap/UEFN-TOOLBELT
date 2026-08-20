@@ -54,13 +54,16 @@ from __future__ import annotations
 
 import json
 import os
-from typing import List, Optional
 
 import unreal
 
 from ..core import (
-    get_selected_actors, log_info, log_warning, log_error,
-    load_asset, with_progress,
+    get_selected_actors,
+    load_asset,
+    log_error,
+    log_info,
+    log_warning,
+    with_progress,
 )
 from ..registry import register_tool
 
@@ -77,14 +80,14 @@ _COLLISION_MAP = {
 }
 
 
-def _get_mesh_from_path(asset_path: str) -> Optional[unreal.StaticMesh]:
+def _get_mesh_from_path(asset_path: str) -> unreal.StaticMesh | None:
     asset = load_asset(asset_path)
     if not isinstance(asset, unreal.StaticMesh):
         return None
     return asset
 
 
-def _get_meshes_in_folder(folder: str) -> List[unreal.StaticMesh]:
+def _get_meshes_in_folder(folder: str) -> list[unreal.StaticMesh]:
     """Return all StaticMesh assets in a Content Browser folder."""
     if not unreal.EditorAssetLibrary.does_directory_exist(folder):
         log_error(f"Folder not found: {folder}")

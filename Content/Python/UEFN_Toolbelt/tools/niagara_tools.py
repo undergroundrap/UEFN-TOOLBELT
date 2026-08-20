@@ -20,8 +20,9 @@ API reference: unreal.NiagaraFunctionLibrary, unreal.NiagaraComponent
 from __future__ import annotations
 
 import unreal
+
+from ..core import log_error, log_info, log_warning
 from ..registry import register_tool
-from ..core import log_info, log_error, log_warning
 
 
 def _get_world():
@@ -83,8 +84,8 @@ def run_niagara_spawn_system(
         loc = unreal.Vector(*location)
     else:
         try:
-            cam = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-            vp_client = unreal.EditorLevelLibrary.get_editor_world()
+            _cam = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+            _vp_client = unreal.EditorLevelLibrary.get_editor_world()
             # Fall back to camera via viewport
             view_loc = unreal.EditorLevelLibrary.get_level_viewport_camera_info()
             loc = view_loc[0] if view_loc else unreal.Vector(0, 0, 0)

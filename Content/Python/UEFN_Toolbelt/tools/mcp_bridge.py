@@ -70,8 +70,9 @@ import threading
 import time
 import traceback
 from collections import deque
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 import unreal
 
@@ -90,16 +91,16 @@ HISTORY_CAP        = 500
 
 # ─── State ────────────────────────────────────────────────────────────────────
 
-_server:         Optional[HTTPServer]       = None
-_server_thread:  Optional[threading.Thread] = None
-_tick_handle:    Optional[object]           = None
+_server:         HTTPServer | None       = None
+_server_thread:  threading.Thread | None = None
+_tick_handle:    object | None           = None
 _bound_port:     int                        = 0
 _start_time:     float                      = 0.0
 _dispatch_mode:  str                        = "tick"   # "tick" or "direct"
 _tick_health:    int                        = 0        # incremented each tick
 
 _command_queue   = queue.Queue()
-_responses:      Dict[str, dict]            = {}
+_responses:      dict[str, dict]            = {}
 _responses_lock  = threading.Lock()
 _history:        deque                      = deque(maxlen=HISTORY_CAP)
 _request_counter = 0
@@ -185,7 +186,7 @@ def _serialize_actor(actor: unreal.Actor) -> dict:
 
 # ─── Command registry ─────────────────────────────────────────────────────────
 
-_HANDLERS: Dict[str, Callable] = {}
+_HANDLERS: dict[str, Callable] = {}
 
 
 def _cmd(name: str):
@@ -236,7 +237,7 @@ def _c_execute_python(code: str) -> dict:
     stderr_buf = io.StringIO()
     old_stdout, old_stderr = sys.stdout, sys.stderr
 
-    globs: Dict[str, Any] = {
+    globs: dict[str, Any] = {
         "__builtins__": __builtins__,
         "unreal":       unreal,
         "result":       None,
@@ -326,7 +327,7 @@ def _c_describe_tool(tool_name: str) -> dict:
 
 
 @_cmd("batch_exec")
-def _c_batch_exec(commands: List[dict]) -> dict:
+def _c_batch_exec(commands: list[dict]) -> dict:
     """
     Execute multiple commands in sequence within a single editor tick.
     Faster than sending commands one-by-one for multi-step AI agent tasks.
@@ -403,8 +404,8 @@ def _c_get_selected_actors() -> dict:
 def _c_spawn_actor(
     asset_path: str = "",
     actor_class: str = "",
-    location: Optional[List[float]] = None,
-    rotation: Optional[List[float]] = None,
+    location: list[float] | None = None,
+    rotation: list[float] | None = None,
     label: str = "",
 ) -> dict:
     loc = unreal.Vector(*location) if location else unreal.Vector(0, 0, 0)
@@ -432,7 +433,7 @@ def _c_spawn_actor(
 
 
 @_cmd("delete_actors")
-def _c_delete_actors(actor_paths: List[str]) -> dict:
+def _c_delete_actors(actor_paths: list[str]) -> dict:
     sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     all_actors = sub.get_all_level_actors()
     deleted = []
@@ -448,9 +449,9 @@ def _c_delete_actors(actor_paths: List[str]) -> dict:
 @_cmd("set_actor_transform")
 def _c_set_actor_transform(
     actor_path: str,
-    location: Optional[List[float]] = None,
-    rotation: Optional[List[float]] = None,
-    scale: Optional[List[float]] = None,
+    location: list[float] | None = None,
+    rotation: list[float] | None = None,
+    scale: list[float] | None = None,
 ) -> dict:
     sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     target = next(
@@ -486,7 +487,7 @@ def _c_set_actor_property(actor_path: str, property_name: str, value: Any) -> di
 
 
 @_cmd("get_actor_properties")
-def _c_get_actor_properties(actor_path: str, properties: List[str]) -> dict:
+def _c_get_actor_properties(actor_path: str, properties: list[str]) -> dict:
     sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     target = next(
         (a for a in sub.get_all_level_actors()
@@ -616,9 +617,9 @@ def _c_create_material_instance(
     parent_path: str,
     instance_name: str,
     destination: str = "/Game/Materials",
-    scalar_params: Optional[Dict[str, float]] = None,
-    vector_params: Optional[Dict[str, List[float]]] = None,
-    texture_params: Optional[Dict[str, str]] = None,
+    scalar_params: dict[str, float] | None = None,
+    vector_params: dict[str, list[float]] | None = None,
+    texture_params: dict[str, str] | None = None,
 ) -> dict:
     """
     Create a new MaterialInstanceConstant from a parent material.
@@ -701,8 +702,8 @@ def _c_get_viewport_camera() -> dict:
 
 @_cmd("set_viewport_camera")
 def _c_set_viewport_camera(
-    location: Optional[List[float]] = None,
-    rotation: Optional[List[float]] = None,
+    location: list[float] | None = None,
+    rotation: list[float] | None = None,
 ) -> dict:
     cur_loc, cur_rot = unreal.EditorLevelLibrary.get_level_viewport_camera_info()
     loc = unreal.Vector(*location) if location else cur_loc

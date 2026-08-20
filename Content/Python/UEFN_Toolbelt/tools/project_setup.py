@@ -39,14 +39,13 @@ FULL WORKFLOW (copy-paste sequence):
 from __future__ import annotations
 
 import os
-from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from ..core import log_info, log_warning
-from ..registry import register_tool, get_registry
+from ..registry import get_registry, register_tool
 
 
-def _run(tool_name: str, **kwargs) -> Dict[str, Any]:
+def _run(tool_name: str, **kwargs) -> dict[str, Any]:
     """Call a registered tool by name. Returns {} on failure."""
     try:
         result = get_registry().execute(tool_name, **kwargs)
@@ -113,7 +112,7 @@ def project_setup(
             "project_name": project_name,
             "steps": steps,
             "verse_path": None,
-            "next_steps": ["tb.run('project_setup', project_name='{}')".format(project_name)],
+            "next_steps": [f"tb.run('project_setup', project_name='{project_name}')"],
         }
 
     r = _run("scaffold_generate", template=template, project_name=project_name)
@@ -137,7 +136,7 @@ def project_setup(
     # -- Step 3: Deploy Verse file (pure Python file write) ---------------
     if snippet_path and os.path.isfile(snippet_path):
         try:
-            with open(snippet_path, "r", encoding="utf-8") as f:
+            with open(snippet_path, encoding="utf-8") as f:
                 verse_content = f.read()
             filename = device_name.lower() + "_manager.verse"
             r = _run("verse_write_file",

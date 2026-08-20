@@ -7,10 +7,12 @@ incomplete. This tool brute-forces introspection on live level actors to map
 out exactly what variables are exposed to Python in the current patch.
 """
 
-import os
 import json
+import os
+from typing import Any
+
 import unreal
-from typing import Any, Dict, List, Set
+
 from .. import core
 from ..registry import register_tool
 
@@ -23,7 +25,7 @@ def _is_valid(obj) -> bool:
         return False
 
 
-def _introspect_object(obj: unreal.Object) -> Dict[str, Any]:
+def _introspect_object(obj: unreal.Object) -> dict[str, Any]:
     """
     Use Python reflection to determine what properties are exposed
     on a given Unreal Object.
@@ -34,7 +36,7 @@ def _introspect_object(obj: unreal.Object) -> Dict[str, Any]:
     if not _is_valid(obj):
         return {"class": "Invalid", "properties": {}, "methods": []}
 
-    schema: Dict[str, Any] = {
+    schema: dict[str, Any] = {
         "class": type(obj).__name__,
         "properties": {},
         "methods": [],
@@ -60,7 +62,7 @@ def _introspect_object(obj: unreal.Object) -> Dict[str, Any]:
             pass
 
     # 2. Probe editor properties — the only safe reflection path in UEFN
-    for attr in list(schema["methods"]):
+    for _attr in list(schema["methods"]):
         pass  # methods already collected above
 
     # Probe known-safe property names via get_editor_property
@@ -75,9 +77,7 @@ def _introspect_object(obj: unreal.Object) -> Dict[str, Any]:
             rep = None
             if isinstance(val, (int, float, str, bool)):
                 rep = val
-            elif isinstance(val, unreal.EnumBase):
-                rep = str(val)
-            elif isinstance(val, unreal.Name):
+            elif isinstance(val, (unreal.EnumBase, unreal.Name)):
                 rep = str(val)
             elif isinstance(val, unreal.Vector):
                 rep = {"x": round(val.x, 3), "y": round(val.y, 3), "z": round(val.z, 3)}
@@ -142,7 +142,7 @@ def crawl_selection(**kwargs) -> dict:
 
 def _sync_to_repo(src_path: str, filename: str) -> str:
     """
-    Helper to copy a generated file from the Saved/ directory to the project's docs/ 
+    Helper to copy a generated file from the Saved/ directory to the project's docs/
     folder for Git tracking and AI context.
     """
     import shutil
@@ -155,15 +155,15 @@ def _sync_to_repo(src_path: str, filename: str) -> str:
             if os.path.basename(curr) == "Content":
                 project_root = os.path.dirname(curr)
                 break
-        
+
         if not project_root:
             import unreal
             project_root = unreal.Paths.project_dir()
-            
+
         repo_docs = os.path.join(project_root, "docs")
         os.makedirs(repo_docs, exist_ok=True)
         dst_path = os.path.join(repo_docs, filename)
-        
+
         shutil.copy2(src_path, dst_path)
         return dst_path
     except Exception as e:
@@ -190,7 +190,7 @@ def crawl_level_classes(**kwargs) -> dict:
         core.log_warning("No actors in the level.")
         return {"status": "error", "message": "No actors in the level.", "path": ""}
 
-    class_map: Dict[str, unreal.Actor] = {}
+    class_map: dict[str, unreal.Actor] = {}
     for a in all_actors:
         cls_name = type(a).__name__
         if cls_name not in class_map:
@@ -207,7 +207,7 @@ def crawl_level_classes(**kwargs) -> dict:
 
     # Sort to scan alphabetically — no progress bar (PySide6 ticking during
     # heavy reflection can dereference null C++ pointers and crash the editor)
-    sorted_classes = sorted(list(class_map.keys()))
+    sorted_classes = sorted(class_map.keys())
     for i, cls_name in enumerate(sorted_classes):
         actor = class_map[cls_name]
         unreal.log(f"[TOOLBELT] Crawling {i+1}/{len(sorted_classes)}: {cls_name}")
@@ -217,7 +217,7 @@ def crawl_level_classes(**kwargs) -> dict:
     saved_dir = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt")
     os.makedirs(saved_dir, exist_ok=True)
     out_path = os.path.join(saved_dir, "api_level_classes_schema.json")
-    
+
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
 
@@ -252,17 +252,17 @@ def api_sync_master(**kwargs) -> dict:
     level_schema_path = crawl_result.get("path", "") if isinstance(crawl_result, dict) else crawl_result
     if not level_schema_path or not os.path.exists(level_schema_path):
         return {"status": "error", "message": "Failed to crawl level classes."}
-        
-    with open(level_schema_path, 'r', encoding='utf-8') as f:
+
+    with open(level_schema_path, encoding='utf-8') as f:
         level_data = json.load(f)
-    
+
     # 2. Refresh Verse Schema
     core.log_info("Step 2/3: Refreshing Verse Schema IQ from digests...")
     verse_parser.load_digests()
-    
+
     # 3. Merge and Document
     core.log_info("Step 3/3: Merging data and updating DEVICE_API_MAP.md...")
-    
+
     md_content = [
         "# Fortnite Device API Map (Master Sync)",
         "",
@@ -272,36 +272,36 @@ def api_sync_master(**kwargs) -> dict:
         "| Class | Source | Key Methods / Properties / Events |",
         "| :--- | :--- | :--- |"
     ]
-    
-    all_classes = sorted(list(set(list(level_data["classes"].keys()) + list(verse_parser.device_schemas.keys()))))
-    
+
+    all_classes = sorted(set(list(level_data["classes"].keys()) + list(verse_parser.device_schemas.keys())))
+
     for cls in all_classes:
         level_info = level_data["classes"].get(cls)
         verse_info = verse_parser.device_schemas.get(cls)
-        
+
         source = []
         if level_info: source.append("Live")
         if verse_info: source.append("Verse")
-        
+
         # Collect top items
         items = []
         if level_info:
             # Add top 3 methods
             methods = [m for m in level_info.get("methods", []) if not m.startswith("get_") and not m.startswith("set_")]
             items.extend(methods[:3])
-            
+
         if verse_info:
             # Add top 3 properties/events
             props = list(verse_info.get("properties", {}).keys())[:2]
             events = verse_info.get("events", [])[:1]
             items.extend(props)
             items.extend(events)
-            
+
         entry = ", ".join([f"`{i}`" for i in items]) or "*(Introspecting...)*"
         md_content.append(f"| `{cls}` | {[' + '.join(source)]} | {entry} |")
 
     md_content.append("\n---\n*Last Sync: Generated by UEFN Toolbelt Master Sync Tool*")
-    
+
     # Write to project docs (Self-resolving path for UEFN project structures)
     curr = os.path.abspath(__file__)
     project_root = None
@@ -310,15 +310,15 @@ def api_sync_master(**kwargs) -> dict:
         if os.path.basename(curr) == "Content":
             project_root = os.path.dirname(curr)
             break
-    
+
     if not project_root:
         project_root = unreal.Paths.project_dir()
     doc_path = os.path.join(project_root, "docs", "DEVICE_API_MAP.md")
     os.makedirs(os.path.dirname(doc_path), exist_ok=True)
-    
+
     with open(doc_path, "w", encoding="utf-8") as f:
         f.write("\n".join(md_content))
-        
+
     core.log_info(f"✓ Master Sync Complete! Document updated: {doc_path}")
     return {"status": "ok", "path": doc_path}
 
@@ -432,9 +432,7 @@ def world_state_export(**kwargs) -> dict:
                 val = actor.get_editor_property(attr)
                 if isinstance(val, (int, float, str, bool)):
                     props[attr] = val
-                elif isinstance(val, unreal.EnumBase):
-                    props[attr] = str(val)
-                elif isinstance(val, unreal.Name):
+                elif isinstance(val, (unreal.EnumBase, unreal.Name)):
                     props[attr] = str(val)
                 elif isinstance(val, unreal.Vector):
                     props[attr] = {"x": round(val.x, 2), "y": round(val.y, 2), "z": round(val.z, 2)}
@@ -578,7 +576,7 @@ def device_catalog_scan(
     unreal.log(f"[device_catalog_scan] Searching {len(search_paths)} package paths...")
 
     # ── Phase 1: gather all Blueprint assets across target paths ──────────────
-    all_assets: List[unreal.AssetData] = []
+    all_assets: list[unreal.AssetData] = []
     for pkg_path in search_paths:
         try:
             flt = unreal.ARFilter(
@@ -595,10 +593,10 @@ def device_catalog_scan(
     unreal.log(f"[device_catalog_scan] Total Blueprint assets found: {len(all_assets)}")
 
     # ── Phase 2: filter by device-hint keywords ───────────────────────────────
-    hints_lower = [h.lower() for h in _DEVICE_CLASS_HINTS]
+    _hints_lower = [h.lower() for h in _DEVICE_CLASS_HINTS]
 
-    devices: List[Dict[str, Any]] = []
-    categories: Dict[str, List[Dict]] = {}
+    devices: list[dict[str, Any]] = []
+    categories: dict[str, list[dict]] = {}
 
     for asset in all_assets:
         # asset_name is the only required field — skip if unavailable

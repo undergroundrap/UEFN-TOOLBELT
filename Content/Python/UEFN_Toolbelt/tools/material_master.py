@@ -58,19 +58,28 @@ SETUP:
 from __future__ import annotations
 
 import json
-import math
 import os
 import random
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import unreal
 
 from ..core import (
-    undo_transaction, get_selected_actors, require_selection,
-    log_info, log_warning, log_error,
-    color_from_hex, clamp, lerp,
-    create_material_instance, set_mi_scalar, set_mi_vector,
-    load_asset, save_asset, ensure_folder, with_progress,
+    clamp,
+    color_from_hex,
+    create_material_instance,
+    get_selected_actors,
+    lerp,
+    load_asset,
+    log_error,
+    log_info,
+    log_warning,
+    require_selection,
+    save_asset,
+    set_mi_scalar,
+    set_mi_vector,
+    undo_transaction,
+    with_progress,
 )
 from ..registry import register_tool
 
@@ -94,7 +103,7 @@ CUSTOM_PRESETS_FILE  = os.path.join(
 #    emissive_intensity → Scalar param "EmissiveIntensity"
 # ─────────────────────────────────────────────────────────────────────────────
 
-BUILTIN_PRESETS: Dict[str, Dict[str, Any]] = {
+BUILTIN_PRESETS: dict[str, dict[str, Any]] = {
     # ── Metals ────────────────────────────────────────────────────────────────
     "chrome": {
         "base_color": (0.82, 0.82, 0.82, 1),
@@ -207,35 +216,35 @@ BUILTIN_PRESETS: Dict[str, Dict[str, Any]] = {
 #  Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _load_custom_presets() -> Dict[str, Any]:
+def _load_custom_presets() -> dict[str, Any]:
     """Load user-saved presets from JSON. Returns {} if file missing."""
     if not os.path.exists(CUSTOM_PRESETS_FILE):
         return {}
     try:
-        with open(CUSTOM_PRESETS_FILE, "r") as f:
+        with open(CUSTOM_PRESETS_FILE) as f:
             return json.load(f)
     except Exception as e:
         log_error(f"material_master: could not read custom presets: {e}")
         return {}
 
 
-def _save_custom_presets(data: Dict[str, Any]) -> None:
+def _save_custom_presets(data: dict[str, Any]) -> None:
     os.makedirs(os.path.dirname(CUSTOM_PRESETS_FILE), exist_ok=True)
     with open(CUSTOM_PRESETS_FILE, "w") as f:
         json.dump(data, f, indent=2)
     log_info(f"Custom presets saved → {CUSTOM_PRESETS_FILE}")
 
 
-def _all_presets() -> Dict[str, Any]:
+def _all_presets() -> dict[str, Any]:
     """Merge builtin and custom presets (custom takes priority)."""
     merged = dict(BUILTIN_PRESETS)
     merged.update(_load_custom_presets())
     return merged
 
 
-def _apply_preset_to_actor(actor: unreal.Actor, preset: Dict[str, Any], instance_suffix: str) -> bool:
+def _apply_preset_to_actor(actor: unreal.Actor, preset: dict[str, Any], instance_suffix: str) -> bool:
     """
-    Create a material instance from the preset and assign it to every 
+    Create a material instance from the preset and assign it to every
     compatible component on the actor (StaticMesh, SkeletalMesh, Decal, etc.).
     """
     # Determine instance name
@@ -264,14 +273,14 @@ def _apply_preset_to_actor(actor: unreal.Actor, preset: Dict[str, Any], instance
     # This now covers SkeletalMesh, Decals, and custom UEFN primitives
     components = actor.get_components_by_class(unreal.PrimitiveComponent)
     touched = False
-    
+
     for comp in components:
         # 1. Standard Mesh Components (Static/Skeletal)
         if hasattr(comp, "get_num_materials") and hasattr(comp, "set_material"):
             for slot in range(comp.get_num_materials()):
                 comp.set_material(slot, mi)
                 touched = True
-        
+
         # 2. Decal Components (Special case discovered in schema)
         elif isinstance(comp, unreal.DecalComponent):
             comp.set_decal_material(mi)
@@ -437,7 +446,7 @@ def run_gradient_painter(
     log_info(f"Painting gradient ({color_a}→{color_b}) along {axis} axis over {len(actors)} actors…")
 
     with undo_transaction("Material Master: Gradient Painter"):
-        for actor, pos in zip(actors, positions):
+        for actor, pos in zip(actors, positions, strict=False):
             t = clamp((get_coord(pos) - mn) / span, 0.0, 1.0)
             r = lerp(ca.r, cb.r, t)
             g = lerp(ca.g, cb.g, t)

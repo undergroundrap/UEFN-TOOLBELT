@@ -53,13 +53,11 @@ from __future__ import annotations
 import json
 import math
 import os
-from typing import List, Optional
 
 import unreal
 
-from ..core import log_info, log_warning, log_error
+from ..core import log_info, log_warning
 from ..registry import register_tool
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Helpers
@@ -80,11 +78,11 @@ def _actor_sub() -> unreal.EditorActorSubsystem:
     return unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 
 
-def _get_selected() -> List[unreal.Actor]:
+def _get_selected() -> list[unreal.Actor]:
     return list(_actor_sub().get_selected_level_actors() or [])
 
 
-def _mesh_path(actor: unreal.Actor) -> Optional[str]:
+def _mesh_path(actor: unreal.Actor) -> str | None:
     """Return the clean asset path for the actor's static mesh, or None."""
     try:
         comp = actor.get_component_by_class(unreal.StaticMeshComponent)

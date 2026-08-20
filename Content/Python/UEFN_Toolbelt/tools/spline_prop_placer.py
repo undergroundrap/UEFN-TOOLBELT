@@ -41,24 +41,24 @@ REQUIREMENTS:
 
 from __future__ import annotations
 
-import math
 import random
-from typing import List, Optional
 
 import unreal
 
 from ..core import (
-    undo_transaction, require_selection, log_info, log_warning, log_error,
+    log_error,
+    log_info,
+    log_warning,
     spawn_static_mesh_actor,
+    undo_transaction,
 )
 from ..registry import register_tool
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _find_spline_component(actor: unreal.Actor) -> Optional[unreal.SplineComponent]:
+def _find_spline_component(actor: unreal.Actor) -> unreal.SplineComponent | None:
     """Find the first SplineComponent on an actor, or None."""
     comps = actor.get_components_by_class(unreal.SplineComponent.static_class())
     if comps:
@@ -66,7 +66,7 @@ def _find_spline_component(actor: unreal.Actor) -> Optional[unreal.SplineCompone
     return None
 
 
-def _get_spline_actor() -> Optional[tuple[unreal.Actor, unreal.SplineComponent]]:
+def _get_spline_actor() -> tuple[unreal.Actor, unreal.SplineComponent] | None:
     """
     Validate that exactly one spline actor is selected.
     Returns (actor, spline_component) or None.
@@ -86,7 +86,7 @@ def _get_spline_actor() -> Optional[tuple[unreal.Actor, unreal.SplineComponent]]
     return None
 
 
-def _distances_from_count(spline: unreal.SplineComponent, count: int) -> List[float]:
+def _distances_from_count(spline: unreal.SplineComponent, count: int) -> list[float]:
     """Return evenly spaced distances along the spline for a given count."""
     total = spline.get_spline_length()
     if count <= 1:
@@ -94,7 +94,7 @@ def _distances_from_count(spline: unreal.SplineComponent, count: int) -> List[fl
     return [total * i / (count - 1) for i in range(count)]
 
 
-def _distances_from_spacing(spline: unreal.SplineComponent, spacing: float) -> List[float]:
+def _distances_from_spacing(spline: unreal.SplineComponent, spacing: float) -> list[float]:
     """Return distances spaced every `spacing` units along the spline."""
     total = spline.get_spline_length()
     if spacing <= 0:
@@ -162,8 +162,8 @@ def run_place_props(
         log_error("No distances computed — check count/spacing values.")
         return {"status": "error", "placed": 0, "folder": folder_name}
 
-    placed: List[unreal.Actor] = []
-    offset_vec = unreal.Vector(offset_x, offset_y, offset_z)
+    placed: list[unreal.Actor] = []
+    _offset_vec = unreal.Vector(offset_x, offset_y, offset_z)
     cs = unreal.SplineCoordinateSpace.WORLD
 
     with undo_transaction(f"Spline Prop Placer: {len(distances)} × {mesh_path.split('/')[-1]}"):
