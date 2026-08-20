@@ -23,8 +23,15 @@ API: unreal.EnhancedInput — 75 types
 from __future__ import annotations
 
 import unreal
+
+from ..core import api_unavailable, log_error, log_info, missing_unreal_apis
 from ..registry import register_tool
-from ..core import log_info, log_error, log_warning
+
+# unreal.* names this module uses but does not require.
+# Removed in UEFN 42.00 (UE 6.0). Guarded by missing_unreal_apis().
+__optional_unreal_apis__ = (
+    "InputActionFactory",
+)
 
 
 def _ar():
@@ -164,6 +171,9 @@ def run_input_create_action(
     **kwargs,
 ) -> dict:
     """Create a new InputAction asset at destination."""
+    _missing = missing_unreal_apis("InputActionFactory")
+    if _missing:
+        return api_unavailable("input_create_action", _missing)
     try:
         factory = unreal.InputActionFactory()
         asset = unreal.AssetToolsHelpers.get_asset_tools().create_asset(

@@ -20,8 +20,15 @@ API reference: unreal.PCGComponent, unreal.PCGSubsystem
 from __future__ import annotations
 
 import unreal
+
+from ..core import log_error, log_info, log_warning
 from ..registry import register_tool
-from ..core import log_info, log_error, log_warning
+
+# unreal.* names this module uses but does not require.
+# Absent in UEFN 42.00 (UE 6.0). Probed with hasattr before use.
+__optional_unreal_apis__ = (
+    "PCGSubsystem",
+)
 
 
 def _get_pcg_component(actor: unreal.Actor):
@@ -207,7 +214,7 @@ def run_pcg_refresh_all(**kwargs) -> dict:
     try:
         # Try via PCGSubsystem first (cleanest API)
         try:
-            world = unreal.EditorLevelLibrary.get_editor_world()
+            _world = unreal.EditorLevelLibrary.get_editor_world()
             pcg_sub = unreal.get_engine_subsystem(unreal.PCGSubsystem) if hasattr(unreal, "PCGSubsystem") else None
             if pcg_sub:
                 pcg_sub.refresh_runtime_dirty_components()

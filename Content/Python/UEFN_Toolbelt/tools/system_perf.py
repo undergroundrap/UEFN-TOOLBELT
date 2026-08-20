@@ -14,8 +14,16 @@ FEATURES:
 from __future__ import annotations
 
 import unreal
-from ..core import log_info, log_error
+
+from ..core import api_unavailable, log_error, log_info, missing_unreal_apis
 from ..registry import register_tool
+
+# unreal.* names this module uses but does not require.
+# Removed in UEFN 42.00 (UE 6.0). Guarded by missing_unreal_apis().
+__optional_unreal_apis__ = (
+    "EditorPerformanceSettings",
+)
+
 
 @register_tool(
     name="system_optimize_background_cpu",
@@ -30,18 +38,21 @@ def run_optimize_background_cpu(
     """
     Toggles 'Use Less CPU when in Background'.
     When doing heavy Python/MCP scripting via LLM, UEFN must not sleep.
-    
+
     Args:
         max_performance: If True, disables power saving so UEFN runs at full speed in the background.
                          If False, restores UEFN to default power saving mode.
     """
+    _missing = missing_unreal_apis("EditorPerformanceSettings")
+    if _missing:
+        return api_unavailable("system_optimize_background_cpu", _missing)
     try:
         # 1. Update the Editor Performance Settings Object
         settings = unreal.get_default_object(unreal.EditorPerformanceSettings)
-        
+
         # When max_performance is True, we DISABLE performance saving
         settings.b_enable_editor_performance_saving = not max_performance
-        
+
         # 2. Issue Raw Engine Console Commands for brute-force override
         if max_performance:
             # Force background IDLE loop to stay fully active
@@ -53,15 +64,15 @@ def run_optimize_background_cpu(
             unreal.SystemLibrary.execute_console_command(None, "t.IdleWhenNotForeground 1")
             unreal.SystemLibrary.execute_console_command(None, "t.MaxFPS 120")
             status_msg = "Standard Power Saving Active (Background CPU throttling enabled)"
-            
+
         log_info(f"System Optimization: {status_msg}")
-        
+
         return {
             "max_performance": max_performance,
             "throttle_active": not max_performance,
             "status": status_msg
         }
-        
+
     except Exception as e:
         log_error(f"Failed to update system performance settings: {e}")
         return {"error": str(e)}

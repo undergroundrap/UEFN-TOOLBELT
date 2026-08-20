@@ -26,13 +26,18 @@ USAGE:
 from __future__ import annotations
 
 import math
-from typing import List, Tuple
 
 import unreal
 
-from ..core import log_info, log_error, log_warning
+from ..core import api_unavailable, log_error, log_info, log_warning, missing_unreal_apis
 from ..registry import register_tool
 
+# unreal.* names this module uses but does not require.
+# Removed in UEFN 42.00 (UE 6.0); align_to_surface refuses via
+# missing_unreal_apis() rather than silently snapping nothing.
+__optional_unreal_apis__ = (
+    "EditorLevelLibrary.snap_objects_to_floor",
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Internal helpers
@@ -42,7 +47,7 @@ def _actor_sub() -> unreal.EditorActorSubsystem:
     return unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 
 
-def _get_selected() -> List[unreal.Actor]:
+def _get_selected() -> list[unreal.Actor]:
     selected = _actor_sub().get_selected_level_actors() or []
     return list(selected)
 
@@ -70,7 +75,7 @@ def _set_axis(loc: unreal.Vector, axis: str, value: float) -> unreal.Vector:
     return unreal.Vector(x, y, z)
 
 
-def _get_bounds(actor: unreal.Actor) -> Tuple[unreal.Vector, unreal.Vector]:
+def _get_bounds(actor: unreal.Actor) -> tuple[unreal.Vector, unreal.Vector]:
     """
     Return (origin, extent) for an actor.
 
@@ -367,9 +372,11 @@ def align_to_surface(offset_z: float = 0.0, **kwargs) -> dict:
     """
     Drop selected actors to the nearest surface below them.
 
-    Uses unreal.EditorLevelLibrary.snap_objects_to_floor() which snaps the current
-    editor selection in one call. If that API is unavailable (some UEFN builds), the
-    function falls back to a per-actor downward trace attempt and logs a warning.
+    Uses unreal.EditorLevelLibrary.snap_objects_to_floor(), which snaps the current
+    editor selection in one call. UEFN 42.00 (UE 6.0) removed that API; the tool
+    refuses rather than proceeding, because the only other thing it does is apply
+    offset_z — which would shift actors off an unsnapped position and report
+    success.
 
     After snapping, each actor is shifted up by offset_z centimetres so it sits
     exactly on the surface rather than intersecting it.
@@ -381,6 +388,10 @@ def align_to_surface(offset_z: float = 0.0, **kwargs) -> dict:
     Returns:
         dict: {"status", "snapped": int}
     """
+    _missing = missing_unreal_apis("EditorLevelLibrary.snap_objects_to_floor")
+    if _missing:
+        return api_unavailable("align_to_surface", _missing)
+
     selected = _get_selected()
     if not selected:
         msg = "align_to_surface: nothing selected."

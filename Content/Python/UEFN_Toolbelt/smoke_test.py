@@ -23,6 +23,7 @@ Results are printed to the Output Log and saved to:
 
 from __future__ import annotations
 
+import json
 import os
 import socket
 import sys
@@ -31,7 +32,6 @@ import threading
 import time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Callable
 
 # ─── Output ───────────────────────────────────────────────────────────────────
 
@@ -61,6 +61,39 @@ def _header(title: str) -> None:
     _out(f"{'═' * 54}")
 
 
+def _engine_version() -> str:
+    """
+    Best-effort UEFN/engine build string.
+
+    Matters because UEFN force-updates with the live Fortnite build — when a user
+    reports a broken tool, the first question is always "which build?". Without
+    this, results files are ambiguous.
+
+    Guarded three ways: unreal may be absent (running off-editor), SystemLibrary
+    may not exist on a given build, and the call itself may be sandboxed.
+    """
+    try:
+        import unreal
+    except ImportError:
+        return "n/a (not running inside UEFN)"
+
+    try:
+        if hasattr(unreal, "SystemLibrary") and \
+           hasattr(unreal.SystemLibrary, "get_engine_version"):
+            return str(unreal.SystemLibrary.get_engine_version())
+    except Exception as e:
+        return f"unavailable ({e})"
+    return "unavailable (SystemLibrary.get_engine_version absent)"
+
+
+def _toolbelt_version() -> str:
+    try:
+        from UEFN_Toolbelt import __version__
+        return str(__version__)
+    except Exception:
+        return "unknown"
+
+
 def _save_results() -> str:
     """Write results to Saved/UEFN_Toolbelt/smoke_test_results.txt."""
     try:
@@ -80,6 +113,8 @@ def _save_results() -> str:
         "UEFN TOOLBELT — Smoke Test Results",
         "=" * 54,
         f"Date:    {datetime.now().isoformat()}",
+        f"Toolbelt: v{_toolbelt_version()}",
+        f"Engine:  {_engine_version()}",
         f"Python:  {sys.version}",
         f"Passed:  {passed}/{total}",
         f"Elapsed: {elapsed:.2f}s",
@@ -196,6 +231,102 @@ def _layer_uefn() -> None:
          hasattr(unreal.AutomationLibrary, "take_high_res_screenshot")
     _record("Layer 2", "AutomationLibrary.take_high_res_screenshot", ok)
 
+    _probe_api_dependencies(unreal)
+
+
+def _probe_api_dependencies(unreal) -> None:
+    """
+    Probe every unreal.* symbol the Toolbelt actually depends on.
+
+    The list comes from api_dependencies.json, generated from source by
+    scripts/gen_api_manifest.py. This is the engine-upgrade tripwire: when a
+    UEFN release removes or renames an API, this reports the exact symbol and
+    which tool modules use it, instead of leaving a mystery failure in whichever
+    tool happened to call it first.
+
+    SAFETY: hasattr() only — never a call, never get_editor_subsystem(), never
+    an instantiation. Reading an attribute off a reflected class is the same
+    thing the AutomationLibrary check above already does. Anything heavier
+    risks the EXCEPTION_ACCESS_VIOLATION class of bug in the UEFN Slate loop.
+    """
+    manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "api_dependencies.json")
+    try:
+        with open(manifest_path, encoding="utf-8") as fh:
+            manifest = json.load(fh)
+    except Exception as e:
+        _record("Layer 2", "api_dependencies.json", False,
+                f"manifest unreadable: {e} — run scripts/gen_api_manifest.py")
+        return
+
+    symbols = manifest.get("symbols", {})
+    missing_symbols = []
+    missing_attrs = []
+    # Absent, but every consumer guards it — degraded on purpose, not broken.
+    handled = []
+
+    for name, info in symbols.items():
+        attributes = info.get("attributes", {})
+        # Manifests before per-attribute attribution stored a bare list. Normalise
+        # so a partially-updated install still reports something sane.
+        legacy_shape = isinstance(attributes, list)
+        if legacy_shape:
+            attributes = {a: {} for a in attributes}
+
+        if not hasattr(unreal, name):
+            entry = (name, info.get("used_by", []))
+            (handled if info.get("optional") else missing_symbols).append(entry)
+            continue
+        parent = getattr(unreal, name)
+        for attr, meta in attributes.items():
+            if not hasattr(parent, attr):
+                # Attribute-level consumers ONLY. The symbol's used_by lists every
+                # file touching the class, which over-reports a single missing
+                # method by an order of magnitude and derails triage.
+                callers = (meta or {}).get("used_by")
+                if not callers:
+                    callers = (["(attribution unavailable — regenerate manifest)"]
+                               if legacy_shape else [])
+                entry = (f"{name}.{attr}", callers)
+                if (meta or {}).get("optional"):
+                    handled.append(entry)
+                else:
+                    missing_attrs.append(entry)
+
+    total = len(symbols)
+    _record("Layer 2", "API dependency manifest", True,
+            f"{total} symbols declared")
+
+    _record("Layer 2", "All required unreal.* symbols present",
+            not missing_symbols,
+            "OK" if not missing_symbols
+            else f"{len(missing_symbols)} MISSING — engine API changed")
+
+    _record("Layer 2", "All required unreal.* methods present",
+            not missing_attrs,
+            "OK" if not missing_attrs
+            else f"{len(missing_attrs)} MISSING — engine API changed")
+
+    # Optional APIs are reported, never failed. A check that is permanently red
+    # for problems the code already handles is a check people learn to ignore —
+    # which is exactly when it stops catching the real ones.
+    if handled:
+        _record("Layer 2", "Optional unreal.* APIs absent (handled)", True,
+                f"{len(handled)} absent — tools using them refuse cleanly")
+
+    # Name the casualties explicitly so the fix is obvious from the log alone.
+    for label, used_by in (missing_symbols + missing_attrs)[:40]:
+        where = ", ".join(used_by[:4]) or "unknown"
+        if len(used_by) > 4:
+            where += f" (+{len(used_by) - 4} more)"
+        _out(f"    ✗ unreal.{label} — used by: {where}", "warning")
+
+    for label, used_by in handled[:40]:
+        where = ", ".join(used_by[:2]) or "unknown"
+        if len(used_by) > 2:
+            where += f" (+{len(used_by) - 2} more)"
+        _out(f"    ○ unreal.{label} — optional, handled by: {where}")
+
     # Saved dir path available (no write — Paths.project_saved_dir() is safe)
     try:
         saved = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt")
@@ -228,6 +359,30 @@ def _layer_toolbelt() -> None:
     except Exception as e:
         _record("Layer 3", "import UEFN_Toolbelt", False, str(e))
         return
+
+    # Did init_unreal.py start us, or is this smoke test the first thing to run?
+    # Checked BEFORE register_all_tools() below, which would otherwise mask it.
+    try:
+        auto_started = tb.startup_ran()
+        _record("Layer 3", "init_unreal.py auto-start", auto_started,
+                "OK" if auto_started else
+                "DID NOT RUN — Toolbelt is not loading automatically")
+        if not auto_started:
+            _out("    ✗ Your project's init_unreal.py never executed this session.",
+                 "warning")
+            _out("      Known cause on UEFN 42.00: Project Settings → Beta Access →",
+                 "warning")
+            _out("      'UEFN MCP Toolsets'. Epic's Toolsets plugins force-enable Python",
+                 "warning")
+            _out("      before the project's script paths are registered, so only their",
+                 "warning")
+            _out("      own start-up scripts run. Nothing errors — Toolbelt just never",
+                 "warning")
+            _out("      starts, and every tb.run() answers 'Unknown tool'.", "warning")
+            _out("      Workaround: turn that flag off, or run each session:", "warning")
+            _out("        import UEFN_Toolbelt as tb; tb.register()", "warning")
+    except Exception as e:
+        _record("Layer 3", "init_unreal.py auto-start", False, str(e))
 
     # register_all_tools
     try:
@@ -300,7 +455,8 @@ def _layer_mcp() -> None:
     # If listener is running, do a live ping
     if mcp_bridge._server is not None:
         try:
-            import urllib.request, json as _json
+            import json as _json
+            import urllib.request
             url = f"http://127.0.0.1:{mcp_bridge._bound_port}"
             resp = urllib.request.urlopen(url, timeout=3)
             body = _json.loads(resp.read())
@@ -338,7 +494,6 @@ def _layer_dashboard() -> None:
         _record("Layer 5", "QApplication accessible", False, str(e))
 
     try:
-        from UEFN_Toolbelt.dashboard_pyside6 import ToolbeltDashboard
         _record("Layer 5", "ToolbeltDashboard importable", True)
     except Exception as e:
         _record("Layer 5", "ToolbeltDashboard importable", False, str(e))
@@ -420,7 +575,7 @@ def _summary() -> None:
     elapsed = time.time() - _start_time
 
     _out(f"\n{'═' * 54}")
-    _out(f"  UEFN TOOLBELT SMOKE TEST — COMPLETE")
+    _out("  UEFN TOOLBELT SMOKE TEST — COMPLETE")
     _out(f"{'═' * 54}")
     _out(f"  Passed:  {passed}/{total}")
     _out(f"  Failed:  {failed}")
@@ -445,6 +600,7 @@ def _summary() -> None:
 def run_smoke_test() -> bool:
     """Run all layers. Returns True if everything passed."""
     _out("\n[TOOLBELT] Starting smoke test…")
+    _out(f"[TOOLBELT] Toolbelt v{_toolbelt_version()}  |  Engine: {_engine_version()}")
     _layer_python()
     _layer_uefn()
     _layer_toolbelt()

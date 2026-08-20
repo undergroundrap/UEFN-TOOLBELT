@@ -6,16 +6,18 @@ Shared helpers used by every tool module.
 
 from __future__ import annotations
 
-from .config import get_config, Config, DEFAULTS  # noqa: F401 — re-exported for tools
-from .theme import PALETTE, QSS, color as theme_color  # noqa: F401 — re-exported for tools
-
 import contextlib
 import math
 import os
 import random
-from typing import Generator, Iterable, List, Optional
+from collections.abc import Generator, Iterable
+from typing import Optional
 
 import unreal
+
+from .config import DEFAULTS, Config, get_config  # noqa: F401 — re-exported for tools
+from .theme import PALETTE, QSS  # noqa: F401 — re-exported for tools
+from .theme import color as theme_color
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Project Path Utilities
@@ -79,10 +81,58 @@ def detect_project_mount() -> str:
             if root and root not in PLUGIN_MOUNTS:
                 counts[root] = counts.get(root, 0) + 1
         if counts:
-            return max(counts, key=counts.get)
+            return max(counts, key=lambda k: counts[k])
     except Exception:
         pass
     return "Game"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Engine API availability
+#  UEFN force-updates with the live Fortnite build, so an API a tool depends on
+#  can vanish between sessions with no warning. Tools that touch a removable API
+#  should preflight it here and refuse with a specific reason, rather than
+#  surfacing a raw AttributeError from somewhere deep inside a loop.
+#  smoke_test Layer 2 reports the same removals up front.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def missing_unreal_apis(*names: str) -> list[str]:
+    """
+    Return the subset of `names` this engine build does not expose.
+
+    Accepts "ClassName" or "ClassName.method_name".
+
+        missing_unreal_apis("EditorBlueprintLibrary", "Vector.up")
+    """
+    missing: list[str] = []
+    for name in names:
+        head, _, attr = name.partition(".")
+        obj = getattr(unreal, head, None)
+        if obj is None or (attr and not hasattr(obj, attr)):
+            missing.append(name)
+    return missing
+
+
+def api_unavailable(tool: str, missing: list[str],
+                    removed_in: str = "UEFN 42.00 (UE 6.0)") -> dict:
+    """
+    Standard refusal payload for a tool whose engine API is gone.
+
+    Returns the same {"status": "error", ...} shape every other tool uses, so
+    callers and MCP clients can handle it without special-casing.
+    """
+    msg = (
+        f"{tool} is unavailable in this engine build: {', '.join(missing)} "
+        f"not exposed (removed in {removed_in}). The tool is disabled rather "
+        f"than failing part-way through. Run tb.smoke_test() for the full list."
+    )
+    log_warning(msg)
+    return {
+        "status": "error",
+        "reason": "engine_api_unavailable",
+        "missing_apis": missing,
+        "message": msg,
+    }
 
 
 def resolve_scan_path(scan_path: str) -> str:
@@ -154,14 +204,14 @@ def undo_transaction(label: str) -> Generator[None, None, None]:
 #  Actor Selection
 # ─────────────────────────────────────────────────────────────────────────────
 
-def get_selected_actors() -> List[unreal.Actor]:
+def get_selected_actors() -> list[unreal.Actor]:
     """Return a list of currently selected level actors (never None)."""
     subsystem = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     actors = subsystem.get_selected_level_actors()
     return list(actors) if actors else []
 
 
-def require_selection(min_count: int = 1) -> Optional[List[unreal.Actor]]:
+def require_selection(min_count: int = 1) -> list[unreal.Actor] | None:
     """
     Return selected actors or log a warning and return None if too few.
     """
@@ -174,7 +224,7 @@ def require_selection(min_count: int = 1) -> Optional[List[unreal.Actor]]:
     return actors
 
 
-def get_selected_assets() -> List[unreal.Object]:
+def get_selected_assets() -> list[unreal.Object]:
     """Return assets currently selected in the Content Browser (never None)."""
     try:
         assets = unreal.EditorUtilityLibrary.get_selected_assets()
@@ -183,7 +233,7 @@ def get_selected_assets() -> List[unreal.Object]:
         return []
 
 
-def set_selected_actors(actors: List[unreal.Actor]) -> None:
+def set_selected_actors(actors: list[unreal.Actor]) -> None:
     subsystem = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     subsystem.set_selected_level_actors(actors)
 
@@ -196,7 +246,7 @@ def asset_tools() -> unreal.AssetTools:
     return unreal.AssetToolsHelpers.get_asset_tools()
 
 
-def load_asset(path: str) -> Optional[unreal.Object]:
+def load_asset(path: str) -> unreal.Object | None:
     """Load an asset by content path. Returns None and logs on failure."""
     try:
         obj = unreal.EditorAssetLibrary.load_asset(path)
@@ -228,7 +278,7 @@ def create_material_instance(
     parent_path: str,
     instance_name: str,
     package_path: str,
-) -> Optional[unreal.MaterialInstanceConstant]:
+) -> unreal.MaterialInstanceConstant | None:
     """
     Create a MaterialInstanceConstant from a parent material.
     """
@@ -288,7 +338,7 @@ def notify(message: str, duration: float = 4.0) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 @contextlib.contextmanager
-def with_progress(items: Iterable, label: str, total: Optional[int] = None):
+def with_progress(items: Iterable, label: str, total: int | None = None):
     """
     Display a slow-task progress bar while iterating.
     """
@@ -351,8 +401,8 @@ def color_from_hex(hex_str: str) -> unreal.LinearColor:
 
 
 def actors_bounding_box(
-    actors: List[unreal.Actor],
-) -> "tuple[unreal.Vector, unreal.Vector]":
+    actors: list[unreal.Actor],
+) -> tuple[unreal.Vector, unreal.Vector]:
     """
     Return (min_point, max_point) of the axis-aligned bounding box.
     """
@@ -373,9 +423,9 @@ def actors_bounding_box(
 def spawn_static_mesh_actor(
     mesh_path: str,
     location: unreal.Vector,
-    rotation: Optional[unreal.Rotator] = None,
-    scale: Optional[unreal.Vector] = None,
-) -> Optional[unreal.StaticMeshActor]:
+    rotation: unreal.Rotator | None = None,
+    scale: unreal.Vector | None = None,
+) -> unreal.StaticMeshActor | None:
     """
     Convenience: spawn a StaticMeshActor and assign a mesh in one call.
     """

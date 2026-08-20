@@ -28,8 +28,26 @@ API: unreal.GeometryScriptLibrary_* function libraries
 from __future__ import annotations
 
 import unreal
+
+from ..core import api_unavailable, log_error, log_info, log_warning, missing_unreal_apis
 from ..registry import register_tool
-from ..core import log_info, log_error, log_warning
+
+# unreal.* names this module uses but does not require.
+# Removed in UEFN 42.00 (UE 6.0). Every tool here gates on
+# missing_unreal_apis() and returns a structured refusal instead of failing.
+__optional_unreal_apis__ = (
+    "GeometryScriptLibrary_StaticMeshFunctions",
+    "GeometryScriptLibrary_MeshRepairFunctions",
+    "GeometryScriptLibrary_MeshNormalsFunctions",
+    "GeometryScriptLibrary_MeshUVFunctions",
+    "GeometryScriptLibrary_MeshBooleanFunctions",
+    "GeometryScriptMeshBooleanOperation",
+    "GeometryScriptMeshWeldEdgesOptions",
+    "GeometryScriptRecomputeNormalsOptions",
+    "GeometryScriptRemoveSmallComponentsOptions",
+    "GeometryScriptLODType",
+    "GeometryScriptLODType.MAXIMUM_AVAILABLE",
+)
 
 
 def _load_static_mesh(actor: unreal.Actor):
@@ -91,6 +109,9 @@ def run_geometry_weld_edges(
         tolerance: Maximum distance between vertices to weld (default 0.1 cm)
         dry_run:   If True, only reports what would change without saving (default True)
     """
+    _missing = missing_unreal_apis("GeometryScriptLibrary_StaticMeshFunctions", "GeometryScriptLibrary_MeshRepairFunctions")
+    if _missing:
+        return api_unavailable("geometry_weld_edges", _missing)
     actors = _selected_static_mesh_actors()
     if not actors:
         return {"status": "error", "error": "No actors selected. Select any actor with a static mesh in the viewport first."}
@@ -152,6 +173,9 @@ def run_geometry_fill_holes(
     Args:
         dry_run: If True, only reports without saving (default True)
     """
+    _missing = missing_unreal_apis("GeometryScriptLibrary_StaticMeshFunctions", "GeometryScriptLibrary_MeshRepairFunctions")
+    if _missing:
+        return api_unavailable("geometry_fill_holes", _missing)
     actors = _selected_static_mesh_actors()
     if not actors:
         return {"status": "error", "error": "No actors selected. Select any actor with a static mesh in the viewport first."}
@@ -213,6 +237,9 @@ def run_geometry_compute_normals(
         angle_threshold_deg: Angle (degrees) above which an edge is treated as hard (default 60)
         dry_run:             If True, only reports without saving
     """
+    _missing = missing_unreal_apis("GeometryScriptLibrary_StaticMeshFunctions", "GeometryScriptLibrary_MeshNormalsFunctions")
+    if _missing:
+        return api_unavailable("geometry_compute_normals", _missing)
     actors = _selected_static_mesh_actors()
     if not actors:
         return {"status": "error", "error": "No actors selected. Select any actor with a static mesh in the viewport first."}
@@ -277,6 +304,9 @@ def run_geometry_generate_lightmap_uvs(
         uv_channel:          UV channel to write to (default 1 — standard lightmap channel)
         dry_run:             If True, only reports without saving
     """
+    _missing = missing_unreal_apis("GeometryScriptLibrary_StaticMeshFunctions", "GeometryScriptLibrary_MeshUVFunctions")
+    if _missing:
+        return api_unavailable("geometry_generate_lightmap_uvs", _missing)
     actors = _selected_static_mesh_actors()
     if not actors:
         return {"status": "error", "error": "No actors selected. Select any actor with a static mesh in the viewport first."}
@@ -342,6 +372,9 @@ def run_geometry_boolean_union(
     Args:
         dry_run: If True, only validates without modifying assets (default True)
     """
+    _missing = missing_unreal_apis("GeometryScriptLibrary_StaticMeshFunctions", "GeometryScriptLibrary_MeshBooleanFunctions")
+    if _missing:
+        return api_unavailable("geometry_boolean_union", _missing)
     actors = _selected_static_mesh_actors()
     if len(actors) < 2:
         return {"status": "error", "error": "Select exactly 2 StaticMeshActors — first is the target, second is the cutter."}
@@ -421,6 +454,9 @@ def run_geometry_boolean_union(
     tags=["geometry", "mesh", "boolean", "subtract", "cut", "csg"],
 )
 def run_geometry_boolean_subtract(dry_run: bool = True, **kwargs) -> dict:
+    _missing = missing_unreal_apis("GeometryScriptLibrary_StaticMeshFunctions", "GeometryScriptLibrary_MeshBooleanFunctions")
+    if _missing:
+        return api_unavailable("geometry_boolean_subtract", _missing)
     actors = _selected_static_mesh_actors()
     if len(actors) < 2:
         return {"status": "error", "error": "Select exactly 2 StaticMeshActors — first is the target, second is the cutter."}
@@ -478,6 +514,9 @@ def run_geometry_boolean_subtract(dry_run: bool = True, **kwargs) -> dict:
     tags=["geometry", "mesh", "boolean", "intersect", "csg", "overlap"],
 )
 def run_geometry_boolean_intersect(dry_run: bool = True, **kwargs) -> dict:
+    _missing = missing_unreal_apis("GeometryScriptLibrary_StaticMeshFunctions", "GeometryScriptLibrary_MeshBooleanFunctions")
+    if _missing:
+        return api_unavailable("geometry_boolean_intersect", _missing)
     actors = _selected_static_mesh_actors()
     if len(actors) < 2:
         return {"status": "error", "error": "Select exactly 2 StaticMeshActors."}
@@ -535,6 +574,9 @@ def run_geometry_boolean_intersect(dry_run: bool = True, **kwargs) -> dict:
     tags=["geometry", "mesh", "repair", "degenerate", "triangles", "cleanup"],
 )
 def run_geometry_remove_degenerate(min_area: float = 0.0001, dry_run: bool = True, **kwargs) -> dict:
+    _missing = missing_unreal_apis("GeometryScriptLibrary_StaticMeshFunctions", "GeometryScriptLibrary_MeshRepairFunctions")
+    if _missing:
+        return api_unavailable("geometry_remove_degenerate", _missing)
     actors = _selected_static_mesh_actors()
     if not actors:
         return {"status": "error", "error": "No StaticMeshActors selected."}

@@ -21,8 +21,15 @@ API: EditorBlueprintLibrary, AssetRegistry, EditorAssetLibrary
 from __future__ import annotations
 
 import unreal
+
+from ..core import api_unavailable, log_error, log_info, log_warning, missing_unreal_apis
 from ..registry import register_tool
-from ..core import log_info, log_error, log_warning
+
+# unreal.* names this module uses but does not require.
+# Removed in UEFN 42.00 (UE 6.0). Guarded by missing_unreal_apis().
+__optional_unreal_apis__ = (
+    "EditorBlueprintLibrary",
+)
 
 
 def _ar():
@@ -77,6 +84,9 @@ def run_blueprint_list(scan_path: str = "/Game/", max_results: int = 200, **kwar
     example='tb.run("blueprint_inspect", asset_path="/Game/Blueprints/BP_MyDevice")',
 )
 def run_blueprint_inspect(asset_path: str = "", **kwargs) -> dict:
+    _missing = missing_unreal_apis("EditorBlueprintLibrary")
+    if _missing:
+        return api_unavailable("blueprint_inspect", _missing)
     if not asset_path:
         return {"status": "error", "message": "asset_path is required."}
     try:
@@ -201,6 +211,9 @@ def run_blueprint_compile_folder(
     max_assets: int = 50,
     **kwargs,
 ) -> dict:
+    _missing = missing_unreal_apis("EditorBlueprintLibrary")
+    if _missing:
+        return api_unavailable("blueprint_compile_folder", _missing)
     try:
         filt = unreal.ARFilter(
             class_names=["Blueprint"],
