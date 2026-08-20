@@ -29,9 +29,9 @@ import sys
 import tempfile
 import threading
 import time
+from collections.abc import Callable
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Callable
 
 # ─── Output ───────────────────────────────────────────────────────────────────
 
@@ -300,7 +300,8 @@ def _layer_mcp() -> None:
     # If listener is running, do a live ping
     if mcp_bridge._server is not None:
         try:
-            import urllib.request, json as _json
+            import json as _json
+            import urllib.request
             url = f"http://127.0.0.1:{mcp_bridge._bound_port}"
             resp = urllib.request.urlopen(url, timeout=3)
             body = _json.loads(resp.read())
@@ -420,7 +421,7 @@ def _summary() -> None:
     elapsed = time.time() - _start_time
 
     _out(f"\n{'═' * 54}")
-    _out(f"  UEFN TOOLBELT SMOKE TEST — COMPLETE")
+    _out("  UEFN TOOLBELT SMOKE TEST — COMPLETE")
     _out(f"{'═' * 54}")
     _out(f"  Passed:  {passed}/{total}")
     _out(f"  Failed:  {failed}")

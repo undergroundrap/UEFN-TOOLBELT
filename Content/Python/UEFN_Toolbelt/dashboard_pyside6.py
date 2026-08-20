@@ -32,24 +32,47 @@ Qt event pumping:
 
 from __future__ import annotations
 
+import os
 import sys
+
 import unreal
 
 # ─── PySide6 availability guard ───────────────────────────────────────────────
 
 _PYSIDE6 = False
 try:
-    from PySide6.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QTabWidget, QStackedWidget,
-        QVBoxLayout, QHBoxLayout, QGridLayout,
-        QPushButton, QLabel, QLineEdit,
-        QDoubleSpinBox, QSpinBox, QCheckBox, QComboBox,
-        QScrollArea, QGroupBox, QStatusBar, QSizePolicy, QFrame,
-    )
-    from PySide6.QtCore import Qt, QUrl, QPointF
+    from PySide6.QtCore import QPointF, Qt, QUrl
     from PySide6.QtGui import (
-        QFont, QDesktopServices, QIcon, QPixmap,
-        QPainter, QColor, QBrush, QPolygonF,
+        QBrush,
+        QColor,
+        QDesktopServices,
+        QFont,
+        QIcon,
+        QPainter,
+        QPixmap,
+        QPolygonF,
+    )
+    from PySide6.QtWidgets import (
+        QApplication,
+        QCheckBox,
+        QComboBox,
+        QDoubleSpinBox,
+        QFrame,
+        QGridLayout,
+        QGroupBox,
+        QHBoxLayout,
+        QLabel,
+        QLineEdit,
+        QMainWindow,
+        QPushButton,
+        QScrollArea,
+        QSizePolicy,
+        QSpinBox,
+        QStackedWidget,
+        QStatusBar,
+        QTabWidget,
+        QVBoxLayout,
+        QWidget,
     )
     _PYSIDE6 = True
 except ImportError:
@@ -57,17 +80,18 @@ except ImportError:
 
 from UEFN_Toolbelt.registry import register_tool
 
-# ─── Dark theme ───────────────────────────────────────────────────────────────
-# Sourced from core/theme.py — the single source of truth for all Toolbelt colors.
-# To change colors platform-wide, edit core/theme.PALETTE. Do not hard-code hex here.
-
-from .core.theme import QSS as _QSS, color as _color  # noqa: E402 — after sys/unreal imports
 from .core import theme as _theme_mod
 from .core.config import get_config as _get_config
 
+# ─── Dark theme ───────────────────────────────────────────────────────────────
+# Sourced from core/theme.py — the single source of truth for all Toolbelt colors.
+# To change colors platform-wide, edit core/theme.PALETTE. Do not hard-code hex here.
+from .core.theme import QSS as _QSS  # noqa: E402 — after sys/unreal imports
+from .core.theme import color as _color
+
 # ─── Widget helpers ───────────────────────────────────────────────────────────
 
-def _page() -> tuple["QScrollArea", "QVBoxLayout"]:
+def _page() -> tuple[QScrollArea, QVBoxLayout]:
     """Create a scrollable tab page. Returns (scroll_area, content_layout)."""
     container = QWidget()
     layout = QVBoxLayout(container)
@@ -82,7 +106,7 @@ def _page() -> tuple["QScrollArea", "QVBoxLayout"]:
     return scroll, layout
 
 
-def _group(parent: "QVBoxLayout", title: str) -> "QVBoxLayout":
+def _group(parent: QVBoxLayout, title: str) -> QVBoxLayout:
     box = QGroupBox(title.upper())
     inner = QVBoxLayout()
     inner.setSpacing(3)
@@ -92,7 +116,7 @@ def _group(parent: "QVBoxLayout", title: str) -> "QVBoxLayout":
     return inner
 
 
-def _btn(layout: "QVBoxLayout", text: str, fn, tip: str = "") -> "QPushButton":
+def _btn(layout: QVBoxLayout, text: str, fn, tip: str = "") -> QPushButton:
     b = QPushButton(text)
     if tip:
         b.setToolTip(tip)
@@ -102,7 +126,7 @@ def _btn(layout: "QVBoxLayout", text: str, fn, tip: str = "") -> "QPushButton":
     return b
 
 
-def _row(layout: "QVBoxLayout", *items) -> None:
+def _row(layout: QVBoxLayout, *items) -> None:
     """Horizontal row of (label, fn) button pairs."""
     w = QWidget()
     h = QHBoxLayout(w)
@@ -115,7 +139,7 @@ def _row(layout: "QVBoxLayout", *items) -> None:
     layout.addWidget(w)
 
 
-def _grid_btns(layout: "QVBoxLayout", items: list, cols: int = 3) -> None:
+def _grid_btns(layout: QVBoxLayout, items: list, cols: int = 3) -> None:
     """Grid of (label, fn) button pairs."""
     w = QWidget()
     g = QGridLayout(w)
@@ -128,7 +152,7 @@ def _grid_btns(layout: "QVBoxLayout", items: list, cols: int = 3) -> None:
     layout.addWidget(w)
 
 
-def _inp(placeholder: str, default: str = "", width: int = 130) -> "QLineEdit":
+def _inp(placeholder: str, default: str = "", width: int = 130) -> QLineEdit:
     e = QLineEdit(default)
     e.setPlaceholderText(placeholder)
     e.setFixedWidth(width)
@@ -136,7 +160,7 @@ def _inp(placeholder: str, default: str = "", width: int = 130) -> "QLineEdit":
 
 
 def _spin(value: float = 1.0, mn: float = 0.0, mx: float = 9999.0,
-          decimals: int = 0, width: int = 90) -> "QDoubleSpinBox":
+          decimals: int = 0, width: int = 90) -> QDoubleSpinBox:
     s = QDoubleSpinBox()
     s.setRange(mn, mx)
     s.setValue(value)
@@ -145,7 +169,7 @@ def _spin(value: float = 1.0, mn: float = 0.0, mx: float = 9999.0,
     return s
 
 
-def _btn_inp(layout: "QVBoxLayout", label: str, fn_factory,
+def _btn_inp(layout: QVBoxLayout, label: str, fn_factory,
              *widgets, tip: str = "") -> None:
     """Button + inline input widget(s) on one row."""
     w = QWidget()
@@ -163,7 +187,7 @@ def _btn_inp(layout: "QVBoxLayout", label: str, fn_factory,
     layout.addWidget(w)
 
 
-def _sep(layout: "QVBoxLayout") -> None:
+def _sep(layout: QVBoxLayout) -> None:
     line = QFrame()
     line.setFrameShape(QFrame.HLine)
     line.setStyleSheet(f"color: {_color('border')};")
@@ -172,7 +196,7 @@ def _sep(layout: "QVBoxLayout") -> None:
 
 # ─── Quick Actions ─────────────────────────────────────────────────────────────
 
-def _build_setup_status(L: "QVBoxLayout") -> None:
+def _build_setup_status(L: QVBoxLayout) -> None:
     """
     First-run health badge. Runs silently on dashboard open and shows a
     compact status row for each system dependency. Green = good, yellow = warning,
@@ -225,8 +249,9 @@ def _build_setup_status(L: "QVBoxLayout") -> None:
 
     # ── Verse-book ────────────────────────────────────────────────────────────
     try:
-        import UEFN_Toolbelt as _tb2
         import os
+
+        import UEFN_Toolbelt as _tb2
         vb_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(_tb2.__file__))),
             "verse-book"
@@ -236,7 +261,7 @@ def _build_setup_status(L: "QVBoxLayout") -> None:
             checks.append(("Verse-book spec", "ok", f"{len(chapters)} chapters"))
         else:
             checks.append(("Verse-book spec", "warn", "Not cloned — Verse codegen tools use fallback mode"))
-    except Exception as e:
+    except Exception:
         checks.append(("Verse-book spec", "warn", "Could not verify"))
 
     # ── Render rows ───────────────────────────────────────────────────────────
@@ -285,7 +310,7 @@ def _build_setup_status(L: "QVBoxLayout") -> None:
     _sep(L)
 
 
-def _tab_quick_actions(R) -> "QScrollArea":
+def _tab_quick_actions(R) -> QScrollArea:
     import os
     scroll, L = _page()
 
@@ -303,7 +328,7 @@ def _tab_quick_actions(R) -> "QScrollArea":
     if not os.path.exists(_cfg_path):
         banner = QLabel(
             "👋  First time here? Start with the AI Project Setup section below, "
-            "or browse any tab to explore all 358 tools. "
+            "or browse any tab to explore all 361 tools. "
             "Full docs: github.com/undergroundrap/UEFN-TOOLBELT"
         )
         banner.setWordWrap(True)
@@ -415,26 +440,26 @@ def _tab_quick_actions(R) -> "QScrollArea":
     gen_inp = _inp("MyProject", "Project Name", width=120)
     gen_combo = QComboBox()
     gen_combo.addItems(["uefn_standard", "competitive_map", "solo_dev", "verse_heavy"])
-    _btn_inp(g_org, "Generate Professional Folder Tree", 
-             lambda: R("scaffold_generate", template=gen_combo.currentText(), project_name=gen_inp.text()), 
+    _btn_inp(g_org, "Generate Professional Folder Tree",
+             lambda: R("scaffold_generate", template=gen_combo.currentText(), project_name=gen_inp.text()),
              gen_combo, gen_inp, tip="Scaffolds a perfectly organized Epic-standard folder hierarchy.")
-    
+
     _btn(g_org, "Auto Organizer", lambda: R("organize_open"),
          "Open the Auto Organizer window — scan your project, preview planned moves by type and category, then organize in one click.")
 
     ren_inp = _inp("/Game", "Scan Path", width=120)
-    _btn_inp(g_org, "Fix Asset Naming Conventions", 
-             lambda: R("rename_enforce_conventions", scan_path=ren_inp.text()), 
+    _btn_inp(g_org, "Fix Asset Naming Conventions",
+             lambda: R("rename_enforce_conventions", scan_path=ren_inp.text()),
              ren_inp, tip="Scans the path and automatically fixes Epic naming convention rule violations.")
 
     # 4. Level Design
     g_mat = _group(L, "Level Design & Materials")
-    
+
     mat_combo = QComboBox()
     mat_combo.addItems(["chrome", "gold", "neon", "hologram", "lava", "plasma", "ice", "wood", "concrete", "team_red"])
     mat_combo.setFixedWidth(120)
-    _btn_inp(g_mat, "Apply Material Preset (Selected)", 
-             lambda: R("material_apply_preset", preset=mat_combo.currentText()), 
+    _btn_inp(g_mat, "Apply Material Preset (Selected)",
+             lambda: R("material_apply_preset", preset=mat_combo.currentText()),
              mat_combo, tip="Instantly applies a smart material preset to all selected actors.")
 
     _btn(g_mat, "Clear Unused References (Orphans)", lambda: R("ref_delete_orphans"), "Deletes assets that have zero references to free up project space.")
@@ -449,7 +474,7 @@ def _tab_quick_actions(R) -> "QScrollArea":
 
 # ─── Category Pages ───────────────────────────────────────────────────────────
 
-def _tab_materials(R) -> "QScrollArea":
+def _tab_materials(R) -> QScrollArea:
     scroll, L = _page()
 
     # Presets — 4-column grid
@@ -515,7 +540,7 @@ def _tab_materials(R) -> "QScrollArea":
     return scroll
 
 
-def _tab_procedural(R) -> "QScrollArea":
+def _tab_procedural(R) -> QScrollArea:
     scroll, L = _page()
 
     def _cam():
@@ -702,7 +727,7 @@ def _tab_procedural(R) -> "QScrollArea":
     _btn_inp(g_geo, "Generate Wire (Between 2 Selected)",
              lambda: R("procedural_wire_create", segments=int(wire_seg_s.value()), sag_amount=wire_sag_s.value(), thickness=0.1),
              wire_seg_s, wire_sag_s, tip="Draws a sagging wire between two selected actors.")
-    
+
     scat_count_s = _spin(50, 1, 1000, width=80)
     scat_rad_s = _spin(1000, 100, 10000, width=90)
     scat_combo = QComboBox(); scat_combo.addItems(["sphere", "cube"]); scat_combo.setFixedWidth(100)
@@ -713,7 +738,7 @@ def _tab_procedural(R) -> "QScrollArea":
     return scroll
 
 
-def _tab_bulk_ops(R) -> "QScrollArea":
+def _tab_bulk_ops(R) -> QScrollArea:
     scroll, L = _page()
 
     # Align
@@ -944,14 +969,14 @@ def _tab_bulk_ops(R) -> "QScrollArea":
     g6 = _group(L, "Verse Property Hardening")
     prop_inp = _inp("bIsEnabled", "bIsEnabled", width=140)
     val_inp  = _inp("True", "True", width=100)
-    _btn_inp(g6, "Bulk Set Verse Property", 
-             lambda: R("verse_bulk_set_property", property_name=prop_inp.text(), value=val_inp.text()), 
+    _btn_inp(g6, "Bulk Set Verse Property",
+             lambda: R("verse_bulk_set_property", property_name=prop_inp.text(), value=val_inp.text()),
              prop_inp, val_inp, tip="Sets a property on all selected Verse devices with schema-validated safety checks.")
 
     return scroll
 
 
-def _tab_text(R) -> "QScrollArea":
+def _tab_text(R) -> QScrollArea:
     scroll, L = _page()
 
     def _cam():
@@ -1145,7 +1170,7 @@ def _tab_text(R) -> "QScrollArea":
     return scroll
 
 
-def _tab_assets(R) -> "QScrollArea":
+def _tab_assets(R) -> QScrollArea:
     scroll, L = _page()
 
     # Naming
@@ -1232,7 +1257,7 @@ def _tab_assets(R) -> "QScrollArea":
     return scroll
 
 
-def _tab_verse(R) -> "QScrollArea":
+def _tab_verse(R) -> QScrollArea:
     scroll, L = _page()
 
     # Devices
@@ -1241,7 +1266,7 @@ def _tab_verse(R) -> "QScrollArea":
          lambda: R("verse_list_devices"))
     _btn(g, "Export Device Report (JSON)",
          lambda: R("verse_export_report"))
-    
+
     # Verse Intelligence (Phase 14)
     g_intel = _group(L, "Verse & Build Intelligence")
     _btn(g_intel, "▶  Check Build Errors  (run after Build Verse Code click)",
@@ -1255,7 +1280,7 @@ def _tab_verse(R) -> "QScrollArea":
     _btn(g_intel, "Refresh Class Schema (Digest)",
          lambda: R("api_verse_refresh_schemas"),
          "Scans all .digest.verse files to update the Toolbelt's internal Verse brain.")
-    
+
     class_inp = _inp("trigger_device", width=200)
     _btn_inp(g_intel, "Inspect Verse Class Schema",
              lambda: R("api_verse_get_schema", class_name=class_inp.text()),
@@ -1373,9 +1398,9 @@ def _tab_verse(R) -> "QScrollArea":
                 )
                 def _copy(p=fpath):
                     try:
-                        with open(p, "r") as fh:
+                        with open(p) as fh:
                             QApplication.clipboard().setText(fh.read())
-                    except Exception as e:
+                    except Exception:
                         pass
                 name_btn.clicked.connect(_copy)
                 name_btn.setToolTip("Click to copy to clipboard")
@@ -1417,7 +1442,7 @@ def _tab_verse(R) -> "QScrollArea":
     return scroll
 
 
-def _tab_project(R) -> "QScrollArea":
+def _tab_project(R) -> QScrollArea:
     scroll, L = _page()
 
     # Scaffold
@@ -1480,7 +1505,7 @@ def _tab_project(R) -> "QScrollArea":
     return scroll
 
 
-def _tab_screenshot(R) -> "QScrollArea":
+def _tab_screenshot(R) -> QScrollArea:
     scroll, L = _page()
 
     # Quick shots
@@ -1566,7 +1591,7 @@ def _tab_screenshot(R) -> "QScrollArea":
     return scroll
 
 
-def _tab_tags(R) -> "QScrollArea":
+def _tab_tags(R) -> QScrollArea:
     scroll, L = _page()
 
     # Apply tags
@@ -1618,7 +1643,7 @@ def _tab_tags(R) -> "QScrollArea":
     return scroll
 
 
-def _tab_api(R) -> "QScrollArea":
+def _tab_api(R) -> QScrollArea:
     scroll, L = _page()
 
     g = _group(L, "Search & Inspect")
@@ -1669,7 +1694,7 @@ def _tab_api(R) -> "QScrollArea":
 
 # ─── MCP tab ─────────────────────────────────────────────────────────────────
 
-def _tab_mcp(R) -> "QScrollArea":
+def _tab_mcp(R) -> QScrollArea:
     """MCP Bridge tab — start/stop/status, connection info, quick tool runner."""
     scroll, L = _page()
 
@@ -1680,8 +1705,7 @@ def _tab_mcp(R) -> "QScrollArea":
             port = getattr(_mcpb, "_bound_port", 0)
             if port and port > 0:
                 return "running", f"● RUNNING  —  port {port}  —  AI client connected"
-            else:
-                return "stopped", "● NOT RUNNING  —  click Start to enable AI control"
+            return "stopped", "● NOT RUNNING  —  click Start to enable AI control"
         except Exception:
             return "stopped", "● NOT RUNNING"
 
@@ -1772,7 +1796,7 @@ def _tab_mcp(R) -> "QScrollArea":
         '     {"command": "python",\n'
         '      "args": ["<path>/mcp_server.py"]}}}\n'
         "4. Restart your AI client — it auto-connects\n\n"
-        "Your AI can then run all 358 tools, spawn/move actors,\n"
+        "Your AI can then run all 361 tools, spawn/move actors,\n"
         "write Verse code, and read your level — without leaving\n"
         "the conversation.\n\n"
         "When done: click ■ Stop Listener above, or run\n"
@@ -1786,7 +1810,7 @@ def _tab_mcp(R) -> "QScrollArea":
     return scroll
 
 
-def _tab_verification(R) -> "QScrollArea":
+def _tab_verification(R) -> QScrollArea:
     """Automated testing and verification tab."""
     scroll, L = _page()
 
@@ -1822,7 +1846,7 @@ def _tab_verification(R) -> "QScrollArea":
 
 # ─── Window icon (programmatic hexagon) ───────────────────────────────────────
 
-def _make_icon() -> "QIcon":
+def _make_icon() -> QIcon:
     """Canonical TB icon — delegates to core/base_window so there's one source."""
     from .core.base_window import make_toolbelt_icon
     return make_toolbelt_icon()
@@ -1830,8 +1854,9 @@ def _make_icon() -> "QIcon":
 
 # ─── Plugin Hub ───────────────────────────────────────────────────────────────
 
-def _tab_plugin_hub(R) -> "QScrollArea":
-    import os, json
+def _tab_plugin_hub(R) -> QScrollArea:
+    import json
+    import os
     scroll, L = _page()
 
     # ── Header
@@ -2047,7 +2072,8 @@ def _tab_plugin_hub(R) -> "QScrollArea":
                 hub_vbox.addWidget(_make_online_card(pm))
 
     def _refresh_hub():
-        import urllib.request, time
+        import time
+        import urllib.request
         nonlocal _all_plugins
         hub_status.setText("Fetching registry…")
         hub_search.setEnabled(False)
@@ -2103,7 +2129,7 @@ def _tab_plugin_hub(R) -> "QScrollArea":
     audit_path = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "plugin_audit.json")
     if os.path.exists(audit_path):
         try:
-            with open(audit_path, "r", encoding="utf-8") as f:
+            with open(audit_path, encoding="utf-8") as f:
                 data = json.load(f)
                 for p in data.get("plugins", []):
                     audit_data[p.get("plugin")] = p
@@ -2221,30 +2247,30 @@ def _tab_plugin_hub(R) -> "QScrollArea":
     return scroll
 
 
-def _tab_measurement(R) -> "QScrollArea":
+def _tab_measurement(R) -> QScrollArea:
     scroll, L = _page()
 
     # Distance
     g_dist = _group(L, "Math & Measurement")
-    _btn(g_dist, "Measure Distance (Chain Selection)", lambda: R("measure_distance"), 
+    _btn(g_dist, "Measure Distance (Chain Selection)", lambda: R("measure_distance"),
          "Calculates the total 3D distance between a chain of selected actors.")
-    
+
     speed_combo = QComboBox()
     speed_combo.addItems(["Walk", "Run", "Sprint"])
     speed_combo.setFixedWidth(120)
-    _btn_inp(g_dist, "Measure Travel Time", 
-             lambda: R("measure_travel_time", speed_type=speed_combo.currentText()), 
+    _btn_inp(g_dist, "Measure Travel Time",
+             lambda: R("measure_travel_time", speed_type=speed_combo.currentText()),
              speed_combo, tip="Estimates travel time in seconds between points at specific Fortnite speeds.")
 
     # Spline
     g_spline = _group(L, "Spline Analysis")
-    _btn(g_spline, "Measure Spline Length", lambda: R("spline_measure"), 
+    _btn(g_spline, "Measure Spline Length", lambda: R("spline_measure"),
          "Calculates the precise world-space length of the selected spline.")
 
     return scroll
 
 
-def _tab_localization(R) -> "QScrollArea":
+def _tab_localization(R) -> QScrollArea:
     scroll, L = _page()
 
     # Export
@@ -2252,11 +2278,11 @@ def _tab_localization(R) -> "QScrollArea":
     fmt_combo = QComboBox()
     fmt_combo.addItems(["json", "csv"])
     fmt_combo.setFixedWidth(100)
-    _btn_inp(g_exp, "Export Text Manifest", 
-             lambda: R("text_export_manifest", format=fmt_combo.currentText()), 
+    _btn_inp(g_exp, "Export Text Manifest",
+             lambda: R("text_export_manifest", format=fmt_combo.currentText()),
              fmt_combo, tip="Harvests all level text and exports it to Saved/UEFN_Toolbelt/localization/")
 
-    _btn(g_exp, "Open Export Folder", 
+    _btn(g_exp, "Open Export Folder",
          lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "localization"))),
          "Opens the directory where translation manifests are saved.")
 
@@ -2265,41 +2291,41 @@ def _tab_localization(R) -> "QScrollArea":
     path_inp = _inp("path/to/translated.json", width=260)
     L.addWidget(QLabel("  Manifest JSON Path:"))
     L.addWidget(path_inp)
-    _btn(g_imp, "Apply Translations from Manifest", 
-         lambda: R("text_apply_translation", manifest_path=path_inp.text()), 
+    _btn(g_imp, "Apply Translations from Manifest",
+         lambda: R("text_apply_translation", manifest_path=path_inp.text()),
          "Reads a translated manifest and updates all matching actors in the level.")
 
     return scroll
 
-def _tab_selection(R) -> "QScrollArea":
+def _tab_selection(R) -> QScrollArea:
     scroll, L = _page()
     hero = QLabel("Advanced Selection")
     hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
-    
+
     g = _group(L, "Proximity & Filtering")
-    
+
     rad_s = _spin(1000, 10, 50000, width=100)
     cls_inp = _inp("StaticMeshActor", "StaticMeshActor", width=160)
-    _btn_inp(g, "Select in Radius", 
-             lambda: R("select_in_radius", radius=rad_s.value(), actor_class_name=cls_inp.text()), 
+    _btn_inp(g, "Select in Radius",
+             lambda: R("select_in_radius", radius=rad_s.value(), actor_class_name=cls_inp.text()),
              rad_s, cls_inp, tip="Selects all actors of a specific class within a radius of the current selection.")
-    
+
     prop_inp = _inp("Actor Label", "Actor Label", width=120)
     val_inp = _inp("Value", "", width=140)
-    _btn_inp(g, "Select by Property", 
-             lambda: R("select_by_property", prop_name=prop_inp.text(), value=val_inp.text()), 
+    _btn_inp(g, "Select by Property",
+             lambda: R("select_by_property", prop_name=prop_inp.text(), value=val_inp.text()),
              prop_inp, val_inp, tip="Selects actors where an editor property matches a specific value.")
-             
+
     tag_inp = _inp("my_tag", "", width=160)
-    _btn_inp(g, "Select by Verse Tag", 
-             lambda: R("select_by_verse_tag", tag_name=tag_inp.text()), 
+    _btn_inp(g, "Select by Verse Tag",
+             lambda: R("select_by_verse_tag", tag_name=tag_inp.text()),
              tag_inp, tip="Selects all actors with the specified Verse tag.")
-             
+
     L.addStretch()
     return scroll
 
-def _tab_lighting(R) -> "QScrollArea":
+def _tab_lighting(R) -> QScrollArea:
     scroll, L = _page()
     hero = QLabel("Lighting & Post-Process")
     hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
@@ -2382,7 +2408,7 @@ def _tab_lighting(R) -> "QScrollArea":
     L.addStretch()
     return scroll
 
-def _tab_audio(R) -> "QScrollArea":
+def _tab_audio(R) -> QScrollArea:
     scroll, L = _page()
     hero = QLabel("Audio Placement")
     hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
@@ -2436,60 +2462,60 @@ def _tab_audio(R) -> "QScrollArea":
     return scroll
 
 
-def _tab_project_admin(R) -> "QScrollArea":
+def _tab_project_admin(R) -> QScrollArea:
     scroll, L = _page()
     hero = QLabel("Project Administration")
     hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
 
     g = _group(L, "Maintenance & Safety")
-    
-    _btn(g, "Full Project Backup (.zip)", lambda: R("system_backup_project"), 
+
+    _btn(g, "Full Project Backup (.zip)", lambda: R("system_backup_project"),
          "Creates a timestamped .zip of the Content folder in Saved/UEFN_Toolbelt/backups/")
-    
-    _btn(g, "Level Performance Audit", lambda: R("system_perf_audit"), 
+
+    _btn(g, "Level Performance Audit", lambda: R("system_perf_audit"),
          "Fast scan of level for excessive actors or lights.")
-         
+
     L.addStretch()
     return scroll
 
-def _tab_environmental(R) -> "QScrollArea":
+def _tab_environmental(R) -> QScrollArea:
     scroll, L = _page()
     hero = QLabel("Environmental Mastery")
     hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
-    
+
     desc = QLabel("Prop-to-Foliage conversion and brush auditing.")
     desc.setStyleSheet(f"font-size: 12px; color: {_color('text_dim')}; padding-bottom: 12px;")
     desc.setWordWrap(True)
     L.addWidget(desc)
-    
+
     g = _group(L, "Foliage Operations")
     _btn(g, "Convert Props to Foliage", lambda: R("foliage_convert_selected_to_actor"), "Converts regular meshes into foliage-capable actors.")
     _btn(g, "Audit Brushes", lambda: R("foliage_audit_brushes"), "Scans level for non-standard brush transforms.")
-    
+
     L.addStretch()
     return scroll
 
-def _tab_entities(R) -> "QScrollArea":
+def _tab_entities(R) -> QScrollArea:
     scroll, L = _page()
     hero = QLabel("Entity Management")
     hero.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {_color('text_bright')}; padding: 12px 0 4px 0;")
     L.addWidget(hero)
-    
+
     g = _group(L, "Device Kits")
     _btn(g, "Spawn Lobby Kit", lambda: R("entity_spawn_kit", kit_name="Lobby Starter"))
     _btn(g, "Spawn Teleport Link", lambda: R("entity_spawn_kit", kit_name="Teleport Link"))
     _btn(g, "Spawn Objective Hub", lambda: R("entity_spawn_kit", kit_name="Objective Hub"))
     _btn(g, "List All Custom Kits", lambda: R("entity_list_kits"))
-    
+
     L.addStretch()
     return scroll
 
 
 # ─── Simulation tab ──────────────────────────────────────────────────────────
 
-def _tab_simulation(_R=None) -> "QScrollArea":
+def _tab_simulation(_R=None) -> QScrollArea:
     scroll, L = _page()
 
     hero = QLabel("Simulation Helpers")
@@ -2503,12 +2529,12 @@ def _tab_simulation(_R=None) -> "QScrollArea":
 
     g_sim = _group(L, "Verse Simulation")
     _btn(g_sim, "Generate Simulation Proxy", lambda: _R("sim_generate_proxy") if _R else None, "Creates a Python 'Shadow' of your Verse device APIs using discovered schema data.")
-    
+
     # Method trigger with inline input
     method_inp = QLineEdit("Show")
     method_inp.setPlaceholderText("Method name...")
     method_inp.setFixedWidth(120)
-    _btn_inp(g_sim, "Trigger Dev Method", lambda: _R("sim_trigger_method", method_name=method_inp.text()) if _R else None, 
+    _btn_inp(g_sim, "Trigger Dev Method", lambda: _R("sim_trigger_method", method_name=method_inp.text()) if _R else None,
              method_inp, tip="Force-fire a Verse method discovered in the schema.")
 
     L.addStretch()
@@ -2517,7 +2543,7 @@ def _tab_simulation(_R=None) -> "QScrollArea":
 
 # ─── Sequencer tab ───────────────────────────────────────────────────────────
 
-def _tab_sequencer(_R=None) -> "QScrollArea":
+def _tab_sequencer(_R=None) -> QScrollArea:
     scroll, L = _page()
 
     hero = QLabel("Sequencer Automation")
@@ -2530,12 +2556,12 @@ def _tab_sequencer(_R=None) -> "QScrollArea":
     L.addWidget(desc)
 
     g_seq = _group(L, "Level Sequence Tools")
-    
+
     dur_inp = QDoubleSpinBox()
     dur_inp.setValue(5.0)
     dur_inp.setRange(0.1, 300.0)
     dur_inp.setSuffix("s")
-    
+
     _btn_inp(g_seq, "Actor to Spline Path", lambda: _R("seq_actor_to_spline", duration=dur_inp.value()) if _R else None,
              dur_inp, tip="Animate selected actor along a spline path over a set duration.")
 
@@ -2550,7 +2576,7 @@ def _tab_sequencer(_R=None) -> "QScrollArea":
 
 _REPO_URL = "https://github.com/undergroundrap/UEFN-TOOLBELT"
 
-def _tab_appearance(_R=None) -> "QScrollArea":
+def _tab_appearance(_R=None) -> QScrollArea:
     scroll, L = _page()
 
     hero = QLabel("Appearance")
@@ -2572,7 +2598,7 @@ def _tab_appearance(_R=None) -> "QScrollArea":
 
     swatch_btns: dict = {}
 
-    def _make_swatch(name: str, t: dict) -> "QPushButton":
+    def _make_swatch(name: str, t: dict) -> QPushButton:
         display = name.replace("_", " ").title()
         btn = QPushButton(display)
         btn.setFixedHeight(68)
@@ -2584,7 +2610,7 @@ def _tab_appearance(_R=None) -> "QScrollArea":
         )
 
         # Colour strip — drawn as a sub-label showing bg + accent + brand
-        strip_html = (
+        _strip_html = (
             f"<span style='color:{t['accent']}'>■</span> "
             f"<span style='color:{t['brand']}'>■</span> "
             f"<span style='color:{t['ok']}'>■</span> "
@@ -2662,7 +2688,7 @@ def _tab_appearance(_R=None) -> "QScrollArea":
     return scroll
 
 
-def _tab_about(_R=None) -> "QScrollArea":
+def _tab_about(_R=None) -> QScrollArea:
     scroll, L = _page()
 
     # ── Hero ─────────────────────────────────────────────────────────────────
@@ -2680,7 +2706,7 @@ def _tab_about(_R=None) -> "QScrollArea":
     L.addWidget(tagline)
 
     from . import __version__ as _tbv
-    version = QLabel(f"v{_tbv}  ·  358 tools  ·  UEFN 40.00+  ·  Python 3.11  ·  March 2026")
+    version = QLabel(f"v{_tbv}  ·  361 tools  ·  UEFN 40.00+  ·  Python 3.11  ·  March 2026")
     version.setStyleSheet(f"font-size: 11px; color: {_color('muted')}; padding-bottom: 12px;")
     version.setAlignment(Qt.AlignCenter)
     L.addWidget(version)
@@ -2700,7 +2726,7 @@ def _tab_about(_R=None) -> "QScrollArea":
     btn_update.setStyleSheet(btn_update.styleSheet() + "QPushButton { padding: 8px; font-weight: bold; text-align: center; }")
     btn_update.clicked.connect(lambda: _R("toolbelt_update") if _R else None)
     g_upd.addWidget(btn_update)
-    
+
     _sep(L)
 
     # ── Quick commands (copy-to-clipboard) ────────────────────────────────────
@@ -2804,6 +2830,7 @@ def _tab_about(_R=None) -> "QScrollArea":
     g_stats = _group(L, "What's Inside")
 
     try:
+        import UEFN_Toolbelt as _tb
         _tool_count = str(len(_tb.registry.list_tools()))
         _cat_count  = str(len({t.get("category","") for t in _tb.registry.list_tools() if t.get("category")}))
     except Exception:
@@ -3244,6 +3271,7 @@ class ToolbeltDashboard(QMainWindow):
 
     def _run(self, tool_name: str, **kwargs) -> None:
         import time
+
         import UEFN_Toolbelt as _tb
         self._sbar.showMessage(f"  Running  {tool_name}…")
         QApplication.processEvents()
@@ -3362,29 +3390,29 @@ def launch_qt(**kwargs) -> None:
 )
 def update_toolbelt(**kwargs) -> str:
     """Execute git pull against the toolbelt repository root."""
-    import subprocess, os
+    import os
+    import subprocess
+
     import UEFN_Toolbelt as _tb
     from UEFN_Toolbelt import core
-    root = os.path.abspath(os.path.join(os.path.dirname(_tb.__file__), "..", "..", "..")) 
-    
+    root = os.path.abspath(os.path.join(os.path.dirname(_tb.__file__), "..", "..", ".."))
+
     # Pre-flight check: is it a git repo?
     if not os.path.exists(os.path.join(root, ".git")):
         return "Error: Not a git repository"
-        
+
     try:
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         res = subprocess.run(["git", "-C", root, "pull", "origin", "main"], capture_output=True, text=True, startupinfo=startupinfo)
-        
+
         if res.returncode == 0:
             if "Already up to date" in res.stdout:
                 return "Already up-to-date"
-            else:
-                core.log_info(f"[Updater] {res.stdout}")
-                return "Updated successfully! Restart UEFN."
-        else:
-            core.log_error(f"[Updater] Git failed:\n{res.stderr}")
-            return "Git pull failed"
+            core.log_info(f"[Updater] {res.stdout}")
+            return "Updated successfully! Restart UEFN."
+        core.log_error(f"[Updater] Git failed:\n{res.stderr}")
+        return "Git pull failed"
     except Exception as e:
         core.log_error(f"[Updater] Subprocess failed: {e}")
         return "Command error"

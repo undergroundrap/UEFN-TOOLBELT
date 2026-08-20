@@ -1,0 +1,16 @@
+# UEFN Toolbelt — development / CI dependencies
+#
+# These are for linting, type-checking, and testing the repo OUTSIDE UEFN.
+# None of them are needed to run the Toolbelt itself: the editor ships its own
+# embedded CPython, and per CLAUDE.md you cannot pip-install into it.
+#
+#     python -m pip install -r requirements-dev.txt
+#
+# Runtime deps, for reference (NOT installed here):
+#   unreal   — provided by the UEFN editor process, not on PyPI
+#   PySide6  — installed separately into UE's embedded Python (see deploy.bat)
+#   mcp      — only needed to run mcp_server.py outside the editor
+
+ruff==0.16.1
+mypy==2.3.0
+pytest==9.1.1

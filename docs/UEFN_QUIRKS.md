@@ -1207,3 +1207,38 @@ If the user has a folder named `Content` inside `Content/`, the `rel` path natur
 
 **Affected tools:** `physics_list` — reports `physics_capable` (whether the actor has a `StaticMeshComponent`) rather than current on/off state, with an explicit note about the sandbox restriction.
 
+
+---
+
+## Quirk #36 — "UEFN MCP Toolsets" beta flag stops the project's `init_unreal.py`
+
+**UEFN 42.00 (UE 6.0). Confirmed 2026-08-20 by diffing editor logs across boots.**
+
+Enabling **Project Settings → Beta Access → UEFN MCP Toolsets** prevents the
+project's own `Content/Python/init_unreal.py` from running at editor start.
+
+| Flag | Python force-enabled | Start-up scripts scanned |
+|---|---|---|
+| off | late (~frame 396) | the project's `init_unreal.py` |
+| on  | early (~frame 178) | Epic's plugin scripts **only** |
+
+Epic's Toolsets plugins call `IPythonScriptPlugin::ForceEnablePythonAtRuntime`
+before the project's script paths are registered, so `Content/Python` is not in
+the start-up scan. The project script never appears in the log at all.
+
+**Symptom.** Nothing raises and nothing is logged. Toolbelt simply never starts:
+tool count is 1 instead of 361 and every `tb.run(...)` answers "Unknown tool".
+It reads as a Toolbelt bug and is not one.
+
+**Detection.** `tb.startup_ran()` reports whether `register()` was reached this
+session; smoke test Layer 3 checks it and names this quirk. Note the flag is set
+by `register()`, not `register_all_tools()` — the smoke test calls the latter
+itself, so keying off it would always look healthy.
+
+**Workaround.** Turn the flag off, or run `import UEFN_Toolbelt as tb;
+tb.register()` once per session.
+
+**Not fixable from Toolbelt.** `PythonScriptPluginSettings` is not exposed to
+Python on this build, and UEFN projects have no `Config/` directory to add an
+explicit `StartupScripts` entry to. This is an ordering bug between two Epic
+features and needs an Epic-side fix.

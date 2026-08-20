@@ -5,6 +5,259 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [2.3.6] — 2026-08-20
+
+### Fixed
+- **No duplicate-registration warnings after a hot-reload.** A toolset name can
+  be claimed exactly once per editor session on UEFN 42.00. Re-registering is
+  refused, and `unregister_toolset_class` does not release it — called on the
+  stashed pre-reload class it returns without error while the registry goes on
+  reporting the name as held, the same identity problem the query API has. So
+  the release step could never work and simply produced two warnings per reload.
+
+  It is also unnecessary. The editor logs `Re-instancing UEFNToolbeltToolset
+  after reload — 1 class changed`: UE swaps the UClass implementation by name, so
+  the existing registration already dispatches into the freshly loaded code.
+  `register()` now adopts that registration and updates its class reference
+  instead of asking again.
+
+## [2.3.5] — 2026-08-20
+
+### Fixed
+- **`epic_mcp_register` no longer reports a failure it cannot observe.** On UEFN
+  42.00 every registration query answers False for a Python-defined toolset, even
+  in the same tick the registry logs
+  `Registering Toolset UEFN_Toolbelt.epic_toolset.UEFNToolbeltToolset` for that
+  exact class — verified against `is_toolset_class_registered` and
+  `is_toolset_registered` with the qualified, short and friendly names. Treating
+  that False as proof of refusal was the 2.3.1 bug inverted: it announced an
+  error for a registration that had just succeeded. `_is_registered()` now
+  returns True or None and never False, so a positive confirmation still counts
+  if Epic fixes the query side, and registration reports
+  `registration_confirmed: false` rather than inventing a failure.
+- Idempotency keys off Toolbelt's own record plus the cross-reload stash, since
+  the registry cannot be asked.
+- The toolset class carries a clean `__qualname__` instead of
+  `_build_toolset_class.<locals>.UEFNToolbeltToolset`, an artefact of defining it
+  inside a function to keep `@unreal.uclass()` off the import path.
+
+## [2.3.4] — 2026-08-20
+
+### Added
+- **Detection for a silent startup failure.** On UEFN 42.00, enabling Project
+  Settings → Beta Access → "UEFN MCP Toolsets" stops the project's
+  `init_unreal.py` from running: Epic's Toolsets plugins force-enable Python
+  before the project's script paths are registered, so only their own start-up
+  scripts are scanned. Nothing raises and nothing is logged — Toolbelt just never
+  starts, the tool count is 1 instead of 361, and every `tb.run()` answers
+  "Unknown tool", which reads as a Toolbelt bug. `tb.startup_ran()` now reports
+  whether `register()` was reached, and smoke test Layer 3 fails with the cause
+  and the workaround. Documented as UEFN_QUIRKS.md #36.
+
+  The flag is set by `register()`, not `register_all_tools()` — the smoke test
+  calls the latter itself, so keying off it would always look healthy.
+
+  Not fixable from Toolbelt: `PythonScriptPluginSettings` is not exposed to
+  Python on this build and UEFN projects have no `Config/` directory for an
+  explicit `StartupScripts` entry. This needs an Epic-side fix.
+
+## [2.3.3] — 2026-08-20
+
+### Fixed
+- **`epic_mcp_status` reads registration back from the registry.** It reported a
+  module-level flag, which records only what the code believed when it set it —
+  it cannot know about a registration dropped underneath it. The flag is now a
+  fallback for when the registry will not answer, and `registration_confirmed`
+  says which of the two the caller is looking at. The class is located through
+  the cross-reload stash, so status is still accurate after a hot-reload has
+  cleared the module's own reference.
+
+## [2.3.2] — 2026-08-20
+
+### Fixed
+- **The Epic MCP toolset survives a hot-reload.** The reload `deploy.bat` prints
+  pops every `UEFN_Toolbelt` module out of `sys.modules`, destroying the module's
+  reference to the toolset class while Epic's registry goes on holding the name.
+  The next `register()` built a fresh class, the registry refused it as a
+  duplicate, and there was nothing left to pass `unregister_toolset_class()` —
+  wedging the integration until a full editor restart. The live class is now
+  parked on the `unreal` module, which that reload does not touch, so the stale
+  registration is released before the new class is registered.
+- **Registration checks class identity only.** `is_toolset_registered(name)` was
+  also being consulted, on the assumption its key was the qualified path the
+  registry prints. Checked live on UEFN 42.00 it answered False for a name the
+  registry was simultaneously logging as "already registered" — and a True from
+  it after a reload would have meant "held by the class you just replaced",
+  reading as "already registered" and skipping the release.
+
+## [2.3.1] — 2026-08-20
+
+### Fixed
+- **Epic MCP registration no longer reports success when the registry refused.**
+  `ToolsetRegistry.register_toolset_class` logs "Unable to register" and returns
+  normally when the name is already held — it does not raise — so a call that did
+  not throw was no evidence registration happened. Observed live on UEFN 42.00:
+  the editor logged a refusal in the same breath as Toolbelt logged "Registered".
+  Registration is now confirmed against the registry afterwards, and an
+  unconfirmed result is reported as an error naming the likely cause.
+- **Registration is idempotent.** `register_all_tools()` runs again on every
+  smoke test and hot-reload; the previous unregister/re-register churn would drop
+  the toolset out from under a connected MCP client. An already-registered
+  toolset is now left alone.
+- `_is_registered()` distinguishes "not registered" from "cannot tell", checking
+  the class and then the qualified name Epic logs — the two disagree after a
+  Python reload, when the module rebuilds the class but the name stays held.
+
+## [2.3.0] — 2026-08-20
+
+### Added
+- **Epic Unreal MCP integration.** Toolbelt now registers itself with Epic's
+  official Toolset Registry (UEFN 42.00), so any connected MCP client discovers
+  the catalogue natively. Rather than emit 361 UFunctions — each needing
+  UE-mappable parameter annotations — it exposes three meta-tools mirroring the
+  shape Epic already uses in tool-search mode: `toolbelt_list_tools`,
+  `toolbelt_describe_tool` and `toolbelt_run_tool`. Adding a Toolbelt tool
+  requires no change to the integration.
+- `epic_mcp_status`, `epic_mcp_register`, `epic_mcp_unregister` (MCP Bridge).
+- `ToolRegistry.execute_strict()` — executes a tool letting failures propagate.
+  `execute()` returns None for both a crash and a tool that legitimately returns
+  nothing, which would report failures to an MCP client as success.
+- **Optional-API declarations.** Modules list the `unreal.*` names they use but
+  do not require via `__optional_unreal_apis__`; the manifest records them and
+  the smoke test reports their absence as handled instead of failed. A name is
+  optional only when *every* consumer declares it so, so adding an unguarded
+  caller silently re-promotes it to required. This clears the 14 permanently-red
+  Layer 2 failures every UEFN 42.00 user was seeing for problems already handled.
+
+### Fixed
+- **`align_to_surface` no longer reports success when it snapped nothing.** UEFN
+  42.00 removed `EditorLevelLibrary.snap_objects_to_floor`; the tool caught the
+  AttributeError, logged a warning, then still applied `offset_z` — shifting
+  actors off an unsnapped position and returning `status: ok`. It now refuses
+  through the same `missing_unreal_apis()` guard as the other twelve. Its
+  docstring also claimed a per-actor trace fallback that was never implemented.
+
+### Safety
+- Every Epic MCP symbol is optional and resolved lazily. The toolset class is
+  built inside `register()`, never at import: applying `@unreal.uclass()` to a
+  missing base class would raise during `import UEFN_Toolbelt` and take all 361
+  tools down with it. Registration no-ops with a log line when the Experimental
+  ToolsetRegistry plugin or the UEFN MCP beta flag is off.
+
+## [2.2.5] — 2026-08-20
+
+### Fixed
+- **`arena_generate` no longer writes assets to `/Game/`.** In UEFN `/Game/` is
+  Epic's Fortnite install (`FortniteGame/Content`), not the creator's project
+  (UEFN_QUIRKS.md #23). The auto-generated team materials were created under a
+  hardcoded `/Game/UEFN_Toolbelt/Materials/` path, so every actor they were
+  applied to ended up pointing at a material the project could not resolve. Paths
+  now resolve through `detect_project_mount()` at call time.
+- **Arena mesh lookups resolve against the project mount too.** `SM_Floor_Tile`,
+  `SM_Wall_Panel`, `SM_Platform` and `SM_SpawnPad` were looked up under the same
+  wrong mount, so they could never be found and every arena silently fell back to
+  the configured mesh. The constants are now bare asset names.
+- Removed the unused `_MAT_FOLDER` constant.
+
+## [2.2.4] — 2026-08-20
+
+### Fixed
+- **`smart_organizer` no longer deletes an asset when a rename fails.** A failed
+  `rename_asset` with something already at the target was treated as proof that a
+  previous run had moved this asset, so the source was deleted and the row counted
+  as "moved". Two assets from different source folders can categorise to the same
+  target name, in which case this deleted an unrelated asset. Worse, deleting the
+  source without fixing up redirectors left every referencer pointing at a dead
+  path, orphaning the destination copy. Verified on a live project: an entire prop
+  set (mesh + material + three textures) severed this way, every piece left
+  unreferenced. Collisions are now reported for the user to resolve and nothing is
+  deleted — the module no longer calls `delete_asset` at all.
+- **Orphan scan no longer walks level sub-objects or Verse digest paths.** Under
+  one-file-per-actor, `:PersistentLevel.ActorFolder_UID_…` entries outnumbered real
+  assets ~230:1 and all resolved to the same owning package, so the audit reported
+  "3458 protected" out of 3473 and read as though it had skipped the project.
+  UEFN 42.00 `$Digest` paths also made `EditorAssetSubsystem` log an error per
+  lookup. Both are now filtered before any lookup, and the summary reports
+  sub-objects, protected roots and evaluated assets separately.
+
+## [2.2.3] — 2026-08-20
+
+### Fixed
+- **Reference-tree root assets are no longer classified as orphans.** Verified on a
+  live UEFN 42.00 project: `GameFeatureData` (the `.uplugin` descriptor asset) and
+  the default `HLODLayer` both report zero package referencers, because what points
+  at them is configuration rather than another package. The previous skip list
+  covered only maps and blueprints, so `ref_delete_orphans(dry_run=False)` would
+  have deleted the project descriptor. Protection now applies at two independent
+  layers: `ROOT_ASSET_CLASSES` during the scan, and a re-filter inside
+  `_delete_orphans` at the point of no return.
+- **Mount-root packages are never deleted.** Anything sitting directly at
+  `/YourProject/…` is project plumbing and is skipped regardless of class, which
+  also covers the case where class-name lookup fails or a future engine renames
+  one of these types.
+- **UE 6.0 reference-lookup fallback is validated by a real call**, not by
+  attribute presence. An API that exists but rejects our arguments previously
+  passed the availability check and then raised from inside the scan loop,
+  surfacing `None` instead of a clean refusal.
+
+## [2.2.2] — 2026-08-20
+
+### fix: UEFN 42.00 (UE 6.0) compatibility — prevent project-wide asset deletion
+
+UEFN force-updates with the live Fortnite build, so every user received UE 6.0
+without opting in. `smoke_test` Layer 2 flagged 16 removed `unreal.*` APIs.
+Fifteen of those degrade safely. One did not.
+
+**`reference_auditor` — data loss (critical)**
+
+`EditorAssetLibrary.find_package_referencers` was removed in 42.00. The helper
+wrapping it caught the resulting `AttributeError` and returned `[]`, which every
+orphan check reads as *"nothing references this asset — safe to delete"*.
+`ref_delete_orphans(dry_run=False)` acted on that permanently.
+
+- Reference lookup now resolves a strategy once per session: the legacy
+  `find_package_referencers`, then an Asset Registry `get_referencers` fallback
+  for UE 6.0. If neither resolves it raises `ReferenceLookupUnavailable` — a
+  failed lookup can no longer masquerade as zero referencers.
+- `ref_audit_orphans`, `ref_audit_unused_textures` and `ref_delete_orphans`
+  refuse with `reason="reference_api_unavailable"` instead of reporting bogus
+  results.
+- `ref_full_report` degrades per-section: redirector and duplicate-name scans
+  never needed reference lookup and still run.
+- `ref_audit_redirectors` and `ref_fix_redirectors` are unaffected; the
+  referencer count they display is now soft (`-1` when unknown).
+
+### fix: API tripwire named the wrong culprits
+
+`api_dependencies.json` recorded `used_by` only at the symbol level, so a missing
+*method* was reported with every consumer of its *class*. On 42.00 that blamed
+`EditorLevelLibrary.snap_objects_to_floor` on 29 modules when it affects one —
+making a two-file fix look like a platform-wide outage mid-triage.
+
+- Manifest now records per-attribute `used_by`; the probe reports only a
+  method's own callers. Older list-shaped manifests still load.
+
+### feat: engine-API preflight for tools whose dependencies were removed
+
+`core.missing_unreal_apis()` / `core.api_unavailable()`. Twelve tools now refuse
+with `reason="engine_api_unavailable"` and the specific missing API, instead of
+surfacing a raw `AttributeError` from inside their own loop:
+
+- `geometry_tools` (8) — GeometryScript is absent from 42.00
+- `blueprint_tools` (2) — `blueprint_inspect`, `blueprint_compile_folder`
+- `enhanced_input_tools` (1) — `input_create_action`
+- `system_perf` (1) — `system_optimize_background_cpu`
+
+`align_to_surface` and `pcg_refresh_all` already had fallbacks and are unchanged.
+
+### test
+
+- `tests/test_reference_safety.py` — pins the invariant that a failed reference
+  lookup can never be mistaken for zero referencers, both legacy and UE 6.0 paths.
+- `tests/test_api_guards.py` — preflight detection and the refusal contract.
+- `tests/test_api_manifest.py` — per-attribute attribution must stay strictly
+  narrower than class-level, so the mis-blame cannot silently return.
+
 ## [2.0.0] — 2026-03-29
 
 ### feat: full UEFN Python API coverage — 4 new modules, 21 new tools (297 → 318)

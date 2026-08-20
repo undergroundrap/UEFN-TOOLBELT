@@ -33,11 +33,11 @@ Claude Code config — add to .mcp.json in your project root:
 Then in UEFN (Output Log or Toolbelt dashboard):
     import UEFN_Toolbelt as tb; tb.run("mcp_start")
 
-After that, Claude Code has full control over UEFN — 358 tools, live actor data,
+After that, Claude Code has full control over UEFN — 361 tools, live actor data,
 arbitrary Python execution, viewport control, and more.
 
 What this exposes (beyond Kirch's original 22 tools):
-    run_toolbelt_tool   — call any of the 358 registered toolbelt tools by name
+    run_toolbelt_tool   — call any of the 361 registered toolbelt tools by name
     list_toolbelt_tools — list every available tool with category and description
     mcp_get_log         — read the last N lines of the MCP listener log ring
 
@@ -54,7 +54,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
-from typing import Any, Optional
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
@@ -181,7 +181,7 @@ mcp = FastMCP(
         "IMPORTANT: Start the listener in UEFN first:\n"
         "  import UEFN_Toolbelt as tb; tb.run('mcp_start')\n\n"
         "Key tools:\n"
-        "  run_toolbelt_tool   — run ANY of the 358 registered toolbelt tools\n"
+        "  run_toolbelt_tool   — run ANY of the 361 registered toolbelt tools\n"
         "  execute_python      — run arbitrary Python inside UEFN with full unreal.*\n"
         "  list_toolbelt_tools — see every tool available\n"
         "  get_all_actors      — snapshot the level\n"
@@ -256,7 +256,7 @@ def mcp_get_log(last_n: int = 50) -> str:
 def run_toolbelt_tool(tool_name: str, kwargs: dict | None = None) -> str:
     """Run any registered UEFN Toolbelt tool by name.
 
-    This is the single most powerful MCP tool — it exposes all 358 toolbelt tools
+    This is the single most powerful MCP tool — it exposes all 361 toolbelt tools
     to Claude Code through one command. Instead of writing custom execute_python
     code, just name the tool and pass its arguments as a dict.
 
@@ -346,8 +346,8 @@ def get_selected_actors() -> str:
 def spawn_actor(
     asset_path: str = "",
     actor_class: str = "",
-    location: Optional[list[float]] = None,
-    rotation: Optional[list[float]] = None,
+    location: list[float] | None = None,
+    rotation: list[float] | None = None,
 ) -> str:
     """Spawn an actor in the current level.
 
@@ -380,9 +380,9 @@ def delete_actors(actor_paths: list[str]) -> str:
 @mcp.tool()
 def set_actor_transform(
     actor_path: str,
-    location: Optional[list[float]] = None,
-    rotation: Optional[list[float]] = None,
-    scale:    Optional[list[float]] = None,
+    location: list[float] | None = None,
+    rotation: list[float] | None = None,
+    scale:    list[float] | None = None,
 ) -> str:
     """Set an actor's transform (any combination of location, rotation, scale).
 
@@ -558,9 +558,9 @@ def create_material_instance(
     parent_path: str,
     instance_name: str,
     destination: str = "/Game/Materials",
-    scalar_params: Optional[dict] = None,
-    vector_params: Optional[dict] = None,
-    texture_params: Optional[dict] = None,
+    scalar_params: dict | None = None,
+    vector_params: dict | None = None,
+    texture_params: dict | None = None,
 ) -> str:
     """Create a new MaterialInstanceConstant from a parent material.
 
@@ -644,8 +644,8 @@ def get_viewport_camera() -> str:
 
 @mcp.tool()
 def set_viewport_camera(
-    location: Optional[list[float]] = None,
-    rotation: Optional[list[float]] = None,
+    location: list[float] | None = None,
+    rotation: list[float] | None = None,
 ) -> str:
     """Move the editor viewport camera.
 
