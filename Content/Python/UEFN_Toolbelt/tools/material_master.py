@@ -102,6 +102,79 @@ def parent_material_path() -> str:
     return resolve_content_path("", _PARENT_MATERIAL_SUBPATH)
 
 
+def ensure_parent_material():
+    """Return the master material, creating it on first use.
+
+    Every tool in this module instances from M_ToolbeltBase. Nothing ever
+    created it, so on a fresh project all ten Materials tools failed with an
+    error telling the user to edit this file's source. Editing installed Python
+    is not a fix anyone should be asked for.
+
+    Built from scratch rather than duplicated: UEFN ships Epic and Engine
+    content COOKED, and duplicate_asset refuses it outright with "Package is
+    cooked or missing editor data". Creating a new Material has no such
+    restriction - the same approach arena_generator already uses.
+
+    Returns the material, or None if creation failed. Callers must check.
+    """
+    path = parent_material_path()
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        return unreal.load_asset(path)
+
+    folder, name = path.rsplit("/", 1)
+    try:
+        mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            name, folder, unreal.Material, unreal.MaterialFactoryNew()
+        )
+        if mat is None:
+            return None
+
+        mel = unreal.MaterialEditingLibrary
+
+        def _vector(param, color, x, y):
+            node = mel.create_material_expression(
+                mat, unreal.MaterialExpressionVectorParameter, x, y)
+            node.set_editor_property("parameter_name", param)
+            node.set_editor_property("default_value", color)
+            return node
+
+        def _scalar(param, value, x, y):
+            node = mel.create_material_expression(
+                mat, unreal.MaterialExpressionScalarParameter, x, y)
+            node.set_editor_property("parameter_name", param)
+            node.set_editor_property("default_value", value)
+            return node
+
+        # Parameter names must match what _apply_preset_to_actor() sets.
+        base = _vector("BaseColor", unreal.LinearColor(0.5, 0.5, 0.5, 1.0), -500, -300)
+        mel.connect_material_property(base, "", unreal.MaterialProperty.MP_BASE_COLOR)
+
+        metallic = _scalar("Metallic", 0.0, -500, -100)
+        mel.connect_material_property(metallic, "", unreal.MaterialProperty.MP_METALLIC)
+
+        roughness = _scalar("Roughness", 0.5, -500, 0)
+        mel.connect_material_property(roughness, "", unreal.MaterialProperty.MP_ROUGHNESS)
+
+        # Emissive colour is scaled by intensity, so a preset can glow without
+        # the colour itself having to carry the brightness.
+        emissive = _vector("EmissiveColor", unreal.LinearColor(0.0, 0.0, 0.0, 1.0), -500, 150)
+        intensity = _scalar("EmissiveIntensity", 0.0, -500, 300)
+        mult = mel.create_material_expression(
+            mat, unreal.MaterialExpressionMultiply, -250, 200)
+        mel.connect_material_expressions(emissive, "", mult, "A")
+        mel.connect_material_expressions(intensity, "", mult, "B")
+        mel.connect_material_property(mult, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+
+        mel.recompile_material(mat)
+        unreal.EditorAssetLibrary.save_asset(path)
+        log_info(f"[MaterialMaster] Created master material: {path}")
+        return mat
+    except Exception as e:
+        log_error(f"[MaterialMaster] Could not create {path}: {type(e).__name__}: {e}")
+        return None
+
+
+
 def instance_output_path() -> str:
     """Where generated material instances are written, under the project mount."""
     return resolve_content_path("", _INSTANCE_OUTPUT_SUBPATH)
@@ -346,17 +419,17 @@ def run_apply_preset(preset: str = "chrome", **kwargs) -> dict:
     if actors is None:
         return {"status": "error", "preset": preset, "applied": 0, "failed": 0}
 
-    # Early check — fail fast if the parent material doesn't exist
+    # Create the master material on first use rather than refusing to work.
     parent = parent_material_path()
-    if not unreal.EditorAssetLibrary.does_asset_exist(parent):
+    if ensure_parent_material() is None:
         log_error(
-            f"[MaterialMaster] Parent material not found: {parent}\n"
-            f"  Create M_ToolbeltBase in your project, or change "
-            f"  _PARENT_MATERIAL_SUBPATH in material_master.py "
-            f"in material_master.py to point to an existing master material."
+            f"[MaterialMaster] Could not create the master material: {parent}"
+            f"  Presets cannot be applied without it. See the error above for "
+            f"the cause - this is a real failure, not a missing setup step."
         )
-        return {"status": "error", "preset": preset, "applied": 0, "failed": len(actors),
-                "message": f"Parent material missing: {parent}"}
+        return {"status": "error", "preset": preset, "applied": 0,
+                "failed": len(actors),
+                "message": f"Parent material unavailable: {parent}"}
 
     all_p = _all_presets()
     if preset not in all_p:
