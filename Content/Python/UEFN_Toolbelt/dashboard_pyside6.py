@@ -251,10 +251,13 @@ def _setup_status_checks() -> list:
         import os
 
         import UEFN_Toolbelt as _tb2
-        vb_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(_tb2.__file__))),
-            "verse-book"
-        )
+        # __file__ is Content/Python/UEFN_Toolbelt/__init__.py — four levels up
+        # to the project root, not three. Being one short pointed this at
+        # Content/verse-book and reported "Not cloned" while smoke_test Layer 6
+        # found the same clone correctly.
+        vb_path = os.path.normpath(os.path.join(
+            os.path.dirname(_tb2.__file__), "..", "..", "..", "verse-book"
+        ))
         if os.path.isdir(vb_path):
             chapters = [f for f in os.listdir(vb_path) if f.endswith(".md")]
             checks.append(("Verse-book spec", "ok", f"{len(chapters)} chapters"))

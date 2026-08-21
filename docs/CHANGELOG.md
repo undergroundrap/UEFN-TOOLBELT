@@ -19,6 +19,13 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
   did, which is exactly how Quick Actions was missed. Setup Status, the MCP
   listener indicator and the Epic MCP indicator all register as live.
 
+- **Quick Actions reported the verse-book spec as "Not cloned" when it was
+  present.** It walked three `dirname` calls up from `__init__.py`, but `__file__`
+  is a file — one of those levels is spent reaching the package directory — so it
+  looked in `Content/verse-book` instead of the project root. smoke_test Layer 6
+  derives the same path correctly, which is why the two disagreed. Both now use
+  the same derivation, pinned by a test.
+
 - **Nine tools wrote assets to Epic's Fortnite install instead of the project.**
   `/Game/` is not the creator's project in UEFN (UEFN_QUIRKS.md #23), so anything
   created there is unreferenceable — the same defect that left ~700 dangling
