@@ -1293,6 +1293,42 @@ confident, specific, individually plausible findings.
 
 ---
 
+## Quirk #40 — Deleting an asset in-editor does not leave a dangling reference (Discovered: August 2026)
+
+**UEFN 42.00 (UE 6.0). Confirmed 2026-08-21 by a deliberate positive control on
+`TOOL_TEST`.**
+
+Force-deleting an asset **nulls the reference in every referencing package**. The
+referring actor is not left pointing at a missing path — it is left pointing at
+nothing, and the original path is gone.
+
+The control: apply a material preset to a prop (creating
+`MI_chrome_Cube29` on the project mount), save so the dependency is written to
+disk, then delete the instance.
+
+```
+LogUObjectGlobals: Force Deleting 1 Package(s):
+    Asset Name: /TOOL_TEST/UEFN_Toolbelt/Materials/Instances/MI_chrome_Cube29
+SourceControl: Reverted 1 file.
+```
+
+`ref_audit_broken` then reported `missing_assets: 0`,
+`distinct_dependencies: 1` — identical to before the deletion. Nothing was
+missed: there was nothing left to find.
+
+**Why it matters.** A "severed reference" only arises from deletion that bypasses
+the editor — a file removed on disk, a source-control operation, a rename that
+half-completed. Normal editing does not produce it. Any tool built to find
+dangling references is therefore hunting a condition that is rare by
+construction, and a clean result from one says very little.
+
+Combined with Quirk #39 (Epic mounts are unverifiable) and cooked content being
+unduplicable, this is why `ref_audit_broken` reports `distinct_dependencies` and
+warns on thin coverage rather than printing a bare "no severed references
+found".
+
+---
+
 ## Quirk #37 — Every placed `TextRenderActor` trips `ValkyrieValidator_Properties` (Discovered: August 2026)
 
 Saving a level containing any `unreal.TextRenderActor` produces two asset-check

@@ -1069,6 +1069,13 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
     2. Class-default comparison, kept as a secondary signal for Blueprint-style
        actors whose class ships a mesh.
 
+    NEVER CONFIRMED TO DETECT ANYTHING. A deliberate positive control on
+    TOOL_TEST - create a material instance on the project mount, reference it
+    from an actor, save, delete it - produced no finding, because UE nulls the
+    reference in the referencing package on delete (Quirk #40). A severed
+    reference only arises from deletion outside the editor. Treat a clean result
+    as "nothing was checkable", which is what the numbers below actually say.
+
     Blind spot, reported rather than hidden: a slot is only judged when the
     actor's class default fills it. A plain StaticMeshActor takes its mesh
     per-instance, so its class default is empty and a severed mesh there looks
