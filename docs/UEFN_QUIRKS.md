@@ -1283,6 +1283,26 @@ Those Teleporters were working devices in the level at the time.
 install, not your project. The same lesson applies to reads: an answer about a
 path is only as trustworthy as the mount it came from.
 
+### `load_asset` is not a second opinion
+
+The obvious fix is to treat a registry `False` as a suspicion and settle it by
+loading the asset. It does not work. `EditorAssetLibrary.load_asset` is itself
+an asset-registry lookup:
+
+```
+LogEditorAssetSubsystem: Error: LoadAsset failed: The AssetData
+'/CreativeCoreDevices/Device_Teleporter_V2...' could not be found in the Asset Registry.
+```
+
+Tried on `Device_API_Mapping` 2026-08-21: judging all mounts with a load
+fallback produced **375 missing assets and `resolved_by_load: 0`** — not one
+rescued — plus several hundred error lines in the output log. The two APIs ask
+the same question, so asking twice adds noise and no information.
+
+**There is no way to verify cooked plugin content from Python in UEFN 42.00.**
+Restricting the check to the project mount is not a workaround for a
+misdiagnosis; it is the only sound answer available.
+
 **Rule.** Judge existence only under the mount returned by
 `core.detect_project_mount()`. Count anything else as unverifiable and report
 the number. Never let one API's `False` stand as proof of absence — especially
