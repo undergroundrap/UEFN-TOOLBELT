@@ -438,18 +438,40 @@ def hard_reload(verbose: bool = True) -> dict:
     if pkg is None:                    # not imported yet — nothing stale to fix
         import UEFN_Toolbelt as pkg
     else:
+        # Clearing sys.modules is not enough. reload() re-executes __init__.py
+        # into the module's EXISTING namespace without clearing it, so the
+        # submodule attributes bound by the previous import survive. The import
+        # system checks those attributes first: `from . import tools` sees
+        # pkg.tools already set, skips the import, and rebinds the stale module.
+        # Nothing re-registers, and register_all_tools() reports 1 tool.
+        for child in {k.split(".")[1] for k in names if k.count(".") == 1}:
+            try:
+                delattr(pkg, child)
+            except AttributeError:
+                pass
         pkg = importlib.reload(pkg)
 
     pkg.register()
+
+    # Measured, not declared. This used to report pkg.__tool_count__, a constant
+    # that read "362 tools" in the same breath as a registry holding exactly one.
+    live = len(pkg.registry)
     if verbose:
         import unreal
         unreal.log(
             f"[TOOLBELT] hard_reload: {closed} window(s) closed, "
-            f"{len(names)} module(s) cleared, {pkg.__tool_count__} tools. "
+            f"{len(names)} module(s) cleared, {live} tools registered. "
             f"Existing `tb` references are live."
         )
-    return {"status": "ok", "windows_closed": closed,
-            "modules_cleared": len(names), "tools": pkg.__tool_count__}
+        if live != pkg.__tool_count__:
+            unreal.log_warning(
+                f"[TOOLBELT] hard_reload: expected {pkg.__tool_count__} tools but "
+                f"the registry holds {live}. The reload did not fully re-import — "
+                f"restart the editor."
+            )
+    return {"status": "ok" if live == pkg.__tool_count__ else "incomplete",
+            "windows_closed": closed, "modules_cleared": len(names),
+            "tools": live, "expected_tools": pkg.__tool_count__}
 
 
 def reload() -> None:
