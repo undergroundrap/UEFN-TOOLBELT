@@ -1259,6 +1259,40 @@ features and needs an Epic-side fix.
 
 ---
 
+## Quirk #39 — `does_asset_exist` answers False for mounts it cannot browse (Discovered: August 2026)
+
+**UEFN 42.00 (UE 6.0). Confirmed 2026-08-21 on `Device_API_Mapping`.**
+
+`unreal.EditorAssetLibrary.does_asset_exist(path)` returns `False` both for an
+asset that is genuinely gone **and** for one on a mount the editor cannot browse
+— Epic's Creative Device plugins among them. The two cases are indistinguishable
+from Python.
+
+A dependency audit built on it reported **383 missing assets** on a healthy
+island. Every one was Epic content that plainly exists:
+
+```
+/CreativeCoreDevices/Device_Teleporter_V2   ←  Teleporter, Teleporter10, …
+/CRD_Water/Blueprints/Device_Water_V2       ←  Water
+/ContentHall/Blueprints/BP_DemoDisplay      ←  DemoDisplay C, … (+51 more)
+```
+
+Those Teleporters were working devices in the level at the time.
+
+**This is Quirk #23 from the other direction.** #23 says `/Game/` is Epic's
+install, not your project. The same lesson applies to reads: an answer about a
+path is only as trustworthy as the mount it came from.
+
+**Rule.** Judge existence only under the mount returned by
+`core.detect_project_mount()`. Count anything else as unverifiable and report
+the number. Never let one API's `False` stand as proof of absence — especially
+where the output would drive a repair or a delete.
+
+The failure mode to watch for is not a crash or an empty result. It is a wall of
+confident, specific, individually plausible findings.
+
+---
+
 ## Quirk #37 — Every placed `TextRenderActor` trips `ValkyrieValidator_Properties` (Discovered: August 2026)
 
 Saving a level containing any `unreal.TextRenderActor` produces two asset-check
