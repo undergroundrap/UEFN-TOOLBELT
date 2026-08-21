@@ -55,21 +55,43 @@ echo  Deploying to:  !DEST!
 echo.
 
 :: ── Copy files ────────────────────────────────────────────────────────────────
-echo  [1/4]  Copying UEFN_Toolbelt package...
+echo  [1/5]  Copying UEFN_Toolbelt package...
 xcopy /E /I /Y "%~dp0Content\Python\UEFN_Toolbelt" "!DEST!\Content\Python\UEFN_Toolbelt" >nul
 if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
 
-echo  [2/4]  Copying init_unreal.py...
+echo  [2/5]  Copying init_unreal.py...
 xcopy /Y "%~dp0init_unreal.py" "!DEST!\Content\Python\" >nul
 if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
 
-echo  [3/4]  Copying tests folder...
+echo  [3/5]  Copying tests folder...
 xcopy /E /I /Y "%~dp0tests" "!DEST!\tests" >nul
 if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
 
-echo  [4/4]  Copying verse-book spec...
+echo  [4/5]  Copying verse-book spec...
 xcopy /E /I /H /Y "%~dp0verse-book" "!DEST!\verse-book" >nul
 if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
+
+:: -- Build stamp --------------------------------------------------------------
+:: Written AFTER the copy, straight into the destination, so it describes what is
+:: actually deployed rather than what the repo happens to contain. Two test runs
+:: were lost to a project silently sitting 40 minutes behind on a different
+:: build; this makes that visible in the editor instead of needing a file audit.
+echo  [5/5]  Writing build stamp...
+set "GIT_SHA=unknown"
+set "GIT_DIRTY="
+set "STAMP_TIME=unknown"
+for /f "delims=" %%i in ('git -C "%~dp0." rev-parse --short HEAD 2^>nul') do set "GIT_SHA=%%i"
+for /f "delims=" %%i in ('git -C "%~dp0." status --porcelain 2^>nul') do set "GIT_DIRTY=+dirty"
+for /f "delims=" %%i in ('powershell -NoProfile -Command "Get-Date -Format s" 2^>nul') do set "STAMP_TIME=%%i"
+set "STAMP_FILE=!DEST!\Content\Python\UEFN_Toolbelt\_build_stamp.json"
+> "!STAMP_FILE!" (
+    echo {
+    echo   "commit": "!GIT_SHA!!GIT_DIRTY!",
+    echo   "deployed_at": "!STAMP_TIME!",
+    echo   "project": "!PROJECT!"
+    echo }
+)
+if exist "!STAMP_FILE!" ( echo         OK  ^(!GIT_SHA!!GIT_DIRTY! -^> !PROJECT!^) ) else ( echo         FAILED & goto :error )
 
 :: ── PySide6 check — tries multiple install locations ─────────────────────────
 echo.

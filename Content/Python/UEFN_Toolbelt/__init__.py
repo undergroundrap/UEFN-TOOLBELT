@@ -70,6 +70,43 @@ def startup_ran() -> bool:
     return _STARTUP_RAN
 
 
+def build_info() -> dict:
+    """What is actually deployed here, per the stamp deploy.bat wrote.
+
+    Not a registered tool on purpose: this has to be answerable when the
+    registry is empty, which is exactly the situation it helps diagnose
+    (Quirk #36), and it should not move the tool count.
+
+    Two live test runs were lost to a project sitting silently on a 40-minute-old
+    build. Nothing in the editor said so; it took comparing file mtimes on disk
+    to find out. Every result that matters now carries the commit it came from.
+
+    Returns {"commit", "deployed_at", "project"}; "unknown" when there is no
+    stamp, which means the copy was made by hand rather than by deploy.bat.
+    """
+    import json
+    import os
+
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "_build_stamp.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return {"commit": "unknown", "deployed_at": "unknown", "project": "unknown"}
+    return {
+        "commit": str(data.get("commit", "unknown")),
+        "deployed_at": str(data.get("deployed_at", "unknown")),
+        "project": str(data.get("project", "unknown")),
+    }
+
+
+def build_line() -> str:
+    """One-line build summary for logs."""
+    b = build_info()
+    return f"build {b['commit']} deployed {b['deployed_at']} to {b['project']}"
+
+
 def register() -> None:
     """
     Generic loader entry point — called by init_unreal.py on editor startup.
@@ -82,7 +119,7 @@ def register() -> None:
     _STARTUP_RAN = True
     register_all_tools()
     load_custom_plugins()
-    unreal.log("[TOOLBELT] ✓ All tools registered.")
+    unreal.log(f"[TOOLBELT] ✓ All tools registered — {build_line()}")
     unreal.log("[TOOLBELT]   Run 'toolbelt_integration_test' in a clean level to verify.")
     _schedule_menu()
 
@@ -462,7 +499,7 @@ def hard_reload(verbose: bool = True) -> dict:
         unreal.log(
             f"[TOOLBELT] hard_reload: {closed} window(s) closed, "
             f"{len(names)} module(s) cleared, {live} tools registered. "
-            f"Existing `tb` references are live."
+            f"Existing `tb` references are live. {build_line()}"
         )
         if live != pkg.__tool_count__:
             unreal.log_warning(
@@ -472,7 +509,8 @@ def hard_reload(verbose: bool = True) -> dict:
             )
     return {"status": "ok" if live == pkg.__tool_count__ else "incomplete",
             "windows_closed": closed, "modules_cleared": len(names),
-            "tools": live, "expected_tools": pkg.__tool_count__}
+            "tools": live, "expected_tools": pkg.__tool_count__,
+            "build": pkg.build_info()}
 
 
 def reload() -> None:

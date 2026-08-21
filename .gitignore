@@ -170,3 +170,6 @@ tools_dump.json
 unreal_engine_blueprint.pyi
 unreal.pyi
 stubs/
+
+# Deploy stamp — written into the DEPLOYED project by deploy.bat, never the repo
+_build_stamp.json
