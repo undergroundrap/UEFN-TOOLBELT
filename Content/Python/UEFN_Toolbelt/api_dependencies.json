@@ -3,7 +3,26 @@
   "symbol_count": 170,
   "symbols": {
     "ARFilter": {
-      "attributes": {},
+      "attributes": {
+        "class_names": {
+          "used_by": [
+            "tools/mcp_bridge.py"
+          ],
+          "optional": false
+        },
+        "package_paths": {
+          "used_by": [
+            "tools/mcp_bridge.py"
+          ],
+          "optional": false
+        },
+        "recursive_paths": {
+          "used_by": [
+            "tools/mcp_bridge.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "diagnostics.py",
         "tools/animation_tools.py",
@@ -83,7 +102,14 @@
       "optional": false
     },
     "AnimMontageFactory": {
-      "attributes": {},
+      "attributes": {
+        "set_editor_property": {
+          "used_by": [
+            "tools/animation_tools.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "tools/animation_tools.py"
       ],
@@ -98,7 +124,79 @@
       "optional": false
     },
     "AssetImportTask": {
-      "attributes": {},
+      "attributes": {
+        "automated": {
+          "used_by": [
+            "tools/asset_importer.py",
+            "tools/mcp_bridge.py",
+            "tools/smart_importer.py",
+            "tools/text_voxelizer.py"
+          ],
+          "optional": false
+        },
+        "destination_name": {
+          "used_by": [
+            "tools/asset_importer.py",
+            "tools/smart_importer.py",
+            "tools/text_voxelizer.py"
+          ],
+          "optional": false
+        },
+        "destination_path": {
+          "used_by": [
+            "tools/asset_importer.py",
+            "tools/mcp_bridge.py",
+            "tools/smart_importer.py",
+            "tools/text_voxelizer.py"
+          ],
+          "optional": false
+        },
+        "filename": {
+          "used_by": [
+            "tools/asset_importer.py",
+            "tools/mcp_bridge.py",
+            "tools/smart_importer.py",
+            "tools/text_voxelizer.py"
+          ],
+          "optional": false
+        },
+        "get_editor_property": {
+          "used_by": [
+            "tools/asset_importer.py",
+            "tools/text_voxelizer.py"
+          ],
+          "optional": false
+        },
+        "imported_object_paths": {
+          "used_by": [
+            "tools/mcp_bridge.py"
+          ],
+          "optional": false
+        },
+        "options": {
+          "used_by": [
+            "tools/smart_importer.py"
+          ],
+          "optional": false
+        },
+        "replace_existing": {
+          "used_by": [
+            "tools/asset_importer.py",
+            "tools/mcp_bridge.py",
+            "tools/smart_importer.py"
+          ],
+          "optional": false
+        },
+        "save": {
+          "used_by": [
+            "tools/asset_importer.py",
+            "tools/mcp_bridge.py",
+            "tools/smart_importer.py",
+            "tools/text_voxelizer.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "tools/asset_importer.py",
         "tools/mcp_bridge.py",
@@ -108,7 +206,50 @@
       "optional": false
     },
     "AssetRegistryDependencyOptions": {
-      "attributes": {},
+      "attributes": {
+        "include_editor_only_package_references": {
+          "used_by": [
+            "tools/prefab_migrator.py"
+          ],
+          "optional": false
+        },
+        "include_game_package_references": {
+          "used_by": [
+            "tools/prefab_migrator.py"
+          ],
+          "optional": false
+        },
+        "include_hard_management_references": {
+          "used_by": [
+            "tools/prefab_migrator.py"
+          ],
+          "optional": false
+        },
+        "include_hard_package_references": {
+          "used_by": [
+            "tools/prefab_migrator.py"
+          ],
+          "optional": false
+        },
+        "include_searchable_names": {
+          "used_by": [
+            "tools/prefab_migrator.py"
+          ],
+          "optional": false
+        },
+        "include_soft_management_references": {
+          "used_by": [
+            "tools/prefab_migrator.py"
+          ],
+          "optional": false
+        },
+        "include_soft_package_references": {
+          "used_by": [
+            "tools/prefab_migrator.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "tools/prefab_migrator.py",
         "tools/reference_auditor.py",
@@ -240,7 +381,26 @@
       "optional": false
     },
     "AutomatedAssetImportData": {
-      "attributes": {},
+      "attributes": {
+        "destination_path": {
+          "used_by": [
+            "tools/ui_icon_import.py"
+          ],
+          "optional": false
+        },
+        "filenames": {
+          "used_by": [
+            "tools/ui_icon_import.py"
+          ],
+          "optional": false
+        },
+        "replace_existing": {
+          "used_by": [
+            "tools/ui_icon_import.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "tools/ui_icon_import.py"
       ],
@@ -877,14 +1037,40 @@
       "optional": true
     },
     "EditorScriptingMeshReductionOptions": {
-      "attributes": {},
+      "attributes": {
+        "auto_compute_lod_screen_sizes": {
+          "used_by": [
+            "tools/lod_tools.py"
+          ],
+          "optional": false
+        },
+        "reductions": {
+          "used_by": [
+            "tools/lod_tools.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "tools/lod_tools.py"
       ],
       "optional": false
     },
     "EditorScriptingMeshReductionSettings": {
-      "attributes": {},
+      "attributes": {
+        "percent_triangles": {
+          "used_by": [
+            "tools/lod_tools.py"
+          ],
+          "optional": false
+        },
+        "screen_size": {
+          "used_by": [
+            "tools/lod_tools.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "tools/lod_tools.py"
       ],
@@ -944,7 +1130,38 @@
       "optional": false
     },
     "FbxImportUI": {
-      "attributes": {},
+      "attributes": {
+        "import_as_skeletal": {
+          "used_by": [
+            "tools/smart_importer.py"
+          ],
+          "optional": false
+        },
+        "import_materials": {
+          "used_by": [
+            "tools/smart_importer.py"
+          ],
+          "optional": false
+        },
+        "import_mesh": {
+          "used_by": [
+            "tools/smart_importer.py"
+          ],
+          "optional": false
+        },
+        "import_textures": {
+          "used_by": [
+            "tools/smart_importer.py"
+          ],
+          "optional": false
+        },
+        "static_mesh_import_data": {
+          "used_by": [
+            "tools/smart_importer.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "tools/smart_importer.py"
       ],
@@ -1121,28 +1338,56 @@
       "optional": false
     },
     "GeometryScriptMeshWeldEdgesOptions": {
-      "attributes": {},
+      "attributes": {
+        "tolerance": {
+          "used_by": [
+            "tools/geometry_tools.py"
+          ],
+          "optional": true
+        }
+      },
       "used_by": [
         "tools/geometry_tools.py"
       ],
       "optional": true
     },
     "GeometryScriptRecomputeNormalsOptions": {
-      "attributes": {},
+      "attributes": {
+        "angle_threshold_deg": {
+          "used_by": [
+            "tools/geometry_tools.py"
+          ],
+          "optional": true
+        }
+      },
       "used_by": [
         "tools/geometry_tools.py"
       ],
       "optional": true
     },
     "GeometryScriptRemoveSmallComponentsOptions": {
-      "attributes": {},
+      "attributes": {
+        "set_editor_property": {
+          "used_by": [
+            "tools/geometry_tools.py"
+          ],
+          "optional": true
+        }
+      },
       "used_by": [
         "tools/geometry_tools.py"
       ],
       "optional": true
     },
     "GeometryScriptRepackUVsOptions": {
-      "attributes": {},
+      "attributes": {
+        "target_resolution": {
+          "used_by": [
+            "tools/geometry_tools.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "tools/geometry_tools.py"
       ],
@@ -1150,6 +1395,20 @@
     },
     "HierarchicalInstancedStaticMeshComponent": {
       "attributes": {
+        "add_instance": {
+          "used_by": [
+            "tools/foliage_tools.py",
+            "tools/optimization_tools.py"
+          ],
+          "optional": false
+        },
+        "set_static_mesh": {
+          "used_by": [
+            "tools/foliage_tools.py",
+            "tools/optimization_tools.py"
+          ],
+          "optional": false
+        },
         "static_class": {
           "used_by": [
             "tools/integration_test.py"
@@ -1165,7 +1424,14 @@
       "optional": false
     },
     "HitResult": {
-      "attributes": {},
+      "attributes": {
+        "location": {
+          "used_by": [
+            "tools/foliage_tools.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "tools/foliage_tools.py"
       ],
@@ -1468,7 +1734,20 @@
       "optional": false
     },
     "MeshMergingSettings": {
-      "attributes": {},
+      "attributes": {
+        "merge_physics_data": {
+          "used_by": [
+            "tools/bulk_operations.py"
+          ],
+          "optional": false
+        },
+        "pivot_point_at_zero": {
+          "used_by": [
+            "tools/bulk_operations.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "tools/bulk_operations.py"
       ],
@@ -1824,7 +2103,28 @@
       "optional": false
     },
     "Rotator": {
-      "attributes": {},
+      "attributes": {
+        "pitch": {
+          "used_by": [
+            "tools/lighting_mastery.py",
+            "tools/spline_prop_placer.py"
+          ],
+          "optional": false
+        },
+        "roll": {
+          "used_by": [
+            "tools/spline_prop_placer.py"
+          ],
+          "optional": false
+        },
+        "yaw": {
+          "used_by": [
+            "tools/lighting_mastery.py",
+            "tools/spline_prop_placer.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "core/__init__.py",
         "tools/advanced_alignment.py",
@@ -2165,7 +2465,26 @@
       "optional": false
     },
     "ToolMenuEntry": {
-      "attributes": {},
+      "attributes": {
+        "set_label": {
+          "used_by": [
+            "menu.py"
+          ],
+          "optional": false
+        },
+        "set_string_command": {
+          "used_by": [
+            "menu.py"
+          ],
+          "optional": false
+        },
+        "set_tool_tip": {
+          "used_by": [
+            "menu.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "menu.py"
       ],
@@ -2285,7 +2604,45 @@
       "optional": false
     },
     "Vector": {
-      "attributes": {},
+      "attributes": {
+        "x": {
+          "used_by": [
+            "tools/arena_generator.py",
+            "tools/bulk_operations.py",
+            "tools/niagara_tools.py",
+            "tools/procedural_geometry.py",
+            "tools/proximity_tools.py",
+            "tools/screenshot_tools.py",
+            "tools/spline_prop_placer.py",
+            "tools/zone_tools.py"
+          ],
+          "optional": false
+        },
+        "y": {
+          "used_by": [
+            "tools/bulk_operations.py",
+            "tools/niagara_tools.py",
+            "tools/procedural_geometry.py",
+            "tools/proximity_tools.py",
+            "tools/screenshot_tools.py",
+            "tools/spline_prop_placer.py",
+            "tools/zone_tools.py"
+          ],
+          "optional": false
+        },
+        "z": {
+          "used_by": [
+            "tools/bulk_operations.py",
+            "tools/niagara_tools.py",
+            "tools/procedural_geometry.py",
+            "tools/proximity_tools.py",
+            "tools/screenshot_tools.py",
+            "tools/spline_prop_placer.py",
+            "tools/zone_tools.py"
+          ],
+          "optional": false
+        }
+      },
       "used_by": [
         "core/__init__.py",
         "tools/advanced_alignment.py",

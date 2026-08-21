@@ -35,11 +35,76 @@ SKIP_DIRS = {"__pycache__"}
 
 
 class _UnrealVisitor(ast.NodeVisitor):
-    """Collect `unreal.X` and `unreal.X.Y` attribute chains."""
+    """Collect `unreal.X`, `unreal.X.Y`, and attributes reached through a local.
+
+    The third case is why this exists. UEFN 42.00 removed
+    MaterialInstanceConstantFactoryNew.initial_parent, which took all ten
+    Materials tools down, and the manifest never listed it — because the code
+    read:
+
+        factory = unreal.MaterialInstanceConstantFactoryNew()
+        factory.initial_parent = parent
+
+    Only `unreal.X.Y` chains were recorded, so the receiver being a local
+    variable made the attribute invisible. The engine-upgrade tripwire was
+    structurally blind to the exact class of break it exists to catch.
+
+    Locals assigned from `unreal.SomeClass(...)` are now tracked and their
+    attribute accesses attributed back to that class. Scoped per function, so a
+    name reused for a different type in another function cannot cross-attribute.
+    Only CamelCase callees are tracked: `unreal.load_asset(p)` returns an object
+    whose class is not knowable statically, and guessing there would put
+    fictional attributes in the manifest.
+    """
 
     def __init__(self) -> None:
         # symbol -> set of second-level attributes seen on it
         self.symbols: dict[str, set[str]] = defaultdict(set)
+        # local variable name -> unreal class it was constructed from
+        self._locals: dict[str, str] = {}
+
+    # -- scope handling -----------------------------------------------------
+    def _visit_scope(self, node) -> None:
+        outer = self._locals
+        self._locals = dict(outer)      # inherit, but do not leak back out
+        self.generic_visit(node)
+        self._locals = outer
+
+    visit_FunctionDef = _visit_scope
+    visit_AsyncFunctionDef = _visit_scope
+
+    # -- tracking -----------------------------------------------------------
+    @staticmethod
+    def _constructed_class(value) -> str | None:
+        """`unreal.SomeClass(...)` -> "SomeClass", else None."""
+        if not isinstance(value, ast.Call):
+            return None
+        fn = value.func
+        if (
+            isinstance(fn, ast.Attribute)
+            and isinstance(fn.value, ast.Name)
+            and fn.value.id == "unreal"
+            and fn.attr[:1].isupper()
+        ):
+            return fn.attr
+        return None
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        cls = self._constructed_class(node.value)
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                if cls:
+                    self._locals[target.id] = cls
+                else:
+                    # Rebound to something else — stop attributing to the old class.
+                    self._locals.pop(target.id, None)
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        cls = self._constructed_class(node.value)
+        if cls and isinstance(node.target, ast.Name):
+            self._locals[node.target.id] = cls
+        self.generic_visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
         # unreal.X.Y  → Attribute(value=Attribute(value=Name('unreal'), attr='X'), attr='Y')
@@ -53,6 +118,9 @@ class _UnrealVisitor(ast.NodeVisitor):
         # unreal.X → Attribute(value=Name('unreal'), attr='X')
         elif isinstance(inner, ast.Name) and inner.id == "unreal":
             self.symbols.setdefault(node.attr, set())
+        # local.attr where local came from unreal.SomeClass(...)
+        elif isinstance(inner, ast.Name) and inner.id in self._locals:
+            self.symbols[self._locals[inner.id]].add(node.attr)
         self.generic_visit(node)
 
 
