@@ -5,6 +5,20 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [Unreleased]
+
+- **The integration suite was writing into Epic's Fortnite install.** The
+  codebase was swept for hardcoded `/Game/` paths in 2.3.8; the suite that
+  verifies the codebase was not. Nine paths created fixtures against — and
+  called `delete_directory()` on — the engine rather than the project
+  (Quirk #23). Its material assertion was worse: it compared against
+  `/UEFN_Toolbelt/Materials/M_ToolbeltBase`, a *mount* that does not exist, so
+  the check always fell back to an engine stub and never tested the preset
+  material it reported on. Both fixed and ratcheted. Test-suite only — no change
+  to what ships in the editor, which is why 2.3.8 was not re-tagged.
+
+---
+
 ## [2.3.8] — 2026-08-21
 
 - **Every material tool was broken on UEFN 42.00 — twice over.** UE 6.0 removed
