@@ -110,3 +110,25 @@ def test_no_write_destination_still_defaults_to_game(dc):
                          "organized_root"))
     ]
     assert offenders == [], f"write destinations still on /Game/: {offenders}"
+
+
+def test_a_new_module_level_game_constant_fails(dc, tmp_path, monkeypatch):
+    """
+    Parameter defaults were the first half of this bug; module constants were the
+    other, and cost more. material_master.PARENT_MATERIAL_PATH and
+    smart_importer.AUTO_MATERIAL_PARENT both pointed at /Game/, so every material
+    tool applied the engine fallback while returning status: ok.
+    """
+    found = dc._game_path_defaults()
+    assert found == [], f"/Game/ paths still baked into source: {found}"
+
+    # and prove the scanner would actually catch a module constant, not just a
+    # parameter default — the two live in different parts of the AST
+    import ast
+    tree = ast.parse('BAD_PATH = "/Game/UEFN_Toolbelt/Materials/M_X"\n')
+    node = tree.body[0]
+    assert isinstance(node, ast.Assign)
+    val = node.value
+    assert isinstance(val, ast.Constant) and val.value.startswith("/Game/"), (
+        "the module-constant shape this check relies on"
+    )

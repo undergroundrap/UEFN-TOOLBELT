@@ -63,20 +63,19 @@ from ..registry import register_tool
 #  Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Base path where imports land in the Content Browser
-IMPORT_BASE_PATH = "/Game/Imported"
-
-# Parent material to apply to newly imported meshes
-AUTO_MATERIAL_PARENT = "/Game/UEFN_Toolbelt/Materials/M_ToolbeltBase"
+# Where imports land, relative to the project mount. Not a module constant: in
+# UEFN /Game/ is Epic's Fortnite install, and the mount is only knowable with a
+# live editor, so anything baked in at import time is wrong by construction.
+IMPORT_BASE_SUBPATH = "Imported"
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _session_path() -> str:
-    """Return a date-stamped sub-path, e.g. /Game/Imported/2024-01-15"""
+    """Date-stamped import folder, e.g. /MyProject/Imported/2024-01-15."""
     date_str = datetime.now().strftime("%Y-%m-%d")
-    return f"{IMPORT_BASE_PATH}/{date_str}"
+    return resolve_content_path("", f"{IMPORT_BASE_SUBPATH}/{date_str}")
 
 
 def _build_import_task(
@@ -128,8 +127,12 @@ def _apply_auto_material(mesh_path: str) -> None:
             return
 
         asset_name = mesh_path.split("/")[-1]
+        # Same master material as material_master — resolve through its helper
+        # rather than keeping a second copy of the path that can drift.
+        from .material_master import parent_material_path
+
         mi = create_material_instance(
-            AUTO_MATERIAL_PARENT,
+            parent_material_path(),
             f"MI_Auto_{asset_name}",
             _session_path() + "/Materials",
         )

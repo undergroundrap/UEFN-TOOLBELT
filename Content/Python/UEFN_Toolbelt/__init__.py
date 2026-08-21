@@ -291,14 +291,18 @@ def run(tool_id: str, **kwargs) -> Any:
 
 # ── Blueprint / EUW fallback ──────────────────────────────────────────────────
 
-_WIDGET_BP_PATH = "/Game/UEFN_Toolbelt/Blueprints/WBP_ToolbeltDashboard.WBP_ToolbeltDashboard_C"
+# Resolved at call time — /Game/ is Epic's Fortnite install in UEFN, so the
+# baked-in path never loaded and this fallback silently dropped through to the
+# plain tool list.
+_WIDGET_BP_SUBPATH = "UEFN_Toolbelt/Blueprints/WBP_ToolbeltDashboard.WBP_ToolbeltDashboard_C"
 
 
 def _try_open_widget() -> None:
     """Try to open the EUW Blueprint dashboard as a fallback."""
     import unreal
     try:
-        widget_class = unreal.load_class(None, _WIDGET_BP_PATH)
+        widget_class = unreal.load_class(
+            None, core.resolve_content_path("", _WIDGET_BP_SUBPATH))
         if widget_class:
             euw = unreal.get_editor_subsystem(unreal.EditorUtilitySubsystem)
             euw.spawn_and_register_tab(widget_class.get_default_object())

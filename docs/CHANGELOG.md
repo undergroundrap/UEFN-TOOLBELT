@@ -7,6 +7,19 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ## [Unreleased]
 
+- **The material path bug had a twin, and a third case.** A sweep for
+  module-level constants that need a live editor found three more:
+  `smart_importer.AUTO_MATERIAL_PARENT` (the same `/Game/UEFN_Toolbelt/Materials/
+  M_ToolbeltBase` as `material_master`, so auto-materials on imported meshes hit
+  the same silent fallback), `smart_importer.IMPORT_BASE_PATH` (`/Game/Imported`
+  — imports landing in Epic's install), and the Blueprint dashboard fallback path
+  in `__init__.py`, which never loaded and dropped through to the plain tool list.
+
+  `smart_importer` now calls `material_master.parent_material_path()` rather than
+  keeping a second copy of the path that can drift. `drift_check` was extended to
+  scan module-level constants as well as parameter defaults — it had only ever
+  checked defaults, which is why these survived the earlier migration.
+
 ### Changed
 - **The integration suite now verifies values, not just `status`.** Seven checks
   read result keys their tools never return, so `.get(key, 0)` yielded the

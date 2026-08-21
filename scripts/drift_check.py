@@ -115,17 +115,43 @@ _GAME_PATH_DEFAULT_BASELINE = 0
 
 
 def _game_path_defaults() -> list[str]:
-    """Every function parameter defaulting to a /Game/ path."""
+    """
+    Every /Game/ path baked into the source — parameter defaults and module-level
+    constants alike.
+
+    Module constants matter as much as defaults and were missed the first time:
+    material_master's PARENT_MATERIAL_PATH and smart_importer's
+    AUTO_MATERIAL_PARENT both pointed at /Game/, so every material tool silently
+    applied the engine fallback while reporting success. A constant evaluated at
+    import cannot be right here — mount detection needs a live editor.
+    """
     import ast
     from pathlib import Path
 
     found = []
     pkg = Path(ROOT) / "Content" / "Python" / "UEFN_Toolbelt"
     for path in sorted(pkg.rglob("*.py")):
+        if "__pycache__" in str(path):
+            continue
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:
             continue
+
+        # module-level constants
+        for stmt in tree.body:
+            tgt: ast.expr | None = None
+            val: ast.expr | None = None
+            if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
+                tgt, val = stmt.targets[0], stmt.value
+            elif isinstance(stmt, ast.AnnAssign):
+                tgt, val = stmt.target, stmt.value
+            if (isinstance(tgt, ast.Name) and isinstance(val, ast.Constant)
+                    and isinstance(val.value, str)
+                    and (val.value == "/Game" or val.value.startswith("/Game/"))):
+                found.append(f"{path.name}:{tgt.id} = {val.value!r}")
+
+        # function parameter defaults
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
@@ -150,7 +176,7 @@ def check_game_path_defaults() -> list[dict]:
         return [{
             "file": "scripts/drift_check.py", "line": 0,
             "type": "/Game/ default path",
-            "found": f"{count} parameters default to /Game/",
+            "found": f"{count} /Game/ paths baked into source",
             "expected": f"at most {_GAME_PATH_DEFAULT_BASELINE} (the ratchet baseline)",
             "content": (
                 f"{count - _GAME_PATH_DEFAULT_BASELINE} new. /Game/ is Epic's Fortnite "
@@ -164,7 +190,7 @@ def check_game_path_defaults() -> list[dict]:
         return [{
             "file": "scripts/drift_check.py", "line": 0,
             "type": "/Game/ default path (ratchet)",
-            "found": f"{count} parameters default to /Game/",
+            "found": f"{count} /Game/ paths baked into source",
             "expected": f"_GAME_PATH_DEFAULT_BASELINE is still {_GAME_PATH_DEFAULT_BASELINE}",
             "content": (
                 f"Fewer /Game/ defaults than the baseline — lower "
