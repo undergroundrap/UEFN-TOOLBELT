@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import log_error, log_info, log_warning
+from ..core import log_error, log_info, log_warning, resolve_scan_path
 from ..registry import register_tool
 
 
@@ -49,11 +49,12 @@ _SOUND_CLASSES = ["SoundWave", "SoundCue"]
     example='tb.run("sound_asset_list", scan_path="/Game/Audio", sound_type="wave")',
 )
 def run_sound_asset_list(
-    scan_path: str = "/Game/",
+    scan_path: str = "",
     sound_type: str = "all",
     max_results: int = 200,
     **kwargs,
 ) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         type_map = {
             "wave": ["SoundWave"],
@@ -96,11 +97,12 @@ def run_sound_asset_list(
     example='tb.run("sound_asset_audit", scan_path="/Game/Audio", warn_duration_sec=60)',
 )
 def run_sound_asset_audit(
-    scan_path: str = "/Game/",
+    scan_path: str = "",
     warn_duration_sec: float = 60.0,
     max_results: int = 200,
     **kwargs,
 ) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         filt = unreal.ARFilter(
             class_names=["SoundWave"],
@@ -168,7 +170,8 @@ def run_sound_asset_audit(
     tags=["sound", "attenuation", "audio", "list", "3d", "spatial"],
     example='tb.run("sound_attenuation_list", scan_path="/Game/Audio")',
 )
-def run_sound_attenuation_list(scan_path: str = "/Game/", max_results: int = 200, **kwargs) -> dict:
+def run_sound_attenuation_list(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         filt = unreal.ARFilter(
             class_names=["SoundAttenuation"],
@@ -198,7 +201,8 @@ def run_sound_attenuation_list(scan_path: str = "/Game/", max_results: int = 200
     tags=["sound", "class", "audio", "list", "mix", "routing"],
     example='tb.run("sound_class_list", scan_path="/Game/Audio")',
 )
-def run_sound_class_list(scan_path: str = "/Game/", max_results: int = 200, **kwargs) -> dict:
+def run_sound_class_list(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         filt = unreal.ARFilter(
             class_names=["SoundClass"],

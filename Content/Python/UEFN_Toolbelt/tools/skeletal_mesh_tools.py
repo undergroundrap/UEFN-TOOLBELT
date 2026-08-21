@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import log_error, log_info, log_warning
+from ..core import log_error, log_info, log_warning, resolve_scan_path
 from ..registry import register_tool
 
 
@@ -51,8 +51,9 @@ def _actor_sub():
     tags=["skeletal", "mesh", "list", "assets", "scan"],
     example='tb.run("skel_list", scan_path="/Game/Characters")',
 )
-def run_skel_list(scan_path: str = "/Game/", max_results: int = 200, **kwargs) -> dict:
+def run_skel_list(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     # Uses AR tag data only — never calls load_asset(), safe on pak-heavy projects.
+    scan_path = resolve_scan_path(scan_path)
     try:
         filt = unreal.ARFilter(
             class_names=["SkeletalMesh"],
@@ -87,7 +88,8 @@ def run_skel_list(scan_path: str = "/Game/", max_results: int = 200, **kwargs) -
     tags=["skeletal", "mesh", "audit", "health", "physics"],
     example='tb.run("skel_audit", scan_path="/Game/Characters")',
 )
-def run_skel_audit(scan_path: str = "/Game/", max_results: int = 200, **kwargs) -> dict:
+def run_skel_audit(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         filt = unreal.ARFilter(
             class_names=["SkeletalMesh"],

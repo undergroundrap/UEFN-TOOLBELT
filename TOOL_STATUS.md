@@ -420,12 +420,46 @@ in the wrong directory and then counted the wrong subdirectory.
 
 ### Still unverified
 
-- **42 read-path `/Game/` defaults.** These scan Epic's Fortnite tree rather than
-  the project, so they return wrong or empty results and carry the Quirk #32
-  crash risk. Baselined in `drift_check` (`_GAME_PATH_DEFAULT_BASELINE`); not
-  fixed.
+- **The 42 read-path `/Game/` defaults are now fixed** (see Batch 13), but the
+  migrated scan-path tools have not been individually exercised in a live
+  editor — only the shared `resolve_scan_path()` helper and a representative
+  sample have.
 - **Integration test has not been run since these changes.** The smoke test is
   registration-level — it proves tools load, not that they work.
 - **Epic MCP end-to-end.** Registration into the Toolset Registry is confirmed;
   an external MCP client calling `toolbelt_list_tools` through it is not, and is
   blocked by the 42.00 startup-order bug above.
+
+---
+
+## Batch 13 — `/Game/` scan-path migration (2026-08-21)
+
+The last 42 parameters defaulting to `/Game/` were migrated. In UEFN `/Game/` is
+Epic's Fortnite install, so every one of these scanned the wrong content tree —
+returning empty or irrelevant results, and risking the Quirk #32 pak-scan crash.
+
+| Kind | Count | Resolver |
+|---|---|---|
+| Scan paths — where a tool *looks* | 39 | `core.resolve_scan_path()` |
+| Write paths — `project_scaffold` `base`, which *creates* folders | 3 | `core.resolve_content_path()` |
+
+Modules touched: `animation_tools`, `asset_tagger`, `audio_design_tools`,
+`blueprint_tools`, `curve_tools`, `datatable_tools`, `enhanced_input_tools`,
+`lod_tools`, `mcp_bridge`, `project_scaffold`, `skeletal_mesh_tools`,
+`sound_asset_tools`, `texture_tools`.
+
+**Explicit arguments are unaffected for scan paths.** `resolve_scan_path()` only
+fills in an empty value and passes anything else through, so a caller naming
+`/Engine/BasicShapes` or a specific folder behaves exactly as before. The three
+`project_scaffold` parameters *are* rewritten off `/Game/`, deliberately — you
+cannot scaffold folders into Epic's install.
+
+`_GAME_PATH_DEFAULT_BASELINE` is now **0**: a new `/Game/` default fails
+`drift_check` outright rather than being absorbed by a ratchet.
+
+### Not yet verified live
+
+The scan-path migration was mechanical and shares one helper, which is unit
+tested and was verified live earlier today. The migrated tools have **not** each
+been run individually in the editor. The failure mode if a migration is wrong is a tool
+scanning the project root instead of a subfolder — visible, not destructive.

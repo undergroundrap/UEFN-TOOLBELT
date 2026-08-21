@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import log_error, log_info, resolve_content_path
+from ..core import log_error, log_info, resolve_content_path, resolve_scan_path
 from ..registry import register_tool
 
 
@@ -42,7 +42,8 @@ def _ar():
     tags=["animation", "skeleton", "bones", "rig", "list"],
     example='tb.run("anim_list_skeletons", search_path="/Game/")',
 )
-def run_anim_list_skeletons(search_path: str = "/Game/", **kwargs) -> dict:
+def run_anim_list_skeletons(search_path: str = "", **kwargs) -> dict:
+    search_path = resolve_scan_path(search_path)
     try:
         filter_ = unreal.ARFilter(
             class_names=["Skeleton"],
@@ -68,7 +69,8 @@ def run_anim_list_skeletons(search_path: str = "/Game/", **kwargs) -> dict:
     tags=["animation", "sequence", "list", "anim", "skeletal"],
     example='tb.run("anim_list_sequences", search_path="/Game/Characters/")',
 )
-def run_anim_list_sequences(search_path: str = "/Game/", **kwargs) -> dict:
+def run_anim_list_sequences(search_path: str = "", **kwargs) -> dict:
+    search_path = resolve_scan_path(search_path)
     try:
         filter_ = unreal.ARFilter(
             class_names=["AnimSequence"],
@@ -107,7 +109,8 @@ def run_anim_list_sequences(search_path: str = "/Game/", **kwargs) -> dict:
     tags=["animation", "montage", "list", "anim", "sections"],
     example='tb.run("anim_list_montages", search_path="/Game/")',
 )
-def run_anim_list_montages(search_path: str = "/Game/", **kwargs) -> dict:
+def run_anim_list_montages(search_path: str = "", **kwargs) -> dict:
+    search_path = resolve_scan_path(search_path)
     try:
         filter_ = unreal.ARFilter(
             class_names=["AnimMontage"],
@@ -143,7 +146,8 @@ def run_anim_list_montages(search_path: str = "/Game/", **kwargs) -> dict:
     tags=["animation", "blendspace", "blend", "locomotion", "list"],
     example='tb.run("anim_list_blend_spaces", search_path="/Game/")',
 )
-def run_anim_list_blend_spaces(search_path: str = "/Game/", **kwargs) -> dict:
+def run_anim_list_blend_spaces(search_path: str = "", **kwargs) -> dict:
+    search_path = resolve_scan_path(search_path)
     try:
         filter_ = unreal.ARFilter(
             class_names=["BlendSpace", "BlendSpace1D"],

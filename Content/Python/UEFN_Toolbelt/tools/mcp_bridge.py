@@ -78,7 +78,7 @@ import unreal
 
 from UEFN_Toolbelt.registry import register_tool
 
-from ..core import resolve_content_path
+from ..core import resolve_content_path, resolve_scan_path
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -510,8 +510,9 @@ def _c_get_actor_properties(actor_path: str, properties: list[str]) -> dict:
 # ─── Asset commands ───────────────────────────────────────────────────────────
 
 @_cmd("list_assets")
-def _c_list_assets(directory: str = "/Game/", recursive: bool = True,
+def _c_list_assets(directory: str = "", recursive: bool = True,
                     class_filter: str = "") -> dict:
+    directory = resolve_scan_path(directory)
     assets = unreal.EditorAssetLibrary.list_assets(directory, recursive=recursive)
     if class_filter:
         filtered = []
@@ -596,8 +597,9 @@ def _c_import_asset(
 
 
 @_cmd("search_assets")
-def _c_search_assets(class_name: str = "", directory: str = "/Game/",
+def _c_search_assets(class_name: str = "", directory: str = "",
                       recursive: bool = True) -> dict:
+    directory = resolve_scan_path(directory)
     reg    = unreal.AssetRegistryHelpers.get_asset_registry()
     filt   = unreal.ARFilter()
     if directory:

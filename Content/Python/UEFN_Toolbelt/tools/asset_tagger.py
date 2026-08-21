@@ -47,6 +47,7 @@ from typing import Any
 
 import unreal
 
+from UEFN_Toolbelt.core import resolve_scan_path
 from UEFN_Toolbelt.registry import register_tool
 
 # ─── Constants ────────────────────────────────────────────────────────────────
@@ -428,7 +429,7 @@ def tag_show(**kwargs) -> dict:
 def tag_search(
     tag_name: str = "",
     value: str = "1",
-    folder: str = "/Game",
+    folder: str = "",
 **kwargs,
 ) -> dict:
     """
@@ -445,6 +446,7 @@ def tag_search(
     Example:
         tb.run('tag_search', tag_name='biome', value='desert', folder='/Game/Environment')
     """
+    folder = resolve_scan_path(folder)
     if not tag_name:
         unreal.log_warning(
             "[AssetTagger] Provide a tag_name to search for. "
@@ -472,7 +474,7 @@ def tag_search(
     icon="📋",
     tags=["tag", "metadata", "list", "inventory"],
 )
-def tag_list_all(folder: str = "/Game", **kwargs) -> dict:
+def tag_list_all(folder: str = "", **kwargs) -> dict:
     """
     Print all unique TB: tag keys used anywhere under folder, with asset counts.
 
@@ -482,6 +484,7 @@ def tag_list_all(folder: str = "/Game", **kwargs) -> dict:
     Returns:
         dict: {"status", "count", "tags": {key: asset_count}}
     """
+    folder = resolve_scan_path(folder)
     unreal.log(f"[AssetTagger] Scanning tags under {folder}…")
     counts = _do_tag_list_all(folder)
 
@@ -504,7 +507,7 @@ def tag_list_all(folder: str = "/Game", **kwargs) -> dict:
     icon="📤",
     tags=["tag", "metadata", "export", "json", "report"],
 )
-def tag_export(folder: str = "/Game", **kwargs) -> dict:
+def tag_export(folder: str = "", **kwargs) -> dict:
     """
     Scan all assets under folder, collect every TB: tag, and write the
     tag → asset mapping to Saved/UEFN_Toolbelt/tag_export.json.
@@ -515,5 +518,6 @@ def tag_export(folder: str = "/Game", **kwargs) -> dict:
     Returns:
         dict: {"status", "path", "unique_tags": int}
     """
+    folder = resolve_scan_path(folder)
     unique_tags = _do_tag_export(folder)
     return {"status": "ok", "path": _EXPORT_PATH, "unique_tags": unique_tags}

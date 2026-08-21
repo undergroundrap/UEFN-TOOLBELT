@@ -63,6 +63,7 @@ from ..core import (
     log_error,
     log_info,
     log_warning,
+    resolve_scan_path,
     with_progress,
 )
 from ..registry import register_tool
@@ -208,7 +209,7 @@ def run_lod_auto_generate_selection(
     tags=["lod", "mesh", "batch", "folder", "performance"],
 )
 def run_lod_auto_generate_folder(
-    folder_path: str = "/Game",
+    folder_path: str = "",
     num_lods: int = 3,
     quality: float = 0.5,
     skip_existing: bool = True,
@@ -224,6 +225,7 @@ def run_lod_auto_generate_folder(
     Returns:
         dict: {"status", "done", "failed"}
     """
+    folder_path = resolve_scan_path(folder_path)
     targets = _get_meshes_in_folder(folder_path)
     if not targets:
         log_info("No static meshes found.")
@@ -263,7 +265,7 @@ def run_lod_auto_generate_folder(
     tags=["collision", "mesh", "batch", "lod", "performance"],
 )
 def run_set_collision_folder(
-    folder_path: str = "/Game",
+    folder_path: str = "",
     complexity: str = "complex_as_simple",
     **kwargs,
 ) -> dict:
@@ -276,6 +278,7 @@ def run_set_collision_folder(
     Returns:
         dict: {"status", "done", "total"}
     """
+    folder_path = resolve_scan_path(folder_path)
     if complexity not in _COLLISION_MAP:
         log_error(f"Unknown complexity '{complexity}'. Choose from: {list(_COLLISION_MAP.keys())}")
         return {"status": "error", "done": 0, "total": 0}
@@ -310,7 +313,7 @@ def run_set_collision_folder(
     tags=["lod", "audit", "report", "mesh", "collision"],
 )
 def run_lod_audit_folder(
-    folder_path: str = "/Game",
+    folder_path: str = "",
     **kwargs,
 ) -> dict:
     """
@@ -323,6 +326,7 @@ def run_lod_audit_folder(
     Returns:
         dict: {"status", "path", "no_lod_count", "no_collision_count", "records"}
     """
+    folder_path = resolve_scan_path(folder_path)
     targets = _get_meshes_in_folder(folder_path)
     if not targets:
         return {"status": "ok", "path": "", "no_lod_count": 0, "no_collision_count": 0, "records": []}
@@ -403,8 +407,9 @@ def run_lod_audit_folder(
     tags=["nanite", "mesh", "audit", "lod", "performance"],
     example='tb.run("nanite_audit", scan_path="/Game/Meshes")',
 )
-def run_nanite_audit(scan_path: str = "/Game/", max_results: int = 200, **kwargs) -> dict:
+def run_nanite_audit(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     # Uses AR tag data only — never calls load_asset(), safe on pak-heavy projects.
+    scan_path = resolve_scan_path(scan_path)
     try:
         ar = unreal.AssetRegistryHelpers.get_asset_registry()
         filt = unreal.ARFilter(
@@ -451,11 +456,12 @@ def run_nanite_audit(scan_path: str = "/Game/", max_results: int = 200, **kwargs
     example='tb.run("nanite_enable_folder", scan_path="/Game/Meshes/Props", enable=True, dry_run=False)',
 )
 def run_nanite_enable_folder(
-    scan_path: str = "/Game/",
+    scan_path: str = "",
     enable: bool = True,
     dry_run: bool = True,
     **kwargs,
 ) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         mesh_sub = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
         if mesh_sub is None:

@@ -24,7 +24,14 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import api_unavailable, log_error, log_info, missing_unreal_apis, resolve_content_path
+from ..core import (
+    api_unavailable,
+    log_error,
+    log_info,
+    missing_unreal_apis,
+    resolve_content_path,
+    resolve_scan_path,
+)
 from ..registry import register_tool
 
 # unreal.* names this module uses but does not require.
@@ -51,8 +58,9 @@ def _ar():
     tags=["input", "enhanced", "action", "list", "enumerate"],
     example='tb.run("input_list_actions", search_path="/Game/")',
 )
-def run_input_list_actions(search_path: str = "/Game/", **kwargs) -> dict:
+def run_input_list_actions(search_path: str = "", **kwargs) -> dict:
     """List all InputAction assets under search_path."""
+    search_path = resolve_scan_path(search_path)
     try:
         filter_ = unreal.ARFilter(
             class_names=["InputAction"],
@@ -89,8 +97,9 @@ def run_input_list_actions(search_path: str = "/Game/", **kwargs) -> dict:
     tags=["input", "enhanced", "mapping", "context", "list"],
     example='tb.run("input_list_contexts", search_path="/Game/")',
 )
-def run_input_list_contexts(search_path: str = "/Game/", **kwargs) -> dict:
+def run_input_list_contexts(search_path: str = "", **kwargs) -> dict:
     """List all InputMappingContext assets under search_path."""
+    search_path = resolve_scan_path(search_path)
     try:
         filter_ = unreal.ARFilter(
             class_names=["InputMappingContext"],

@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import log_error, log_info, log_warning
+from ..core import log_error, log_info, log_warning, resolve_scan_path
 from ..registry import register_tool
 
 
@@ -96,8 +96,9 @@ _PRESETS = {
     tags=["texture", "audit", "compression", "settings", "scan"],
     example='tb.run("texture_audit", scan_path="/Game/Textures")',
 )
-def run_texture_audit(scan_path: str = "/Game/", max_results: int = 200, **kwargs) -> dict:
+def run_texture_audit(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     # Uses AR tag data only — never calls load_asset(), safe on pak-heavy projects.
+    scan_path = resolve_scan_path(scan_path)
     try:
         assets = _load_textures_in_folder(scan_path)[:max_results]
         results = []
@@ -133,12 +134,13 @@ def run_texture_audit(scan_path: str = "/Game/", max_results: int = 200, **kwarg
     example='tb.run("texture_set_compression", scan_path="/Game/Textures/Normal", compression="TC_NORMALMAP", dry_run=False)',
 )
 def run_texture_set_compression(
-    scan_path: str = "/Game/",
+    scan_path: str = "",
     compression: str = "TC_DEFAULT",
     dry_run: bool = True,
     max_assets: int = 500,
     **kwargs,
 ) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         assets = _load_textures_in_folder(scan_path)
         compression_upper = compression.upper()
@@ -196,11 +198,12 @@ def run_texture_set_compression(
     example='tb.run("texture_set_group", scan_path="/Game/UI/Icons", group="ui", dry_run=False)',
 )
 def run_texture_set_group(
-    scan_path: str = "/Game/",
+    scan_path: str = "",
     group: str = "world",
     dry_run: bool = True,
     **kwargs,
 ) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         assets = _load_textures_in_folder(scan_path)
         group_lower = group.lower()
@@ -258,11 +261,12 @@ def run_texture_set_group(
     example='tb.run("texture_set_srgb", scan_path="/Game/Textures/Normals", srgb=False, dry_run=False)',
 )
 def run_texture_set_srgb(
-    scan_path: str = "/Game/",
+    scan_path: str = "",
     srgb: bool = True,
     dry_run: bool = True,
     **kwargs,
 ) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         assets = _load_textures_in_folder(scan_path)
         changed = []
@@ -312,11 +316,12 @@ def run_texture_set_srgb(
     example='tb.run("texture_apply_preset", scan_path="/Game/Textures/UI", preset="ui", dry_run=False)',
 )
 def run_texture_apply_preset(
-    scan_path: str = "/Game/",
+    scan_path: str = "",
     preset: str = "game",
     dry_run: bool = True,
     **kwargs,
 ) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     preset_lower = preset.lower()
     if preset_lower not in _PRESETS:
         return {"status": "error", "message": f"Unknown preset '{preset}'. Valid: {list(_PRESETS.keys())}"}

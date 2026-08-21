@@ -78,6 +78,7 @@ from ..core import (
     log_error,
     log_info,
     log_warning,
+    resolve_content_path,
     with_progress,
 )
 from ..registry import register_tool
@@ -365,7 +366,7 @@ def run_list_templates(**kwargs) -> dict:
 def run_scaffold_preview(
     template: str = "uefn_standard",
     project_name: str = "MyProject",
-    base: str = "/Game",
+    base: str = "",
     **kwargs,
 ) -> dict:
     """
@@ -376,6 +377,7 @@ def run_scaffold_preview(
         project_name: Your project/island name (used as the root subfolder).
         base:         Content Browser base path (default: /Game).
     """
+    base = resolve_content_path(base)
     all_t = _all_templates()
     if template not in all_t:
         log_error(f"Unknown template '{template}'. Run scaffold_list_templates to see options.")
@@ -416,7 +418,7 @@ def run_scaffold_preview(
 def run_scaffold_generate(
     template: str = "uefn_standard",
     project_name: str = "MyProject",
-    base: str = "/Game",
+    base: str = "",
     **kwargs,
 ) -> dict:
     """
@@ -435,6 +437,7 @@ def run_scaffold_generate(
         /Game/MyProject/Materials/Master/
         ...
     """
+    base = resolve_content_path(base)
     all_t = _all_templates()
     if template not in all_t:
         log_error(f"Unknown template '{template}'. Run scaffold_list_templates.")
@@ -562,7 +565,7 @@ def run_scaffold_delete_template(template_name: str = "", **kwargs) -> dict:
 )
 def run_scaffold_organize_loose(
     project_name: str = "MyProject",
-    base: str = "/Game",
+    base: str = "",
     dry_run: bool = True,
     **kwargs,
 ) -> dict:
@@ -587,6 +590,7 @@ def run_scaffold_organize_loose(
         base:         Content Browser base (default: /Game).
         dry_run:      If True, print moves without executing them.
     """
+    base = resolve_content_path(base)
     root = f"{base}/{project_name}"
 
     if not unreal.EditorAssetLibrary.does_directory_exist(root):

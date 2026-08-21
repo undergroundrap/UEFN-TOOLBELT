@@ -37,6 +37,16 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
   did, which is exactly how Quick Actions was missed. Setup Status, the MCP
   listener indicator and the Epic MCP indicator all register as live.
 
+- **The last 42 `/Game/` default paths are gone.** 39 scan paths now resolve
+  through `core.resolve_scan_path()` and the three `project_scaffold` `base`
+  parameters — which create folders — through `core.resolve_content_path()`.
+  Until now every one of these scanned or wrote to Epic's Fortnite install
+  instead of the creator's project.
+
+  Explicit arguments to scan tools are unchanged: `resolve_scan_path()` fills in
+  an empty value and passes anything else through. `_GAME_PATH_DEFAULT_BASELINE`
+  drops from 42 to 0, so a new `/Game/` default now fails `drift_check` outright.
+
 - **Every material tool was silently falling back to the engine default
   material.** `material_master.PARENT_MATERIAL_PATH` and `INSTANCE_OUTPUT_PATH`
   were module constants pointing at `/Game/UEFN_Toolbelt/Materials/`, which in

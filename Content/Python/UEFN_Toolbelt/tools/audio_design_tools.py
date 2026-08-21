@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import log_error, log_info
+from ..core import log_error, log_info, resolve_scan_path
 from ..registry import register_tool
 
 
@@ -47,7 +47,8 @@ def _ar():
     tags=["audio", "metasound", "list", "synthesis", "sound", "dsp"],
     example='tb.run("audio_list_metasounds", search_path="/Game/")',
 )
-def run_audio_list_metasounds(search_path: str = "/Game/", **kwargs) -> dict:
+def run_audio_list_metasounds(search_path: str = "", **kwargs) -> dict:
+    search_path = resolve_scan_path(search_path)
     try:
         filter_ = unreal.ARFilter(
             class_names=["MetaSoundSource", "MetaSoundPatch"],
@@ -85,7 +86,8 @@ def run_audio_list_metasounds(search_path: str = "/Game/", **kwargs) -> dict:
     tags=["audio", "sound", "class", "mix", "group", "list"],
     example='tb.run("audio_list_sound_classes")',
 )
-def run_audio_list_sound_classes(search_path: str = "/Game/", **kwargs) -> dict:
+def run_audio_list_sound_classes(search_path: str = "", **kwargs) -> dict:
+    search_path = resolve_scan_path(search_path)
     try:
         filter_ = unreal.ARFilter(
             class_names=["SoundClass"],
@@ -123,7 +125,8 @@ def run_audio_list_sound_classes(search_path: str = "/Game/", **kwargs) -> dict:
     tags=["audio", "cue", "sound", "list", "sfx", "legacy"],
     example='tb.run("audio_list_sound_cues", search_path="/Game/Audio/")',
 )
-def run_audio_list_sound_cues(search_path: str = "/Game/", **kwargs) -> dict:
+def run_audio_list_sound_cues(search_path: str = "", **kwargs) -> dict:
+    search_path = resolve_scan_path(search_path)
     try:
         filter_ = unreal.ARFilter(
             class_names=["SoundCue"],
@@ -150,7 +153,8 @@ def run_audio_list_sound_cues(search_path: str = "/Game/", **kwargs) -> dict:
     tags=["audio", "mix", "sound", "ducking", "snapshot", "list"],
     example='tb.run("audio_list_sound_mixes")',
 )
-def run_audio_list_sound_mixes(search_path: str = "/Game/", **kwargs) -> dict:
+def run_audio_list_sound_mixes(search_path: str = "", **kwargs) -> dict:
+    search_path = resolve_scan_path(search_path)
     try:
         filter_ = unreal.ARFilter(
             class_names=["SoundMix"],
@@ -177,7 +181,8 @@ def run_audio_list_sound_mixes(search_path: str = "/Game/", **kwargs) -> dict:
     tags=["audio", "synesthesia", "analysis", "loudness", "onset", "frequency", "list"],
     example='tb.run("audio_list_synesthesia")',
 )
-def run_audio_list_synesthesia(search_path: str = "/Game/", **kwargs) -> dict:
+def run_audio_list_synesthesia(search_path: str = "", **kwargs) -> dict:
+    search_path = resolve_scan_path(search_path)
     try:
         filter_ = unreal.ARFilter(
             class_names=["LoudnessNRT", "ConstantQNRT", "OnsetNRT"],

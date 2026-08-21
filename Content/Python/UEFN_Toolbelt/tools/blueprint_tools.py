@@ -22,7 +22,14 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import api_unavailable, log_error, log_info, log_warning, missing_unreal_apis
+from ..core import (
+    api_unavailable,
+    log_error,
+    log_info,
+    log_warning,
+    missing_unreal_apis,
+    resolve_scan_path,
+)
 from ..registry import register_tool
 
 # unreal.* names this module uses but does not require.
@@ -49,7 +56,8 @@ def _ar():
     tags=["blueprint", "list", "assets", "scan"],
     example='tb.run("blueprint_list", scan_path="/Game/Blueprints")',
 )
-def run_blueprint_list(scan_path: str = "/Game/", max_results: int = 200, **kwargs) -> dict:
+def run_blueprint_list(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         filt = unreal.ARFilter(
             class_names=["Blueprint"],
@@ -150,7 +158,8 @@ def run_blueprint_inspect(asset_path: str = "", **kwargs) -> dict:
     tags=["blueprint", "audit", "compile", "health"],
     example='tb.run("blueprint_audit", scan_path="/Game/Blueprints")',
 )
-def run_blueprint_audit(scan_path: str = "/Game/", max_results: int = 200, **kwargs) -> dict:
+def run_blueprint_audit(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         filt = unreal.ARFilter(
             class_names=["Blueprint"],
@@ -206,11 +215,12 @@ def run_blueprint_audit(scan_path: str = "/Game/", max_results: int = 200, **kwa
     example='tb.run("blueprint_compile_folder", scan_path="/Game/Blueprints", dry_run=False)',
 )
 def run_blueprint_compile_folder(
-    scan_path: str = "/Game/",
+    scan_path: str = "",
     dry_run: bool = True,
     max_assets: int = 50,
     **kwargs,
 ) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     _missing = missing_unreal_apis("EditorBlueprintLibrary")
     if _missing:
         return api_unavailable("blueprint_compile_folder", _missing)

@@ -28,7 +28,7 @@ import os
 
 import unreal
 
-from ..core import log_error, log_info
+from ..core import log_error, log_info, resolve_scan_path
 from ..registry import register_tool
 
 
@@ -49,7 +49,8 @@ def _ar():
     tags=["datatable", "data", "list", "assets", "scan"],
     example='tb.run("datatable_list", scan_path="/Game/DataTables")',
 )
-def run_datatable_list(scan_path: str = "/Game/", max_results: int = 200, **kwargs) -> dict:
+def run_datatable_list(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         filt = unreal.ARFilter(
             class_names=["DataTable"],
@@ -220,7 +221,8 @@ def run_datatable_export(asset_path: str = "", output_path: str = "", **kwargs) 
     tags=["datatable", "audit", "health", "data"],
     example='tb.run("datatable_audit", scan_path="/Game/DataTables", min_rows=1)',
 )
-def run_datatable_audit(scan_path: str = "/Game/", min_rows: int = 1, **kwargs) -> dict:
+def run_datatable_audit(scan_path: str = "", min_rows: int = 1, **kwargs) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         filt = unreal.ARFilter(
             class_names=["DataTable"],

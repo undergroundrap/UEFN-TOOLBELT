@@ -106,12 +106,12 @@ _UI_INVISIBLE_BASELINE = 158
 # tree — or, if it WRITES, produces assets the project cannot reference. That is
 # what left ~700 dangling material references behind arena_generate.
 #
-# Every write destination has been moved onto core.resolve_content_path(). The
-# remaining defaults are read/scan paths, which are wrong but not destructive,
-# and fixing 42 of them blind across a 361-tool platform is its own change with
-# its own live verification. Ratchet: the count may fall, never rise.
+# All of them are now gone: write destinations go through
+# core.resolve_content_path(), scan paths through core.resolve_scan_path().
+# The baseline is 0, so this is no longer a ratchet in practice — any new
+# /Game/ default fails the check outright.
 
-_GAME_PATH_DEFAULT_BASELINE = 42
+_GAME_PATH_DEFAULT_BASELINE = 0
 
 
 def _game_path_defaults() -> list[str]:

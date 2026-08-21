@@ -27,7 +27,7 @@ import os
 
 import unreal
 
-from ..core import log_error, log_info, log_warning, resolve_content_path
+from ..core import log_error, log_info, log_warning, resolve_content_path, resolve_scan_path
 from ..registry import register_tool
 
 
@@ -51,7 +51,8 @@ _CURVE_CLASSES = ["CurveFloat", "CurveVector", "CurveLinearColor"]
     tags=["curve", "list", "assets", "animation", "scan"],
     example='tb.run("curve_list", scan_path="/Game/Curves", curve_type="float")',
 )
-def run_curve_list(scan_path: str = "/Game/", curve_type: str = "all", max_results: int = 200, **kwargs) -> dict:
+def run_curve_list(scan_path: str = "", curve_type: str = "all", max_results: int = 200, **kwargs) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         type_map = {
             "float":  ["CurveFloat"],
@@ -157,7 +158,8 @@ def run_curve_inspect(asset_path: str = "", **kwargs) -> dict:
     tags=["curve", "export", "json", "data"],
     example='tb.run("curve_export", scan_path="/Game/Curves")',
 )
-def run_curve_export(scan_path: str = "/Game/", output_path: str = "", **kwargs) -> dict:
+def run_curve_export(scan_path: str = "", output_path: str = "", **kwargs) -> dict:
+    scan_path = resolve_scan_path(scan_path)
     try:
         filt = unreal.ARFilter(
             class_names=_CURVE_CLASSES,
