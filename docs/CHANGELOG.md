@@ -5,7 +5,73 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
-## [Unreleased]
+## [2.3.8] — 2026-08-21
+
+- **Every material tool was broken on UEFN 42.00 — twice over.** UE 6.0 removed
+  `MaterialInstanceConstantFactoryNew.initial_parent`, so all ten Materials
+  tools raised `AttributeError` the moment they tried to create an instance. The
+  parent is now assigned after creation via
+  `MaterialEditingLibrary.set_material_instance_parent()`, which works on both
+  engine versions. Behind that sat a second wall: nothing had ever created
+  `M_ToolbeltBase`, the master material every preset instances from, so on a
+  fresh project the category failed with an error telling the user to edit
+  installed Python. `ensure_parent_material()` now builds it on first use with
+  the five parameters the presets set. Verified live: `material_apply_preset`
+  returns `applied: 1` on UEFN 42.00 for the first time.
+
+- **Scattered props were placed at the wrong elevation while the tool reported
+  success.** `foliage_tools` line-traced for the ground, read
+  `hit_result.location.z`, and — with `HitResult.location` removed in UE 6.0 —
+  caught the `AttributeError`, swallowed it, and returned the caller's Z. A
+  plausible height that was never the surface. `_hit_location_z()` now prefers
+  `break_hit_result()`, falls back to `.location`, and returns `None` when
+  neither works, so the caller logs an explicit "fallback Z, not a traced
+  surface" instead of inventing one.
+
+- **`mesh_merge_selection` reported a working API as sandboxed.** It set
+  `MeshMergingSettings.pivot_point_at_zero` (gone in UE 6.0) before the merge
+  call, so the `AttributeError` fell into the outer handler and surfaced as
+  "UEFN sandboxes this API" — a confident wrong diagnosis. Now `hasattr`-guarded:
+  it merges with the engine default pivot and says so.
+
+- **The engine-upgrade tripwire could not see the break it was built for.**
+  `smoke_test` checks every `unreal.*` symbol the codebase depends on against
+  the live engine, and it stayed green through the `initial_parent` removal —
+  because the manifest generator only recorded `unreal.X.Y` chains, and the
+  offending code assigned through a local variable. Locals constructed from
+  `unreal.SomeClass(...)` are now tracked and attributed back to that class,
+  scoped per function. That surfaced 50 previously invisible dependencies and
+  **five more UE 6.0 removals nobody had reported** — every one of them silent,
+  because every one sat inside a `try/except`. Smoke test is 89/89 on 42.00.
+
+- **`tb.run()` now says "not registered" instead of "unknown tool".** Enabling
+  UEFN's MCP Toolsets beta flag stops `init_unreal.py` from running (Quirk #36),
+  leaving a registry holding one tool, so every call missed and blamed the tool
+  name. The dispatcher now detects the unregistered state, names Quirk #36, and
+  gives the one-line fix. Verified live on a project with the flag on.
+
+- **Every deploy is stamped with its commit, and the editor reports it.**
+  `deploy.bat` writes `_build_stamp.json` into the destination after copying —
+  short commit, timestamp, project, plus `+dirty` for an unclean tree. Startup
+  and `hard_reload()` both print it. Two live test runs were lost in one session
+  to a project silently sitting 40 minutes behind; nothing in the editor said
+  so, and finding out meant comparing file mtimes on disk.
+
+- **`ref_audit_broken` stopped claiming clean levels it never examined.** It
+  reported `0 broken` across 3,405 actors while being structurally unable to
+  judge a single one of them. It now reports `distinct_dependencies`,
+  `comparable_slots` and `unverifiable_dependencies`, returns
+  `status: "inconclusive"` when nothing was checkable, and warns outright when
+  coverage is thin. Four rounds of false positives on healthy levels are
+  documented in Quirks #39 and #40, including two approaches that were tried and
+  do not work.
+
+- **The pre-push guard stopped accepting its own paperwork.** It required a
+  `Verified-Live:` trailer but accepted any value, so "pending" and "not yet"
+  waved changes through — which is how a `hard_reload` fix shipped unverified
+  and broke twice. Placeholders are now rejected, matching is anchored to line
+  start, and `\r` is stripped from refs (a trailing CR made every `rev-list`
+  fail, leaving an empty range indistinguishable from "nothing to check").
 
 - **`tb.hard_reload()`** — a reload that does not crash the editor. The
   `sys.modules.pop` one-liner everyone uses takes UEFN down with an access

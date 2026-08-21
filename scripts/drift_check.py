@@ -337,6 +337,9 @@ _SKIP_LINE_FRAGMENTS = [
     "KirChuvakov",
     "Kirch's original",  # "Kirch's original 22 tools" — historical attribution
     "prior art",
+    "commits before v",  # "commits before v2.3.7 use the older unscoped form"
+                         # — a statement about history. Bumping it would make
+                         # it false; that is a wrong answer, not a fixed one.
     "# drift_check",     # this file itself
     # Smoke test and integration test cover a subset of tools — these counts are
     # intentionally less than TOOL_COUNT and should never be flagged as drift.
