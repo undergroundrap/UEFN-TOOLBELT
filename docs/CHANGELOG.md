@@ -37,6 +37,19 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
   did, which is exactly how Quick Actions was missed. Setup Status, the MCP
   listener indicator and the Epic MCP indicator all register as live.
 
+- **Every material tool was silently falling back to the engine default
+  material.** `material_master.PARENT_MATERIAL_PATH` and `INSTANCE_OUTPUT_PATH`
+  were module constants pointing at `/Game/UEFN_Toolbelt/Materials/`, which in
+  UEFN is Epic's Fortnite install. The master material was never found, so
+  `material_apply_preset`, `material_randomize_colors`, `material_gradient_painter`,
+  `material_team_color_split`, `material_pattern_painter`,
+  `material_glow_pulse_preview` and `material_color_harmony` all logged a
+  `LoadAsset failed` error and applied the fallback — while reporting success.
+
+  Both are now resolved at call time under the project mount. Found by reading
+  the integration test log rather than its pass count: all seven tools were
+  marked PASS.
+
 - **Quick Actions reported the verse-book spec as "Not cloned" when it was
   present.** It walked three `dirname` calls up from `__init__.py`, but `__file__`
   is a file — one of those levels is spent reaching the package directory — so it

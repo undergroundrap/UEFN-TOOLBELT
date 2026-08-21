@@ -48,8 +48,9 @@ SETUP:
     these scalar parameters: Metallic, Roughness, EmissiveIntensity
     And these vector parameters: BaseColor, EmissiveColor
 
-    Recommended parent material path (set PARENT_MATERIAL_PATH below):
-        /Game/UEFN_Toolbelt/Materials/M_ToolbeltBase
+    Expected parent material, under YOUR project mount (not /Game/, which is
+    Epic's Fortnite install in UEFN):
+        /<YourProject>/UEFN_Toolbelt/Materials/M_ToolbeltBase
 
     If you don't have this yet, use any UE5 master material with those params,
     or create M_ToolbeltBase in Unreal's material editor with them exposed.
@@ -75,6 +76,7 @@ from ..core import (
     log_info,
     log_warning,
     require_selection,
+    resolve_content_path,
     save_asset,
     set_mi_scalar,
     set_mi_vector,
@@ -87,8 +89,22 @@ from ..registry import register_tool
 #  Configuration — adjust to match your project's material setup
 # ─────────────────────────────────────────────────────────────────────────────
 
-PARENT_MATERIAL_PATH = "/Game/UEFN_Toolbelt/Materials/M_ToolbeltBase"
-INSTANCE_OUTPUT_PATH = "/Game/UEFN_Toolbelt/Materials/Instances"
+# Resolved at call time, not import time. These were module constants pointing at
+# /Game/, which in UEFN is Epic's Fortnite install rather than the creator's
+# project (UEFN_QUIRKS.md #23) — so the master material was never found and every
+# material tool fell back to the engine default while logging a LoadAsset error.
+_PARENT_MATERIAL_SUBPATH = "UEFN_Toolbelt/Materials/M_ToolbeltBase"
+_INSTANCE_OUTPUT_SUBPATH = "UEFN_Toolbelt/Materials/Instances"
+
+
+def parent_material_path() -> str:
+    """Master material this module instances from, under the project mount."""
+    return resolve_content_path("", _PARENT_MATERIAL_SUBPATH)
+
+
+def instance_output_path() -> str:
+    """Where generated material instances are written, under the project mount."""
+    return resolve_content_path("", _INSTANCE_OUTPUT_SUBPATH)
 CUSTOM_PRESETS_FILE  = os.path.join(
     unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "custom_presets.json"
 )
@@ -250,7 +266,7 @@ def _apply_preset_to_actor(actor: unreal.Actor, preset: dict[str, Any], instance
     # Determine instance name
     safe_name = f"MI_{instance_suffix}_{actor.get_actor_label().replace(' ', '_')}"
 
-    mi = create_material_instance(PARENT_MATERIAL_PATH, safe_name, INSTANCE_OUTPUT_PATH)
+    mi = create_material_instance(parent_material_path(), safe_name, instance_output_path())
     if mi is None:
         return False
 
@@ -267,7 +283,7 @@ def _apply_preset_to_actor(actor: unreal.Actor, preset: dict[str, Any], instance
 
     # REQUIRED: flush parameter changes to the GPU / viewport.
     unreal.MaterialEditingLibrary.update_material_instance(mi)
-    save_asset(f"{INSTANCE_OUTPUT_PATH}/{safe_name}")
+    save_asset(f"{instance_output_path()}/{safe_name}")
 
     # HARDENING: Find all components that support materials
     # This now covers SkeletalMesh, Decals, and custom UEFN primitives
@@ -331,14 +347,16 @@ def run_apply_preset(preset: str = "chrome", **kwargs) -> dict:
         return {"status": "error", "preset": preset, "applied": 0, "failed": 0}
 
     # Early check — fail fast if the parent material doesn't exist
-    if not unreal.EditorAssetLibrary.does_asset_exist(PARENT_MATERIAL_PATH):
+    parent = parent_material_path()
+    if not unreal.EditorAssetLibrary.does_asset_exist(parent):
         log_error(
-            f"[MaterialMaster] Parent material not found: {PARENT_MATERIAL_PATH}\n"
-            f"  Create M_ToolbeltBase in your project or update PARENT_MATERIAL_PATH "
+            f"[MaterialMaster] Parent material not found: {parent}\n"
+            f"  Create M_ToolbeltBase in your project, or change "
+            f"  _PARENT_MATERIAL_SUBPATH in material_master.py "
             f"in material_master.py to point to an existing master material."
         )
         return {"status": "error", "preset": preset, "applied": 0, "failed": len(actors),
-                "message": f"Parent material missing: {PARENT_MATERIAL_PATH}"}
+                "message": f"Parent material missing: {parent}"}
 
     all_p = _all_presets()
     if preset not in all_p:
@@ -356,7 +374,7 @@ def run_apply_preset(preset: str = "chrome", **kwargs) -> dict:
 
     applied = len(actors) - failed
     if failed:
-        log_warning(f"Failed on {failed} actor(s). Check PARENT_MATERIAL_PATH is set correctly.")
+        log_warning(f"Failed on {failed} actor(s). Check {parent_material_path()} exists.")
     else:
         log_info(f"Preset '{preset}' applied successfully to {len(actors)} actor(s).")
     return {"status": "ok", "preset": preset, "applied": applied, "failed": failed}
