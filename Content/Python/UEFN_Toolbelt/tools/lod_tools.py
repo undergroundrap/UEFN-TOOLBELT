@@ -104,6 +104,17 @@ def _get_meshes_in_folder(folder: str) -> list[unreal.StaticMesh]:
     return meshes
 
 
+# EditorScriptingMeshReductionOptions still exists on UEFN 42.00 but these two
+# fields do not. Both LOD generation tools that use them are already disabled
+# over the mesh-reduction crash (UEFN_QUIRKS.md #18), so nothing reaches this
+# code. Declared rather than left failing: an engine tripwire that is
+# permanently red for problems already handled is a tripwire people stop reading.
+__optional_unreal_apis__ = (
+    "EditorScriptingMeshReductionOptions.auto_compute_lod_screen_sizes",
+    "EditorScriptingMeshReductionOptions.reductions",
+)
+
+
 def _build_lod_options(num_lods: int, quality: float = 0.5) -> unreal.EditorScriptingMeshReductionOptions:
     """
     Build LOD reduction options for `num_lods` additional LODs.

@@ -39,11 +39,19 @@ from ..core import (
     actors_bounding_box,
     log_error,
     log_info,
+    log_warning,
     require_selection,
     resolve_content_path,
     undo_transaction,
 )
 from ..registry import register_tool
+
+# Absent on UEFN 42.00 (UE 6.0). mesh_merge_selection hasattr-guards it and
+# merges with the engine default pivot rather than failing outright.
+__optional_unreal_apis__ = (
+    "MeshMergingSettings.pivot_point_at_zero",
+)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Alignment
@@ -461,7 +469,15 @@ def run_mesh_merge_selection(
 
     try:
         merge_options = unreal.MeshMergingSettings()
-        merge_options.pivot_point_at_zero = False
+        # pivot_point_at_zero is gone on UEFN 42.00 (UE 6.0). Setting it is a
+        # preference, not a requirement, so skip it rather than lose the merge —
+        # and say so, instead of letting the whole call fall into the except
+        # below and report the API as sandboxed when it is not.
+        if hasattr(unreal.MeshMergingSettings, "pivot_point_at_zero"):
+            merge_options.pivot_point_at_zero = False
+        else:
+            log_warning("[BulkOps] MeshMergingSettings.pivot_point_at_zero absent "
+                        "on this build — merging with the engine default pivot.")
         merge_options.merge_physics_data = False
 
         result = unreal.EditorLevelLibrary.merge_static_mesh_actors(

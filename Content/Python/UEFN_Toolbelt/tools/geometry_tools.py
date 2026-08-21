@@ -47,6 +47,8 @@ __optional_unreal_apis__ = (
     "GeometryScriptRemoveSmallComponentsOptions",
     "GeometryScriptLODType",
     "GeometryScriptLODType.MAXIMUM_AVAILABLE",
+    # Attribute-level: the options class exists, this field does not.
+    "GeometryScriptRepackUVsOptions.target_resolution",
 )
 
 

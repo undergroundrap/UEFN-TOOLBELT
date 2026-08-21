@@ -84,6 +84,14 @@ from ..core import (
 )
 from ..registry import register_tool
 
+# Absent on UEFN 42.00 (UE 6.0). _hit_location_z() prefers break_hit_result()
+# and returns None when neither route works, so the caller reports a fallback
+# instead of passing one off as a traced surface height.
+__optional_unreal_apis__ = (
+    "HitResult.location",
+)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Configuration
 # ─────────────────────────────────────────────────────────────────────────────
@@ -133,6 +141,34 @@ def _poisson_disk_2d(
     return points
 
 
+def _hit_location_z(hit_result):
+    """Z of a line-trace hit, or None when it cannot be read.
+
+    HitResult.location is absent on UEFN 42.00 (UE 6.0) — found by the API
+    manifest tripwire, not by a bug report, because the only caller swallowed
+    the AttributeError and returned the fallback height as if the trace had
+    worked. break_hit_result() is the supported accessor and is tried first.
+
+    Returns None rather than a number when neither route works, so the caller
+    can report a fallback instead of passing one off as a measurement.
+    """
+    breaker = getattr(unreal.GameplayStatics, "break_hit_result", None) or \
+        getattr(unreal.SystemLibrary, "break_hit_result", None)
+    if callable(breaker):
+        try:
+            broken = breaker(hit_result)
+            # break_hit_result returns a tuple; location is a Vector in it.
+            for item in (broken if isinstance(broken, tuple) else [broken]):
+                if isinstance(item, unreal.Vector):
+                    return item.z
+        except Exception:
+            pass
+    try:
+        return hit_result.location.z
+    except Exception:
+        return None
+
+
 def _surface_z(world_x: float, world_y: float, start_z: float = 50000.0, fallback_z: float = 0.0) -> float:
     """
     Attempt a line trace downward to find the surface Z under (x, y).
@@ -159,10 +195,18 @@ def _surface_z(world_x: float, world_y: float, start_z: float = 50000.0, fallbac
             ignore_self=True,
         )
         if hit:
-            return hit_result.location.z
+            z = _hit_location_z(hit_result)
+            if z is not None:
+                return z
     except Exception:
         pass
-    return fallback_z  # fallback: use caller's center Z, not hardcoded 0
+    # Trace failed, or its result could not be read. Say so: returning the
+    # caller's Z silently produces a plausible height that is NOT the surface,
+    # and every prop placed from it sits at the wrong elevation while the tool
+    # reports success.
+    log_warning(f"[Foliage] No surface found at ({world_x:.0f}, {world_y:.0f}) — "
+                f"using fallback Z {fallback_z:.0f}, not a traced surface.")
+    return fallback_z
 
 
 # ─────────────────────────────────────────────────────────────────────────────
