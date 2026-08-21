@@ -132,3 +132,30 @@ def test_a_new_module_level_game_constant_fails(dc, tmp_path, monkeypatch):
     assert isinstance(val, ast.Constant) and val.value.startswith("/Game/"), (
         "the module-constant shape this check relies on"
     )
+
+
+def test_ui_never_hardcodes_the_epic_mount(dc):
+    """
+    The dashboard and menu are how most people run these tools, and every button
+    used to pass scan_path="/Game" explicitly. resolve_scan_path() only fills in
+    an EMPTY value, so those calls overrode the tool's own resolver — fixing 42
+    parameter defaults did nothing for a single dashboard button.
+    """
+    offenders = [f for f in dc._game_path_defaults()
+                 if f.startswith(("dashboard_pyside6.py", "menu.py"))]
+    assert offenders == [], (
+        "UI call sites naming /Game override the tool's resolver and scan "
+        f"Epic's Fortnite install: {offenders}"
+    )
+
+
+def test_the_broken_reference_audit_is_reachable():
+    """Regression guard: the tool that finds severed refs must be findable."""
+    from pathlib import Path
+    surfaces = "".join(
+        (Path(dc_root := "Content/Python/UEFN_Toolbelt") and Path(dc_root) / n).read_text(encoding="utf-8")
+        for n in ("dashboard_pyside6.py", "menu.py")
+    )
+    assert '"ref_audit_broken"' in surfaces or "'ref_audit_broken'" in surfaces, (
+        "ref_audit_broken is registered but no UI surface can reach it"
+    )

@@ -225,17 +225,22 @@ def build_toolbelt_menu() -> None:
     _entry("RefAuditor", "RefFullReport",
            "Refs: Full Audit Report",
            "Run all reference scans and export JSON health report",
-           "import UEFN_Toolbelt as tb; tb.run('ref_full_report', scan_path='/Game')")
+           "import UEFN_Toolbelt as tb; tb.run('ref_full_report')")
 
     _entry("RefAuditor", "RefOrphans",
            "Refs: Find Orphaned Assets",
            "Find assets with no referencers — safe deletion candidates",
-           "import UEFN_Toolbelt as tb; tb.run('ref_audit_orphans', scan_path='/Game')")
+           "import UEFN_Toolbelt as tb; tb.run('ref_audit_orphans')")
+
+    _entry("RefAuditor", "RefBroken",
+           "Refs: Find Severed References",
+           "Actors pointing at assets that no longer exist — read-only",
+           "import UEFN_Toolbelt as tb; tb.run('ref_audit_broken')")
 
     _entry("RefAuditor", "RefFixRedirectors",
            "Refs: Fix Redirectors (Dry Run)",
            "Preview redirector consolidation — no changes made",
-           "import UEFN_Toolbelt as tb; tb.run('ref_fix_redirectors', scan_path='/Game', dry_run=True)")
+           "import UEFN_Toolbelt as tb; tb.run('ref_fix_redirectors', dry_run=True)")
 
     # ── Optimization ──────────────────────────────────────────────────────────
     _entry("Optimization", "MemScanAll",
@@ -249,9 +254,9 @@ def build_toolbelt_menu() -> None:
            "import UEFN_Toolbelt as tb; tb.run('memory_top_offenders', limit=20)")
 
     _entry("Optimization", "MemAutofixLODs",
-           "Memory: Auto-Fix LODs (/Game)",
-           "Generate LODs for every StaticMesh in /Game that is missing them",
-           "import UEFN_Toolbelt as tb; tb.run('memory_autofix_lods', scan_path='/Game')")
+           "Memory: Auto-Fix LODs",
+           "Generate LODs for every StaticMesh in your project that is missing them",
+           "import UEFN_Toolbelt as tb; tb.run('memory_autofix_lods')")
 
     # ── Level Snapshot ────────────────────────────────────────────────────────
     _entry("Snapshot", "SnapSave",
@@ -271,9 +276,9 @@ def build_toolbelt_menu() -> None:
            "import UEFN_Toolbelt as tb; tb.run('tag_show')")
 
     _entry("AssetTagger", "TagListAll",
-           "Tags: List All Tags (/Game)",
-           "List every unique tag key used under /Game with asset counts",
-           "import UEFN_Toolbelt as tb; tb.run('tag_list_all', folder='/Game')")
+           "Tags: List All Tags",
+           "List every unique tag key used in your project with asset counts",
+           "import UEFN_Toolbelt as tb; tb.run('tag_list_all')")
 
     # ── Screenshot ────────────────────────────────────────────────────────────
     _entry("Screenshot", "ShotViewport",

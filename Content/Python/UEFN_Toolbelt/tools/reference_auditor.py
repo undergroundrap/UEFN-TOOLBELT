@@ -778,3 +778,167 @@ def ref_full_report(
     report = _full_report(scan_path, excluded)
     _print_summary(report)
     return {"status": "ok", "path": _REPORT_PATH, "summary": report["summary"]}
+
+# ─── Broken references (the opposite direction to orphans) ────────────────────
+#
+# The rest of this module answers "does anything reference this asset?" and is
+# used to find things safe to delete. This answers the reverse: does anything
+# reference an asset that is no longer there?
+#
+# That damage is created by moves and renames that half-succeed. Toolbelt itself
+# caused it twice — organize_smart_categorize deleted the source when a rename
+# failed and counted it as moved, and arena_generate wrote materials to /Game/,
+# which in UEFN is Epic's install, leaving every actor that used them pointing at
+# nothing. Both are fixed, but projects worked on before those fixes still carry
+# the wreckage and nothing here could see it.
+#
+# A missing hard reference does not survive as a path in UE — the property comes
+# back None. So this looks for components that should hold an asset and hold
+# nothing, which is what a severed reference actually looks like from Python.
+
+
+def _empty_slots(actor) -> list[dict]:
+    """
+    Asset slots that are empty on this instance but filled on its class default.
+
+    The first version of this just flagged any StaticMeshComponent with no mesh,
+    and on a healthy 93-actor level it reported 13 actors "broken" — every one a
+    false positive. EditorOnlyStaticMeshComponent is editor-side visualisation
+    that legitimately holds nothing, and Fortnite prop and device actors are full
+    of them. A null slot on its own says nothing.
+
+    The question is not "is this empty?" but "was this supposed to hold
+    something?", and the class default object answers it: if the CDO's matching
+    component has a mesh and this instance's does not, the reference was severed.
+    If the CDO is empty too, this is simply how the actor is built.
+    """
+    out: list[dict] = []
+    try:
+        cdo = actor.get_class().get_default_object()
+        comps = actor.get_components_by_class(unreal.StaticMeshComponent)
+    except Exception:
+        return out
+
+    # what the class ships with, by component name
+    defaults: dict = {}
+    try:
+        for c in cdo.get_components_by_class(unreal.StaticMeshComponent) or []:
+            try:
+                defaults[c.get_name()] = c.get_editor_property("static_mesh")
+            except Exception:
+                pass
+    except Exception:
+        return out          # can't compare — say nothing rather than guess
+
+    for comp in comps or []:
+        try:
+            name = comp.get_name()
+        except Exception:
+            continue
+
+        # editor-only visualisation never ships a mesh; not a reference at all
+        try:
+            if comp.get_editor_property("is_editor_only"):
+                continue
+        except Exception:
+            pass
+        if name.startswith("EditorOnly"):
+            continue
+
+        try:
+            mesh = comp.get_editor_property("static_mesh")
+        except Exception:
+            continue
+        if mesh is not None:
+            continue
+
+        expected = defaults.get(name)
+        if expected is None:
+            continue        # class default is empty too — this is normal
+
+        out.append({
+            "component": name,
+            "slot": "static_mesh",
+            "kind": "missing mesh",
+            "expected": str(expected.get_path_name()) if expected else "?",
+        })
+    return out
+
+
+@register_tool(
+    name="ref_audit_broken",
+    category="Reference Auditor",
+    description="Find actors pointing at assets that no longer exist (severed references)",
+    icon="⚠",
+    tags=["reference", "broken", "dangling", "audit", "repair", "missing"],
+    example='tb.run("ref_audit_broken")',
+)
+def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
+    """
+    Scan every actor in the current level for empty asset slots.
+
+    Finds the wreckage left by moves and renames that half-succeeded: actors
+    whose mesh or material was deleted out from under them. Read-only — it
+    changes nothing, and reports enough to fix by hand or to drive a repair.
+
+    Args:
+        max_results: Cap on reported actors, to keep the log usable.
+
+    Returns:
+        dict: {"status", "actors_scanned", "broken_actors", "missing_meshes",
+               "unreadable", "findings"}
+    """
+    try:
+        actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+        actors = actor_sub.get_all_level_actors() or []
+    except Exception as e:
+        return {"status": "error", "reason": "level_unavailable", "message": str(e)}
+
+    findings: list[dict] = []
+    unreadable = 0
+    meshes = 0
+
+    for actor in actors:
+        if actor is None:
+            continue
+        try:
+            label = actor.get_actor_label()
+        except Exception:
+            # Can't identify it, so can't report it usefully — count, don't guess.
+            unreadable += 1
+            continue
+
+        slots = _empty_slots(actor)
+        if not slots:
+            continue
+        meshes += len(slots)
+        findings.append({"actor": label, "slots": slots})
+
+    total = len(findings)
+    if total == 0:
+        unreal.log(f"[RefAuditor] ✓ No severed references — {len(actors)} actors checked.")
+    else:
+        unreal.log_warning(
+            f"[RefAuditor] {total} actor(s) with severed references "
+            f"({meshes} slot(s) empty where the class default is filled):"
+        )
+        for f in findings[:max_results]:
+            detail = ", ".join(f"{s['component']} expected {s['expected']}" for s in f["slots"])
+            unreal.log(f"    {f['actor']}  →  {detail}")
+        if total > max_results:
+            unreal.log(f"    … and {total - max_results} more.")
+
+    if unreadable:
+        unreal.log_warning(
+            f"[RefAuditor] {unreadable} actor(s) could not be read and were not "
+            f"checked — this result is incomplete, not clean."
+        )
+
+    return {
+        "status":            "ok",
+        "actors_scanned":    len(actors),
+        "broken_actors":     total,
+        "missing_meshes":    meshes,
+        "unreadable":        unreadable,
+        "findings":          findings[:max_results],
+    }

@@ -9,7 +9,7 @@ paths:
 
 ## Before writing any new tool
 
-1. Search for duplicates first — 361 tools exist, check before building:
+1. Search for duplicates first — 362 tools exist, check before building:
    ```bash
    grep -rh 'name="' Content/Python/UEFN_Toolbelt/tools/ --include="*.py" \
      | grep -o 'name="[^"]*"' | sed 's/name="//;s/"//' | sort | grep <keyword>

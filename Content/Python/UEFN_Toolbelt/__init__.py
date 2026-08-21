@@ -33,7 +33,7 @@ __version__ = "2.3.7"
 
 # Total registered tools — update alongside __version__ when adding/removing tools.
 # Checked by scripts/drift_check.py to catch stale counts across docs and UI.
-__tool_count__ = 361
+__tool_count__ = 362
 
 # Total tool categories — update when adding a new category to any tool module.
 # Shown in the reload message: "355 tools registered across 54 categories."

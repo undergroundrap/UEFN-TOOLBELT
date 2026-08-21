@@ -474,6 +474,7 @@
         "tools/prop_patterns.py",
         "tools/proximity_tools.py",
         "tools/publish_audit.py",
+        "tools/reference_auditor.py",
         "tools/selection_utils.py",
         "tools/sign_tools.py",
         "tools/skeletal_mesh_tools.py",
@@ -1958,7 +1959,8 @@
         "tools/physics_tools.py",
         "tools/prefab_migrator.py",
         "tools/prefab_stamp.py",
-        "tools/proximity_tools.py"
+        "tools/proximity_tools.py",
+        "tools/reference_auditor.py"
       ],
       "optional": false
     },
@@ -2359,6 +2361,7 @@
         "tools/prop_patterns.py",
         "tools/proximity_tools.py",
         "tools/publish_audit.py",
+        "tools/reference_auditor.py",
         "tools/selection_utils.py",
         "tools/sign_tools.py",
         "tools/skeletal_mesh_tools.py",

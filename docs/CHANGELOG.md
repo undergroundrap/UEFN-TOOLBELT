@@ -7,6 +7,31 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ## [Unreleased]
 
+- **Every dashboard button and menu item was scanning Epic's Fortnite install.**
+  42 hardcoded `/Game` references across `dashboard_pyside6.py` and `menu.py`
+  passed `scan_path="/Game"` explicitly. `resolve_scan_path()` only fills in an
+  *empty* value and passes anything else through, so the 42-parameter migration
+  fixed defaults that the UI never used — the primary way people run these tools
+  bypassed the fix entirely.
+
+  All 42 removed, so the tools resolve the project mount themselves. Empty-box
+  fallbacks now pass `""` instead of `/Game/Meshes`, and placeholder text no
+  longer teaches `/Game` as the right answer.
+
+  One of them was a plain bug: `_inp(placeholder, default)` was called as
+  `_inp("/Game", "Scan Path")`, so the Rename box was pre-filled with the literal
+  string `"Scan Path"` and handed to `rename_enforce_conventions` as a path. That
+  button has never done anything.
+
+  `drift_check` now fails on any `/Game` literal in either UI file.
+
+### Added
+- **`ref_audit_broken`** — finds actors pointing at assets that no longer exist.
+  The rest of the reference auditor answers "does anything reference this asset?",
+  used to find things safe to delete; this answers the reverse. That damage is
+  what `organize_smart_categorize` and `arena_generate` used to create, and
+  nothing could see it. Read-only, reachable from the dashboard and the menu.
+
 - **Three helpers returned "no" when they meant "couldn't tell".** A sweep of
   48 `except → falsy return` sites found the ones where a caller cannot tell a
   genuine negative from a failed lookup — the shape that made `ref_delete_orphans`

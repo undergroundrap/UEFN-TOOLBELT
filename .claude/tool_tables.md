@@ -731,7 +731,7 @@ tb.run("config_reset", key="all")   # wipe all customisations
 | `level_health_open` | — | Open the Level Health Dashboard window — colour-coded category cards, per-issue drilldown, live audit progress. |
 | `plugin_validate_all` | — | Validate all registered tools against schema |
 | `plugin_list_custom` | — | List all loaded third-party tools from `Saved/UEFN_Toolbelt/Custom_Plugins` |
-| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 361 tools with full parameter signatures (name, type, required, default) + `example` call string for AI-agent and automation use |
+| `plugin_export_manifest` | — | Export `tool_manifest.json` — machine-readable index of all 362 tools with full parameter signatures (name, type, required, default) + `example` call string for AI-agent and automation use |
 
 **Online Plugin Hub** — the Plugin Hub dashboard tab fetches `registry.json` live from GitHub.
 - **Core Tools** (green/BUILT-IN): 10 flagship modules by Ocean Bennett, already built in
@@ -794,7 +794,7 @@ Low-frequency tools — check these exist before re-implementing similar functio
 | `mcp_restart` | `port=0` | Restart after hot-reload |
 | `mcp_status` | — | Print port, state, command count |
 | `epic_mcp_status` | — | Report availability of Epic's official Toolset Registry and whether Toolbelt is registered |
-| `epic_mcp_register` | — | Register Toolbelt's catalogue with Epic's Unreal MCP — 3 meta-tools front all 361 tools |
+| `epic_mcp_register` | — | Register Toolbelt's catalogue with Epic's Unreal MCP — 3 meta-tools front all 362 tools |
 | `epic_mcp_unregister` | — | Withdraw the Toolbelt toolset from Epic's registry |
 
 ---

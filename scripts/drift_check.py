@@ -151,6 +151,17 @@ def _game_path_defaults() -> list[str]:
                     and (val.value == "/Game" or val.value.startswith("/Game/"))):
                 found.append(f"{path.name}:{tgt.id} = {val.value!r}")
 
+        # UI call sites. The dashboard and menu are how most people actually run
+        # these tools, and every button used to pass scan_path="/Game"
+        # explicitly — which overrides the tool's own resolver, because
+        # resolve_scan_path() only fills in an EMPTY value. Fixing 42 parameter
+        # defaults did nothing for any of them.
+        if path.name in {"dashboard_pyside6.py", "menu.py"}:
+            for node in ast.walk(tree):
+                if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                        and (node.value == "/Game" or node.value.startswith("/Game/"))):
+                    found.append(f"{path.name}:{node.lineno} literal {node.value!r}")
+
         # function parameter defaults
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):

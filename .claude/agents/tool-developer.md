@@ -63,7 +63,7 @@ End with the exact UEFN console commands the user needs to run:
 
 ## Hard rules
 
-- Never skip the duplicate audit — 361 tools exist
+- Never skip the duplicate audit — 362 tools exist
 - Never return None from a tool function
 - Never use `load_asset()` in a scan loop — crashes UEFN on pak-heavy projects (Quirk #32)
 - Never add a topbar with only a title label — see ui_style_guide.md

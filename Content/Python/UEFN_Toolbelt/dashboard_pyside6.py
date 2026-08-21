@@ -367,7 +367,7 @@ def _tab_quick_actions(R) -> QScrollArea:
     if not os.path.exists(_cfg_path):
         banner = QLabel(
             "👋  First time here? Start with the AI Project Setup section below, "
-            "or browse any tab to explore all 361 tools. "
+            "or browse any tab to explore all 362 tools. "
             "Full docs: github.com/undergroundrap/UEFN-TOOLBELT"
         )
         banner.setWordWrap(True)
@@ -421,9 +421,9 @@ def _tab_quick_actions(R) -> QScrollArea:
          lambda: R("convert_to_hism", dry_run=False),
          "Merges selected StaticMeshActors that share the same mesh into one HISM actor "
          "(one draw call). Deletes the originals. Run the dry-run preview first.")
-    _btn(g_opt, "Material Parent Audit  —  /Game",
-         lambda: R("material_parent_audit", scan_path="/Game"),
-         "Groups all MaterialInstanceConstants in /Game by parent. Flags orphaned MIs "
+    _btn(g_opt, "Material Parent Audit",
+         lambda: R("material_parent_audit"),
+         "Groups all MaterialInstanceConstants in your project by parent. Flags orphaned MIs "
          "and shows consolidation opportunities.")
 
     # 0. AI Project Setup Demo
@@ -486,7 +486,7 @@ def _tab_quick_actions(R) -> QScrollArea:
     _btn(g_org, "Auto Organizer", lambda: R("organize_open"),
          "Open the Auto Organizer window — scan your project, preview planned moves by type and category, then organize in one click.")
 
-    ren_inp = _inp("/Game", "Scan Path", width=120)
+    ren_inp = _inp("project root", width=120)
     _btn_inp(g_org, "Fix Asset Naming Conventions",
              lambda: R("rename_enforce_conventions", scan_path=ren_inp.text()),
              ren_inp, tip="Scans the path and automatically fixes Epic naming convention rule violations.")
@@ -551,8 +551,8 @@ def _tab_materials(R) -> QScrollArea:
 
     # Bulk swap
     g_swap = _group(L, "Bulk Material Swap")
-    old_mat_inp = _inp("/Game/Materials/M_Old", width=220)
-    new_mat_inp = _inp("/Game/Materials/M_New", width=220)
+    old_mat_inp = _inp("e.g. Materials/M_Old", width=220)
+    new_mat_inp = _inp("e.g. Materials/M_New", width=220)
     g_swap.addWidget(QLabel("  Replace:"))
     g_swap.addWidget(old_mat_inp)
     g_swap.addWidget(QLabel("  With:"))
@@ -604,7 +604,7 @@ def _tab_procedural(R) -> QScrollArea:
 
     # Prop Patterns
     g2 = _group(L, "Prop Patterns")
-    mesh_inp = _inp("/Game/Props/SM_Pillar", width=220)
+    mesh_inp = _inp("e.g. Meshes/SM_Pillar", width=220)
     L.addWidget(QLabel("  Mesh path:"))
     L.addWidget(mesh_inp)
 
@@ -972,7 +972,7 @@ def _tab_bulk_ops(R) -> QScrollArea:
                    offset_z=dup_dz_s.value()))
 
     old_cls_inp  = _inp("old class filter  e.g. SM_OldRock", "", width=240)
-    new_ast_inp  = _inp("new asset path  /Game/…", "", width=240)
+    new_ast_inp  = _inp("new asset path", "", width=240)
     row_rc = QWidget(); h_rc = QHBoxLayout(row_rc); h_rc.setContentsMargins(0,0,0,0); h_rc.setSpacing(4)
     h_rc.addWidget(QLabel("Old:")); h_rc.addWidget(old_cls_inp); h_rc.addStretch()
     g_prox.addWidget(row_rc)
@@ -1215,49 +1215,48 @@ def _tab_assets(R) -> QScrollArea:
     # Naming
     g = _group(L, "Naming Conventions (Epic)")
     _btn(g, "Audit — Dry Run  (no changes)",
-         lambda: R("rename_dry_run", scan_path="/Game"),
+         lambda: R("rename_dry_run"),
          "Preview all naming violations without touching anything")
     _btn(g, "Enforce — Apply All Renames",
-         lambda: R("rename_enforce_conventions", scan_path="/Game"))
+         lambda: R("rename_enforce_conventions"))
     _btn(g, "Export Naming Report (JSON)",
-         lambda: R("rename_report", scan_path="/Game"))
+         lambda: R("rename_report"))
 
     # LODs
     g2 = _group(L, "LOD Tools")
     _btn(g2, "Auto-Generate LODs — Selection",
          lambda: R("lod_auto_generate_selection"),
          "Generate LODs on the Static Meshes used by selected actors")
-    folder_inp = _inp("/Game/Meshes", width=200)
+    folder_inp = _inp("project root, or e.g. Meshes", width=200)
     _btn_inp(g2, "Auto-Generate LODs — Folder",
              lambda: R("lod_auto_generate_folder",
-                       folder_path=folder_inp.text() or "/Game/Meshes"),
+                       folder_path=folder_inp.text()),
              folder_inp)
     _btn_inp(g2, "Audit Folder for Missing LODs",
              lambda: R("lod_audit_folder",
-                       folder_path=folder_inp.text() or "/Game/Meshes"),
+                       folder_path=folder_inp.text()),
              folder_inp)
     col_combo = QComboBox(); col_combo.addItems(["use_complex", "simple", "no_collision"]); col_combo.setFixedWidth(160)
     _btn_inp(g2, "Set Collision — Folder",
              lambda: R("lod_set_collision_folder",
-                       folder_path=folder_inp.text() or "/Game/Meshes",
+                       folder_path=folder_inp.text(),
                        collision=col_combo.currentText()),
              col_combo)
 
     # Memory
     g3 = _group(L, "Memory Profiler")
     _btn(g3, "Full Scan  (textures + meshes + sounds)",
-         lambda: R("memory_scan", scan_path="/Game"))
+         lambda: R("memory_scan"))
     _btn(g3, "Scan Textures  (flag >2K)",
-         lambda: R("memory_scan_textures", scan_path="/Game"))
+         lambda: R("memory_scan_textures"))
     _btn(g3, "Scan Meshes  (flag high-poly)",
-         lambda: R("memory_scan_meshes", scan_path="/Game"))
+         lambda: R("memory_scan_meshes"))
     limit_s = _spin(20, 5, 200, width=70)
     _btn_inp(g3, "Top Offenders",
-             lambda: R("memory_top_offenders", limit=int(limit_s.value()),
-                       scan_path="/Game"),
+             lambda: R("memory_top_offenders", limit=int(limit_s.value())),
              limit_s)
     _btn(g3, "Auto-Fix LODs for Meshes Missing Them",
-         lambda: R("memory_autofix_lods", scan_path="/Game"))
+         lambda: R("memory_autofix_lods"))
 
     # Master API Sync (Phase 14+)
     g_sync = _group(L, "API Documentation Sync")
@@ -1271,17 +1270,21 @@ def _tab_assets(R) -> QScrollArea:
     # Reference Auditor
     g4 = _group(L, "Reference Auditor")
     _btn(g4, "Full Reference Audit Report  (JSON)",
-         lambda: R("ref_full_report", scan_path="/Game"))
+         lambda: R("ref_full_report"))
     _btn(g4, "Find Orphaned Assets",
-         lambda: R("ref_audit_orphans", scan_path="/Game"))
+         lambda: R("ref_audit_orphans"))
+    _btn(g4, "Find Severed References  (broken meshes / materials)",
+         lambda: R("ref_audit_broken"),
+         tip="Actors pointing at assets that no longer exist — left behind by "
+             "moves and renames that half-succeeded. Read-only.")
     _btn(g4, "Find Redirectors (stale move artifacts)",
-         lambda: R("ref_audit_redirectors", scan_path="/Game"))
+         lambda: R("ref_audit_redirectors"))
     _btn(g4, "Find Duplicate Names",
-         lambda: R("ref_audit_duplicates", scan_path="/Game"))
+         lambda: R("ref_audit_duplicates"))
     _btn(g4, "Find Unused Textures",
-         lambda: R("ref_audit_unused_textures", scan_path="/Game"))
+         lambda: R("ref_audit_unused_textures"))
     _btn(g4, "Fix Redirectors — Dry Run first",
-         lambda: R("ref_fix_redirectors", scan_path="/Game", dry_run=True))
+         lambda: R("ref_fix_redirectors", dry_run=True))
 
     # Asset Importers
     g_imp = _group(L, "Asset Importers")
@@ -1538,7 +1541,7 @@ def _tab_project(R) -> QScrollArea:
     _row(g3,
          ("Import File",   lambda: R("import_fbx",        fbx_path=fbx_inp.text())),
          ("Import Folder", lambda: R("import_fbx_folder", folder_path=fbx_inp.text())),
-         ("Organize",      lambda: R("organize_assets",   source_path=fbx_inp.text() or "/Game/Imports")),
+         ("Organize",      lambda: R("organize_assets",   source_path=fbx_inp.text())),
     )
 
     return scroll
@@ -1654,7 +1657,7 @@ def _tab_tags(R) -> QScrollArea:
     g2 = _group(L, "Search Assets by Tag")
     stag_inp  = _inp("tag name", width=140)
     sval_inp  = _inp("value", "1", width=80)
-    sfold_inp = _inp("/Game", "/Game", width=160)
+    sfold_inp = _inp("project root", width=160)
     row2 = QWidget(); rh2 = QHBoxLayout(row2); rh2.setContentsMargins(0, 0, 0, 0); rh2.setSpacing(4)
     rh2.addWidget(QLabel("Tag:")); rh2.addWidget(stag_inp)
     rh2.addWidget(QLabel("Value:")); rh2.addWidget(sval_inp); rh2.addStretch()
@@ -1665,18 +1668,18 @@ def _tab_tags(R) -> QScrollArea:
          lambda: R("tag_search",
                    tag_name=stag_inp.text(),
                    value=sval_inp.text() or "1",
-                   folder=sfold_inp.text() or "/Game"),
+                   folder=sfold_inp.text()),
          "Find all assets matching this tag + value in the folder")
 
     # List / export
     g3 = _group(L, "Inventory")
-    fold_inp = _inp("/Game", "/Game", width=200)
+    fold_inp = _inp("project root", width=200)
     g3.addWidget(fold_inp)
     _row(g3,
          ("List All Tags",  lambda: R("tag_list_all",
-                                      folder=fold_inp.text() or "/Game")),
+                                      folder=fold_inp.text())),
          ("Export to JSON", lambda: R("tag_export",
-                                      folder=fold_inp.text() or "/Game")),
+                                      folder=fold_inp.text())),
     )
 
     return scroll
@@ -1897,7 +1900,7 @@ def _tab_mcp(R) -> QScrollArea:
         '     {"command": "python",\n'
         '      "args": ["<path>/mcp_server.py"]}}}\n'
         "4. Restart your AI client — it auto-connects\n\n"
-        "Your AI can then run all 361 tools, spawn/move actors,\n"
+        "Your AI can then run all 362 tools, spawn/move actors,\n"
         "write Verse code, and read your level — without leaving\n"
         "the conversation.\n\n"
         "When done: click ■ Stop Listener above, or run\n"
@@ -2524,7 +2527,7 @@ def _tab_audio(R) -> QScrollArea:
     g_place = _group(L, "Place Sound at Camera")
     audio_label_inp  = _inp("label", "AmbientSound", 130)
     audio_vol_sp     = _spin(1.0, 0.0, 4.0, 2, 70)
-    audio_asset_inp  = _inp("/Game/Audio/… (optional)", "", 200)
+    audio_asset_inp  = _inp("e.g. Audio/… (optional)", "", 200)
     audio_radius_sp  = _spin(0.0, 0.0, 99999.0, 0, 90)
 
     def _arow(*items):
@@ -2807,7 +2810,7 @@ def _tab_about(_R=None) -> QScrollArea:
     L.addWidget(tagline)
 
     from . import __version__ as _tbv
-    version = QLabel(f"v{_tbv}  ·  361 tools  ·  UEFN 40.00+  ·  Python 3.11  ·  March 2026")
+    version = QLabel(f"v{_tbv}  ·  362 tools  ·  UEFN 42.00 (UE 6.0)  ·  Python 3.11")
     version.setStyleSheet(f"font-size: 11px; color: {_color('muted')}; padding-bottom: 12px;")
     version.setAlignment(Qt.AlignCenter)
     L.addWidget(version)

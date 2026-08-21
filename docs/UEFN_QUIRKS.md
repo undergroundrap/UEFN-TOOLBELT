@@ -1227,7 +1227,7 @@ before the project's script paths are registered, so `Content/Python` is not in
 the start-up scan. The project script never appears in the log at all.
 
 **Symptom.** Nothing raises and nothing is logged. Toolbelt simply never starts:
-tool count is 1 instead of 361 and every `tb.run(...)` answers "Unknown tool".
+tool count is 1 instead of 362 and every `tb.run(...)` answers "Unknown tool".
 It reads as a Toolbelt bug and is not one.
 
 **Detection.** `tb.startup_ran()` reports whether `register()` was reached this
