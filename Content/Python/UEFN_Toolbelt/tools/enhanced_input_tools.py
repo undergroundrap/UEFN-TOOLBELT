@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import api_unavailable, log_error, log_info, missing_unreal_apis
+from ..core import api_unavailable, log_error, log_info, missing_unreal_apis, resolve_content_path
 from ..registry import register_tool
 
 # unreal.* names this module uses but does not require.
@@ -166,11 +166,12 @@ def run_input_inspect_context(context_path: str = "", **kwargs) -> dict:
 )
 def run_input_create_action(
     name: str = "IA_NewAction",
-    destination: str = "/Game/Input/",
+    destination: str = "",
     value_type: str = "bool",
     **kwargs,
 ) -> dict:
     """Create a new InputAction asset at destination."""
+    destination = resolve_content_path(destination, "Input")
     _missing = missing_unreal_apis("InputActionFactory")
     if _missing:
         return api_unavailable("input_create_action", _missing)

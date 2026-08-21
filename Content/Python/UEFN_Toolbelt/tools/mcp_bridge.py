@@ -78,6 +78,8 @@ import unreal
 
 from UEFN_Toolbelt.registry import register_tool
 
+from ..core import resolve_content_path
+
 # ─── Configuration ────────────────────────────────────────────────────────────
 
 DEFAULT_PORT       = 8765
@@ -616,7 +618,7 @@ def _c_search_assets(class_name: str = "", directory: str = "/Game/",
 def _c_create_material_instance(
     parent_path: str,
     instance_name: str,
-    destination: str = "/Game/Materials",
+    destination: str = "",
     scalar_params: dict[str, float] | None = None,
     vector_params: dict[str, list[float]] | None = None,
     texture_params: dict[str, str] | None = None,
@@ -641,6 +643,7 @@ def _c_create_material_instance(
             "vector_params": {"BaseColor": [1.0, 0.05, 0.05, 1.0]}
         }}
     """
+    destination = resolve_content_path(destination, "Materials")
     tools   = unreal.AssetToolsHelpers.get_asset_tools()
     factory = unreal.MaterialInstanceConstantFactoryNew()
     mi      = tools.create_asset(instance_name, destination,

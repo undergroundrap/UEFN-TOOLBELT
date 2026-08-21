@@ -29,7 +29,14 @@ from typing import Any
 
 import unreal
 
-from ..core import log_error, log_info, log_warning, resolve_scan_path, with_progress
+from ..core import (
+    log_error,
+    log_info,
+    log_warning,
+    resolve_content_path,
+    resolve_scan_path,
+    with_progress,
+)
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -187,7 +194,7 @@ def _get_current_level_referenced_packages() -> set[str]:
 )
 def run_smart_categorize(
     scan_path: str = "",
-    organized_root: str = "/Game/Organized",
+    organized_root: str = "",
     dry_run: bool = True,
     include_unused: bool = True,
     **kwargs
@@ -205,6 +212,7 @@ def run_smart_categorize(
         dry_run:        If True, only prints out the planned moves.
         include_unused: If False, ignores assets that aren't hooked into the current level.
     """
+    organized_root = resolve_content_path(organized_root, "Organized")
     scan_path = resolve_scan_path(scan_path)
     eal = unreal.EditorAssetLibrary
     if not eal.does_directory_exist(scan_path):

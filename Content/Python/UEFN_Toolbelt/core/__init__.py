@@ -150,6 +150,31 @@ def resolve_scan_path(scan_path: str) -> str:
     return f"/{detect_project_mount()}"
 
 
+def resolve_content_path(path: str, default_subpath: str = "") -> str:
+    """
+    Resolve a destination path for assets a tool CREATES.
+
+    The read-side counterpart is resolve_scan_path(). This one matters more,
+    because a wrong scan path returns nothing while a wrong destination path
+    produces assets the project cannot reference — every actor using them ends
+    up with a dangling reference, which is how arena_generate left ~700 of them
+    behind before it was fixed.
+
+    In UEFN, /Game/ is Epic's Fortnite install, not the creator's project
+    (UEFN_QUIRKS.md #23). Any /Game/ prefix is rewritten onto the project mount
+    rather than trusted, so a caller passing one explicitly is corrected too.
+    An empty path falls back to default_subpath under the mount.
+
+    Resolved at call time — mount detection needs a live editor.
+    """
+    mount = f"/{detect_project_mount()}"
+    if not path:
+        return f"{mount}/{default_subpath}".rstrip("/")
+    if path == "/Game" or path.startswith("/Game/"):
+        return f"{mount}/{path[6:]}".rstrip("/")
+    return path
+
+
 def project_content_dir() -> str:
     """
     Return the user's project Content directory path on disk.

@@ -40,6 +40,7 @@ from ..core import (
     log_error,
     log_info,
     require_selection,
+    resolve_content_path,
     undo_transaction,
 )
 from ..registry import register_tool
@@ -434,7 +435,7 @@ def run_face_camera(**kwargs) -> dict:
     tags=["merge", "static mesh", "optimization", "draw call", "bulk", "performance"],
 )
 def run_mesh_merge_selection(
-    dest_path: str = "/Game/UEFN_Toolbelt/Merged",
+    dest_path: str = "",
     asset_name: str = "MergedMesh",
     replace_originals: bool = False,
     **kwargs,
@@ -451,6 +452,7 @@ def run_mesh_merge_selection(
         Requires UnrealEditor-MeshMergeUtilities. If UEFN sandboxes this API,
         the tool returns a clear error — no harm done.
     """
+    dest_path = resolve_content_path(dest_path, "UEFN_Toolbelt/Merged")
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     actors = actor_sub.get_selected_level_actors()
     mesh_actors = [a for a in actors if isinstance(a, unreal.StaticMeshActor)]

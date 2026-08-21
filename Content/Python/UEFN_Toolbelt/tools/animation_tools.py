@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import log_error, log_info
+from ..core import log_error, log_info, resolve_content_path
 from ..registry import register_tool
 
 
@@ -175,10 +175,11 @@ def run_anim_list_blend_spaces(search_path: str = "/Game/", **kwargs) -> dict:
 )
 def run_anim_create_montage(
     sequence_path: str = "",
-    destination: str = "/Game/",
+    destination: str = "",
     name: str = "",
     **kwargs,
 ) -> dict:
+    destination = resolve_content_path(destination, "Animations")
     if not sequence_path:
         return {"status": "error", "message": "sequence_path is required."}
     try:

@@ -18,7 +18,7 @@ import tempfile
 
 import unreal
 
-from ..core import log_error, log_info
+from ..core import log_error, log_info, resolve_content_path
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -150,13 +150,14 @@ def _merge_voxel_actors(actors: list, target_path: str) -> str:
 )
 def run_text_render_texture(
     text: str,
-    asset_dir: str = "/Game/Generated/Text",
+    asset_dir: str = "",
     asset_name: str = "T_RenderedText",
     font_size: int = 120,
     width: int = 1024,
     height: int = 512,
     **kwargs
 ) -> dict:
+    asset_dir = resolve_content_path(asset_dir, "Generated/Text")
     if not text.strip():
         return {"error": "Text is empty"}
 
@@ -193,7 +194,7 @@ def run_text_render_texture(
 )
 def run_text_voxelize_3d(
     text: str,
-    asset_dir: str = "/Game/Generated/Text",
+    asset_dir: str = "",
     asset_name: str = "SM_VoxelText",
     font_size: int = 120,
     pixel_step: int = 8,
@@ -201,6 +202,7 @@ def run_text_voxelize_3d(
     fallback_cube: str = "/Engine/BasicShapes/Cube.Cube",
     **kwargs
 ) -> dict:
+    asset_dir = resolve_content_path(asset_dir, "Generated/Text")
     if not text.strip():
         return {"error": "Text is empty"}
 

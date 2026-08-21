@@ -100,6 +100,81 @@ _UI_SURFACES = [
 _UI_INVISIBLE_BASELINE = 158
 
 
+# ── /Game/ default-path ratchet ───────────────────────────────────────────────
+# In UEFN, /Game/ is Epic's Fortnite install, not the creator's project
+# (UEFN_QUIRKS.md #23). A tool defaulting a path there scans the wrong content
+# tree — or, if it WRITES, produces assets the project cannot reference. That is
+# what left ~700 dangling material references behind arena_generate.
+#
+# Every write destination has been moved onto core.resolve_content_path(). The
+# remaining defaults are read/scan paths, which are wrong but not destructive,
+# and fixing 42 of them blind across a 361-tool platform is its own change with
+# its own live verification. Ratchet: the count may fall, never rise.
+
+_GAME_PATH_DEFAULT_BASELINE = 42
+
+
+def _game_path_defaults() -> list[str]:
+    """Every function parameter defaulting to a /Game/ path."""
+    import ast
+    from pathlib import Path
+
+    found = []
+    pkg = Path(ROOT) / "Content" / "Python" / "UEFN_Toolbelt"
+    for path in sorted(pkg.rglob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            a = node.args
+            params = a.args + a.kwonlyargs
+            defaults = ([None] * (len(a.args) - len(a.defaults))
+                        + list(a.defaults) + list(a.kw_defaults))
+            for prm, dflt in zip(params, defaults, strict=False):
+                if (isinstance(dflt, ast.Constant)
+                        and isinstance(dflt.value, str)
+                        and (dflt.value == "/Game" or dflt.value.startswith("/Game/"))):
+                    found.append(f"{node.name}({prm.arg}={dflt.value!r})")
+    return found
+
+
+def check_game_path_defaults() -> list[dict]:
+    """Flag a rise in parameters defaulting to Epic's /Game/ mount."""
+    found = _game_path_defaults()
+    count = len(found)
+
+    if count > _GAME_PATH_DEFAULT_BASELINE:
+        return [{
+            "file": "scripts/drift_check.py", "line": 0,
+            "type": "/Game/ default path",
+            "found": f"{count} parameters default to /Game/",
+            "expected": f"at most {_GAME_PATH_DEFAULT_BASELINE} (the ratchet baseline)",
+            "content": (
+                f"{count - _GAME_PATH_DEFAULT_BASELINE} new. /Game/ is Epic's Fortnite "
+                f"install, not the project. Use core.resolve_scan_path() for reads and "
+                f"core.resolve_content_path() for writes. New: "
+                + ", ".join(found[-8:])
+            ),
+        }]
+
+    if count < _GAME_PATH_DEFAULT_BASELINE:
+        return [{
+            "file": "scripts/drift_check.py", "line": 0,
+            "type": "/Game/ default path (ratchet)",
+            "found": f"{count} parameters default to /Game/",
+            "expected": f"_GAME_PATH_DEFAULT_BASELINE is still {_GAME_PATH_DEFAULT_BASELINE}",
+            "content": (
+                f"Fewer /Game/ defaults than the baseline — lower "
+                f"_GAME_PATH_DEFAULT_BASELINE to {count} to lock the gain in."
+            ),
+        }]
+
+    return []
+
+
 def _registered_tools() -> dict:
     """Map every @register_tool name to its category, parsed from source."""
     import ast
@@ -369,6 +444,7 @@ def run() -> int:
         all_findings.extend(findings)
 
     all_findings.extend(check_ui_coverage())
+    all_findings.extend(check_game_path_defaults())
 
     if not all_findings:
         print("[drift_check] PASS — No drift found. Codebase is consistent.\n")

@@ -7,7 +7,26 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ## [Unreleased]
 
+### Fixed
+- **Nine tools wrote assets to Epic's Fortnite install instead of the project.**
+  `/Game/` is not the creator's project in UEFN (UEFN_QUIRKS.md #23), so anything
+  created there is unreferenceable — the same defect that left ~700 dangling
+  material references behind `arena_generate`. Affected: `curve_create`,
+  `text_render_texture`, `text_voxelize_3d`, `mesh_merge_selection`,
+  `import_fbx`/`organize_assets` (source and target), `create_material_instance`
+  (MCP), `anim_create_montage`, `input_create_action` and `organize_smart_categorize`.
+
+  New `core.resolve_content_path()` is the write-side counterpart to
+  `resolve_scan_path()`. It also rewrites an explicit `/Game/` prefix onto the
+  project mount rather than trusting it, so a caller passing one is corrected too.
+
 ### Added
+- **`drift_check` ratchets the number of `/Game/` default paths.** 42 remain,
+  all read/scan paths — wrong tree, but not destructive. Fixing those is its own
+  change with its own live verification, so the count is baselined and may fall,
+  never rise. A test additionally asserts that *no write destination* is left on
+  `/Game/`, since that is the destructive half.
+
 - **`drift_check` now catches tools that no UI surface can reach.** The dashboard
   builds its tabs from hand-written functions, so `@register_tool` does not make
   a tool clickable — three Epic MCP tools shipped registered-but-invisible with

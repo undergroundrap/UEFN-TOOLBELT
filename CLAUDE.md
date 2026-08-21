@@ -270,7 +270,11 @@ All 361 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as 
 > See the "MANDATORY: Test in UEFN Before Every Commit" section at the top of this file.
 > No exceptions. Syntax passing ≠ working. Only commit after the user confirms it works live.
 
-- **Format**: `type: concise description`
+- **Format**: `type(scope): concise description` — Conventional Commits **with a
+  scope**. This is enforced by the `commit-msg` hook in the machine-wide
+  `core.hooksPath`; a commit without a scope is rejected.
+- **Scope**: the area touched — `mcp`, `refauditor`, `dashboard`, `drift`,
+  `arena`, `organizer`, `docs`, `ci`, `tests`. Lowercase, one word where possible.
 - **Casing**: All lowercase. NO "Phase:", NO "Update:", NO Title Case.
 - **Types**:
   - `feat`: New tools or capabilities
@@ -279,7 +283,10 @@ All 361 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as 
   - `refactor`: Internal code structure, no behavior changes
   - `test`: Updates to integration/smoke tests
   - `perf`: Performance optimizations (CPU/Memory)
-- **Example**: `docs: updated readme and 8 pillars`
+- **Example**: `docs(readme): update the 8 pillars section`
+- **Note**: commits before v2.3.7 use the older unscoped `type: description`
+  form. History is not being rewritten — the scope requirement applies going
+  forward.
 
 ---
 

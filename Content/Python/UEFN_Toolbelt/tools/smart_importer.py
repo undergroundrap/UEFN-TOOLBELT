@@ -53,6 +53,7 @@ from ..core import (
     log_error,
     log_info,
     log_warning,
+    resolve_content_path,
     spawn_static_mesh_actor,
 )
 from ..registry import register_tool
@@ -314,8 +315,8 @@ def run_import_fbx_folder(
     tags=["organize", "sort", "content", "browser", "assets"],
 )
 def run_organize_assets(
-    source_path: str = "/Game/Imports",
-    target_base: str = "/Game/Organized",
+    source_path: str = "",
+    target_base: str = "",
     **kwargs,
 ) -> dict:
     """
@@ -326,6 +327,8 @@ def run_organize_assets(
         source_path: Content Browser folder to scan.
         target_base: Destination base folder.
     """
+    target_base = resolve_content_path(target_base, "Organized")
+    source_path = resolve_content_path(source_path, "Imports")
     if not unreal.EditorAssetLibrary.does_directory_exist(source_path):
         log_error(f"Source folder does not exist: {source_path}")
         return {"status": "error", "message": f"Source folder does not exist: {source_path}"}
