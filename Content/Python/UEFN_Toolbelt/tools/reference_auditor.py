@@ -866,7 +866,7 @@ def _actor_package(actor):
     return None
 
 
-def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], int, int, int]:
+def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], int, int, int, int]:
     """Dependencies recorded on disk whose target asset no longer exists.
 
     This is the detection the CDO comparison could not do. A null component
@@ -891,21 +891,28 @@ def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], i
     never as an accusation. What remains is what the creator can actually
     break and actually fix: content assets in their own project.
 
+    distinct_dependencies is the honest measure of coverage. On
+    Device_API_Mapping, dependencies_checked came back 3396 across 3394
+    packages — one apiece, because every OFPA actor package depends on the level
+    package and little else on this mount. A raw count that tracks the package
+    count is measuring the scan, not the content.
+
     Returns (missing -> referencing actor labels, dependencies_checked,
-    packages_checked, unverifiable_dependencies).
+    packages_checked, unverifiable_dependencies, distinct_dependencies).
     """
     lookup = _resolve_dep_lookup()
     if lookup is None:
-        return {}, 0, 0, 0
+        return {}, 0, 0, 0, 0
 
     try:
         mount = f"/{detect_project_mount()}/"
     except Exception:
-        return {}, 0, 0, 0
+        return {}, 0, 0, 0, 0
 
     missing: dict[str, set] = {}
     checked = 0
     unverifiable = 0
+    distinct: set[str] = set()
     packages: dict[str, str] = {}
 
     for actor in actors:
@@ -936,6 +943,7 @@ def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], i
                 unverifiable += 1
                 continue
             checked += 1
+            distinct.add(dep)
             present = exists_cache.get(dep)
             if present is None:
                 try:
@@ -947,7 +955,7 @@ def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], i
             if not present:
                 missing.setdefault(dep, set()).add(label)
 
-    return missing, checked, len(packages), unverifiable
+    return missing, checked, len(packages), unverifiable, len(distinct)
 
 
 def _empty_slots(actor) -> tuple[list[dict], int]:
@@ -1085,8 +1093,8 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
     # the whole check until a live run on a 3405-actor island reported
     # comparable_slots 0, because UEFN actors take their meshes per-instance and
     # so have no class default to compare against.
-    missing_deps, deps_checked, pkgs_checked, unverifiable_deps = _missing_dependencies(
-        actors, exists_cache)
+    (missing_deps, deps_checked, pkgs_checked, unverifiable_deps,
+     distinct_deps) = _missing_dependencies(actors, exists_cache)
 
     for actor in actors:
         if actor is None:
@@ -1137,9 +1145,20 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
         else:
             unreal.log(
                 f"[RefAuditor] ✓ No severed references — {len(actors)} actors, "
-                f"{deps_checked} dependencies across {pkgs_checked} package(s) all "
-                f"resolve; {comparable_slots} class-default slot(s) intact."
+                f"{deps_checked} dependencies ({distinct_deps} distinct) across "
+                f"{pkgs_checked} package(s) all resolve; {unverifiable_deps} on "
+                f"other mounts or in actor containers were not checkable."
             )
+            if distinct_deps <= 2:
+                # Every OFPA actor package depends on the level package. If that
+                # is all we saw, the scan verified the level exists N times and
+                # learned nothing about content.
+                unreal.log_warning(
+                    f"[RefAuditor] Thin coverage: only {distinct_deps} distinct "
+                    f"asset(s) were checkable on this mount. A clean result here "
+                    f"says little — this level's actors reference Epic content, "
+                    f"which cannot be verified from Python (Quirk #39)."
+                )
     else:
         unreal.log_warning(
             f"[RefAuditor] {total} actor(s) with severed references "
@@ -1166,6 +1185,7 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
         "dependencies_checked": deps_checked,
         "packages_checked":    pkgs_checked,
         "unverifiable_dependencies": unverifiable_deps,
+        "distinct_dependencies": distinct_deps,
         "dependency_lookup":   dependency_lookup_available(),
         "broken_actors":       total,
         "missing_meshes":      meshes,

@@ -160,7 +160,7 @@ def test_missing_dependency_is_named_with_its_referrer(monkeypatch):
         deps={"/Game/L/A_0": ["/Game/Meshes/SM_Gone", "/Game/Meshes/SM_Here"]},
         exists={"/Game/Meshes/SM_Here"},
     )
-    missing, checked, pkgs, unver = ra._missing_dependencies([_PkgActor("Wall_01", "/Game/L/A_0")], {})
+    missing, checked, pkgs, unver, distinct = ra._missing_dependencies([_PkgActor("Wall_01", "/Game/L/A_0")], {})
     assert checked == 2 and pkgs == 1
     assert list(missing) == ["/Game/Meshes/SM_Gone"]
     assert missing["/Game/Meshes/SM_Gone"] == {"Wall_01"}
@@ -174,7 +174,7 @@ def test_script_and_transient_deps_are_not_counted(monkeypatch):
         deps={"/Game/L/A_0": ["/Script/Engine", "/Engine/Transient", "/Verse/X"]},
         exists=set(),
     )
-    missing, checked, _, unver = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
+    missing, checked, _, unver, distinct = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
     assert missing == {} and checked == 0
 
 
@@ -182,7 +182,7 @@ def test_unanswerable_existence_never_reports_missing(monkeypatch):
     """"Couldn't tell" must not become "it's gone" — this tool drives repairs."""
     _with_deps(monkeypatch, deps={"/Game/L/A_0": ["/Game/Meshes/SM_X"]},
                exists=set(), raiser=True)
-    missing, checked, _, unver = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
+    missing, checked, _, unver, distinct = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
     assert missing == {}
     assert checked == 1
 
@@ -191,7 +191,7 @@ def test_one_package_per_actor_is_deduplicated(monkeypatch):
     """Under OFPA each actor has its own package; shared ones must not double-count."""
     _with_deps(monkeypatch, deps={"/Game/L/A_0": ["/Game/Meshes/SM_Gone"]}, exists=set())
     actors = [_PkgActor("A", "/Game/L/A_0"), _PkgActor("B", "/Game/L/A_0")]
-    missing, checked, pkgs, unver = ra._missing_dependencies(actors, {})
+    missing, checked, pkgs, unver, distinct = ra._missing_dependencies(actors, {})
     assert pkgs == 1 and checked == 1
     assert missing["/Game/Meshes/SM_Gone"] == {"A"}
 
@@ -200,8 +200,8 @@ def test_no_dependency_lookup_reports_zero_not_clean(monkeypatch):
     """Unavailable API must yield 0 checked so status falls to inconclusive."""
     monkeypatch.setattr(ra, "_DEP_LOOKUP_PROBED", True, raising=False)
     monkeypatch.setattr(ra, "_DEP_LOOKUP", None, raising=False)
-    missing, checked, pkgs, unver = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
-    assert (missing, checked, pkgs, unver) == ({}, 0, 0, 0)
+    missing, checked, pkgs, unver, distinct = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
+    assert (missing, checked, pkgs, unver, distinct) == ({}, 0, 0, 0, 0)
 
 
 def test_other_mounts_are_unverifiable_not_missing(monkeypatch):
@@ -223,7 +223,7 @@ def test_other_mounts_are_unverifiable_not_missing(monkeypatch):
         ]},
         exists=set(),          # nothing "exists" — the harshest possible oracle
     )
-    missing, checked, _, unver = ra._missing_dependencies(
+    missing, checked, _, unver, distinct = ra._missing_dependencies(
         [_PkgActor("Teleporter", "/Game/L/A_0")], {})
 
     assert unver == 2, "Epic mounts must be counted as unverifiable"
@@ -251,7 +251,7 @@ def test_ofpa_actor_packages_are_unverifiable_not_missing(monkeypatch):
         ]},
         exists=set(),
     )
-    missing, checked, _, unver = ra._missing_dependencies(
+    missing, checked, _, unver, distinct = ra._missing_dependencies(
         [_PkgActor("Cove Stone Wall C", "/Game/L/A_0")], {})
 
     assert unver == 2, "OFPA containers must be counted, not accused"
@@ -259,3 +259,22 @@ def test_ofpa_actor_packages_are_unverifiable_not_missing(monkeypatch):
     assert list(missing) == ["/Game/Organized/Meshes/SM_Severed"], (
         f"reported an actor container as a missing asset: {sorted(missing)}"
     )
+
+
+def test_distinct_dependencies_exposes_a_repeated_reference(monkeypatch):
+    """dependencies_checked tracking packages_checked measures the scan, not
+    the content. On Device_API_Mapping it read 3396 across 3394 packages —
+    every OFPA actor package depending on the level package and nothing else
+    checkable. distinct is what tells you that."""
+    level = "/Game/L/TheLevel"
+    _with_deps(
+        monkeypatch,
+        deps={f"/Game/L/A_{i}": [level] for i in range(50)},
+        exists={level},
+    )
+    actors = [_PkgActor(f"Actor{i}", f"/Game/L/A_{i}") for i in range(50)]
+    missing, checked, pkgs, _, distinct = ra._missing_dependencies(actors, {})
+
+    assert missing == {}
+    assert checked == 50 and pkgs == 50, "raw count tracks the package count"
+    assert distinct == 1, "one asset was actually examined, fifty times"
