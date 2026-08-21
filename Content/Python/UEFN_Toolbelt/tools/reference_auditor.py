@@ -803,6 +803,12 @@ _DEP_LOOKUP_PROBED = False
 # Dependencies that are not assets and can never be "missing".
 _DEP_IGNORE = ("/Script/", "/Engine/Transient", "/Temp/", "/Memory/", "/Verse/")
 
+# One-File-Per-Actor containers. These hold ACTORS, not assets: they are where
+# the level's own actors are stored, so a dependency on one is an inter-actor
+# reference. Whether it resolves is answered by World Partition's actor
+# descriptors, not by does_asset_exist, which reports every one of them absent.
+_OFPA_SEGMENTS = ("/__ExternalActors__/", "/__ExternalObjects__/")
+
 
 def _resolve_dep_lookup():
     """Pick a strategy for "what does this package reference?" on this build.
@@ -868,16 +874,22 @@ def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], i
     builds its dependency table from the saved package, so the reference
     survives the deletion of its target and can still be named.
 
-    ONLY dependencies under the project's own mount are judged. The first
+    ONLY real content assets under the project's own mount are judged — not
+    other mounts, and not OFPA actor containers. The first
     version checked every mount with EditorAssetLibrary.does_asset_exist and
     reported 383 missing assets on a healthy island — every one of them Epic
     plugin content (/CRD_*, /CreativeCoreDevices, /ContentHall) that plainly
     exists, because does_asset_exist cannot browse those mounts and answers
     False for "cannot see" exactly as it does for "not there" (Quirk #23).
 
-    Everything outside the project mount is counted as unverifiable and
-    reported as such, because the creator cannot have broken Epic's content
-    anyway — the damage worth finding is in their own.
+    Scoping to the mount alone still left 8 findings, all of them
+    /__ExternalActors__/ packages — the OFPA storage the level's own actors live
+    in, one of them referenced by 179 healthy actors. Same root cause: an API
+    answering False for a question it cannot see.
+
+    Everything unjudgeable is counted as unverifiable and reported as a number,
+    never as an accusation. What remains is what the creator can actually
+    break and actually fix: content assets in their own project.
 
     Returns (missing -> referencing actor labels, dependencies_checked,
     packages_checked, unverifiable_dependencies).
@@ -917,6 +929,10 @@ def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], i
                 continue
             if not dep.startswith(mount):
                 # Another mount — Epic's, or a plugin's. Not answerable here.
+                unverifiable += 1
+                continue
+            if any(seg in dep for seg in _OFPA_SEGMENTS):
+                # An actor package, not an asset. See _OFPA_SEGMENTS.
                 unverifiable += 1
                 continue
             checked += 1

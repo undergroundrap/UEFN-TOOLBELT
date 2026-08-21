@@ -231,3 +231,31 @@ def test_other_mounts_are_unverifiable_not_missing(monkeypatch):
     assert list(missing) == ["/Game/Meshes/SM_Gone"], (
         f"reported Epic content as missing: {sorted(missing)}"
     )
+
+
+def test_ofpa_actor_packages_are_unverifiable_not_missing(monkeypatch):
+    """The 8-false-positive case, pinned with paths from the live log.
+
+    /__ExternalActors__/ is where the level's own actors are stored under OFPA —
+    packages_checked was 3394 because that IS the actor package set. A dependency
+    on one is an inter-actor reference, resolved by World Partition's actor
+    descriptors. One of these was referenced by 179 actors that were working
+    fine; had it truly been missing, the island would have been visibly broken.
+    """
+    _with_deps(
+        monkeypatch,
+        deps={"/Game/L/A_0": [
+            "/Game/__ExternalActors__/L/A/GO/HJW5TJWA4NTOFM8XME22M9",
+            "/Game/__ExternalObjects__/L/C/M0/34O2SSTF9J8VE86XN351XC",
+            "/Game/Organized/Meshes/SM_Severed",
+        ]},
+        exists=set(),
+    )
+    missing, checked, _, unver = ra._missing_dependencies(
+        [_PkgActor("Cove Stone Wall C", "/Game/L/A_0")], {})
+
+    assert unver == 2, "OFPA containers must be counted, not accused"
+    assert checked == 1
+    assert list(missing) == ["/Game/Organized/Meshes/SM_Severed"], (
+        f"reported an actor container as a missing asset: {sorted(missing)}"
+    )
