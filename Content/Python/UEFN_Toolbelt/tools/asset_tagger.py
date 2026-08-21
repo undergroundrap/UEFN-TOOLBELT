@@ -98,19 +98,28 @@ def _set_tag(asset_path: str, key: str, value: str) -> bool:
         return False
 
 
-def _get_tag(asset_path: str, key: str) -> str:
-    """Return the metadata value for key on asset_path, or '' if absent."""
+def _get_tag(asset_path: str, key: str) -> str | None:
+    """
+    Metadata value for key on asset_path.
+
+    '' when the asset genuinely has no such tag, None when it could not be read.
+    Callers must not conflate the two: an unreadable asset may well carry the tag.
+    """
     try:
         asset = unreal.EditorAssetLibrary.load_asset(asset_path)
         if asset is None:
-            return ""
+            return None
         raw = unreal.EditorAssetLibrary.get_metadata_tag_values(asset, unreal.Name(key))
         # Returns a list of strings; take the first entry
         if isinstance(raw, (list, tuple)):
             return str(raw[0]) if raw else ""
         return str(raw) if raw else ""
     except Exception:
-        return ""
+        # None, not "" — an unreadable asset is not the same as an untagged one.
+        # Returning "" made it silently fail the == comparison in tag_search, so
+        # a tagged asset that could not be read was quietly missing from results
+        # the caller was told were complete.
+        return None
 
 
 def _remove_tag(asset_path: str, key: str) -> bool:
@@ -195,7 +204,10 @@ def _list_all_under(folder: str) -> list[str]:
         return scannable_assets(
             unreal.EditorAssetLibrary.list_assets(folder, recursive=True)
         )
-    except Exception:
+    except Exception as e:
+        # An empty list here is indistinguishable from an empty folder, and every
+        # caller reports "no tags found" either way. Say so instead.
+        unreal.log_warning(f"[AssetTagger] could not list {folder}: {e}")
         return []
 
 
@@ -279,11 +291,20 @@ def _do_tag_search(tag_name: str, value: str, folder: str) -> list[str]:
 
     unreal.log(f"[AssetTagger] Scanning {len(all_paths)} assets for TB:{tag_name} = {match_value!r}…")
 
+    unreadable = 0
     for path in all_paths:
         stored = _get_tag(path, key)
+        if stored is None:
+            unreadable += 1
+            continue
         if stored == match_value:
             matches.append(path)
 
+    if unreadable:
+        unreal.log_warning(
+            f"[AssetTagger] {unreadable} asset(s) could not be read — these "
+            f"results are incomplete, not empty. Any of them may carry the tag."
+        )
     return matches
 
 

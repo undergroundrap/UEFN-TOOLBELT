@@ -87,34 +87,41 @@ def _selected_actors() -> list:
         return list(unreal.EditorLevelLibrary.get_selected_level_actors() or [])
 
 
-def _is_blueprint(actor) -> bool:
+# These answer questions about an actor, and this tool decides what ships: an
+# actor marked editor-only is excluded from the cooked game. Returning False when
+# the lookup FAILED is indistinguishable from a genuine "no", so a read error
+# used to flow straight into a write - the same shape that made ref_delete_orphans
+# treat "couldn't count referencers" as "has no referencers".
+#
+# None means "couldn't tell". Callers must skip and report those, never act.
+
+
+def _classify(actor) -> str | None:
+    """
+    'blueprint' | 'static_mesh' | 'landscape' | '' for a known-other actor,
+    or None when the class could not be read at all.
+    """
     try:
-        return not str(actor.get_class().get_path_name()).startswith("/Script/")
+        cls  = actor.get_class()
+        name = cls.get_name()
+        path = str(cls.get_path_name())
     except Exception:
-        return False
+        return None
+    if not path.startswith("/Script/"):
+        return "blueprint"
+    if name == "StaticMeshActor":
+        return "static_mesh"
+    if name in {"Landscape", "LandscapeProxy", "LandscapeStreamingProxy"}:
+        return "landscape"
+    return ""
 
 
-def _is_static_mesh(actor) -> bool:
-    try:
-        return actor.get_class().get_name() == "StaticMeshActor"
-    except Exception:
-        return False
-
-
-def _is_landscape(actor) -> bool:
-    try:
-        return actor.get_class().get_name() in {
-            "Landscape", "LandscapeProxy", "LandscapeStreamingProxy"
-        }
-    except Exception:
-        return False
-
-
-def _get_editor_only(actor) -> bool:
+def _get_editor_only(actor) -> bool | None:
+    """True / False, or None when the property could not be read."""
     try:
         return bool(actor.get_editor_property("is_editor_only_actor"))
     except Exception:
-        return False
+        return None
 
 
 def _set_editor_only(actor, value: bool) -> bool:
@@ -211,19 +218,25 @@ def cooker_scan(
         return {"status": "error", "error": "Enable at least one actor type filter."}
 
     rows = []
+    unreadable = 0
     for actor in _all_actors():
         if actor is None:
             continue
+
         is_eo = _get_editor_only(actor)
+        if is_eo is None:
+            unreadable += 1          # unknown state — never a candidate to mark
+            continue
         if exclude_already_editor_only and is_eo:
             continue
 
-        if blueprints and _is_blueprint(actor):
-            atype = "blueprint"
-        elif static_meshes and _is_static_mesh(actor):
-            atype = "static_mesh"
-        elif landscapes and _is_landscape(actor):
-            atype = "landscape"
+        kind = _classify(actor)
+        if kind is None:
+            unreadable += 1          # class unreadable — same rule
+            continue
+        if   kind == "blueprint"   and blueprints:    atype = "blueprint"
+        elif kind == "static_mesh" and static_meshes: atype = "static_mesh"
+        elif kind == "landscape"   and landscapes:    atype = "landscape"
         else:
             continue
 
@@ -255,9 +268,16 @@ def cooker_scan(
     ls_cnt = sum(1 for r in rows if r["actor_type"] == "landscape")
 
     log_info(f"cooker_scan: {total} eligible (bp={bp_cnt} sm={sm_cnt} ls={ls_cnt} eo={eo_cnt})")
+    if unreadable:
+        log_warning(
+            f"cooker_scan: {unreadable} actor(s) could not be read and were "
+            f"excluded. They are NOT candidates for marking — an unreadable "
+            f"actor is not the same as one that needs no change."
+        )
     return {
         "status":          "ok",
         "total":           total,
+        "unreadable":      unreadable,
         "editor_only":     eo_cnt,
         "not_editor_only": total - eo_cnt,
         "blueprints":      bp_cnt,

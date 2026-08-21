@@ -7,6 +7,26 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ## [Unreleased]
 
+- **Three helpers returned "no" when they meant "couldn't tell".** A sweep of
+  48 `except → falsy return` sites found the ones where a caller cannot tell a
+  genuine negative from a failed lookup — the shape that made `ref_delete_orphans`
+  read "couldn't count referencers" as "has no referencers".
+
+  `cooker_optimizer._get_editor_only()` returned `False` on read failure, so an
+  unreadable actor was *not* excluded and flowed into the list to be marked
+  editor-only — which removes it from the cooked game. `_is_blueprint` /
+  `_is_static_mesh` / `_is_landscape` returned `False` on failure, silently
+  dropping actors from the scan. Both now return `None`, the scan counts them,
+  and the result carries an `unreadable` field.
+
+  `asset_tagger._get_tag()` returned `''` on failure, which fails the equality
+  check in `tag_search` — so a tagged asset that could not be read was quietly
+  absent from results presented as complete. It now returns `None` and the search
+  warns that its results are incomplete rather than empty.
+
+  The remaining 45 sites are genuine fallbacks — config defaults, UI builders,
+  docstring lookups — where a falsy value is the right answer.
+
 - **The material path bug had a twin, and a third case.** A sweep for
   module-level constants that need a live editor found three more:
   `smart_importer.AUTO_MATERIAL_PARENT` (the same `/Game/UEFN_Toolbelt/Materials/

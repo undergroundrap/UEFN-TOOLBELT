@@ -81,3 +81,48 @@ def test_the_guard_rejects_what_it_should():
     assert not ok("/P/Verse/$Digest")                            # Verse digest
     assert not ok("/P/task_hello_world_device$OnBegin")          # seen in a real log
     assert spec is not None
+
+
+# ── "couldn't tell" must not look like "no" ───────────────────────────────────
+# A helper that answers a question about an asset or actor cannot return the same
+# value for a genuine negative and for a failed lookup — the caller has no way to
+# tell them apart. ref_delete_orphans is the cautionary case: "couldn't count
+# referencers" read as "has no referencers", and it deleted accordingly.
+
+def _fn_returns(path: pathlib.Path, name: str) -> set:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for n in ast.walk(tree):
+        if isinstance(n, ast.FunctionDef) and n.name == name:
+            out = set()
+            for r in ast.walk(n):
+                if isinstance(r, ast.Return):
+                    if r.value is None:
+                        out.add(None)
+                    elif isinstance(r.value, ast.Constant):
+                        out.add(r.value.value)
+                    else:
+                        out.add("<expr>")
+            return out
+    raise AssertionError(f"{name} not found in {path.name}")
+
+
+def test_cooker_reads_distinguish_unknown_from_false():
+    """This tool decides what ships — an unreadable actor must never be marked."""
+    p = TOOLS / "cooker_optimizer.py"
+    assert None in _fn_returns(p, "_get_editor_only"), (
+        "_get_editor_only must return None when the property cannot be read; "
+        "False is indistinguishable from a genuine 'not editor-only'"
+    )
+    assert None in _fn_returns(p, "_classify"), (
+        "_classify must return None when the actor's class cannot be read"
+    )
+    src = p.read_text(encoding="utf-8")
+    assert "unreadable" in src, "the scan must count and report what it could not read"
+
+
+def test_tag_read_distinguishes_unreadable_from_untagged():
+    p = TOOLS / "asset_tagger.py"
+    assert None in _fn_returns(p, "_get_tag"), (
+        "_get_tag must return None on read failure — '' means 'no tag', and "
+        "conflating them drops tagged assets from search results silently"
+    )
