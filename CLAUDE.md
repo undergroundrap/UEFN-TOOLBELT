@@ -284,6 +284,16 @@ All 361 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as 
   - `test`: Updates to integration/smoke tests
   - `perf`: Performance optimizations (CPU/Memory)
 - **Example**: `docs(readme): update the 8 pillars section`
+- **Live-verification trailer (enforced)**: any commit touching
+  `Content/Python/` must carry one of:
+  ```
+  Verified-Live: <what you ran in UEFN and what you saw>
+  Live-Verification: not-required — <reason>
+  ```
+  A `pre-push` hook blocks the push otherwise. It cannot check UEFN itself — it
+  forces the claim to be made rather than skipped. Local tests passing is not
+  evidence: the material tools were green while every one of them applied the
+  wrong material. Bypass with `git push --no-verify` only when you mean it.
 - **Note**: commits before v2.3.7 use the older unscoped `type: description`
   form. History is not being rewritten — the scope requirement applies going
   forward.
