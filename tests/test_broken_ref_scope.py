@@ -109,3 +109,95 @@ def test_editor_only_component_is_never_flagged():
     assert slots == []
     # Skipped, therefore not judged, therefore not comparable.
     assert comparable == 0
+
+
+# ── Dependency-based detection ────────────────────────────────────────────────
+#
+# The CDO comparison scored comparable_slots 0 on a real 3405-actor island, so
+# it detects nothing there. The asset registry's dependency table is built from
+# the saved package and still names an asset after that asset is deleted, which
+# is the only place the severed path survives.
+
+class _Pkg:
+    def __init__(self, name: str):
+        self._n = name
+
+    def get_name(self) -> str:
+        return self._n
+
+
+class _PkgActor:
+    def __init__(self, label: str, package: str):
+        self._l, self._p = label, package
+
+    def get_actor_label(self) -> str:
+        return self._l
+
+    def get_package(self):
+        return _Pkg(self._p)
+
+
+def _with_deps(monkeypatch, deps: dict[str, list[str]], exists: set[str], raiser=False):
+    """Install a fake dependency lookup and asset-existence oracle."""
+    import unreal
+
+    monkeypatch.setattr(ra, "_DEP_LOOKUP_PROBED", True, raising=False)
+    monkeypatch.setattr(ra, "_DEP_LOOKUP", lambda pkg: deps.get(pkg, []), raising=False)
+
+    def _exists(path):
+        if raiser:
+            raise RuntimeError("registry unavailable")
+        return path in exists
+
+    monkeypatch.setattr(unreal.EditorAssetLibrary, "does_asset_exist", _exists,
+                        raising=False)
+
+
+def test_missing_dependency_is_named_with_its_referrer(monkeypatch):
+    _with_deps(
+        monkeypatch,
+        deps={"/Game/L/A_0": ["/Game/Meshes/SM_Gone", "/Game/Meshes/SM_Here"]},
+        exists={"/Game/Meshes/SM_Here"},
+    )
+    missing, checked, pkgs = ra._missing_dependencies([_PkgActor("Wall_01", "/Game/L/A_0")], {})
+    assert checked == 2 and pkgs == 1
+    assert list(missing) == ["/Game/Meshes/SM_Gone"]
+    assert missing["/Game/Meshes/SM_Gone"] == {"Wall_01"}
+
+
+def test_script_and_transient_deps_are_not_counted(monkeypatch):
+    """They are not assets, so they can never be missing — and must not inflate
+    dependencies_checked, which exists to say how much was really examined."""
+    _with_deps(
+        monkeypatch,
+        deps={"/Game/L/A_0": ["/Script/Engine", "/Engine/Transient", "/Verse/X"]},
+        exists=set(),
+    )
+    missing, checked, _ = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
+    assert missing == {} and checked == 0
+
+
+def test_unanswerable_existence_never_reports_missing(monkeypatch):
+    """"Couldn't tell" must not become "it's gone" — this tool drives repairs."""
+    _with_deps(monkeypatch, deps={"/Game/L/A_0": ["/Game/Meshes/SM_X"]},
+               exists=set(), raiser=True)
+    missing, checked, _ = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
+    assert missing == {}
+    assert checked == 1
+
+
+def test_one_package_per_actor_is_deduplicated(monkeypatch):
+    """Under OFPA each actor has its own package; shared ones must not double-count."""
+    _with_deps(monkeypatch, deps={"/Game/L/A_0": ["/Game/Meshes/SM_Gone"]}, exists=set())
+    actors = [_PkgActor("A", "/Game/L/A_0"), _PkgActor("B", "/Game/L/A_0")]
+    missing, checked, pkgs = ra._missing_dependencies(actors, {})
+    assert pkgs == 1 and checked == 1
+    assert missing["/Game/Meshes/SM_Gone"] == {"A"}
+
+
+def test_no_dependency_lookup_reports_zero_not_clean(monkeypatch):
+    """Unavailable API must yield 0 checked so status falls to inconclusive."""
+    monkeypatch.setattr(ra, "_DEP_LOOKUP_PROBED", True, raising=False)
+    monkeypatch.setattr(ra, "_DEP_LOOKUP", None, raising=False)
+    missing, checked, pkgs = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
+    assert (missing, checked, pkgs) == ({}, 0, 0)

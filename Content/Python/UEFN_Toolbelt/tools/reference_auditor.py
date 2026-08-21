@@ -797,6 +797,122 @@ def ref_full_report(
 # nothing, which is what a severed reference actually looks like from Python.
 
 
+_DEP_LOOKUP = None
+_DEP_LOOKUP_PROBED = False
+
+# Dependencies that are not assets and can never be "missing".
+_DEP_IGNORE = ("/Script/", "/Engine/Transient", "/Temp/", "/Memory/", "/Verse/")
+
+
+def _resolve_dep_lookup():
+    """Pick a strategy for "what does this package reference?" on this build.
+
+    Same discipline as _resolve_ref_lookup: probe it, do not assume it. A tool
+    that silently answers [] here would report every dependency as present and
+    call a damaged level clean.
+    """
+    global _DEP_LOOKUP, _DEP_LOOKUP_PROBED
+    if _DEP_LOOKUP_PROBED:
+        return _DEP_LOOKUP
+    _DEP_LOOKUP_PROBED = True
+
+    try:
+        ar = unreal.AssetRegistryHelpers.get_asset_registry()
+        if callable(getattr(ar, "get_dependencies", None)):
+            def _via_registry(path: str) -> list[str]:
+                pkg = path.split(".")[0]
+                try:
+                    opts = unreal.AssetRegistryDependencyOptions(
+                        include_hard_package_references=True,
+                        include_soft_package_references=True,
+                    )
+                    deps = ar.get_dependencies(pkg, opts)
+                except TypeError:
+                    deps = ar.get_dependencies(pkg)
+                return [str(x) for x in (deps or [])]
+
+            if _strategy_works(_via_registry):
+                _DEP_LOOKUP = _via_registry
+                return _DEP_LOOKUP
+    except Exception:
+        pass
+
+    _DEP_LOOKUP = None
+    return None
+
+
+def dependency_lookup_available() -> bool:
+    """True if this build can answer "what does this package reference?"."""
+    return _resolve_dep_lookup() is not None
+
+
+def _actor_package(actor):
+    """The package holding this actor. Under OFPA that is one package per actor."""
+    for getter in ("get_package", "get_outermost"):
+        fn = getattr(actor, getter, None)
+        if callable(fn):
+            try:
+                pkg = fn()
+                if pkg is not None:
+                    return str(pkg.get_name())
+            except Exception:
+                continue
+    return None
+
+
+def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], int, int]:
+    """Dependencies recorded on disk whose target asset no longer exists.
+
+    This is the detection the CDO comparison could not do. A null component
+    pointer has already forgotten what it pointed at, but the asset registry
+    builds its dependency table from the saved package, so the reference
+    survives the deletion of its target and can still be named.
+
+    Returns (missing -> referencing actor labels, dependencies_checked,
+    packages_checked).
+    """
+    lookup = _resolve_dep_lookup()
+    if lookup is None:
+        return {}, 0, 0
+
+    missing: dict[str, set] = {}
+    checked = 0
+    packages: dict[str, str] = {}
+
+    for actor in actors:
+        if actor is None:
+            continue
+        pkg = _actor_package(actor)
+        if not pkg or pkg in packages:
+            continue
+        try:
+            packages[pkg] = actor.get_actor_label()
+        except Exception:
+            packages[pkg] = pkg.rsplit("/", 1)[-1]
+
+    for pkg, label in packages.items():
+        try:
+            deps = lookup(pkg)
+        except Exception:
+            continue
+        for dep in deps:
+            if dep.startswith(_DEP_IGNORE):
+                continue
+            checked += 1
+            present = exists_cache.get(dep)
+            if present is None:
+                try:
+                    present = bool(unreal.EditorAssetLibrary.does_asset_exist(dep))
+                except Exception:
+                    # Cannot answer -> do not claim it is missing.
+                    present = True
+                exists_cache[dep] = present
+            if not present:
+                missing.setdefault(dep, set()).add(label)
+
+    return missing, checked, len(packages)
+
+
 def _empty_slots(actor) -> tuple[list[dict], int]:
     """
     Asset slots that are empty on this instance but filled on its class default.
@@ -890,6 +1006,14 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
     Args:
         max_results: Cap on reported actors, to keep the log usable.
 
+    Two independent checks, because the first one alone detects nothing here:
+
+    1. Asset-registry dependencies. The saved package records what it references,
+       and that record survives the deletion of its target — so a missing asset
+       can still be NAMED. This is the primary check.
+    2. Class-default comparison, kept as a secondary signal for Blueprint-style
+       actors whose class ships a mesh.
+
     Blind spot, reported rather than hidden: a slot is only judged when the
     actor's class default fills it. A plain StaticMeshActor takes its mesh
     per-instance, so its class default is empty and a severed mesh there looks
@@ -898,8 +1022,14 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
     comparable_slots — "0 broken" means nothing without it.
 
     Returns:
-        dict: {"status", "actors_scanned", "broken_actors", "missing_meshes",
-               "unreadable", "comparable_slots", "actors_in_scope", "findings"}
+        dict: {"status", "actors_scanned", "missing_assets",
+               "dependencies_checked", "packages_checked", "dependency_lookup",
+               "broken_actors", "missing_meshes", "unreadable",
+               "comparable_slots", "actors_in_scope",
+               "missing_asset_findings", "findings"}
+
+        status is "inconclusive" when neither check could judge anything, so a
+        caller cannot mistake an unexamined level for a healthy one.
     """
     try:
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -912,6 +1042,13 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
     meshes = 0
     comparable_slots = 0
     actors_in_scope = 0
+    exists_cache: dict = {}
+
+    # Primary detection. The CDO comparison below is a secondary signal: it was
+    # the whole check until a live run on a 3405-actor island reported
+    # comparable_slots 0, because UEFN actors take their meshes per-instance and
+    # so have no class default to compare against.
+    missing_deps, deps_checked, pkgs_checked = _missing_dependencies(actors, exists_cache)
 
     for actor in actors:
         if actor is None:
@@ -932,20 +1069,37 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
         meshes += len(slots)
         findings.append({"actor": label, "slots": slots})
 
+    dep_findings = [
+        {"missing_asset": path, "referenced_by": sorted(labels)[:10],
+         "referencing_actors": len(labels)}
+        for path, labels in sorted(missing_deps.items())
+    ]
+
+    if dep_findings:
+        unreal.log_warning(
+            f"[RefAuditor] {len(dep_findings)} missing asset(s) still referenced "
+            f"by this level ({deps_checked} dependencies checked across "
+            f"{pkgs_checked} package(s)):"
+        )
+        for d in dep_findings[:max_results]:
+            who = ", ".join(d["referenced_by"][:3])
+            more = f" (+{d['referencing_actors'] - 3} more)" if d["referencing_actors"] > 3 else ""
+            unreal.log(f"    {d['missing_asset']}  ←  {who}{more}")
+
     total = len(findings)
-    if total == 0:
-        if comparable_slots == 0:
+    if total == 0 and not dep_findings:
+        if deps_checked == 0 and comparable_slots == 0:
             # Nothing was checkable, so a clean result is not a clean level.
             unreal.log_warning(
-                f"[RefAuditor] Inconclusive — {len(actors)} actors checked, but none "
-                f"has a class-default mesh to compare against, so nothing could be "
-                f"judged. This is not evidence the level is clean."
+                f"[RefAuditor] Inconclusive — {len(actors)} actors checked, but "
+                f"nothing could be judged: no dependency data and no class-default "
+                f"mesh to compare against. This is not evidence the level is clean."
             )
         else:
             unreal.log(
-                f"[RefAuditor] ✓ No severed references — {len(actors)} actors checked, "
-                f"{comparable_slots} slot(s) across {actors_in_scope} actor(s) were "
-                f"comparable. Per-instance meshes cannot be judged and are excluded."
+                f"[RefAuditor] ✓ No severed references — {len(actors)} actors, "
+                f"{deps_checked} dependencies across {pkgs_checked} package(s) all "
+                f"resolve; {comparable_slots} class-default slot(s) intact."
             )
     else:
         unreal.log_warning(
@@ -964,14 +1118,20 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
             f"checked — this result is incomplete, not clean."
         )
 
+    judged_something = deps_checked > 0 or comparable_slots > 0
     return {
         # "inconclusive" so a caller cannot read an unjudgeable scan as a pass.
-        "status":            "ok" if comparable_slots else "inconclusive",
-        "actors_scanned":    len(actors),
-        "broken_actors":     total,
-        "missing_meshes":    meshes,
-        "unreadable":        unreadable,
-        "comparable_slots":  comparable_slots,
-        "actors_in_scope":   actors_in_scope,
-        "findings":          findings[:max_results],
+        "status":              "ok" if judged_something else "inconclusive",
+        "actors_scanned":      len(actors),
+        "missing_assets":      len(dep_findings),
+        "dependencies_checked": deps_checked,
+        "packages_checked":    pkgs_checked,
+        "dependency_lookup":   dependency_lookup_available(),
+        "broken_actors":       total,
+        "missing_meshes":      meshes,
+        "unreadable":          unreadable,
+        "comparable_slots":    comparable_slots,
+        "actors_in_scope":     actors_in_scope,
+        "missing_asset_findings": dep_findings[:max_results],
+        "findings":            findings[:max_results],
     }
