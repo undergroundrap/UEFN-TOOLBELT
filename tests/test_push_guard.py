@@ -77,7 +77,11 @@ def _run_hook(repo: Path, base: str, head: str) -> subprocess.CompletedProcess:
 @pytest.mark.parametrize(
     "trailer",
     ["", "Live-Verification: pending", "Verified-Live: TODO",
-     "Live-Verification: tbd", "Verified-Live: untested"],
+     "Live-Verification: tbd", "Verified-Live: untested",
+     # "not yet" said the same thing as "pending" and sailed through, which is
+     # how nine verified-but-unlabelled commits nearly left the machine.
+     "Live-Verification: not yet - needs one run in the editor",
+     "Verified-Live: not-yet"],
 )
 def test_blocks_runtime_change_without_real_verification(tmp_path, trailer):
     msg = "fix(x): touch runtime code" + (f"\n\n{trailer}" if trailer else "")

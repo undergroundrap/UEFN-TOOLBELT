@@ -57,7 +57,7 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
             # cleared the hook, and hard_reload shipped broken in a way only a
             # live run could have caught. Twice.
             case "$(printf '%s' "$value" | tr 'A-Z' 'a-z')" in
-                pending*|todo*|tbd*|unverified*|untested*|none|n/a|-|?)
+                pending*|"not yet"*|"not-yet"*|todo*|tbd*|unverified*|untested*|none|n/a|-|?)
                     reason="placeholder trailer: \"$value\"" ;;
             esac
         fi
@@ -90,8 +90,8 @@ if [ "$fail" -ne 0 ]; then
 
     Live-Verification: not-required — <reason>
 
-  Placeholders ("pending", "todo", "tbd", "untested") are rejected. If it
-  has not been run, it is not ready to leave the machine.
+  Placeholders ("pending", "not yet", "todo", "tbd", "untested") are rejected.
+  If it has not been run, it is not ready to leave the machine.
 
 MSGEOF
     exit 1
