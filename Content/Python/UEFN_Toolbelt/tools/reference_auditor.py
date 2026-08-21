@@ -797,7 +797,7 @@ def ref_full_report(
 # nothing, which is what a severed reference actually looks like from Python.
 
 
-def _empty_slots(actor) -> list[dict]:
+def _empty_slots(actor) -> tuple[list[dict], int]:
     """
     Asset slots that are empty on this instance but filled on its class default.
 
@@ -813,11 +813,12 @@ def _empty_slots(actor) -> list[dict]:
     If the CDO is empty too, this is simply how the actor is built.
     """
     out: list[dict] = []
+    comparable = 0          # slots whose class default is filled, so a null IS a break
     try:
         cdo = actor.get_class().get_default_object()
         comps = actor.get_components_by_class(unreal.StaticMeshComponent)
     except Exception:
-        return out
+        return out, comparable
 
     # what the class ships with, by component name
     defaults: dict = {}
@@ -828,7 +829,7 @@ def _empty_slots(actor) -> list[dict]:
             except Exception:
                 pass
     except Exception:
-        return out          # can't compare — say nothing rather than guess
+        return out, comparable   # can't compare — say nothing rather than guess
 
     for comp in comps or []:
         try:
@@ -844,6 +845,11 @@ def _empty_slots(actor) -> list[dict]:
             pass
         if name.startswith("EditorOnly"):
             continue
+
+        # Counted only past the skips: comparable must mean "judged", or it
+        # lends credibility to slots this check never actually looked at.
+        if defaults.get(name) is not None:
+            comparable += 1
 
         try:
             mesh = comp.get_editor_property("static_mesh")
@@ -862,7 +868,7 @@ def _empty_slots(actor) -> list[dict]:
             "kind": "missing mesh",
             "expected": str(expected.get_path_name()) if expected else "?",
         })
-    return out
+    return out, comparable
 
 
 @register_tool(
@@ -884,9 +890,16 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
     Args:
         max_results: Cap on reported actors, to keep the log usable.
 
+    Blind spot, reported rather than hidden: a slot is only judged when the
+    actor's class default fills it. A plain StaticMeshActor takes its mesh
+    per-instance, so its class default is empty and a severed mesh there looks
+    identical to one that was never set. Those actors are counted in
+    actors_scanned but cannot be judged, which is why the result carries
+    comparable_slots — "0 broken" means nothing without it.
+
     Returns:
         dict: {"status", "actors_scanned", "broken_actors", "missing_meshes",
-               "unreadable", "findings"}
+               "unreadable", "comparable_slots", "actors_in_scope", "findings"}
     """
     try:
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -897,6 +910,8 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
     findings: list[dict] = []
     unreadable = 0
     meshes = 0
+    comparable_slots = 0
+    actors_in_scope = 0
 
     for actor in actors:
         if actor is None:
@@ -908,7 +923,10 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
             unreadable += 1
             continue
 
-        slots = _empty_slots(actor)
+        slots, comparable = _empty_slots(actor)
+        comparable_slots += comparable
+        if comparable:
+            actors_in_scope += 1
         if not slots:
             continue
         meshes += len(slots)
@@ -916,7 +934,19 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
 
     total = len(findings)
     if total == 0:
-        unreal.log(f"[RefAuditor] ✓ No severed references — {len(actors)} actors checked.")
+        if comparable_slots == 0:
+            # Nothing was checkable, so a clean result is not a clean level.
+            unreal.log_warning(
+                f"[RefAuditor] Inconclusive — {len(actors)} actors checked, but none "
+                f"has a class-default mesh to compare against, so nothing could be "
+                f"judged. This is not evidence the level is clean."
+            )
+        else:
+            unreal.log(
+                f"[RefAuditor] ✓ No severed references — {len(actors)} actors checked, "
+                f"{comparable_slots} slot(s) across {actors_in_scope} actor(s) were "
+                f"comparable. Per-instance meshes cannot be judged and are excluded."
+            )
     else:
         unreal.log_warning(
             f"[RefAuditor] {total} actor(s) with severed references "
@@ -935,10 +965,13 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
         )
 
     return {
-        "status":            "ok",
+        # "inconclusive" so a caller cannot read an unjudgeable scan as a pass.
+        "status":            "ok" if comparable_slots else "inconclusive",
         "actors_scanned":    len(actors),
         "broken_actors":     total,
         "missing_meshes":    meshes,
         "unreadable":        unreadable,
+        "comparable_slots":  comparable_slots,
+        "actors_in_scope":   actors_in_scope,
         "findings":          findings[:max_results],
     }
