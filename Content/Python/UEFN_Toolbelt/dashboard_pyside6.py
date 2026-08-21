@@ -259,8 +259,14 @@ def _setup_status_checks() -> list:
             os.path.dirname(_tb2.__file__), "..", "..", "..", "verse-book"
         ))
         if os.path.isdir(vb_path):
-            chapters = [f for f in os.listdir(vb_path) if f.endswith(".md")]
-            checks.append(("Verse-book spec", "ok", f"{len(chapters)} chapters"))
+            # Chapters live in verse-book/docs/. Counting the repo root instead
+            # found only its README and reported "1 chapters" against the 22
+            # smoke_test Layer 6 correctly reports from the same clone.
+            docs_dir = os.path.join(vb_path, "docs")
+            scan_dir = docs_dir if os.path.isdir(docs_dir) else vb_path
+            n = len([f for f in os.listdir(scan_dir) if f.endswith(".md")])
+            checks.append(("Verse-book spec", "ok",
+                           f"{n} chapter{'' if n == 1 else 's'}"))
         else:
             checks.append(("Verse-book spec", "warn", "Not cloned — Verse codegen tools use fallback mode"))
     except Exception:

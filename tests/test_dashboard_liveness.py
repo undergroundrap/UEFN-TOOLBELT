@@ -105,3 +105,15 @@ def test_verse_book_path_agrees_with_the_smoke_test(src):
         "dashboard is one dirname short and will look in Content/verse-book"
     assert '"..", "..", "..", "verse-book"' in src, \
         "dashboard should use the same derivation as smoke_test Layer 6"
+
+
+def test_verse_book_chapters_are_counted_in_docs(src):
+    """
+    The chapters are in verse-book/docs/; the repo root holds only a README.
+    Counting the root reported "1 chapters" against smoke_test Layer 6's 22 from
+    the same clone — the path was right by then, the subdirectory was not.
+    """
+    assert 'os.path.join(vb_path, "docs")' in src, \
+        "chapter count must read verse-book/docs/, not the repo root"
+    assert "chapter{'' if n == 1 else 's'}" in src, \
+        "singular/plural — it printed '1 chapters'"

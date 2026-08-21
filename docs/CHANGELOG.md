@@ -24,7 +24,9 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
   is a file — one of those levels is spent reaching the package directory — so it
   looked in `Content/verse-book` instead of the project root. smoke_test Layer 6
   derives the same path correctly, which is why the two disagreed. Both now use
-  the same derivation, pinned by a test.
+  the same derivation, pinned by a test. The chapter count also read the repo
+  root rather than `verse-book/docs/`, reporting "1 chapters" — the README —
+  against Layer 6's 22 from the same clone.
 
 - **Nine tools wrote assets to Epic's Fortnite install instead of the project.**
   `/Game/` is not the creator's project in UEFN (UEFN_QUIRKS.md #23), so anything
