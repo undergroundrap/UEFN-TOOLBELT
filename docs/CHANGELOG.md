@@ -8,6 +8,17 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 ## [Unreleased]
 
 ### Fixed
+- **Quick Actions reported the MCP bridge as "Not running" while it was running.**
+  Both it and the MCP tab read the same `mcp_bridge._bound_port`; the difference
+  was staleness. Quick Actions rendered its Setup Status rows once when the tab
+  was built and never again, so a listener started afterwards never appeared.
+
+  Computing the checks is now separate from rendering them, and navigating to a
+  tab re-runs any widget that registers a `refresh_fn` property. That replaces
+  the previous single-tab special case — the MCP tab had one and nothing else
+  did, which is exactly how Quick Actions was missed. Setup Status, the MCP
+  listener indicator and the Epic MCP indicator all register as live.
+
 - **Nine tools wrote assets to Epic's Fortnite install instead of the project.**
   `/Game/` is not the creator's project in UEFN (UEFN_QUIRKS.md #23), so anything
   created there is unreferenceable — the same defect that left ~700 dangling

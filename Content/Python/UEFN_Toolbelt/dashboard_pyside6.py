@@ -196,14 +196,13 @@ def _sep(layout: QVBoxLayout) -> None:
 
 # ─── Quick Actions ─────────────────────────────────────────────────────────────
 
-def _build_setup_status(L: QVBoxLayout) -> None:
+def _setup_status_checks() -> list:
     """
-    First-run health badge. Runs silently on dashboard open and shows a
-    compact status row for each system dependency. Green = good, yellow = warning,
-    red = broken. Zero user action required — just glance at it.
+    Compute the health rows. Separate from rendering because these are live
+    facts, not startup facts — the MCP bridge in particular can start after the
+    dashboard is built, and a row rendered once at launch then reports
+    "Not running" while the MCP tab correctly shows it listening.
     """
-    g = _group(L, "Setup Status")
-
     checks = []
 
     # ── PySide6 ───────────────────────────────────────────────────────────────
@@ -264,6 +263,39 @@ def _build_setup_status(L: QVBoxLayout) -> None:
     except Exception:
         checks.append(("Verse-book spec", "warn", "Could not verify"))
 
+    return checks
+
+
+def _build_setup_status(L: QVBoxLayout) -> None:
+    """
+    First-run health badge. Green = good, yellow = warning, red = broken.
+    Re-renders whenever the Quick Actions tab is navigated to, via the
+    "refresh_fn" property the dashboard sweeps for.
+    """
+    g = _group(L, "Setup Status")
+
+    holder = QWidget()
+    holder_layout = QVBoxLayout(holder)
+    holder_layout.setContentsMargins(0, 0, 0, 0)
+    holder_layout.setSpacing(0)
+    g.addWidget(holder)
+
+    def _render() -> None:
+        while holder_layout.count():
+            item = holder_layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+        _render_setup_rows(holder_layout)
+
+    _render()
+    holder.setProperty("refresh_fn", _render)
+    _sep(L)
+
+
+def _render_setup_rows(g: QVBoxLayout) -> None:
+    checks = _setup_status_checks()
+
     # ── Render rows ───────────────────────────────────────────────────────────
     color_map = {"ok": _color("ok"), "warn": _color("warn"), "error": _color("error")}
     icon_map  = {"ok": "✓", "warn": "⚠", "error": "✗"}
@@ -306,8 +338,6 @@ def _build_setup_status(L: QVBoxLayout) -> None:
     summary_lbl = QLabel(summary)
     summary_lbl.setStyleSheet(f"font-size: 11px; color: {summary_col}; padding: 4px 2px 0 2px; background: transparent;")
     g.addWidget(summary_lbl)
-
-    _sep(L)
 
 
 def _tab_quick_actions(R) -> QScrollArea:
@@ -1726,7 +1756,7 @@ def _tab_mcp(R) -> QScrollArea:
     L.addWidget(status_lbl)
 
     # Expose refresh fn so _select_category can call it on tab navigation
-    status_lbl.setProperty("mcp_refresh_fn", _refresh_status)
+    status_lbl.setProperty("refresh_fn", _refresh_status)
 
     # ── Status & controls ─────────────────────────────────────────────────
     g = _group(L, "Listener Controls")
@@ -1802,6 +1832,7 @@ def _tab_mcp(R) -> QScrollArea:
             epic_lbl.setStyleSheet("color: #FF5555; font-size: 11px;")
 
     _refresh_epic()
+    epic_lbl.setProperty("refresh_fn", _refresh_epic)
     g_epic.addWidget(epic_lbl)
 
     def _epic_register():
@@ -3097,18 +3128,8 @@ class ToolbeltDashboard(QMainWindow):
         self._stack.addWidget(search_scroll)  # index 0
 
         self._cat_indices: dict = {}
-        self._mcp_refresh_fn = None  # populated after MCP tab is built
         for label, builder in self._CATEGORIES:
-            idx = self._stack.addWidget(builder(R))
-            self._cat_indices[label] = idx
-            if label == "MCP":
-                # Find the status label's stored refresh fn
-                page = self._stack.widget(idx)
-                for child in page.findChildren(QLabel):
-                    fn = child.property("mcp_refresh_fn")
-                    if fn:
-                        self._mcp_refresh_fn = fn
-                        break
+            self._cat_indices[label] = self._stack.addWidget(builder(R))
 
         # ── Left sidebar ──────────────────────────────────────────────────────
         sidebar = QWidget()
@@ -3243,9 +3264,18 @@ class ToolbeltDashboard(QMainWindow):
         self._filter_box.setPlaceholderText(f"Filter {label}…")
         self._filter_box.setVisible(show_filter)
         self._stack.setCurrentIndex(self._cat_indices[label])
-        # Refresh MCP status indicator whenever the MCP tab is navigated to
-        if label == "MCP" and hasattr(self, "_mcp_refresh_fn"):
-            self._mcp_refresh_fn()
+        # Re-run any live status widget on the page. Anything showing state that
+        # can change while the dashboard is open registers a "refresh_fn"
+        # property; sweeping for it means a new one is picked up automatically
+        # rather than needing another special case here.
+        if page:
+            for child in page.findChildren(QWidget):
+                fn = child.property("refresh_fn")
+                if callable(fn):
+                    try:
+                        fn()
+                    except Exception as e:
+                        unreal.log_warning(f"[Dashboard] {label} refresh failed: {e}")
 
     def _on_filter(self, text: str) -> None:
         """Filter buttons within the currently visible category page."""
