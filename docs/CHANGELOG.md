@@ -7,6 +7,14 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ## [Unreleased]
 
+- **`tb.hard_reload()`** — a reload that does not crash the editor. The
+  `sys.modules.pop` one-liner everyone uses takes UEFN down with an access
+  violation in Shiboken if the dashboard is open: dropping the modules destroys
+  the Python objects backing live Qt widgets. No traceback, and nothing in the
+  crash names the dashboard. `hard_reload()` closes Toolbelt windows, pumps the
+  Qt event loop so `deleteLater()` runs, then clears modules and re-registers.
+  Documented as Quirk #38.
+
 - **`tb.run()` returned `None` for an unknown tool, and the dashboard drew it as
   a green tick.** The dispatcher returned `None` for both "no such tool" and "the
   tool raised" — indistinguishable from a tool that ran and returned nothing. An

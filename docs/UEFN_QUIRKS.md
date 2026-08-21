@@ -1283,3 +1283,38 @@ if you want a silent check.
 They are `Warning`, not `Error`. Whether Epic's publish pipeline treats them as
 blocking is **not established** — if you need to know, test a publish rather than
 assume either way.
+
+---
+
+## Quirk #38 — Clearing `sys.modules` with a Toolbelt window open hard-crashes UEFN (Discovered: August 2026)
+
+The common "nuclear reload" one-liner:
+
+```python
+import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]
+import UEFN_Toolbelt as tb; tb.register()
+```
+
+takes the whole editor down instantly if the PySide6 dashboard — or any Toolbelt
+tool window — is open:
+
+```
+Unhandled Exception: EXCEPTION_ACCESS_VIOLATION reading address 0xffffffffffffffff
+python311 / shiboken6_abi3 / Shiboken / python311 ...
+```
+
+Dropping the modules destroys the Python objects backing live Qt widgets while
+Shiboken still holds pointers to them. The next event tick dereferences freed
+memory. There is no Python traceback — the process is simply gone, and nothing
+in the crash names the dashboard as the cause.
+
+**Use `tb.hard_reload()` instead.** It closes every Toolbelt window, pumps the Qt
+event loop so `deleteLater()` actually runs, and only then clears the modules and
+re-registers:
+
+```python
+import UEFN_Toolbelt as tb; tb.hard_reload()
+```
+
+Neither approach picks up a **new module** added to `tools/__init__.py` — that
+still needs a full editor restart (Quirk #26).

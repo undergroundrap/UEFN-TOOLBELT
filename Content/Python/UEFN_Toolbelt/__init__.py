@@ -15,6 +15,7 @@ Generic loader contract:
     register() handles tool loading, custom plugins, and menu scheduling.
 """
 
+import sys
 from typing import Any
 
 from . import core
@@ -352,6 +353,85 @@ def _print_tool_list() -> None:
         "",
     ]
     unreal.log("\n".join(lines))
+
+
+def close_windows() -> int:
+    """
+    Close every open Toolbelt Qt window and let Qt actually tear them down.
+
+    Must run before any reload that replaces module objects. Popping
+    UEFN_Toolbelt out of sys.modules destroys the Python objects backing live
+    widgets, and Shiboken then dereferences freed memory — an
+    EXCEPTION_ACCESS_VIOLATION that takes the whole editor with it, no traceback.
+
+    Returns the number of windows closed.
+    """
+    closed = 0
+    try:
+        from PySide6.QtWidgets import QApplication
+    except Exception:
+        return 0                      # no Qt loaded — nothing to tear down
+
+    app = QApplication.instance()
+    if app is None:
+        return 0
+
+    for mod_name, attr in (
+        ("UEFN_Toolbelt.dashboard_pyside6", "_WINDOW"),
+        ("UEFN_Toolbelt.tools.smart_organizer", "_organizer_window"),
+    ):
+        mod = sys.modules.get(mod_name)
+        if mod is None:
+            continue
+        win = getattr(mod, attr, None)
+        if win is None:
+            continue
+        try:
+            win.close()
+            win.deleteLater()
+            setattr(mod, attr, None)
+            closed += 1
+        except Exception:
+            pass                      # already dead; nothing to do
+
+    # let deleteLater actually run before the module objects go away
+    try:
+        app.processEvents()
+    except Exception:
+        pass
+    return closed
+
+
+def hard_reload(verbose: bool = True) -> dict:
+    """
+    Pick up changed code on disk, safely, without restarting the editor.
+
+    This is the supported replacement for the sys.modules.pop one-liner. That
+    one-liner crashes UEFN outright if a Toolbelt window is open — see
+    close_windows() — and the crash gives no clue that an open dashboard was the
+    cause.
+
+    Still cannot pick up a NEW module added to tools/__init__.py; that needs a
+    full editor restart (UEFN_QUIRKS.md #26).
+
+    Returns: {"status", "windows_closed", "modules_cleared", "tools"}
+    """
+    closed = close_windows()
+    names = [k for k in list(sys.modules) if k == "UEFN_Toolbelt"
+             or k.startswith("UEFN_Toolbelt.")]
+    for k in names:
+        sys.modules.pop(k, None)
+
+    import UEFN_Toolbelt as _tb
+    _tb.register()
+    if verbose:
+        import unreal
+        unreal.log(
+            f"[TOOLBELT] hard_reload: {closed} window(s) closed, "
+            f"{len(names)} module(s) cleared, {_tb.__tool_count__} tools."
+        )
+    return {"status": "ok", "windows_closed": closed,
+            "modules_cleared": len(names), "tools": _tb.__tool_count__}
 
 
 def reload() -> None:
