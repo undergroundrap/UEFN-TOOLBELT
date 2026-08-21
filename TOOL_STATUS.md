@@ -5,6 +5,37 @@ UEFN Toolbelt contains **361 tools across 35+ modules**. Because many tools acti
 ### Phase 21 — Complete AI Return Loop
 As of Phase 21, **every registered tool returns a structured `dict`** — `{"status": "ok"/"error", ...}`. Zero `None` returns remain anywhere in the codebase. This means AI agents using the MCP bridge can act on results programmatically: no log parsing, no guessing. The `describe_tool` MCP command was also added for per-tool manifest lookup.
 
+### UEFN 42.00 / UE 6.0 — Engine API Status (2026-08-20)
+
+UEFN force-updates in lockstep with the live Fortnite build, so 42.00 is not
+optional for anyone. It runs **UE 6.0**, not UE 5.x, and removes 13 `unreal.*`
+symbols the Toolbelt used.
+
+**Twelve tools are non-functional on 42.00 and refuse cleanly** rather than raising
+part-way through their work. They return
+`{"status": "error", "reason": "engine_api_unavailable", "missing_apis": [...]}`:
+
+| Tools | Missing API |
+|---|---|
+| `geometry_weld_edges`, `geometry_fill_holes`, `geometry_compute_normals`, `geometry_generate_lightmap_uvs`, `geometry_boolean_union/subtract/intersect`, `geometry_remove_degenerate` | `GeometryScriptLibrary_*` |
+| `blueprint_inspect`, `blueprint_compile_folder` | `EditorBlueprintLibrary` |
+| `input_create_action` | `InputActionFactory` |
+| `system_optimize_background_cpu` | `EditorPerformanceSettings` |
+| `align_to_surface` | `EditorLevelLibrary.snap_objects_to_floor` |
+
+These are declared `__optional_unreal_apis__` in their modules, so the smoke test
+reports them as *absent and handled* rather than as failures. **Layer 2 is green
+on 42.00** — 88/88, first green at the 2.3.4 release.
+
+**Reference lookup** (`ref_audit_orphans`, `ref_audit_unused_textures`,
+`ref_delete_orphans`) works on 42.00 via the UE 6.0 Asset Registry. Verified live:
+real per-asset referencer counts, not empty lists.
+
+**Known issue — not a Toolbelt defect.** Enabling Project Settings → Beta Access →
+UEFN MCP Toolsets stops the project's `init_unreal.py` from running, so Toolbelt
+never auto-starts. See README "Known Issue" and UEFN_QUIRKS.md #36. Detected by
+`tb.startup_ran()` and smoke test Layer 3. Reported to Epic.
+
 ### ⚠️ Architectural Constraints
 *   **Main Thread Lock**: UEFN Python runs on the main render thread. Operations like `time.sleep` in wait loops will **deadlock** the engine, preventing async tasks (like screenshot saves) from completing. Verification logic should avoid blocking waits.
 *   **Hot-Reloading**: Use "Nuclear Reload" to clear `sys.modules` cache. **Mandatory**: Must call `tb.register_all_tools()` after reloading to rebuild the registry.
@@ -355,3 +386,46 @@ If you are contributing a new tool or modifying an existing one:
 3. **If it requires context**: Manually verify in a throwaway UEFN project before submitting a PR. Add a row to the appropriate 🟡/🟠/🔴 table above.
 4. **Always run `smoke_test.py`** before committing to ensure you haven't broken the registry or layer imports.
 5. **Update this file** when adding tools — tool count, coverage percentage, and the appropriate verification table. This doc is the authoritative source of truth for what's tested and what isn't.
+
+---
+
+## Batch 12 — 42.00 Compatibility & Data-Loss Fixes (live-verified 2026-08-20)
+
+Verified in a live UEFN 42.00 editor on a real project, not a template level.
+
+**Data-loss fixes — each reproduced before the fix and confirmed after:**
+
+| Tool | Defect | Verification |
+|---|---|---|
+| `ref_delete_orphans` | Classified every asset as orphaned once `find_package_referencers` was removed; separately would delete `GameFeatureData`, the project's `.uplugin` descriptor | Live audit: 3473 assets scanned, 3455 sub-objects skipped, 3 roots protected, 13 real orphans found |
+| `organize_smart_categorize` | Deleted the source asset when a rename failed and counted it as "moved" | No `delete_asset` call remains in the module |
+| `arena_generate` | Wrote team materials to `/Game/`, i.e. Epic's Fortnite install | Resolves to `/<ProjectMount>/UEFN_Toolbelt/Materials/` |
+| `align_to_surface` | Returned `status: ok` after snapping nothing on 42.00 | Refuses via `missing_unreal_apis()` |
+
+**Write-destination fixes (9 tools)** — all previously defaulted to `/Game/`,
+creating assets the project cannot reference: `curve_create`,
+`text_render_texture`, `text_voxelize_3d`, `mesh_merge_selection`, `import_fbx`,
+`organize_assets`, `create_material_instance` (MCP), `anim_create_montage`,
+`input_create_action`, `organize_smart_categorize`.
+
+Live-verified via `curve_create` → `/Device_API_Mapping/Curves/CM_PathTest`.
+All nine share an identical edit shape through `core.resolve_content_path()`.
+
+**New tools (3):** `epic_mcp_status`, `epic_mcp_register`, `epic_mcp_unregister` —
+registered live, reachable from the MCP dashboard tab and the editor menu.
+
+**Dashboard fixes** — confirmed by live inspection: Setup Status showed a stale
+"MCP bridge: Not running" while the listener was up; the verse-book check looked
+in the wrong directory and then counted the wrong subdirectory.
+
+### Still unverified
+
+- **42 read-path `/Game/` defaults.** These scan Epic's Fortnite tree rather than
+  the project, so they return wrong or empty results and carry the Quirk #32
+  crash risk. Baselined in `drift_check` (`_GAME_PATH_DEFAULT_BASELINE`); not
+  fixed.
+- **Integration test has not been run since these changes.** The smoke test is
+  registration-level — it proves tools load, not that they work.
+- **Epic MCP end-to-end.** Registration into the Toolset Registry is confirmed;
+  an external MCP client calling `toolbelt_list_tools` through it is not, and is
+  blocked by the 42.00 startup-order bug above.
