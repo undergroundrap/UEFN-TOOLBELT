@@ -138,9 +138,10 @@ class _PkgActor:
 
 
 def _with_deps(monkeypatch, deps: dict[str, list[str]], exists: set[str], raiser=False):
-    """Install a fake dependency lookup and asset-existence oracle."""
+    """Install a fake dependency lookup, mount, and asset-existence oracle."""
     import unreal
 
+    monkeypatch.setattr(ra, "detect_project_mount", lambda: "Game", raising=False)
     monkeypatch.setattr(ra, "_DEP_LOOKUP_PROBED", True, raising=False)
     monkeypatch.setattr(ra, "_DEP_LOOKUP", lambda pkg: deps.get(pkg, []), raising=False)
 
@@ -159,7 +160,7 @@ def test_missing_dependency_is_named_with_its_referrer(monkeypatch):
         deps={"/Game/L/A_0": ["/Game/Meshes/SM_Gone", "/Game/Meshes/SM_Here"]},
         exists={"/Game/Meshes/SM_Here"},
     )
-    missing, checked, pkgs = ra._missing_dependencies([_PkgActor("Wall_01", "/Game/L/A_0")], {})
+    missing, checked, pkgs, unver = ra._missing_dependencies([_PkgActor("Wall_01", "/Game/L/A_0")], {})
     assert checked == 2 and pkgs == 1
     assert list(missing) == ["/Game/Meshes/SM_Gone"]
     assert missing["/Game/Meshes/SM_Gone"] == {"Wall_01"}
@@ -173,7 +174,7 @@ def test_script_and_transient_deps_are_not_counted(monkeypatch):
         deps={"/Game/L/A_0": ["/Script/Engine", "/Engine/Transient", "/Verse/X"]},
         exists=set(),
     )
-    missing, checked, _ = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
+    missing, checked, _, unver = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
     assert missing == {} and checked == 0
 
 
@@ -181,7 +182,7 @@ def test_unanswerable_existence_never_reports_missing(monkeypatch):
     """"Couldn't tell" must not become "it's gone" — this tool drives repairs."""
     _with_deps(monkeypatch, deps={"/Game/L/A_0": ["/Game/Meshes/SM_X"]},
                exists=set(), raiser=True)
-    missing, checked, _ = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
+    missing, checked, _, unver = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
     assert missing == {}
     assert checked == 1
 
@@ -190,7 +191,7 @@ def test_one_package_per_actor_is_deduplicated(monkeypatch):
     """Under OFPA each actor has its own package; shared ones must not double-count."""
     _with_deps(monkeypatch, deps={"/Game/L/A_0": ["/Game/Meshes/SM_Gone"]}, exists=set())
     actors = [_PkgActor("A", "/Game/L/A_0"), _PkgActor("B", "/Game/L/A_0")]
-    missing, checked, pkgs = ra._missing_dependencies(actors, {})
+    missing, checked, pkgs, unver = ra._missing_dependencies(actors, {})
     assert pkgs == 1 and checked == 1
     assert missing["/Game/Meshes/SM_Gone"] == {"A"}
 
@@ -199,5 +200,34 @@ def test_no_dependency_lookup_reports_zero_not_clean(monkeypatch):
     """Unavailable API must yield 0 checked so status falls to inconclusive."""
     monkeypatch.setattr(ra, "_DEP_LOOKUP_PROBED", True, raising=False)
     monkeypatch.setattr(ra, "_DEP_LOOKUP", None, raising=False)
-    missing, checked, pkgs = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
-    assert (missing, checked, pkgs) == ({}, 0, 0)
+    missing, checked, pkgs, unver = ra._missing_dependencies([_PkgActor("A", "/Game/L/A_0")], {})
+    assert (missing, checked, pkgs, unver) == ({}, 0, 0, 0)
+
+
+def test_other_mounts_are_unverifiable_not_missing(monkeypatch):
+    """The 383-false-positive case, pinned.
+
+    On Device_API_Mapping the first dependency version reported 383 missing
+    assets, every one Epic plugin content that plainly exists — Teleporters and
+    Item Spawners working in the level. does_asset_exist cannot browse those
+    mounts and returns False for "cannot see" exactly as for "not there".
+
+    Anything outside the project mount must be counted, never accused.
+    """
+    _with_deps(
+        monkeypatch,
+        deps={"/Game/L/A_0": [
+            "/CreativeCoreDevices/Device_Teleporter_V2",
+            "/CRD_Water/Blueprints/Device_Water_V2",
+            "/Game/Meshes/SM_Gone",
+        ]},
+        exists=set(),          # nothing "exists" — the harshest possible oracle
+    )
+    missing, checked, _, unver = ra._missing_dependencies(
+        [_PkgActor("Teleporter", "/Game/L/A_0")], {})
+
+    assert unver == 2, "Epic mounts must be counted as unverifiable"
+    assert checked == 1, "only the project-mount dependency is judged"
+    assert list(missing) == ["/Game/Meshes/SM_Gone"], (
+        f"reported Epic content as missing: {sorted(missing)}"
+    )

@@ -36,7 +36,7 @@ from typing import Any
 
 import unreal
 
-from UEFN_Toolbelt.core import resolve_scan_path
+from UEFN_Toolbelt.core import detect_project_mount, resolve_scan_path
 from UEFN_Toolbelt.registry import register_tool
 
 # ─── Output ───────────────────────────────────────────────────────────────────
@@ -860,7 +860,7 @@ def _actor_package(actor):
     return None
 
 
-def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], int, int]:
+def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], int, int, int]:
     """Dependencies recorded on disk whose target asset no longer exists.
 
     This is the detection the CDO comparison could not do. A null component
@@ -868,15 +868,32 @@ def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], i
     builds its dependency table from the saved package, so the reference
     survives the deletion of its target and can still be named.
 
+    ONLY dependencies under the project's own mount are judged. The first
+    version checked every mount with EditorAssetLibrary.does_asset_exist and
+    reported 383 missing assets on a healthy island — every one of them Epic
+    plugin content (/CRD_*, /CreativeCoreDevices, /ContentHall) that plainly
+    exists, because does_asset_exist cannot browse those mounts and answers
+    False for "cannot see" exactly as it does for "not there" (Quirk #23).
+
+    Everything outside the project mount is counted as unverifiable and
+    reported as such, because the creator cannot have broken Epic's content
+    anyway — the damage worth finding is in their own.
+
     Returns (missing -> referencing actor labels, dependencies_checked,
-    packages_checked).
+    packages_checked, unverifiable_dependencies).
     """
     lookup = _resolve_dep_lookup()
     if lookup is None:
-        return {}, 0, 0
+        return {}, 0, 0, 0
+
+    try:
+        mount = f"/{detect_project_mount()}/"
+    except Exception:
+        return {}, 0, 0, 0
 
     missing: dict[str, set] = {}
     checked = 0
+    unverifiable = 0
     packages: dict[str, str] = {}
 
     for actor in actors:
@@ -898,6 +915,10 @@ def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], i
         for dep in deps:
             if dep.startswith(_DEP_IGNORE):
                 continue
+            if not dep.startswith(mount):
+                # Another mount — Epic's, or a plugin's. Not answerable here.
+                unverifiable += 1
+                continue
             checked += 1
             present = exists_cache.get(dep)
             if present is None:
@@ -910,7 +931,7 @@ def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], i
             if not present:
                 missing.setdefault(dep, set()).add(label)
 
-    return missing, checked, len(packages)
+    return missing, checked, len(packages), unverifiable
 
 
 def _empty_slots(actor) -> tuple[list[dict], int]:
@@ -1048,7 +1069,8 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
     # the whole check until a live run on a 3405-actor island reported
     # comparable_slots 0, because UEFN actors take their meshes per-instance and
     # so have no class default to compare against.
-    missing_deps, deps_checked, pkgs_checked = _missing_dependencies(actors, exists_cache)
+    missing_deps, deps_checked, pkgs_checked, unverifiable_deps = _missing_dependencies(
+        actors, exists_cache)
 
     for actor in actors:
         if actor is None:
@@ -1079,7 +1101,8 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
         unreal.log_warning(
             f"[RefAuditor] {len(dep_findings)} missing asset(s) still referenced "
             f"by this level ({deps_checked} dependencies checked across "
-            f"{pkgs_checked} package(s)):"
+            f"{pkgs_checked} package(s); {unverifiable_deps} on other mounts "
+            f"were not checkable):"
         )
         for d in dep_findings[:max_results]:
             who = ", ".join(d["referenced_by"][:3])
@@ -1126,6 +1149,7 @@ def ref_audit_broken(max_results: int = 200, **kwargs) -> dict:
         "missing_assets":      len(dep_findings),
         "dependencies_checked": deps_checked,
         "packages_checked":    pkgs_checked,
+        "unverifiable_dependencies": unverifiable_deps,
         "dependency_lookup":   dependency_lookup_available(),
         "broken_actors":       total,
         "missing_meshes":      meshes,
