@@ -3384,6 +3384,14 @@ class ToolbeltDashboard(QMainWindow):
             t1 = time.time()
             ms = (t1 - t0) * 1000
 
+            # A tool reporting an error must not show a green tick. This branch
+            # used to be `result is None` -> success, so an unknown tool or one
+            # that raised looked identical to a clean run.
+            if isinstance(result, dict) and result.get("status") == "error":
+                why = result.get("message") or result.get("reason") or "failed"
+                self._set_status(f"  ✗  {tool_name}: {str(why)[:70]}", ok=False)
+                return
+
             if result is None or result is True:
                 msg = f"  ✓  {tool_name}  ({ms:.1f}ms)"
             elif isinstance(result, list):

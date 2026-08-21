@@ -57,8 +57,28 @@ def test_execute_passes_kwargs_and_returns_result(fresh_registry):
     assert result == {"status": "ok", "echo": {"count": 5, "label": "x"}}
 
 
-def test_execute_unknown_tool_returns_none(fresh_registry):
-    assert fresh_registry.execute("does_not_exist") is None
+def test_execute_unknown_tool_returns_structured_error(fresh_registry):
+    """
+    These two tests used to assert `is None`, pinning the bug in place.
+
+    Returning None for both "no such tool" and "the tool raised" is
+    indistinguishable from a tool that ran and returned nothing — an MCP client
+    cannot tell them apart, and the dashboard rendered it as a green tick
+    because its handler treats None as success. A misspelled tool name looked
+    like a clean run.
+    """
+    res = fresh_registry.execute("does_not_exist")
+    assert isinstance(res, dict)
+    assert res["status"] == "error"
+    assert res["reason"] == "unknown_tool"
+    assert res["tool"] == "does_not_exist"
+
+
+def test_unknown_tool_suggests_close_matches(fresh_registry):
+    """362 tools makes a typo likely; the caller should be pointed at the fix."""
+    fresh_registry.register(**_tool(name="scatter_props"))
+    res = fresh_registry.execute("scatter_prop")
+    assert "scatter_props" in res["did_you_mean"]
 
 
 def test_execute_contains_exceptions(fresh_registry):
@@ -67,9 +87,12 @@ def test_execute_contains_exceptions(fresh_registry):
         raise RuntimeError("tool exploded")
 
     fresh_registry.register(**_tool(name="boom", fn=boom))
-    assert fresh_registry.execute("boom") is None      # contained, not raised
+    res = fresh_registry.execute("boom")
+    assert res["status"] == "error"                    # contained, not raised
+    assert res["reason"] == "exception"
+    assert "tool exploded" in res["message"]           # says what actually failed
     assert "boom" in fresh_registry                    # registry still usable
-    assert fresh_registry.execute("boom", again=True) is None
+    assert fresh_registry.execute("boom", again=True)["status"] == "error"
 
 
 # ── list_tools / manifest shape ───────────────────────────────────────────────

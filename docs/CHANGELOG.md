@@ -7,6 +7,19 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ## [Unreleased]
 
+- **`tb.run()` returned `None` for an unknown tool, and the dashboard drew it as
+  a green tick.** The dispatcher returned `None` for both "no such tool" and "the
+  tool raised" — indistinguishable from a tool that ran and returned nothing. An
+  MCP client could not tell a typo from a clean run, and the dashboard's status
+  handler treats `None` as success, so a failing button showed ✓.
+
+  `execute()` now returns `{"status": "error", "reason": "unknown_tool" |
+  "exception", ...}`, with `did_you_mean` suggestions for a mistyped name. The
+  dashboard checks `status` and shows ✗ with the reason.
+
+  Two existing tests asserted `is None` — they were pinning the bug in place, and
+  are rewritten against the corrected contract.
+
 - **Every dashboard button and menu item was scanning Epic's Fortnite install.**
   42 hardcoded `/Game` references across `dashboard_pyside6.py` and `menu.py`
   passed `scan_path="/Game"` explicitly. `resolve_scan_path()` only fills in an

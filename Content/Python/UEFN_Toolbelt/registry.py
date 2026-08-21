@@ -26,6 +26,7 @@ The ToolRegistry is a singleton. Access it anywhere via:
 
 from __future__ import annotations
 
+import difflib
 import inspect
 import os
 import time
@@ -208,17 +209,29 @@ class ToolRegistry:
         Execute a tool by name. All exceptions are caught and logged so a
         failing tool never crashes the editor session.
 
-        Returns the tool's return value, or None on failure.
+        Returns the tool's return value, or a structured error dict on failure.
+
+        Never None. This used to return None for both "no such tool" and "the
+        tool raised", which an MCP client cannot tell apart from a tool that ran
+        and returned nothing — and which the dashboard rendered as a green tick,
+        because its handler treats None as success.
         Every call is recorded in the rolling activity log (core/activity_log.py).
         """
         try:
             return self.execute_strict(tool_id, **kwargs)
         except KeyError as e:
             log_error(str(e.args[0]) if e.args else f"Unknown tool: '{tool_id}'")
-            return None
-        except Exception:
-            log_error(f"Tool '{tool_id}' raised an exception:\n{traceback.format_exc()}")
-            return None
+            close = difflib.get_close_matches(
+                tool_id, list(self._tools.keys()), n=3, cutoff=0.6)
+            if close:
+                log_error(f"  Did you mean: {', '.join(close)}?")
+            return {"status": "error", "reason": "unknown_tool", "tool": tool_id,
+                    "message": f"Unknown tool: '{tool_id}'", "did_you_mean": close}
+        except Exception as e:
+            tb_text = traceback.format_exc()
+            log_error(f"Tool '{tool_id}' raised an exception:\n{tb_text}")
+            return {"status": "error", "reason": "exception", "tool": tool_id,
+                    "message": f"{type(e).__name__}: {e}", "traceback": tb_text}
 
     # ── Validation ────────────────────────────────────────────────────────────
 
