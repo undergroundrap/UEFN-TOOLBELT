@@ -72,6 +72,13 @@ SCAN_FILES = [
     "docs/SCHEMA_EXPLORER.md",
     "Content/Python/UEFN_Toolbelt/dashboard_pyside6.py",
     "tests/smoke_test.py",
+    # Agent context files. These carry tool counts and per-tool tables that go
+    # stale exactly like the docs do — three counts had already drifted before
+    # they were added here.
+    ".claude/tool_tables.md",
+    ".claude/mcp_reference.md",
+    ".claude/rules/tool_authoring.md",
+    ".claude/agents/tool-developer.md",
 ]
 
 # ── Patterns ──────────────────────────────────────────────────────────────────
@@ -87,8 +94,11 @@ _VERSION_PATTERNS = [
 ]
 
 # Tool count patterns — flag any number adjacent to "tool" that doesn't match TOOL_COUNT
+# Up to two words may sit between the count and "tool". "355 registered tools",
+# "358 built-in tools" and "355 Professional Tools" all went stale unnoticed
+# because the old pattern required the number to be immediately adjacent.
 _TOOL_COUNT_PATTERN = re.compile(
-    r"\b(\d{2,4})\s+tool",
+    r"\b(\d{2,4})\s+(?:[A-Za-z][\w-]*\s+){0,2}tools?\b",
     re.IGNORECASE,
 )
 
@@ -105,8 +115,6 @@ _CATEGORY_COUNT_PATTERN = re.compile(
 _EXCEPTIONS = {
     # Changelog entries are historical — always exempt
     "docs/CHANGELOG.md",
-    # Plugin dev guide references MIN_TOOLBELT_VERSION examples
-    "docs/plugin_dev_guide.md",
 }
 
 # Lines containing these fragments are always skipped (changelog bullets, prior art,
@@ -128,6 +136,13 @@ _SKIP_LINE_FRAGMENTS = [
     "smoke test",
     "Smoke_Test",
     "Integration Test",
+    # Subset counts that are intentionally smaller than TOOL_COUNT, and example
+    # JSON in the plugin guide. Targeted fragments rather than exempting whole
+    # files — a blanket exemption on plugin_dev_guide.md is what let two stale
+    # tool counts sit in it unnoticed.
+    "smoke-test time",
+    "key tools",
+    "toolbelt_version",
     "integration test",
     "integration_test",
     "toolbelt_smoke_test",

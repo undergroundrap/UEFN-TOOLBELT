@@ -4,7 +4,7 @@
 > It gives Claude full knowledge of the UEFN Toolbelt so you can use natural language
 > to control UEFN without looking up tool names or parameters.
 
-<!-- last full audit: v2.3.6 — 2026-08-20 -->
+<!-- last full audit: v2.3.7 — 2026-08-20 -->
 
 ---
 
@@ -115,7 +115,7 @@ import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in
 ## ⚠️ MANDATORY: Check the Registry Before Adding Any Tool
 
 **Never build a new tool without first auditing what already exists.**
-With 355 registered tools, the risk of duplicating or fragmenting existing functionality is high.
+With 361 registered tools, the risk of duplicating or fragmenting existing functionality is high.
 A new tool that overlaps an existing one wastes time, inflates the count, and confuses users.
 
 ### Pre-build checklist — required before writing a single line of tool code
@@ -369,7 +369,7 @@ Then restart Claude Code — it connects automatically.
 
 ### What Claude Code can now do
 
-- Run any of the 355 registered tools by name
+- Run any of the 361 registered tools by name
 - Spawn, move, delete actors
 - List/rename/import/tag assets
 - Take screenshots, save level snapshots

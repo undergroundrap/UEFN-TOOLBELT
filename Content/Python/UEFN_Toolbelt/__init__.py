@@ -29,7 +29,7 @@ config = get_config()
 # Single source of truth — used in audit logs, reload messages, and manifests.
 # Bump this when shipping a release so plugin_audit.json records which version
 # of the platform each plugin was loaded against.
-__version__ = "2.3.6"
+__version__ = "2.3.7"
 
 # Total registered tools — update alongside __version__ when adding/removing tools.
 # Checked by scripts/drift_check.py to catch stale counts across docs and UI.
@@ -123,7 +123,7 @@ def register_all_tools() -> None:
     # Offer the catalogue to Epic's official Unreal MCP, if this build has it.
     # No-ops with a log line when the Experimental ToolsetRegistry plugin or the
     # UEFN MCP beta flag is off, which is the common case — never a hard failure,
-    # and never allowed to take the 358 registered tools down with it.
+    # and never allowed to take the 361 registered tools down with it.
     try:
         from . import epic_toolset
         epic_toolset.register()

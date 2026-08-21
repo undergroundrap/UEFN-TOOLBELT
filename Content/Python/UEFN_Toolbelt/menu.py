@@ -312,6 +312,18 @@ def build_toolbelt_menu() -> None:
            "Restart the listener — use after hot-reloading the toolbelt",
            "import UEFN_Toolbelt as tb; tb.run('mcp_restart')")
 
+    _entry("MCPBridge", "EpicMCPStatus",
+           "Epic MCP: Status",
+           "Report whether Epic's official Toolset Registry is available and "
+           "whether Toolbelt is registered with it",
+           "import UEFN_Toolbelt as tb; tb.run('epic_mcp_status')")
+
+    _entry("MCPBridge", "EpicMCPRegister",
+           "Epic MCP: Register Toolbelt",
+           "Expose every Toolbelt tool to any MCP client connected to the editor. "
+           "Runs at startup; use this after changing Beta Access settings",
+           "import UEFN_Toolbelt as tb; tb.run('epic_mcp_register')")
+
     # ── API Explorer ──────────────────────────────────────────────────────────
     _entry("APIExplorer", "APIListSubsystems",
            "API: List Subsystems",

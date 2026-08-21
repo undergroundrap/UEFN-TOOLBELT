@@ -6,7 +6,7 @@ plugin. A toolset is a Blueprint Function Library whose static methods carry
 `meta=(AICallable)`; the registry discovers them and Unreal MCP wraps each one
 as an MCP tool for any connected client.
 
-Rather than emit 358 UFunctions — one per Toolbelt tool, each needing UE-mappable
+Rather than emit 361 UFunctions — one per Toolbelt tool, each needing UE-mappable
 parameter annotations — this exposes three meta-tools that mirror the shape Epic
 already uses in tool-search mode (`list_toolsets` / `describe_toolset` /
 `call_tool`):
@@ -26,7 +26,7 @@ Experimental plugin and the UEFN MCP toolset sits behind a beta-access flag, so
 on most users' machines some or all of it is absent. Nothing here runs at import
 time: the toolset class is built lazily inside `register()`, because applying
 `@unreal.uclass()` to a missing base class would raise during
-`import UEFN_Toolbelt` and take all 358 tools down with it.
+`import UEFN_Toolbelt` and take all 361 tools down with it.
 
 Reference: Engine/Plugins/Experimental/ToolsetRegistry/Content/Python/toolset_registry
 """
@@ -153,7 +153,7 @@ def _build_toolset_class() -> Any:
 
     @unreal.uclass()
     class UEFNToolbeltToolset(unreal.ToolsetDefinition):
-        """UEFN Toolbelt — 358 level-design, asset and Verse tools."""
+        """UEFN Toolbelt — 361 level-design, asset and Verse tools."""
 
         @toolset_registry.tool_call
         @staticmethod

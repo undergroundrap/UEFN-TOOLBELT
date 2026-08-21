@@ -5,6 +5,34 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [2.3.7] — 2026-08-20
+
+### Added
+- **The Epic MCP tools are now reachable from the UI.** The dashboard builds its
+  tabs from hand-written functions rather than from the registry, so registering
+  a tool does not surface it — `epic_mcp_status`, `epic_mcp_register` and
+  `epic_mcp_unregister` existed but appeared nowhere. The MCP Bridge tab gains an
+  "Epic Unreal MCP" group with live registration state, and the editor menu gains
+  Status and Register entries. The status line reports `unconfirmed` when the
+  registry cannot be queried, rather than presenting Toolbelt's own bookkeeping
+  as a verified fact.
+
+### Fixed
+- **`drift_check` was missing most stale tool counts.** Its pattern required the
+  number to sit immediately before the word "tool", so `355 registered tools`,
+  `358 built-in tools` and `355 Professional Tools` — the README's own headline —
+  all drifted unnoticed. It now allows up to two words in between, and scans
+  `.claude/tool_tables.md`, `.claude/mcp_reference.md`,
+  `.claude/rules/tool_authoring.md` and `.claude/agents/tool-developer.md`, which
+  carry counts and per-tool tables that rot exactly like the docs do.
+
+  The blanket exemption on `docs/plugin_dev_guide.md` is gone too — it existed to
+  silence `MIN_TOOLBELT_VERSION` examples, and a line fragment already does that,
+  but exempting the whole file had hidden two stale counts inside it. Eleven
+  stale references were corrected in total.
+
+- The MCP Bridge reference table documents the three Epic MCP tools.
+
 ## [2.3.6] — 2026-08-20
 
 ### Fixed

@@ -6,7 +6,7 @@
 
 ## Overview
 
-UEFN Toolbelt is a **Python automation framework** that runs inside the Unreal Editor for Fortnite (UEFN) process. It exposes 355 editor tools through four surfaces:
+UEFN Toolbelt is a **Python automation framework** that runs inside the Unreal Editor for Fortnite (UEFN) process. It exposes 361 editor tools through four surfaces:
 
 | Surface | Entry point | Who uses it |
 |---|---|---|

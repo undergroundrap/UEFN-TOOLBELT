@@ -1764,6 +1764,67 @@ def _tab_mcp(R) -> QScrollArea:
          "Print port, running state, and command count to Output Log")
 
     # ── Tool runner ───────────────────────────────────────────────────────
+    # ── Epic's official Unreal MCP ────────────────────────────────────────
+    g_epic = _group(L, "Epic Unreal MCP  (UEFN 42.00+)")
+
+    epic_lbl = QLabel()
+    epic_lbl.setWordWrap(True)
+    epic_lbl.setContentsMargins(4, 2, 4, 8)
+
+    def _refresh_epic():
+        try:
+            from UEFN_Toolbelt import epic_toolset as _et
+            st = _et.status()
+        except Exception as e:
+            epic_lbl.setText(f"Unavailable: {e}")
+            epic_lbl.setStyleSheet("color: #888888; font-size: 11px;")
+            return
+        if not st.get("epic_mcp_available"):
+            epic_lbl.setText(
+                "Not available on this build.\n"
+                + (st.get("reason") or "")
+                + "\nToolbelt works normally without it."
+            )
+            epic_lbl.setStyleSheet("color: #888888; font-size: 11px;")
+        elif st.get("registered"):
+            # This build's registry cannot be queried from Python, so say that
+            # rather than presenting our own bookkeeping as a confirmed fact.
+            note = ("" if st.get("registration_confirmed")
+                    else "   (unconfirmed — this build's registry cannot be queried)")
+            epic_lbl.setText(
+                "● REGISTERED" + note
+                + "\n3 meta-tools expose the whole Toolbelt catalogue to any "
+                  "connected MCP client."
+            )
+            epic_lbl.setStyleSheet(f"color: {_color('ok')}; font-size: 11px;")
+        else:
+            epic_lbl.setText("● NOT REGISTERED — click Register below.")
+            epic_lbl.setStyleSheet("color: #FF5555; font-size: 11px;")
+
+    _refresh_epic()
+    g_epic.addWidget(epic_lbl)
+
+    def _epic_register():
+        R("epic_mcp_register")
+        _refresh_epic()
+
+    def _epic_unregister():
+        R("epic_mcp_unregister")
+        _refresh_epic()
+
+    _btn(g_epic, "🔗  Register with Epic's Toolset Registry",
+         _epic_register,
+         "Expose every Toolbelt tool to any MCP client connected to the editor. "
+         "Runs automatically at startup — use this after changing Beta Access settings")
+
+    _btn(g_epic, "🔌  Unregister",
+         _epic_unregister,
+         "Withdraw the Toolbelt toolset so connected MCP clients no longer see it")
+
+    _btn(g_epic, "📡  Print Epic MCP Status to Log",
+         lambda: R("epic_mcp_status"),
+         "Print availability, registration state and the meta-tool list to Output Log")
+
     g2 = _group(L, "Run Any Toolbelt Tool")
     tool_inp = _inp("tool_name  (e.g. material_apply_preset)", width=220)
     kwargs_inp = _inp('kwargs JSON  (e.g. {"preset":"chrome"})', width=220)
