@@ -1310,6 +1310,12 @@
     },
     "MaterialEditingLibrary": {
       "attributes": {
+        "set_material_instance_parent": {
+          "used_by": [
+            "core/__init__.py"
+          ],
+          "optional": false
+        },
         "set_material_instance_scalar_parameter_value": {
           "used_by": [
             "core/__init__.py",

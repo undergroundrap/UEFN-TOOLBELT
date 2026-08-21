@@ -112,3 +112,47 @@ def test_guarded_tool_proceeds_when_the_api_is_present(monkeypatch):
 
     assert not (isinstance(result, dict)
                 and result.get("reason") == "engine_api_unavailable"),         "guard refused even though every required API was present"
+
+
+# ── UE 6.0 removed factory attributes ────────────────────────────────────────
+#
+# UEFN 42.00 raised, on every Materials tool:
+#     AttributeError: 'MaterialInstanceConstantFactoryNew' object has no
+#     attribute 'initial_parent'
+# Ten tools down at once, and only in the editor — nothing here could import
+# `unreal` to find out. A static check is the only guard available.
+
+def test_no_code_sets_initial_parent_on_a_factory():
+    """Assign the parent with MaterialEditingLibrary.set_material_instance_parent.
+
+    Parsed rather than grepped: the fix's own docstring quotes the AttributeError
+    verbatim, and a text search flags that as a violation. The check has to look
+    at what the code DOES.
+    """
+    import ast
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "Content" / "Python" / "UEFN_Toolbelt"
+    offenders: list[str] = []
+
+    for path in root.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            # factory.initial_parent = x
+            if isinstance(node, ast.Assign):
+                for t in node.targets:
+                    if isinstance(t, ast.Attribute) and t.attr == "initial_parent":
+                        offenders.append(f"{path.relative_to(root)}:{node.lineno}")
+            # factory.set_editor_property("initial_parent", x)
+            elif isinstance(node, ast.Call):
+                fn = node.func
+                if (isinstance(fn, ast.Attribute) and fn.attr == "set_editor_property"
+                        and node.args
+                        and isinstance(node.args[0], ast.Constant)
+                        and node.args[0].value == "initial_parent"):
+                    offenders.append(f"{path.relative_to(root)}:{node.lineno}")
+
+    assert not offenders, (
+        "initial_parent was removed from the factory in UE 6.0 and raises "
+        f"AttributeError in UEFN 42.00: {offenders}"
+    )

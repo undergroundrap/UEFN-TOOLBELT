@@ -332,13 +332,24 @@ def create_material_instance(
 ) -> unreal.MaterialInstanceConstant | None:
     """
     Create a MaterialInstanceConstant from a parent material.
+
+    The parent is assigned AFTER creation, via MaterialEditingLibrary. UE 6.0
+    dropped the factory's initial_parent attribute, and setting it raised
+
+        AttributeError: 'MaterialInstanceConstantFactoryNew' object has no
+        attribute 'initial_parent'
+
+    which took every Materials tool down on UEFN 42.00 — the whole category, for
+    anyone on the current engine. set_material_instance_parent() is the
+    supported route and works on both.
+
+    Returns None on failure; never a parentless instance, because a material
+    instance with no parent silently renders as the engine default and looks
+    like the tool merely picked bad colours.
     """
     parent = load_asset(parent_path)
     if parent is None:
         return None
-
-    factory = unreal.MaterialInstanceConstantFactoryNew()
-    factory.initial_parent = parent
 
     ensure_folder(package_path)
     full_path = f"{package_path}/{instance_name}"
@@ -348,10 +359,25 @@ def create_material_instance(
         unreal.EditorAssetLibrary.delete_asset(full_path)
 
     mi = asset_tools().create_asset(instance_name, package_path,
-                                    unreal.MaterialInstanceConstant, factory)
+                                    unreal.MaterialInstanceConstant,
+                                    unreal.MaterialInstanceConstantFactoryNew())
     if mi is None:
         log_error(f"Failed to create material instance: {full_path}")
+        return None
+
+    try:
+        unreal.MaterialEditingLibrary.set_material_instance_parent(mi, parent)
+    except Exception as e:
+        # Better to have no asset than one that quietly renders as the default.
+        log_error(
+            f"Could not set parent '{parent_path}' on {full_path}: "
+            f"{type(e).__name__}: {e}"
+        )
+        unreal.EditorAssetLibrary.delete_asset(full_path)
+        return None
+
     return mi
+
 
 
 def set_mi_scalar(mi: unreal.MaterialInstanceConstant, name: str, value: float) -> None:
