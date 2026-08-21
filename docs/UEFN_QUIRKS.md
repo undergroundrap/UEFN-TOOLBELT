@@ -1235,6 +1235,20 @@ session; smoke test Layer 3 checks it and names this quirk. Note the flag is set
 by `register()`, not `register_all_tools()` — the smoke test calls the latter
 itself, so keying off it would always look healthy.
 
+`tb.run()` now names it too, which matters because nobody runs the smoke test
+*before* hitting the bug. `ToolRegistry.is_fully_registered()` tests for
+`UEFN_Toolbelt.tools` in `sys.modules` — imported by `register_all_tools()` and
+by nothing else, so it answers "did startup run?" exactly rather than guessing
+from a tool count. On a miss the dispatcher returns `reason: "not_registered"`
+with the fix, instead of `reason: "unknown_tool"` with an empty `did_you_mean`.
+
+That empty list was the giveaway in the live session that prompted this: with a
+0.6 cutoff, `ref_audit_broken` matches its siblings `ref_audit_orphans` (0.73),
+`ref_audit_redirectors` (0.65) and `ref_audit_duplicates` (0.61). Getting `[]`
+back meant not one of the module's eight tools was registered — which is a
+startup failure, not a typo. Chasing it the other way cost a full audit of the
+deployed tree, the bytecode headers and the import list, all of which were fine.
+
 **Workaround.** Turn the flag off, or run `import UEFN_Toolbelt as tb;
 tb.register()` once per session.
 

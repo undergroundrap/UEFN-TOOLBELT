@@ -29,6 +29,7 @@ from __future__ import annotations
 import difflib
 import inspect
 import os
+import sys
 import time
 import traceback
 from collections.abc import Callable, Iterable
@@ -204,6 +205,16 @@ class ToolRegistry:
             pass  # Never let logging crash a successful tool run
         return result
 
+    def is_fully_registered(self) -> bool:
+        """True when register_all_tools() has actually imported the tools package.
+
+        Checked against sys.modules rather than a tool count, so it stays correct
+        no matter how many tools ship. UEFN_Toolbelt.tools is imported by
+        register_all_tools() and by nothing else, which makes its presence an
+        exact answer to "did startup registration run?" instead of a guess.
+        """
+        return "UEFN_Toolbelt.tools" in sys.modules
+
     def execute(self, tool_id: str, **kwargs) -> Any:
         """
         Execute a tool by name. All exceptions are caught and logged so a
@@ -220,6 +231,23 @@ class ToolRegistry:
         try:
             return self.execute_strict(tool_id, **kwargs)
         except KeyError as e:
+            # "Unknown tool" is the wrong answer when the truth is "no tools were
+            # ever loaded". Quirk #36: enabling UEFN's MCP Toolsets beta flag stops
+            # init_unreal.py from running, so register_all_tools() never fires and
+            # the registry holds only the one tool decorated in __init__.py. Every
+            # lookup then misses, and the user goes hunting for a typo in a name
+            # that is perfectly correct.
+            if not self.is_fully_registered():
+                msg = (f"Toolbelt is not registered — only {len(self._tools)} tool(s) "
+                       f"loaded, so '{tool_id}' cannot be found. Run: "
+                       f"import UEFN_Toolbelt as tb; tb.register()")
+                log_error(msg)
+                log_error("  Cause: init_unreal.py did not run at editor startup. "
+                          "See docs/UEFN_QUIRKS.md #36 (UEFN MCP Toolsets beta flag).")
+                return {"status": "error", "reason": "not_registered", "tool": tool_id,
+                        "message": msg, "tools_loaded": len(self._tools),
+                        "fix": "import UEFN_Toolbelt as tb; tb.register()",
+                        "quirk": 36}
             log_error(str(e.args[0]) if e.args else f"Unknown tool: '{tool_id}'")
             close = difflib.get_close_matches(
                 tool_id, list(self._tools.keys()), n=3, cutoff=0.6)

@@ -27,6 +27,7 @@ Example:
 import importlib
 import os
 import sys
+import traceback
 
 import unreal
 
@@ -66,7 +67,12 @@ for _name in sorted(_entries):
         # libraries or utilities that don't need an init hook.
     except Exception as _e:
         _failed.append(_name)
-        unreal.log_error(f"[LOADER] Failed to load '{_name}': {_e}")
+        # Print the full traceback, not just str(e). A package that fails to
+        # register is dead for the whole session, and a bare one-line message
+        # gives no file, no line, and no chance of a self-diagnosis.
+        unreal.log_error(f"[LOADER] Failed to load '{_name}': {type(_e).__name__}: {_e}")
+        for _line in traceback.format_exc().rstrip().splitlines():
+            unreal.log_error(f"[LOADER]   {_line}")
 
 # ── 3. Summary ────────────────────────────────────────────────────────────────
 

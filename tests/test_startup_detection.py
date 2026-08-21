@@ -81,3 +81,43 @@ def test_smoke_test_passes_when_auto_start_worked(monkeypatch):
     result = [r for r in smoke_test._results
               if r["name"] == "init_unreal.py auto-start"]
     assert result and result[0]["passed"] is True
+
+
+# ── tb.run() must name the unregistered state, not blame the tool name ────────
+#
+# Added 2026-08-21 after a live session on Device_API_Mapping where every call
+# answered:
+#     {'reason': 'unknown_tool', 'tool': 'ref_audit_broken', 'did_you_mean': []}
+# The tool existed, was deployed, and its bytecode was current. Quirk #36 had
+# simply stopped init_unreal.py from running, so the registry held one tool.
+# Diagnosing it took a filesystem audit; the registry had the answer all along.
+
+def test_is_fully_registered_true_when_tools_package_imported():
+    """Guards against the predicate being vacuously false in the real case."""
+    import UEFN_Toolbelt.tools  # noqa: F401 — the condition under test
+    from UEFN_Toolbelt.registry import get_registry
+    assert get_registry().is_fully_registered() is True
+
+
+def test_unregistered_registry_reports_not_registered(fresh_registry, monkeypatch):
+    """With UEFN_Toolbelt.tools absent, a miss is a startup failure, not a typo."""
+    import sys as _sys
+
+    # NB: `from UEFN_Toolbelt import registry` yields the ToolRegistry singleton,
+    # not the module — the package rebinds the name. Patch sys.modules directly.
+    monkeypatch.delitem(_sys.modules, "UEFN_Toolbelt.tools", raising=False)
+
+    res = fresh_registry.execute("ref_audit_broken")
+    assert res["status"] == "error"
+    assert res["reason"] == "not_registered", res
+    assert res["quirk"] == 36
+    assert "tb.register()" in res["fix"]
+    # The message must not send the user looking for a misspelling.
+    assert "did_you_mean" not in res
+
+
+def test_registered_registry_still_reports_unknown_tool(fresh_registry):
+    """The new branch must not swallow genuine typos once startup has run."""
+    import UEFN_Toolbelt.tools  # noqa: F401
+    res = fresh_registry.execute("ref_audit_brokenn")
+    assert res["reason"] == "unknown_tool", res
