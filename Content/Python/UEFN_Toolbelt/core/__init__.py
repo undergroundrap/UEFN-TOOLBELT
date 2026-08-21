@@ -135,6 +135,32 @@ def api_unavailable(tool: str, missing: list[str],
     }
 
 
+def is_scannable_asset(path: str) -> bool:
+    """
+    False for object paths that are not standalone assets.
+
+    ':' marks a sub-object inside a package — e.g.
+    /P/MyLevel.MyLevel:PersistentLevel.ActorFolder_UID_xxx. Under one-file-per-actor
+    a level yields thousands of these; they all resolve to the same owning package
+    and none can be loaded, renamed or moved individually.
+
+    '$' appears in UEFN 42.00 Verse digest paths ($Digest, $DebugData,
+    my_device$OnBegin). EditorAssetSubsystem rejects them outright — "Can't
+    convert the path $Digest because it contains invalid characters" — logging an
+    editor error on every lookup.
+
+    EditorAssetLibrary.list_assets() returns both kinds, so anything that
+    enumerates a folder and then loads, renames or moves the results must filter
+    through this first.
+    """
+    return ":" not in path and "$" not in path
+
+
+def scannable_assets(paths) -> list[str]:
+    """list_assets() output with sub-objects and Verse digest paths removed."""
+    return [p for p in paths if is_scannable_asset(p)]
+
+
 def resolve_scan_path(scan_path: str) -> str:
     """
     Resolve an empty scan_path to the project's Content Browser mount point.

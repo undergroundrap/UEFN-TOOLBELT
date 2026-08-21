@@ -37,6 +37,20 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
   did, which is exactly how Quick Actions was missed. Setup Status, the MCP
   listener indicator and the Epic MCP indicator all register as live.
 
+- **Nine folder scans were loading Verse digest paths and OFPA sub-objects.**
+  `EditorAssetLibrary.list_assets()` returns `:` sub-objects (thousands per level
+  under one-file-per-actor) and UEFN 42.00 `$` Verse digest paths, which the
+  editor rejects outright. Only `reference_auditor` filtered them — the guard
+  that stopped it classifying every asset as orphaned lived in that one module.
+
+  `tag_list_all` was still logging `Can't convert the path $Digest` on a live
+  42.00 project. More seriously, `asset_renamer`, `smart_organizer` and
+  `scaffold_organize_loose` enumerate identically and then *rename or move* what
+  they find.
+
+  The guard is now `core.is_scannable_asset()` / `core.scannable_assets()`, applied
+  at every enumeration, with a test that fails if a new unfiltered one appears.
+
 - **The last 42 `/Game/` default paths are gone.** 39 scan paths now resolve
   through `core.resolve_scan_path()` and the three `project_scaffold` `base`
   parameters — which create folders — through `core.resolve_content_path()`.

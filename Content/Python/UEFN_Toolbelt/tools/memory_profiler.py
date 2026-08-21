@@ -55,6 +55,7 @@ from ..core import (
     load_asset,
     log_info,
     resolve_scan_path,
+    scannable_assets,
 )
 from ..registry import register_tool
 
@@ -83,6 +84,7 @@ def _list_assets_of_class(scan_path: str, class_name: str) -> list[tuple[str, un
     all_paths = unreal.EditorAssetLibrary.list_assets(
         scan_path, recursive=True, include_folder=False
     )
+    all_paths = scannable_assets(all_paths)
     results = []
     for p in all_paths:
         asset = load_asset(p)

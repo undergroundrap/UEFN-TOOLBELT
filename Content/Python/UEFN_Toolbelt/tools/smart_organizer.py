@@ -35,6 +35,7 @@ from ..core import (
     log_warning,
     resolve_content_path,
     resolve_scan_path,
+    scannable_assets,
     with_progress,
 )
 from ..registry import register_tool
@@ -221,6 +222,7 @@ def run_smart_categorize(
 
     log_info(f"Scanning {scan_path} for smart organization...")
     asset_paths = eal.list_assets(scan_path, recursive=True, include_folder=False)
+    asset_paths = scannable_assets(asset_paths)
 
     if not asset_paths:
         log_info("No assets found.")

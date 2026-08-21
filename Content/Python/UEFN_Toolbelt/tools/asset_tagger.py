@@ -47,7 +47,7 @@ from typing import Any
 
 import unreal
 
-from UEFN_Toolbelt.core import resolve_scan_path
+from UEFN_Toolbelt.core import resolve_scan_path, scannable_assets
 from UEFN_Toolbelt.registry import register_tool
 
 # ─── Constants ────────────────────────────────────────────────────────────────
@@ -192,7 +192,9 @@ def _get_selected_asset_paths() -> list[str]:
 
 def _list_all_under(folder: str) -> list[str]:
     try:
-        return list(unreal.EditorAssetLibrary.list_assets(folder, recursive=True))
+        return scannable_assets(
+            unreal.EditorAssetLibrary.list_assets(folder, recursive=True)
+        )
     except Exception:
         return []
 

@@ -88,6 +88,7 @@ from ..core import (
     log_info,
     log_warning,
     resolve_scan_path,
+    scannable_assets,
     with_progress,
 )
 from ..registry import register_tool
@@ -177,6 +178,7 @@ def _scan_folder(
     asset_paths = unreal.EditorAssetLibrary.list_assets(
         scan_path, recursive=True, include_folder=False
     )
+    asset_paths = scannable_assets(asset_paths)
 
     results = []
     for path in asset_paths:
@@ -349,6 +351,7 @@ def run_strip_prefix(
     asset_paths = unreal.EditorAssetLibrary.list_assets(
         scan_path, recursive=True, include_folder=False
     )
+    asset_paths = scannable_assets(asset_paths)
 
     targets = []
     for path in asset_paths:

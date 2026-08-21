@@ -79,6 +79,7 @@ from ..core import (
     log_info,
     log_warning,
     resolve_content_path,
+    scannable_assets,
     with_progress,
 )
 from ..registry import register_tool
@@ -604,6 +605,7 @@ def run_scaffold_organize_loose(
     loose_paths = unreal.EditorAssetLibrary.list_assets(
         base, recursive=False, include_folder=False
     )
+    loose_paths = scannable_assets(loose_paths)
 
     if not loose_paths:
         log_info("No loose assets found in /Game root.")

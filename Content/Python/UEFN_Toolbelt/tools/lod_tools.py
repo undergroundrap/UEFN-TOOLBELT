@@ -64,6 +64,7 @@ from ..core import (
     log_info,
     log_warning,
     resolve_scan_path,
+    scannable_assets,
     with_progress,
 )
 from ..registry import register_tool
@@ -94,6 +95,7 @@ def _get_meshes_in_folder(folder: str) -> list[unreal.StaticMesh]:
         log_error(f"Folder not found: {folder}")
         return []
     paths = unreal.EditorAssetLibrary.list_assets(folder, recursive=True, include_folder=False)
+    paths = scannable_assets(paths)
     meshes = []
     for p in paths:
         m = _get_mesh_from_path(p)

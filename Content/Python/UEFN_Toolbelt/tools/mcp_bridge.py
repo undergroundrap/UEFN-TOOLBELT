@@ -78,7 +78,7 @@ import unreal
 
 from UEFN_Toolbelt.registry import register_tool
 
-from ..core import resolve_content_path, resolve_scan_path
+from ..core import resolve_content_path, resolve_scan_path, scannable_assets
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -514,6 +514,7 @@ def _c_list_assets(directory: str = "", recursive: bool = True,
                     class_filter: str = "") -> dict:
     directory = resolve_scan_path(directory)
     assets = unreal.EditorAssetLibrary.list_assets(directory, recursive=recursive)
+    assets = scannable_assets(assets)
     if class_filter:
         filtered = []
         for path in assets:

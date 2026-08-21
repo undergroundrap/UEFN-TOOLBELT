@@ -54,6 +54,7 @@ from ..core import (
     log_info,
     log_warning,
     resolve_content_path,
+    scannable_assets,
     spawn_static_mesh_actor,
 )
 from ..registry import register_tool
@@ -336,6 +337,7 @@ def run_organize_assets(
     asset_paths = unreal.EditorAssetLibrary.list_assets(
         source_path, recursive=True, include_folder=False
     )
+    asset_paths = scannable_assets(asset_paths)
 
     if not asset_paths:
         log_info(f"No assets found in {source_path}")
