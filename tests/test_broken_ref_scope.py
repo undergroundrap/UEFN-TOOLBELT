@@ -247,6 +247,7 @@ def test_ofpa_actor_packages_are_unverifiable_not_missing(monkeypatch):
         deps={"/Game/L/A_0": [
             "/Game/__ExternalActors__/L/A/GO/HJW5TJWA4NTOFM8XME22M9",
             "/Game/__ExternalObjects__/L/C/M0/34O2SSTF9J8VE86XN351XC",
+            "/Game/_Verse",
             "/Game/Organized/Meshes/SM_Severed",
         ]},
         exists=set(),
@@ -254,7 +255,7 @@ def test_ofpa_actor_packages_are_unverifiable_not_missing(monkeypatch):
     missing, checked, _, unver, distinct = ra._missing_dependencies(
         [_PkgActor("Cove Stone Wall C", "/Game/L/A_0")], {})
 
-    assert unver == 2, "OFPA containers must be counted, not accused"
+    assert unver == 3, "generated containers must be counted, not accused"
     assert checked == 1
     assert list(missing) == ["/Game/Organized/Meshes/SM_Severed"], (
         f"reported an actor container as a missing asset: {sorted(missing)}"

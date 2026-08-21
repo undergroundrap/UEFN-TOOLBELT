@@ -803,11 +803,21 @@ _DEP_LOOKUP_PROBED = False
 # Dependencies that are not assets and can never be "missing".
 _DEP_IGNORE = ("/Script/", "/Engine/Transient", "/Temp/", "/Memory/", "/Verse/")
 
-# One-File-Per-Actor containers. These hold ACTORS, not assets: they are where
-# the level's own actors are stored, so a dependency on one is an inter-actor
-# reference. Whether it resolves is answered by World Partition's actor
-# descriptors, not by does_asset_exist, which reports every one of them absent.
-_OFPA_SEGMENTS = ("/__ExternalActors__/", "/__ExternalObjects__/")
+# Engine-generated containers under the project mount. None of these is an asset
+# a creator can break or repair, and does_asset_exist reports every one absent:
+#
+#   __ExternalActors__/__ExternalObjects__ — One-File-Per-Actor storage. This is
+#       where the level's own actors live, so a dependency on one is an
+#       inter-actor reference, resolved by World Partition's actor descriptors.
+#   _Verse — the Verse digest root. Every Verse device depends on it; on
+#       TOOL_TEST it was reported as "missing", referenced by "hello world
+#       device", which is simply what a working Verse device looks like.
+_GENERATED_SEGMENTS = ("__ExternalActors__", "__ExternalObjects__", "_Verse")
+
+
+def _is_generated_container(path: str) -> bool:
+    """True if any segment of the path is an engine-generated container."""
+    return any(seg in _GENERATED_SEGMENTS for seg in path.split("/"))
 
 
 def _resolve_dep_lookup():
@@ -883,7 +893,7 @@ def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], i
     False for "cannot see" exactly as it does for "not there" (Quirk #23).
 
     Scoping to the mount alone still left 8 findings, all of them
-    /__ExternalActors__/ packages — the OFPA storage the level's own actors live
+    /__ExternalActors__/ packages (and on TOOL_TEST a ninth, /TOOL_TEST/_Verse) — the OFPA storage the level's own actors live
     in, one of them referenced by 179 healthy actors. Same root cause: an API
     answering False for a question it cannot see.
 
@@ -938,8 +948,8 @@ def _missing_dependencies(actors, exists_cache: dict) -> tuple[dict[str, set], i
                 # Another mount — Epic's, or a plugin's. Not answerable here.
                 unverifiable += 1
                 continue
-            if any(seg in dep for seg in _OFPA_SEGMENTS):
-                # An actor package, not an asset. See _OFPA_SEGMENTS.
+            if _is_generated_container(dep):
+                # Engine-generated, not a creator asset. See _GENERATED_SEGMENTS.
                 unverifiable += 1
                 continue
             checked += 1
