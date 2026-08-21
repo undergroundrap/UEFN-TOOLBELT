@@ -1848,8 +1848,8 @@ def _tab_mcp(R) -> QScrollArea:
     # ── Setup info ────────────────────────────────────────────────────────
     g3 = _group(L, "AI Client Setup (.mcp.json)")
     info = QLabel(
-        "Works with Claude Code, Cursor, Windsurf, Zed,\n"
-        "Continue, OpenClaw, NemoClaw, or any MCP agent.\n\n"
+        "Works with Claude Code, Codex, Cursor,\n"
+        "or any MCP-compatible agent.\n\n"
         "1. Click Start Listener above\n"
         "2. Place mcp_server.py next to .mcp.json in this repo\n"
         "3. Add to .mcp.json:\n"

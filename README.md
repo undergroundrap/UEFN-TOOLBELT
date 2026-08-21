@@ -2246,8 +2246,8 @@ All of these also appear in `deploy.bat` output — after deploying, just copy f
 
 UEFN Toolbelt ships a full two-process MCP (Model Context Protocol) architecture so **any MCP-compatible AI** can directly control the editor — no copy-pasting, no manual Python runs.
 
-**This works with any MCP-compatible AI — Claude Code, Cursor, Windsurf, Zed, Continue,
-OpenClaw, NemoClaw, or any custom agent that speaks the MCP protocol.**
+**This works with any MCP-compatible AI — Claude Code, Codex, Cursor,
+or any custom agent that speaks the MCP protocol.**
 Claude is the recommended driver because of the verse-book spec integration and CLAUDE.md
 context loading, but the bridge is completely model-agnostic. If your AI supports MCP, it connects.
 
@@ -2317,7 +2317,7 @@ curl -s -X POST http://127.0.0.1:8765 \
   -d '{"command":"run_tool","params":{"tool_name":"snapshot_save","kwargs":{}}}'
 ```
 
-**Claude is the recommended driver** because of the verse-book spec integration, CLAUDE.md auto-context loading, and the best reasoning for complex autonomous tasks — but the bridge is fully model-agnostic. Confirmed compatible: Claude Code, Cursor, Windsurf, Zed, Continue, OpenClaw, NemoClaw (Linux/NVIDIA), or any custom agent built against the HTTP API directly.
+**Claude is the recommended driver** because of the verse-book spec integration, CLAUDE.md auto-context loading, and the best reasoning for complex autonomous tasks — but the bridge is fully model-agnostic. Confirmed compatible: Claude Code, Codex, Cursor, or any custom agent built against the HTTP API directly.
 
 MCP bridge architecture inspired by [Kirch's uefn-mcp-server](https://github.com/KirChuvakov/uefn-mcp-server) ([@KirchCreator](https://x.com/KirchCreator)) — full credit for the queue + Slate tick pattern.
 
