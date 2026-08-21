@@ -1242,3 +1242,38 @@ tb.register()` once per session.
 Python on this build, and UEFN projects have no `Config/` directory to add an
 explicit `StartupScripts` entry to. This is an ordering bug between two Epic
 features and needs an Epic-side fix.
+
+---
+
+## Quirk #37 — Every placed `TextRenderActor` trips `ValkyrieValidator_Properties` (Discovered: August 2026)
+
+Saving a level containing any `unreal.TextRenderActor` produces two asset-check
+warnings per actor:
+
+```
+Illegal property override: "...TextRenderActor_UAID_....TextRender" has an override of
+  "TextRenderComponent'...NewTextRenderComponent'"
+  (default "TextRenderComponent'/Script/Engine.Default__TextRenderActor:NewTextRenderComponent'")
+  for property "/Script/Engine.TextRenderActor:TextRender" (ValkyrieValidator_Properties)
+```
+
+The same warning repeats for `SpriteComponent`.
+
+**This is not caused by setting properties on the actor.** Verified with a
+controlled test: two actors were spawned into the same level and saved together —
+one bare (`spawn_actor_from_class`, nothing else touched) and one via
+`text_place`. Both were flagged, on both properties, identically. Toolbelt never
+writes `sprite_component` at all, yet it is flagged.
+
+Both flagged properties are **component pointers on a stock Engine actor class**.
+On any placed instance that pointer necessarily differs from the CDO's, and the
+Fortnite validator reports the difference as an illegal override.
+
+**Nothing to fix in Toolbelt.** The warnings come from placing the Engine class
+in a Fortnite level. Tools that spawn `TextRenderActor` — `text_place`,
+`text_paint_grid`, `text_color_cycle`, `text_label_selection`, `sign_spawn_bulk`,
+`label_attach` — will all produce them.
+
+They are `Warning`, not `Error`. Whether Epic's publish pipeline treats them as
+blocking is **not established** — if you need to know, test a publish rather than
+assume either way.
