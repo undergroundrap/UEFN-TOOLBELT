@@ -30,11 +30,20 @@ Never return `None`, a bare primitive, or a live `unreal.*` object.
 
 1. Bump `__tool_count__` in `Content/Python/UEFN_Toolbelt/__init__.py`
 2. If it's a new category, bump `__category_count__` too
-3. Run drift check — must pass before committing:
+3. **Surface it in the UI.** The dashboard builds its tabs from hand-written
+   functions in `dashboard_pyside6.py` — registering a tool does NOT make it
+   clickable. Add a `_btn(...)` to the right `_tab_*` function, and an `_entry(...)`
+   in `menu.py` if it belongs in the editor menu.
+
+4. Run drift check — must pass before committing:
    ```bash
    python scripts/drift_check.py
    ```
-4. If adding a new module to `tools/__init__.py` → **full UEFN restart required** (not nuclear reload). See UEFN_QUIRKS.md Quirk #26.
+   This now includes a UI reachability ratchet: if your tool is reachable from
+   neither the dashboard nor the menu, the count rises above
+   `_UI_INVISIBLE_BASELINE` and the check fails. If the tool is intentionally
+   headless (MCP/CLI only), raise the baseline and say why in the commit.
+5. If adding a new module to `tools/__init__.py` → **full UEFN restart required** (not nuclear reload). See UEFN_QUIRKS.md Quirk #26.
 
 ## Pak-safe patterns
 

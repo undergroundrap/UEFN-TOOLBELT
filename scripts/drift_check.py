@@ -81,6 +81,102 @@ SCAN_FILES = [
     ".claude/agents/tool-developer.md",
 ]
 
+# ── UI reachability ratchet ───────────────────────────────────────────────────
+# The dashboard builds its tabs from hand-written functions, not from the
+# registry, so registering a tool does NOT make it clickable. Three Epic MCP
+# tools shipped registered-but-unreachable before this check existed.
+#
+# 158 of 361 tools are currently UI-invisible, and many of those are deliberate
+# (MCP/CLI-only utilities). Failing on all of them would be a permanently red
+# check, which is a check people learn to ignore. So this is a ratchet: the
+# number may fall, never rise. A new tool must be surfaced, or the baseline
+# raised deliberately with a reason.
+
+_UI_SURFACES = [
+    "Content/Python/UEFN_Toolbelt/dashboard_pyside6.py",
+    "Content/Python/UEFN_Toolbelt/menu.py",
+]
+
+_UI_INVISIBLE_BASELINE = 158
+
+
+def _registered_tools() -> dict:
+    """Map every @register_tool name to its category, parsed from source."""
+    import ast
+    tools = {}
+    from pathlib import Path
+    pkg = Path(ROOT) / "Content" / "Python" / "UEFN_Toolbelt"
+    for path in pkg.rglob("*.py"):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for dec in node.decorator_list:
+                if not (isinstance(dec, ast.Call)
+                        and getattr(dec.func, "id", "") == "register_tool"):
+                    continue
+                kw = {k.arg: k.value for k in dec.keywords}
+                name, cat = kw.get("name"), kw.get("category")
+                if isinstance(name, ast.Constant):
+                    tools[name.value] = (cat.value if isinstance(cat, ast.Constant)
+                                         else "?")
+    return tools
+
+
+def check_ui_coverage() -> list[dict]:
+    """Flag a rise in the number of tools no UI surface can reach."""
+    tools = _registered_tools()
+    if not tools:
+        return []
+
+    from pathlib import Path
+    surfaces = ""
+    for rel in _UI_SURFACES:
+        path = Path(ROOT) / rel
+        if path.exists():
+            surfaces += path.read_text(encoding="utf-8")
+
+    invisible = sorted(
+        n for n in tools
+        if f'"{n}"' not in surfaces and f"'{n}'" not in surfaces
+    )
+    count = len(invisible)
+
+    if count > _UI_INVISIBLE_BASELINE:
+        return [{
+            "file": "scripts/drift_check.py",
+            "line": 0,
+            "type": "ui reachability",
+            "found": f"{count} tools unreachable from the dashboard or menu",
+            "expected": f"at most {_UI_INVISIBLE_BASELINE} (the ratchet baseline)",
+            "content": (
+                f"{count - _UI_INVISIBLE_BASELINE} newly unreachable. Add them to a "
+                f"tab in dashboard_pyside6.py or an _entry() in menu.py — registering "
+                f"a tool does not surface it. If a tool is intentionally headless, "
+                f"raise _UI_INVISIBLE_BASELINE and say why. Unreachable: "
+                + ", ".join(invisible[-12:])
+            ),
+        }]
+
+    if count < _UI_INVISIBLE_BASELINE:
+        return [{
+            "file": "scripts/drift_check.py",
+            "line": 0,
+            "type": "ui reachability (ratchet)",
+            "found": f"{count} tools unreachable",
+            "expected": f"_UI_INVISIBLE_BASELINE is still {_UI_INVISIBLE_BASELINE}",
+            "content": (
+                "UI coverage improved — lower _UI_INVISIBLE_BASELINE to "
+                f"{count} so the gain is locked in and cannot silently regress."
+            ),
+        }]
+
+    return []
+
+
 # ── Patterns ──────────────────────────────────────────────────────────────────
 
 # Version patterns — flag any version string that doesn't match VERSION
@@ -271,6 +367,8 @@ def run() -> int:
     for rel in SCAN_FILES:
         findings = scan_file(rel, VERSION, TOOL_COUNT, CATEGORY_COUNT)
         all_findings.extend(findings)
+
+    all_findings.extend(check_ui_coverage())
 
     if not all_findings:
         print("[drift_check] PASS — No drift found. Codebase is consistent.\n")

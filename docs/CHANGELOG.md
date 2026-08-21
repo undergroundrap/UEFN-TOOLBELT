@@ -5,6 +5,25 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [Unreleased]
+
+### Added
+- **`drift_check` now catches tools that no UI surface can reach.** The dashboard
+  builds its tabs from hand-written functions, so `@register_tool` does not make
+  a tool clickable — three Epic MCP tools shipped registered-but-invisible with
+  every version string current and drift_check passing.
+
+  158 of 361 tools are unreachable today and much of that is deliberate (MCP and
+  CLI-only utilities), so this is a ratchet rather than a coverage requirement:
+  the count may fall, never rise. A new tool must be surfaced or the baseline
+  moved deliberately. Improving coverage also fails the check, asking for the
+  baseline to be lowered — otherwise a ratchet only ever loosens.
+
+### Changed
+- The MCP client list is now "Claude Code, Codex, Cursor, or any MCP-compatible
+  agent". Codex was missing; Windsurf, Zed, Continue, OpenClaw and NemoClaw were
+  listed as confirmed compatible without having been exercised in a long time.
+
 ## [2.3.7] — 2026-08-20
 
 ### Added
