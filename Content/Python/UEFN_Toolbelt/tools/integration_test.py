@@ -23,8 +23,9 @@ from datetime import datetime
 
 import unreal
 
-from UEFN_Toolbelt.core import undo_transaction
+from UEFN_Toolbelt.core import resolve_content_path, undo_transaction
 from UEFN_Toolbelt.registry import register_tool
+from UEFN_Toolbelt.tools.material_master import parent_material_path
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -172,7 +173,12 @@ def _test_materials() -> None:
 
         # Verify material changed via Asset Registry or Fallback
         # Note: If M_ToolbeltBase is missing, we use a built-in engine material for verification
-        PARENT_MATERIAL_PATH = "/UEFN_Toolbelt/Materials/M_ToolbeltBase"
+        # Was "/UEFN_Toolbelt/Materials/M_ToolbeltBase" — a mount that does not
+        # exist, so does_asset_exist() was always False, the check always fell
+        # back to the engine stub, and the assertion never tested the preset
+        # material at all. parent_material_path() is what the tools themselves
+        # use, so the suite cannot drift from its subject.
+        PARENT_MATERIAL_PATH = parent_material_path()
         if not unreal.EditorAssetSubsystem().does_asset_exist(PARENT_MATERIAL_PATH):
             PARENT_MATERIAL_PATH = "/Engine/BasicShapes/BasicShapeMaterial"
             _header("Material Fallback: Using Engine BasicShapeMaterial")
@@ -766,7 +772,7 @@ def _test_assets() -> None:
         _record("Assets", "Rename Dry Run", passed, f"Report generated: {passed}")
 
         # --- Asset Creation for invasive tests ---
-        test_dir = "/Game/TOOLBELT_TEST"
+        test_dir = resolve_content_path("/Game/TOOLBELT_TEST")
         unreal.EditorAssetLibrary.make_directory(test_dir)
 
         # We cannot duplicate engine assets because they are cooked.
@@ -826,7 +832,7 @@ def _test_memory() -> None:
         # We cannot duplicate engine meshes because they are cooked.
         # So we just run the tool on an empty directory to ensure it doesn't crash
         # when traversing the Asset Registry.
-        test_dir = "/Game/TOOLBELT_TEST_MEM"
+        test_dir = resolve_content_path("/Game/TOOLBELT_TEST_MEM")
         unreal.EditorAssetLibrary.make_directory(test_dir)
 
         tb.run("memory_autofix_lods", scan_path=test_dir, num_lods=3)
@@ -872,7 +878,7 @@ def _test_project_scaffold() -> None:
     try:
         # Build a temporary test scaffold structure
         test_project = "ScaffoldTest"
-        test_base = "/Game/TOOLBELT_TEST"
+        test_base = resolve_content_path("/Game/TOOLBELT_TEST")
         root_path = f"{test_base}/{test_project}"
 
         # 1. Preview
@@ -1133,7 +1139,7 @@ def _test_lods_safe() -> None:
     import UEFN_Toolbelt as tb
     try:
         # Restriction: Only use the TOOLBELT_TEST folder
-        test_folder = "/Game/TOOLBELT_TEST/LODs"
+        test_folder = resolve_content_path("/Game/TOOLBELT_TEST/LODs")
         unreal.EditorAssetLibrary.make_directory(test_folder)
 
         # 1. Spawn a fresh test mesh (Material Instance + Proxy)
@@ -1150,7 +1156,7 @@ def _test_optimization_safe() -> None:
     import UEFN_Toolbelt as tb
     try:
         # Restriction: Never scan /Game. Only scan the test folder.
-        test_folder = "/Game/TOOLBELT_TEST"
+        test_folder = resolve_content_path("/Game/TOOLBELT_TEST")
 
         tb.run("memory_scan_textures", scan_path=test_folder)
         tb.run("memory_scan_meshes", scan_path=test_folder)
@@ -1204,7 +1210,7 @@ def _test_assets_advanced_safe() -> None:
     import UEFN_Toolbelt as tb
     try:
         # Restriction: Only operate on TOOLBELT_TEST
-        test_dir = "/Game/TOOLBELT_TEST/AssetOps"
+        test_dir = resolve_content_path("/Game/TOOLBELT_TEST/AssetOps")
         # Fix: use full unreal path creation to avoid scope issues
         unreal.EditorAssetLibrary.make_directory(test_dir)
 
@@ -1219,12 +1225,12 @@ def _test_assets_advanced_safe() -> None:
             _record("Assets", "Enforce Conventions", True, "Tool executed on specific path")
 
             # Test organize
-            tb.run("organize_assets", source_path=test_dir, target_base="/Game/TOOLBELT_TEST/Organized")
+            tb.run("organize_assets", source_path=test_dir, target_base=resolve_content_path("/Game/TOOLBELT_TEST/Organized"))
             _record("Assets", "Organize Assets", True, "Tool executed on specific path")
 
         # Cleanup
-        unreal.EditorAssetLibrary.delete_directory("/Game/TOOLBELT_TEST/AssetOps")
-        unreal.EditorAssetLibrary.delete_directory("/Game/TOOLBELT_TEST/Organized")
+        unreal.EditorAssetLibrary.delete_directory(resolve_content_path("/Game/TOOLBELT_TEST/AssetOps"))
+        unreal.EditorAssetLibrary.delete_directory(resolve_content_path("/Game/TOOLBELT_TEST/Organized"))
 
     except Exception as e:
         _record("Assets", "Error", False, str(e))
