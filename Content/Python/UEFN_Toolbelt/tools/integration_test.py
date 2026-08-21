@@ -183,17 +183,42 @@ def _test_materials() -> None:
             PARENT_MATERIAL_PATH = "/Engine/BasicShapes/BasicShapeMaterial"
             _header("Material Fallback: Using Engine BasicShapeMaterial")
 
+        # This assertion used to check whether the applied material's path
+        # contained the PARENT path. It could only ever be true when the preset
+        # had FAILED to apply and the cube still wore its default engine
+        # material — which is exactly what the old fallback path pointed at. It
+        # passed for years by asserting the broken state, and only started
+        # failing once the Materials tools were fixed.
+        #
+        # What "applied" actually means: the component holds a
+        # MaterialInstanceConstant, created from our master, named for the preset.
         passed = False
+        detail = ""
         try:
-            # Check current material of the first cube
             component = _spawn_fixtures[0].get_component_by_class(unreal.StaticMeshComponent)
             mat = component.get_material(0)
-            if mat and (PARENT_MATERIAL_PATH in mat.get_path_name()):
-                passed = True
-        except Exception:
-            pass
+            if mat is None:
+                detail = "no material on slot 0"
+            else:
+                path = mat.get_path_name()
+                is_instance = isinstance(mat, unreal.MaterialInstanceConstant)
+                named_for_preset = f"MI_{target_preset}_" in path
+                parent_ok = False
+                try:
+                    parent = mat.get_editor_property("parent")
+                    parent_ok = parent is not None and \
+                        PARENT_MATERIAL_PATH in parent.get_path_name()
+                except Exception:
+                    parent_ok = False
+                passed = bool(is_instance and named_for_preset and parent_ok)
+                detail = (f"{path.split('.')[-1]} "
+                          f"(instance={is_instance}, named={named_for_preset}, "
+                          f"parent={parent_ok})")
+        except Exception as e:
+            detail = f"{type(e).__name__}: {e}"
 
-        _record("Materials", "Apply Preset", passed, "Applied 'gold' to cube" if passed else f"Material mismatch (Target: {PARENT_MATERIAL_PATH})")
+        _record("Materials", "Apply Preset", passed,
+                f"Applied '{target_preset}' → {detail}")
     except Exception as e:
         _record("Materials", "Apply Preset", False, str(e))
 

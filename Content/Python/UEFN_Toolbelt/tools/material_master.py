@@ -773,13 +773,35 @@ def run_save_preset(preset_name: str = "MyPreset", **kwargs) -> dict:
 
     mel = unreal.MaterialEditingLibrary
 
+    # UE 5.x returned (ok, value) from these; UE 6.0 returns the value directly,
+    # so unpacking raised "cannot unpack non-iterable LinearColor object" and took
+    # material_save_preset down. The integration suite reported PASS anyway,
+    # because its assertion only checked that list_presets still worked.
+    #
+    # Both shapes are handled rather than the new one assumed: users on older
+    # UEFN builds run the same code.
+    def _unwrap(result):
+        """Return the value from either (ok, value) or a bare value."""
+        if isinstance(result, tuple):
+            ok, val = result
+            return val if ok else None
+        return result
+
     def sv(param: str) -> float:
-        ok, val = mel.get_material_instance_scalar_parameter_value(mat, param)
-        return val if ok else 0.0
+        try:
+            val = _unwrap(mel.get_material_instance_scalar_parameter_value(mat, param))
+        except Exception:
+            val = None
+        return float(val) if val is not None else 0.0
 
     def vv(param: str) -> tuple:
-        ok, val = mel.get_material_instance_vector_parameter_value(mat, param)
-        return (val.r, val.g, val.b, val.a) if ok else (1, 1, 1, 1)
+        try:
+            val = _unwrap(mel.get_material_instance_vector_parameter_value(mat, param))
+        except Exception:
+            val = None
+        if val is None:
+            return (1.0, 1.0, 1.0, 1.0)
+        return (val.r, val.g, val.b, val.a)
 
     new_preset = {
         "base_color":          vv("BaseColor"),
