@@ -1333,6 +1333,42 @@ import UEFN_Toolbelt as tb; tb.hard_reload()
 Neither approach picks up a **new module** added to `tools/__init__.py` — that
 still needs a full editor restart (Quirk #26).
 
+### Clearing `sys.modules` is only half of it
+
+The second attempt dropped every `UEFN_Toolbelt.*` submodule and called
+`importlib.reload()` on the package. It still came back with one tool:
+
+```
+[TOOLBELT] 1 tools registered across 1 categories.
+[TOOLBELT] hard_reload: 0 window(s) closed, 91 module(s) cleared, 362 tools.
+Error: Toolbelt is not registered — only 1 tool(s) loaded
+```
+
+`importlib.reload()` re-executes the module body into the module's **existing**
+namespace; it does not clear it first. So `pkg.tools`, `pkg.diagnostics` and
+`pkg.dashboard_pyside6` — bound as attributes by the previous import — survive.
+The import system checks a package's attributes before importing a submodule, so
+`from . import tools` saw `pkg.tools` already set, skipped the import, and
+rebound the stale module. Nothing re-registered.
+
+Deleting the direct-child attributes before the reload is what makes the imports
+real:
+
+```python
+for child in {k.split(".")[1] for k in names if k.count(".") == 1}:
+    try:
+        delattr(pkg, child)
+    except AttributeError:
+        pass
+pkg = importlib.reload(pkg)
+```
+
+Note the "362 tools" on the same line as a registry holding 1: that number was
+`__tool_count__`, a module constant. A reload has to report `len(registry)` —
+counted after the fact — or it will confirm its own success.
+
+---
+
 ### The stale-reference trap
 
 A reload that pops `UEFN_Toolbelt` itself and re-imports it produces a **new

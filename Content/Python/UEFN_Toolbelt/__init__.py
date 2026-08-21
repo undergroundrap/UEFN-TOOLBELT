@@ -411,8 +411,9 @@ def hard_reload(verbose: bool = True) -> dict:
     close_windows() — and the crash gives no clue that an open dashboard was the
     cause.
 
-    Still cannot pick up a NEW module added to tools/__init__.py; that needs a
-    full editor restart (UEFN_QUIRKS.md #26).
+    A NEWLY ADDED module may now be picked up, since tools/__init__.py is
+    re-executed from disk rather than skipped — but that path is unverified in
+    the editor, so if a new tool does not appear, restart (UEFN_QUIRKS.md #26).
 
     Returns: {"status", "windows_closed", "modules_cleared", "tools"}
     """
