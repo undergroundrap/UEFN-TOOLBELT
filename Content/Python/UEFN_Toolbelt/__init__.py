@@ -416,22 +416,40 @@ def hard_reload(verbose: bool = True) -> dict:
 
     Returns: {"status", "windows_closed", "modules_cleared", "tools"}
     """
+    import importlib
+
     closed = close_windows()
-    names = [k for k in list(sys.modules) if k == "UEFN_Toolbelt"
-             or k.startswith("UEFN_Toolbelt.")]
+
+    # Drop SUBMODULES only, then reload the package in place.
+    #
+    # Popping "UEFN_Toolbelt" itself and re-importing gives a NEW module object,
+    # so the caller's existing `tb` name still points at the old one with the old
+    # registry. The first version of this did exactly that: tools registered into
+    # a registry the caller could no longer see, and tb.run() answered
+    # "Unknown tool" for a tool the log had just confirmed registering.
+    #
+    # importlib.reload() re-executes __init__.py inside the SAME module object,
+    # so every existing reference sees the new code.
+    names = [k for k in list(sys.modules) if k.startswith("UEFN_Toolbelt.")]
     for k in names:
         sys.modules.pop(k, None)
 
-    import UEFN_Toolbelt as _tb
-    _tb.register()
+    pkg = sys.modules.get("UEFN_Toolbelt")
+    if pkg is None:                    # not imported yet — nothing stale to fix
+        import UEFN_Toolbelt as pkg
+    else:
+        pkg = importlib.reload(pkg)
+
+    pkg.register()
     if verbose:
         import unreal
         unreal.log(
             f"[TOOLBELT] hard_reload: {closed} window(s) closed, "
-            f"{len(names)} module(s) cleared, {_tb.__tool_count__} tools."
+            f"{len(names)} module(s) cleared, {pkg.__tool_count__} tools. "
+            f"Existing `tb` references are live."
         )
     return {"status": "ok", "windows_closed": closed,
-            "modules_cleared": len(names), "tools": _tb.__tool_count__}
+            "modules_cleared": len(names), "tools": pkg.__tool_count__}
 
 
 def reload() -> None:

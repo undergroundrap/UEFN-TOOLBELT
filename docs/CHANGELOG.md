@@ -15,6 +15,12 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
   Qt event loop so `deleteLater()` runs, then clears modules and re-registers.
   Documented as Quirk #38.
 
+  It reloads the package **in place** via `importlib.reload()` rather than
+  popping and re-importing it. Popping produces a new module object, leaving the
+  caller's existing `tb` bound to the old one — tools register into a registry
+  the caller cannot see, and `tb.run()` reports "Unknown tool" for a tool the log
+  just confirmed registering. Both messages are true; there are two registries.
+
 - **`tb.run()` returned `None` for an unknown tool, and the dashboard drew it as
   a green tick.** The dispatcher returned `None` for both "no such tool" and "the
   tool raised" — indistinguishable from a tool that ran and returned nothing. An

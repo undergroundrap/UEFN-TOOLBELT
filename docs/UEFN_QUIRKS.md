@@ -1318,3 +1318,24 @@ import UEFN_Toolbelt as tb; tb.hard_reload()
 
 Neither approach picks up a **new module** added to `tools/__init__.py` — that
 still needs a full editor restart (Quirk #26).
+
+### The stale-reference trap
+
+A reload that pops `UEFN_Toolbelt` itself and re-imports it produces a **new
+module object**. Any name already bound — the `tb` in `import UEFN_Toolbelt as
+tb` — still points at the old one, with the old registry. The symptom is
+contradictory and easy to misread:
+
+```
+✓ Registered: [Reference Auditor] ref_audit_broken     ← registered fine
+Error: Unknown tool: 'ref_audit_broken'                ← same session, seconds later
+```
+
+Both are true. Two registries exist and `tb.run()` is asking the dead one.
+
+`hard_reload()` therefore drops only `UEFN_Toolbelt.*` submodules and calls
+`importlib.reload()` on the package, which re-executes `__init__.py` inside the
+same module object. Existing references stay live.
+
+The raw one-liner avoids this only because it rebinds `tb` after the pop — put
+the `import ... as tb` *before* the pop and it fails the same way.
