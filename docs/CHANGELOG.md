@@ -7,6 +7,25 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ## [Unreleased]
 
+### Changed
+- **The integration suite now verifies values, not just `status`.** Seven checks
+  read result keys their tools never return, so `.get(key, 0)` yielded the
+  default: `stamp_save` logged "3 actors" and reported "saved 0", `actor_folder_list`
+  logged 4 folders and reported 0, `rogue_actor_scan` logged 49 flagged actors and
+  reported 0. The assertions passed — they only checked `status` — so nothing was
+  hidden, but the report said something false.
+
+  Keys are corrected and the assertions now check the value the test controls:
+  `stamp_save` against the fixtures actually spawned, `stamp_place` that every
+  actor landed, `actor_duplicate_offset` and `actor_copy_to_positions` against
+  the counts requested, `actor_folder_list` that the folder it just created is
+  present. `rogue_actor_scan` still only reports, since its count depends on
+  whatever is in the level — but it reports the real number.
+
+  A static test now cross-references every key the suite reads against the keys
+  each tool can return, so a new mismatch fails rather than quietly printing a
+  default.
+
 ### Fixed
 - **Six tools returned `None`, including all four MCP bridge tools.** CLAUDE.md,
   TOOL_STATUS.md and the tool-authoring rules all state that every tool returns

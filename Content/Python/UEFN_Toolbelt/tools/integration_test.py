@@ -1475,8 +1475,11 @@ def _test_stamp_tools() -> None:
         _select_fixture(actors)
 
         result = tb.run("stamp_save", name="__test_stamp__")
-        passed = isinstance(result, dict) and result.get("status") == "ok"
-        _record("Stamps", "stamp_save", passed, f"saved {result.get('actor_count', 0)} actors")
+        saved  = result.get("actors_saved") if isinstance(result, dict) else None
+        passed = (isinstance(result, dict) and result.get("status") == "ok"
+                  and saved == len(actors))
+        _record("Stamps", "stamp_save", passed,
+                f"saved {saved} of {len(actors)} fixtures")
 
         result = tb.run("stamp_list")
         passed = isinstance(result, dict) and result.get("status") == "ok"
@@ -1485,12 +1488,17 @@ def _test_stamp_tools() -> None:
 
         result = tb.run("stamp_info", name="__test_stamp__")
         passed = isinstance(result, dict) and result.get("status") == "ok"
-        _record("Stamps", "stamp_info", passed, f"actor_count={result.get('actor_count', '?')}")
+        info_actors = len(result.get("stamp", {}).get("actors", [])) if isinstance(result, dict) else -1
+        passed = passed and info_actors == len(actors)
+        _record("Stamps", "stamp_info", passed, f"{info_actors} actors in stamp")
 
         result = tb.run("stamp_place", name="__test_stamp__",
                         folder="TOOLBELT_TEST_Stamps")
-        passed = isinstance(result, dict) and result.get("status") == "ok"
-        _record("Stamps", "stamp_place", passed, f"placed {result.get('placed', 0)} actors")
+        stamped = result.get("actors_stamped") if isinstance(result, dict) else None
+        total   = result.get("actors_total")   if isinstance(result, dict) else None
+        passed  = (isinstance(result, dict) and result.get("status") == "ok"
+                   and stamped == total and stamped)
+        _record("Stamps", "stamp_place", passed, f"placed {stamped}/{total}")
 
         # stamp_export — write to a temp file
         import tempfile as _tmp
@@ -1542,9 +1550,12 @@ def _test_actor_org_tools() -> None:
         _record("ActorOrg", "actor_move_to_folder", passed)
 
         # actor_folder_list — read-only
-        result = tb.run("actor_folder_list")
-        passed = isinstance(result, dict) and result.get("status") == "ok"
-        _record("ActorOrg", "actor_folder_list", passed, f"{result.get('folder_count', 0)} folders")
+        result  = tb.run("actor_folder_list")
+        folders = result.get("folders", {}) if isinstance(result, dict) else {}
+        passed  = (isinstance(result, dict) and result.get("status") == "ok"
+                   and "TOOLBELT_TEST_OrgFolder" in folders)
+        _record("ActorOrg", "actor_folder_list", passed,
+                f"{len(folders)} folders, test folder present={'TOOLBELT_TEST_OrgFolder' in folders}")
 
         # actor_select_by_folder
         result = tb.run("actor_select_by_folder", folder_name="TOOLBELT_TEST_OrgFolder")
@@ -1611,18 +1622,22 @@ def _test_proximity_tools() -> None:
         _select_fixture([a1])
         result = tb.run("actor_duplicate_offset", count=2, offset_x=200.0,
                         folder="TOOLBELT_TEST_DupOffset")
-        passed = isinstance(result, dict) and result.get("status") == "ok"
+        spawned = result.get("total_spawned") if isinstance(result, dict) else None
+        passed  = (isinstance(result, dict) and result.get("status") == "ok"
+                   and spawned == 2)
         _record("Proximity", "actor_duplicate_offset", passed,
-                f"spawned {result.get('spawned', 0)}")
+                f"spawned {spawned} (expected 2)")
 
         # actor_copy_to_positions
         _select_fixture([a1])
         result = tb.run("actor_copy_to_positions",
                         positions=[[100, 100, 0], [200, 100, 0]],
                         folder="TOOLBELT_TEST_CopyPos")
-        passed = isinstance(result, dict) and result.get("status") == "ok"
+        spawned = result.get("spawned") if isinstance(result, dict) else None
+        passed  = (isinstance(result, dict) and result.get("status") == "ok"
+                   and spawned == 2)
         _record("Proximity", "actor_copy_to_positions", passed,
-                f"placed {result.get('placed', 0)}")
+                f"placed {spawned} (expected 2)")
 
         # actor_cluster_to_folder (dry_run equivalent — min_cluster_size high so nothing moves)
         _select_fixture([a1, a2, a3])
@@ -1846,8 +1861,10 @@ def _test_level_health() -> None:
         # rogue_actor_scan — read-only
         result = tb.run("rogue_actor_scan")
         passed = isinstance(result, dict) and result.get("status") == "ok"
+        # The count depends on whatever is in the level, so this reports rather
+        # than asserts — but it must report the real number.
         _record("LevelHealth", "rogue_actor_scan", passed,
-                f"{result.get('issue_count', 0)} issues found")
+                f"{result.get('rogue_count', '?')} of {result.get('total_scanned', '?')} actors flagged")
 
     except Exception as e:
         _record("LevelHealth", "Error", False, str(e))
