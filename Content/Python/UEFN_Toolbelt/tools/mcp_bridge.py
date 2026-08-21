@@ -937,7 +937,7 @@ def get_status() -> dict:
     icon="🔌",
     tags=["mcp", "listener", "bridge", "claude", "start"],
 )
-def mcp_start(port: int = 0, **kwargs) -> None:
+def mcp_start(port: int = 0, **kwargs) -> dict:
     """
     Start the UEFN Toolbelt MCP HTTP listener.
 
@@ -954,6 +954,8 @@ def mcp_start(port: int = 0, **kwargs) -> None:
         f"  {len(_HANDLERS)} commands available.\n"
         f"  Configure mcp_server.py in .mcp.json, then restart Claude Code."
     )
+    return {"status": "ok", "running": True, "port": p,
+            "url": f"http://127.0.0.1:{p}", "commands": len(_HANDLERS)}
 
 
 @register_tool(
@@ -963,10 +965,11 @@ def mcp_start(port: int = 0, **kwargs) -> None:
     icon="🔌",
     tags=["mcp", "listener", "bridge", "stop"],
 )
-def mcp_stop(**kwargs) -> None:
+def mcp_stop(**kwargs) -> dict:
     """Stop the MCP HTTP listener. Claude Code will no longer be able to control UEFN."""
     stop_listener()
     unreal.log("[MCP] Listener stopped.")
+    return {"status": "ok", "running": False}
 
 
 @register_tool(
@@ -976,10 +979,12 @@ def mcp_stop(**kwargs) -> None:
     icon="🔄",
     tags=["mcp", "listener", "restart", "reload"],
 )
-def mcp_restart(port: int = 0, **kwargs) -> None:
+def mcp_restart(port: int = 0, **kwargs) -> dict:
     """Restart the listener — use this after hot-reloading the toolbelt."""
     p = restart_listener(port)
     unreal.log(f"[MCP] ✓ Restarted on http://127.0.0.1:{p}")
+    return {"status": "ok", "running": True, "port": p,
+            "url": f"http://127.0.0.1:{p}"}
 
 
 @register_tool(
@@ -989,8 +994,8 @@ def mcp_restart(port: int = 0, **kwargs) -> None:
     icon="📡",
     tags=["mcp", "listener", "status"],
 )
-def mcp_status(**kwargs) -> None:
-    """Print the current MCP listener status to the Output Log."""
+def mcp_status(**kwargs) -> dict:
+    """Report the current MCP listener status, and print it to the Output Log."""
     s = get_status()
     if s["running"]:
         unreal.log(
@@ -1008,3 +1013,4 @@ def mcp_status(**kwargs) -> None:
             "  Start with: tb.run('mcp_start')\n"
             "  Or: Toolbelt menu → MCP Bridge → Start Listener"
         )
+    return {"status": "ok", **s}

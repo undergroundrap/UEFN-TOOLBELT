@@ -1018,7 +1018,7 @@ def _test_advanced_materials() -> None:
     icon="🧪",
     tags=["test", "integration", "full", "automation"],
 )
-def toolbelt_integration_test(**kwargs) -> None:
+def toolbelt_integration_test(**kwargs) -> dict:
     """
     Run the full suite of integration tests.
     This will spawn temporary actors, select them, and run tools to verify behavior.
@@ -1103,9 +1103,27 @@ def toolbelt_integration_test(**kwargs) -> None:
             unreal.log(f"  Results: {report_path}")
             unreal.log("══════════════════════════════════════════════════════")
 
+            return {
+                "status": "ok" if passed == total else "error",
+                "passed": passed,
+                "failed": total - passed,
+                "total": total,
+                "report": report_path,
+                "failures": [
+                    {"section": r.get("section"), "name": r.get("name"),
+                     "detail": r.get("detail")}
+                    for r in _results if not r["passed"]
+                ],
+            }
+
         except Exception as e:
             unreal.log_error(f"FATAL ERROR IN INTEGRATION TEST: {e}")
             _cleanup_fixtures()
+            # The suite spawns real actors. A caller that cannot tell a crash
+            # from a clean run cannot know whether fixtures were left behind.
+            return {"status": "error", "reason": "fatal", "message": str(e),
+                    "passed": sum(1 for r in _results if r["passed"]),
+                    "total": len(_results)}
 
 
 # ─── Batch 8 (Final 20%) ──────────────────────────────────────────────────────

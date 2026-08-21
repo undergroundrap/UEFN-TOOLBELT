@@ -8,6 +8,24 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 ## [Unreleased]
 
 ### Fixed
+- **Six tools returned `None`, including all four MCP bridge tools.** CLAUDE.md,
+  TOOL_STATUS.md and the tool-authoring rules all state that every tool returns
+  `{"status": ...}` and that "zero None returns remain in the codebase". Six fell
+  off the end of their body and returned None implicitly: `mcp_start`,
+  `mcp_stop`, `mcp_restart`, `mcp_status`, `launch_qt` and
+  `toolbelt_integration_test`.
+
+  The MCP four are the worst of them — they are what an agent calls to control
+  the bridge, so a None result meant it could not tell whether the listener had
+  come up. `mcp_start` now returns port, URL and command count;
+  `toolbelt_integration_test` returns pass/fail counts, the report path and the
+  list of failures, and reports `status: error` on a fatal so a caller knows
+  fixtures may have been left behind.
+
+  A test now enforces the contract by parsing every `@register_tool` function
+  and checking that every path terminates in a return. Nothing enforced it
+  before, which is how the claim quietly stopped being true.
+
 - **Quick Actions reported the MCP bridge as "Not running" while it was running.**
   Both it and the MCP tab read the same `mcp_bridge._bound_port`; the difference
   was staleness. Quick Actions rendered its Setup Status rows once when the tab
