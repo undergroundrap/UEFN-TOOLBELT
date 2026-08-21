@@ -1274,6 +1274,12 @@ in a Fortnite level. Tools that spawn `TextRenderActor` — `text_place`,
 `text_paint_grid`, `text_color_cycle`, `text_label_selection`, `sign_spawn_bulk`,
 `label_attach` — will all produce them.
 
+**Nothing persists in the level.** Deleting the actors and re-saving clears the
+warnings completely — verified: the same level went from four warnings to a clean
+asset check with no other change. So this is not accumulated damage to the map,
+and there is nothing to repair in an existing project beyond removing the actors
+if you want a silent check.
+
 They are `Warning`, not `Error`. Whether Epic's publish pipeline treats them as
 blocking is **not established** — if you need to know, test a publish rather than
 assume either way.
