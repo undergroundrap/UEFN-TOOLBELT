@@ -71,12 +71,12 @@ def run_align(axis: str = "Z", **kwargs) -> dict:
     """
     actors = require_selection(min_count=2)
     if actors is None:
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "no_selection"}
 
     axis = axis.upper()
     if axis not in ("X", "Y", "Z"):
         log_error("axis must be 'X', 'Y', or 'Z'.")
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "bad_axis"}
 
     ref_loc = actors[0].get_actor_location()
     ref_val = getattr(ref_loc, axis.lower())
@@ -94,7 +94,7 @@ def run_align(axis: str = "Z", **kwargs) -> dict:
             actor.set_actor_location(new_loc, False, False)
 
     log_info("Alignment complete.")
-    return {"count": len(actors) - 1, "axis": axis, "value": ref_val}
+    return {"status": "ok", "count": len(actors) - 1, "axis": axis, "value": ref_val}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ def run_distribute(axis: str = "X", **kwargs) -> dict:
     """
     actors = require_selection(min_count=3)
     if actors is None:
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "no_selection"}
 
     axis = axis.upper()
     get = {"X": lambda a: a.get_actor_location().x,
@@ -122,7 +122,7 @@ def run_distribute(axis: str = "X", **kwargs) -> dict:
            "Z": lambda a: a.get_actor_location().z}.get(axis)
     if get is None:
         log_error("axis must be 'X', 'Y', or 'Z'.")
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "bad_axis"}
 
     # Sort by current position along the axis
     sorted_actors = sorted(actors, key=get)
@@ -145,7 +145,7 @@ def run_distribute(axis: str = "X", **kwargs) -> dict:
             actor.set_actor_location(new_loc, False, False)
 
     log_info("Distribution complete.")
-    return {"count": len(actors), "axis": axis, "span": span, "step": step}
+    return {"status": "ok", "count": len(actors), "axis": axis, "span": span, "step": step}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ def run_randomize(
     """
     actors = require_selection()
     if actors is None:
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "no_selection"}
 
     log_info(f"Randomizing transforms on {len(actors)} actors…")
 
@@ -209,7 +209,7 @@ def run_randomize(
                 actor.set_actor_scale3d(unreal.Vector(s, s, s))
 
     log_info("Randomize complete.")
-    return {"count": len(actors)}
+    return {"status": "ok", "count": len(actors)}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -229,11 +229,11 @@ def run_snap_to_grid(grid: float = 100.0, **kwargs) -> dict:
     """
     actors = require_selection()
     if actors is None:
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "no_selection"}
 
     if grid <= 0:
         log_error("grid must be positive.")
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "no_selection"}
 
     def snap(v: float) -> float:
         return round(v / grid) * grid
@@ -247,7 +247,7 @@ def run_snap_to_grid(grid: float = 100.0, **kwargs) -> dict:
             )
 
     log_info(f"Snapped {len(actors)} actors to {grid}cm grid.")
-    return {"count": len(actors), "grid": grid}
+    return {"status": "ok", "count": len(actors), "grid": grid}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -263,7 +263,7 @@ def run_snap_to_grid(grid: float = 100.0, **kwargs) -> dict:
 def run_reset(reset_rotation: bool = True, reset_scale: bool = True, **kwargs) -> dict:
     actors = require_selection()
     if actors is None:
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "no_selection"}
 
     with undo_transaction("Bulk Ops: Reset Transforms"):
         for actor in actors:
@@ -273,7 +273,7 @@ def run_reset(reset_rotation: bool = True, reset_scale: bool = True, **kwargs) -
                 actor.set_actor_scale3d(unreal.Vector(1, 1, 1))
 
     log_info(f"Reset {len(actors)} actors.")
-    return {"count": len(actors)}
+    return {"status": "ok", "count": len(actors)}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -293,7 +293,7 @@ def run_stack(gap: float = 0.0, **kwargs) -> dict:
     """
     actors = require_selection(min_count=2)
     if actors is None:
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "no_selection"}
 
     # Sort by current Z position
     sorted_actors = sorted(actors, key=lambda a: a.get_actor_location().z)
@@ -322,7 +322,7 @@ def run_stack(gap: float = 0.0, **kwargs) -> dict:
             current_z += height + gap
 
     log_info(f"Stacked {len(actors)} actors.")
-    return {"count": len(actors), "gap": gap}
+    return {"status": "ok", "count": len(actors), "gap": gap}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -342,7 +342,7 @@ def run_mirror(axis: str = "X", **kwargs) -> dict:
     """
     actors = require_selection(min_count=1)
     if actors is None:
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "no_selection"}
 
     axis = axis.upper()
 
@@ -368,7 +368,7 @@ def run_mirror(axis: str = "X", **kwargs) -> dict:
                 actor.set_actor_rotation(unreal.Rotator(roll=rot.roll, pitch=rot.pitch, yaw=180 - rot.yaw), False)
 
     log_info(f"Mirrored {len(actors)} actors across {axis}.")
-    return {"count": len(actors), "axis": axis}
+    return {"status": "ok", "count": len(actors), "axis": axis}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -388,7 +388,7 @@ def run_normalize_scale(target_scale: float = 1.0, **kwargs) -> dict:
     """
     actors = require_selection()
     if actors is None:
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "no_selection"}
 
     s = unreal.Vector(target_scale, target_scale, target_scale)
 
@@ -397,7 +397,7 @@ def run_normalize_scale(target_scale: float = 1.0, **kwargs) -> dict:
             actor.set_actor_scale3d(s)
 
     log_info(f"Set scale={target_scale} on {len(actors)} actors.")
-    return {"count": len(actors), "target_scale": target_scale}
+    return {"status": "ok", "count": len(actors), "target_scale": target_scale}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -413,7 +413,7 @@ def run_normalize_scale(target_scale: float = 1.0, **kwargs) -> dict:
 def run_face_camera(**kwargs) -> dict:
     actors = require_selection()
     if actors is None:
-        return {"count": 0}
+        return {"status": "error", "count": 0, "reason": "no_selection"}
 
     cam_loc, _ = unreal.EditorLevelLibrary.get_level_viewport_camera_info()
 
@@ -426,7 +426,7 @@ def run_face_camera(**kwargs) -> dict:
             actor.set_actor_rotation(unreal.Rotator(roll=0, pitch=0, yaw=yaw), False)
 
     log_info(f"Rotated {len(actors)} actors to face camera.")
-    return {"count": len(actors)}
+    return {"status": "ok", "count": len(actors)}
 
 
 @register_tool(

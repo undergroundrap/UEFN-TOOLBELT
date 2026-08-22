@@ -147,7 +147,7 @@ def run_import_image_from_url(
         asset_dir = get_config().get("import.default_dir") or f"/{detect_project_mount()}/UEFN_Toolbelt/Textures"
     if not url.strip():
         log_error("Image URL is required.")
-        return {"error": "Missing URL"}
+        return {"status": "error", "error": "Missing URL"}
 
     clean_name = _sanitize_asset_name(asset_name)
     if not clean_name:
@@ -179,12 +179,12 @@ def run_import_image_from_url(
             f.write(data)
     except Exception as e:
         log_error(f"Failed to fetch image from URL: {e}")
-        return {"error": str(e)}
+        return {"status": "error", "error": str(e)}
 
     result_path = _import_file_task(tmp_path, asset_dir, clean_name)
     if not result_path:
         log_error("Unreal Engine failed to import the downloaded file.")
-        return {"error": "Engine import failed"}
+        return {"status": "error", "error": "Engine import failed"}
 
     log_info(f"Successfully downloaded and imported Texture to: {result_path}")
     return {"status": "success", "asset_path": result_path}
@@ -211,12 +211,12 @@ def run_import_image_from_clipboard(
 
     if not _extract_clipboard_png(tmp_path):
         log_error("No valid image found on the Windows clipboard, or extraction failed.")
-        return {"error": "Clipboard extraction failed"}
+        return {"status": "error", "error": "Clipboard extraction failed"}
 
     result_path = _import_file_task(tmp_path, asset_dir, clean_name)
     if not result_path:
         log_error("Engine failed to import clipboard PNG.")
-        return {"error": "Engine import failed"}
+        return {"status": "error", "error": "Engine import failed"}
 
     log_info(f"Successfully imported clipboard image to: {result_path}")
     return {"status": "success", "asset_path": result_path}

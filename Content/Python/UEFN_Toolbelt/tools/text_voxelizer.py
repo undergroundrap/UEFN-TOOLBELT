@@ -159,11 +159,11 @@ def run_text_render_texture(
 ) -> dict:
     asset_dir = resolve_content_path(asset_dir, "Generated/Text")
     if not text.strip():
-        return {"error": "Text is empty"}
+        return {"status": "error", "error": "Text is empty"}
 
     png_path, _ = _render_text_via_powershell(text, max(8, font_size), max(64, width), max(64, height), 16)
     if not png_path:
-        return {"error": "GDI pipeline failed"}
+        return {"status": "error", "error": "GDI pipeline failed"}
 
     unique_path = _find_unique_name(asset_dir, asset_name)
     leaf = unique_path.split("/")[-1]
@@ -183,7 +183,7 @@ def run_text_render_texture(
         log_info(f"Rendered Text Texture saved to {imported[0]}")
         return {"status": "success", "asset_path": imported[0]}
 
-    return {"error": "Engine import failed"}
+    return {"status": "error", "error": "Engine import failed"}
 
 
 @register_tool(
@@ -204,16 +204,16 @@ def run_text_voxelize_3d(
 ) -> dict:
     asset_dir = resolve_content_path(asset_dir, "Generated/Text")
     if not text.strip():
-        return {"error": "Text is empty"}
+        return {"status": "error", "error": "Text is empty"}
 
     _, pts = _render_text_via_powershell(text, max(12, font_size), 1024, 512, max(2, pixel_step))
     if not pts:
-        return {"error": "GDI masking failed. Null pixels returned."}
+        return {"status": "error", "error": "GDI masking failed. Null pixels returned."}
 
     cube_obj = unreal.load_asset(fallback_cube)
     if not cube_obj or not isinstance(cube_obj, unreal.StaticMesh):
         log_error(f"Fallback cube required to voxelize: {fallback_cube}")
-        return {"error": "Missing fallback cube geometry"}
+        return {"status": "error", "error": "Missing fallback cube geometry"}
 
     unique_path = _find_unique_name(asset_dir, asset_name)
     ell = unreal.EditorLevelLibrary
@@ -237,12 +237,12 @@ def run_text_voxelize_3d(
                     actors.append(a)
 
         if not actors:
-            return {"error": "Failed to spawn actor grid."}
+            return {"status": "error", "error": "Failed to spawn actor grid."}
 
         merged_path = _merge_voxel_actors(actors, unique_path)
         if not merged_path:
             log_error("Mesh merge failed. Leaving independent actors in level.")
-            return {"error": "Merge failed", "spawned_count": len(actors)}
+            return {"status": "error", "error": "Merge failed", "spawned_count": len(actors)}
 
     # Save the output geometry
     try:

@@ -556,7 +556,7 @@ def run_gen_custom(
     """
     if not code:
         log_warning("verse_gen_custom: no code provided.")
-        return {"path": "", "bytes": 0}
+        return {"status": "ok", "path": "", "bytes": 0}
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     header = (
@@ -575,7 +575,7 @@ def run_gen_custom(
     path = _write_snippet(filename, content, SUBCAT_CUSTOM)
     _try_clipboard(content)
     log_info(f"Custom Verse snippet written → {path}")
-    return {"path": path, "bytes": len(content)}
+    return {"status": "ok", "path": path, "bytes": len(content)}
 
 
 @register_tool(

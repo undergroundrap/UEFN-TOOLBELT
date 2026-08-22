@@ -75,5 +75,5 @@ def run_optimize_background_cpu(
 
     except Exception as e:
         log_error(f"Failed to update system performance settings: {e}")
-        return {"error": str(e)}
+        return {"status": "error", "error": str(e)}
 
