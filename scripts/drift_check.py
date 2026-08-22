@@ -75,6 +75,7 @@ SCAN_FILES = [
     # Agent context files. These carry tool counts and per-tool tables that go
     # stale exactly like the docs do — three counts had already drifted before
     # they were added here.
+    "AGENTS.md",
     ".claude/tool_tables.md",
     ".claude/mcp_reference.md",
     ".claude/rules/tool_authoring.md",

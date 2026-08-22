@@ -12,7 +12,7 @@ Usage (UEFN Output Log / Python REPL):
 What this checks:
     Layer 1 — Python environment  (stdlib, threading, sockets, tick callbacks)
     Layer 2 — UEFN API surface    (key subsystems, AutomationLibrary, Materials)
-    Layer 3 — Toolbelt core       (registry, all 24 modules, tool count, output paths)
+    Layer 3 — Toolbelt core       (registry, core modules, tool count, output paths)
     Layer 4 — MCP bridge          (listener state, HTTP round-trip if running)
     Layer 5 — Dashboard           (PySide6 importable, QApplication available)
     Layer 6 — Verse Book          (clone present, git remote reachable, chapters readable)

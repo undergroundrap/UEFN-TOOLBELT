@@ -77,7 +77,7 @@ stamp your best rooms, build — ready to publish.
 
 ---
 
-## 🤖 Claude Can Build Your Game — Autonomously
+## 🤖 Your Agent Can Build Your Game — Autonomously
 
 > **This is the headline feature.** Not "AI helps you code" — AI *reads your live level, writes the Verse, and deploys it*. Zero copy-paste. Zero manual wiring.
 
@@ -137,7 +137,7 @@ Place the device in your level, drag your real actors into the `@editable` slots
 ---
 
 ## 🤖 AI-Accelerated Development (One-Click Sync + Tool Manifest)
-Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect information** about your project's unique Verse devices and custom props:
+Toolbelt is built to be driven by a coding agent — Claude Code, Codex, or Cursor. To give your agent **perfect information** about your project's unique Verse devices and custom props:
 
 1.  **Open Dashboard**: Run `tb.launch_qt()` or use the `Toolbelt` menu.
 2.  **One-Click Sync**: Click the **"Sync Level Schema to AI"** button in **Quick Actions**.
@@ -148,7 +148,7 @@ Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect 
 
 ## Table of Contents
 
-- [Claude Can Build Your Game — Autonomously](#-claude-can-build-your-game--autonomously)
+- [Your Agent Can Build Your Game — Autonomously](#-your-agent-can-build-your-game--autonomously)
 - [Concept](#concept)
 - [The Workflow Loop — Efficiency Mechanic](#the-workflow-loop--efficiency-mechanic)
 - [Tech Stack](#tech-stack)
@@ -164,7 +164,7 @@ Toolbelt is built to be used with AI (Claude/Gemini). To give your AI **perfect 
 - [Fortnite Device API Mapping](#fortnite-device-api-mapping)
 - [MCP — Connect Any AI to UEFN](#mcp--connect-any-ai-to-uefn)
 - [Spec-Accurate Verse Code Generation](#spec-accurate-verse-code-generation)
-- [CLAUDE.md — Instant AI Context](#claudemd--instant-ai-context)
+- [Agent Context Files — CLAUDE.md and AGENTS.md](#agent-context-files--claudemd-and-agentsmd)
 - [Why This Is the Best UEFN Python Tool](#why-this-is-the-best-uefn-python-tool)
 - [Known Issue — UEFN 42.00 MCP Toolsets](#known-issue--uefn-4200-mcp-toolsets)
 - [Documentation](#documentation)
@@ -261,7 +261,7 @@ The smoke test verifies that all tools *register* correctly. The integration tes
 4. **Verifies** the result — property changed, actor spawned, file written, count correct
 5. **Cleans up** every actor it touched via a single undo transaction
 
-**163 tests across 362 tools** — covering materials, bulk ops, patterns, scatter, splines, snapshots, asset management, Verse tools, screenshots, LODs, arena, measurement, localization, zones, stamps, actor org, proximity placement, advanced alignment, signs, post-process, audio, level health, config, lighting, and world state.
+**180 checks across 362 tools — 180/180 passing live on UEFN 42.00** — covering materials, bulk ops, patterns, scatter, splines, snapshots, asset management, Verse tools, screenshots, LODs, arena, measurement, localization, zones, stamps, actor org, proximity placement, advanced alignment, signs, post-process, audio, level health, config, lighting, and world state.
 
 This is the closest thing to a full CI suite possible inside the UEFN Python sandbox. If this passes, you have high confidence that the core tool logic is sound — not just that it imported.
 
@@ -1311,7 +1311,7 @@ tb.run("toolbelt_smoke_test")
 
 ## Getting Started
 
-> Tested on UEFN 40.00, Windows 11, Python 3.11.8 — March 2026.
+> Tested on UEFN 42.00 (UE 6.0), Windows 11, Python 3.11.8 — August 2026.
 
 ### Step 1 — Enable Python in UEFN
 
@@ -1424,7 +1424,7 @@ Expected output in the log:
 |---|---|---|
 | **Layer 1** — Python Environment | stdlib, threading, sockets, HTTP server, file I/O | 13 |
 | **Layer 2** — UEFN API Surface | `unreal` module, subsystems, AutomationLibrary, Materials | 13 |
-| **Layer 3** — Toolbelt Core | All 76 modules loaded, 362 tools registered | 40 |
+| **Layer 3** — Toolbelt Core | Every core module loaded, 362 tools registered | 40 |
 | **Layer 4** — MCP Bridge | 31 command handlers, HTTP listener state | 4 |
 | **Layer 5** — Dashboard (PySide6) | PySide6 importable, QApplication, ToolbeltDashboard | 3 |
 | **Layer 6** — Verse Book | clone present, git reachable, 22 chapters parsed | 12 |
@@ -1469,7 +1469,7 @@ In your repo folder, run:
 git clone https://github.com/verselang/book.git verse-book
 ```
 
-This gives Claude access to the full live Verse language spec for spec-accurate code generation. After cloning, the smoke test will show 63/64 (only PySide6 remaining if not installed).
+This gives Claude access to the full live Verse language spec for spec-accurate code generation. After cloning, the smoke test reports 89/89 with PySide6 installed.
 
 ---
 
@@ -2228,7 +2228,7 @@ All of these also appear in `deploy.bat` output — after deploying, just copy f
 | Something isn't loading after an update | Module may be cached. Paste: `import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.launch_qt()` |
 | LOD generation fails | `StaticMeshEditorSubsystem.set_lods_with_notification` requires the mesh to be fully loaded. Run `load_asset()` first. |
 | Menu bar entry missing (UEFN ≤ 40.10) | `init_unreal.py` failed silently — check Output Log for `[TOOLBELT]` error lines on startup. |
-| Menu bar entry missing (UEFN 40.20+) | Known Epic platform restriction — `ToolMenus` extensions for third-party Python are sandboxed in 40.20. The Toolbelt menu will not appear regardless of configuration. Use `tb.launch_qt()` or the dashboard instead. All 362 tools and every other feature work normally. |
+| Menu bar entry missing (UEFN 40.20 – 41.x) | Epic sandboxed `ToolMenus` extensions for third-party Python on those builds — the menu will not appear regardless of configuration. Use `tb.launch_qt()` or the dashboard instead; all 362 tools work normally. **Fixed on 42.00** — the menu registers again (verified 2026-08-21). |
 
 ---
 
@@ -2248,8 +2248,9 @@ UEFN Toolbelt ships a full two-process MCP (Model Context Protocol) architecture
 
 **This works with any MCP-compatible AI — Claude Code, Codex, Cursor,
 or any custom agent that speaks the MCP protocol.**
-Claude is the recommended driver because of the verse-book spec integration and CLAUDE.md
-context loading, but the bridge is completely model-agnostic. If your AI supports MCP, it connects.
+All three read a context file this repo ships, so they start with full knowledge of the
+codebase rather than guessing — Claude Code loads `CLAUDE.md`, Codex and Cursor load
+`AGENTS.md`. The bridge itself is model-agnostic: if your AI supports MCP, it connects.
 
 **How it works:**
 
@@ -2317,7 +2318,7 @@ curl -s -X POST http://127.0.0.1:8765 \
   -d '{"command":"run_tool","params":{"tool_name":"snapshot_save","kwargs":{}}}'
 ```
 
-**Claude is the recommended driver** because of the verse-book spec integration, CLAUDE.md auto-context loading, and the best reasoning for complex autonomous tasks — but the bridge is fully model-agnostic. Confirmed compatible: Claude Code, Codex, Cursor, or any custom agent built against the HTTP API directly.
+**Confirmed compatible: Claude Code, Codex, and Cursor**, plus any custom agent built against the HTTP API directly. Claude Code additionally auto-loads `CLAUDE.md` on open, which is why the autonomous-build walkthrough above uses it — Codex and Cursor get the same context from `AGENTS.md`.
 
 MCP bridge architecture inspired by [Kirch's uefn-mcp-server](https://github.com/KirChuvakov/uefn-mcp-server) ([@KirchCreator](https://x.com/KirchCreator)) — full credit for the queue + Slate tick pattern.
 
@@ -2371,13 +2372,13 @@ tb.run("verse_gen_custom",
 
 ---
 
-## CLAUDE.md — AI-Native Repository (First of Its Kind)
+## Agent Context Files — CLAUDE.md and AGENTS.md
 
 Most GitHub repos require hours of reading before an AI can contribute meaningfully.
 UEFN Toolbelt is the first UEFN project — and one of the first on GitHub at any scale —
 to ship full AI-native onboarding as a core feature.
 
-**How it works:** Claude Code automatically loads `CLAUDE.md` whenever you open the project directory. The file contains everything Claude needs to contribute correctly on the first try:
+**How it works:** the repo ships two context files, and your agent loads one of them automatically when you open the project directory — `CLAUDE.md` for Claude Code, `AGENTS.md` for Codex and Cursor. Between them they carry everything an agent needs to contribute correctly on the first try:
 
 - Every tool name, category, parameter, and usage example across all 362 tools
 - The exact nuclear reload command and when it's safe vs. unsafe (Quirk #26)
@@ -2417,7 +2418,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 | Ecosystem Moat | **Rich Plugin Hub, automatic UI generation** | Scattered, undocumented gists |
 | Security Model | **4-Gate Audit (AST scanning, SHA-256)** | Blind execution of untrusted code |
 | Verification | **Automated Integration Test Suite** | Manual testing only |
-| Tool count | **362 tools, 76 modules** | Single-purpose scripts |
+| Tool count | **362 tools, 78 modules** | Single-purpose scripts |
 | AI integration | **Full MCP bridge + model-agnostic HTTP client + tool manifest** | None |
 | Local model support | **LM Studio, Ollama, any HTTP agent** | None |
 | Verse code gen | **Live spec-backed (27K line reference)** | Static templates |
@@ -2433,7 +2434,7 @@ UEFN Toolbelt is not just a collection of scripts; it is a **secure platform** f
 The UEFN Toolbelt includes a professional-grade testing suite to ensure stability across UEFN updates.
 
 ### 1. Smoke Test (Healthy Schema Check)
-Verifies all 76 modules are loaded, all 362 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
+Verifies every core module is loaded, all 362 tool schemas are valid (descriptions, tags, `**kwargs` compliance), and UEFN API access is healthy.
 ```python
 import UEFN_Toolbelt as tb
 tb.run("toolbelt_smoke_test")
