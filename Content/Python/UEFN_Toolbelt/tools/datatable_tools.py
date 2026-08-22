@@ -47,7 +47,7 @@ def _ar():
         "Use this to inventory all data-driven configs in the project."
     ),
     tags=["datatable", "data", "list", "assets", "scan"],
-    example='tb.run("datatable_list", scan_path="/Game/DataTables")',
+    example='tb.run("datatable_list", scan_path="")',
 )
 def run_datatable_list(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     scan_path = resolve_scan_path(scan_path)
@@ -219,7 +219,7 @@ def run_datatable_export(asset_path: str = "", output_path: str = "", **kwargs) 
         "Returns a health report useful before publishing."
     ),
     tags=["datatable", "audit", "health", "data"],
-    example='tb.run("datatable_audit", scan_path="/Game/DataTables", min_rows=1)',
+    example='tb.run("datatable_audit", scan_path="", min_rows=1)',
 )
 def run_datatable_audit(scan_path: str = "", min_rows: int = 1, **kwargs) -> dict:
     scan_path = resolve_scan_path(scan_path)

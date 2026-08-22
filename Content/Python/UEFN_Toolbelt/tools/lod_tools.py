@@ -22,20 +22,20 @@ USAGE (REPL):
 
     # Auto-LOD all meshes in a Content Browser folder
     tb.run("lod_auto_generate_folder",
-           folder_path="/Game/MyAssets/Meshes",
+           folder_path="",
            num_lods=3)
 
     # Batch set collision to "Use Complex as Simple"
     tb.run("lod_set_collision_folder",
-           folder_path="/Game/MyAssets/Meshes",
+           folder_path="",
            complexity="complex_as_simple")
 
     # Report meshes with no LODs
-    tb.run("lod_audit_folder", folder_path="/Game/MyAssets")
+    tb.run("lod_audit_folder", folder_path="")
 
 BLUEPRINT:
     "Execute Python Command" →
-        import UEFN_Toolbelt as tb; tb.run("lod_auto_generate_folder", folder_path="/Game/Meshes", num_lods=3)
+        import UEFN_Toolbelt as tb; tb.run("lod_auto_generate_folder", folder_path="", num_lods=3)
 
 TECHNICAL NOTES:
     LOD generation uses unreal.StaticMeshEditorSubsystem.set_lods_with_notification()
@@ -418,7 +418,7 @@ def run_lod_audit_folder(
         "Use this to decide which high-poly meshes benefit most from Nanite."
     ),
     tags=["nanite", "mesh", "audit", "lod", "performance"],
-    example='tb.run("nanite_audit", scan_path="/Game/Meshes")',
+    example='tb.run("nanite_audit", scan_path="")',
 )
 def run_nanite_audit(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     # Uses AR tag data only — never calls load_asset(), safe on pak-heavy projects.
@@ -466,7 +466,7 @@ def run_nanite_audit(scan_path: str = "", max_results: int = 200, **kwargs) -> d
         "Always dry_run=True first to preview which meshes will be affected."
     ),
     tags=["nanite", "mesh", "enable", "batch", "lod"],
-    example='tb.run("nanite_enable_folder", scan_path="/Game/Meshes/Props", enable=True, dry_run=False)',
+    example='tb.run("nanite_enable_folder", scan_path="", enable=True, dry_run=False)',
 )
 def run_nanite_enable_folder(
     scan_path: str = "",

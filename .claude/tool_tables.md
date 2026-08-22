@@ -33,7 +33,7 @@
 tb.run("light_place", light_type="spot", intensity=3000, color="#80C0FF", attenuation=1500)
 tb.run("sky_set_time", hour=7.5)
 tb.run("postprocess_preset", preset="night")
-tb.run("audio_place", asset_path="/Game/Audio/A_WindLoop", volume=0.6, radius=3000)
+tb.run("audio_place", asset_path="/YourProject/Audio/A_WindLoop", volume=0.6, radius=3000)
 ```
 
 ---
@@ -61,8 +61,8 @@ tb.run("audio_place", asset_path="/Game/Audio/A_WindLoop", volume=0.6, radius=30
 tb.run("material_apply_preset", preset="neon")
 tb.run("material_gradient_painter", axis="X", color_a="#FF0000", color_b="#0000FF")
 tb.run("material_bulk_swap",
-       old_path="/Game/Materials/M_Old",
-       new_path="/Game/Materials/M_New",
+       old_path="/YourProject/Materials/M_Old",
+       new_path="/YourProject/Materials/M_New",
        scope="selection")   # or scope="all"
 ```
 
@@ -89,7 +89,7 @@ tb.run("material_bulk_swap",
 
 ```python
 tb.run("arena_generate", size="large", apply_team_colors=True)
-tb.run("scatter_hism", asset_path="/Game/Meshes/SM_Rock", count=300, radius=5000.0)
+tb.run("scatter_hism", asset_path="/YourProject/Meshes/SM_Rock", count=300, radius=5000.0)
 ```
 
 ### Measurement
@@ -125,7 +125,7 @@ tb.run("scatter_hism", asset_path="/Game/Meshes/SM_Rock", count=300, radius=5000
 
 ```python
 tb.run("pattern_circle", asset_path="/Engine/BasicShapes/Cube", count=16, radius=1500.0)
-tb.run("pattern_helix", asset_path="/Game/Meshes/SM_Column",
+tb.run("pattern_helix", asset_path="/YourProject/Meshes/SM_Column",
        count=24, height=800.0, radius=300.0)
 ```
 
@@ -143,7 +143,7 @@ tb.run("pattern_helix", asset_path="/Game/Meshes/SM_Column",
 | `bulk_mirror` | `axis="X"` | Mirror across axis |
 | `bulk_normalize` | — | Normalize all scales to 1 |
 | `bulk_stack` | `axis="Z"`, `gap=0.0` | Stack actors vertically |
-| `mesh_merge_selection` | `dest_path="/Game/UEFN_Toolbelt/Merged"`, `asset_name="MergedMesh"`, `replace_originals=False` | Merge selected StaticMesh actors into one asset — one draw call. Note: API may be sandboxed in UEFN; returns clear error if so |
+| `mesh_merge_selection` | `dest_path=""`, `asset_name="MergedMesh"`, `replace_originals=False` | Merge selected StaticMesh actors into one asset — one draw call. Note: API may be sandboxed in UEFN; returns clear error if so |
 
 ```python
 tb.run("bulk_align", axis="Z")
@@ -233,9 +233,9 @@ tb.run("actor_duplicate_offset", count=10, offset_x=500.0)
 
 # Swap all SM_OldCrate actors with new asset (dry run first)
 tb.run("actor_replace_class", old_class_filter="OldCrate",
-       new_asset_path="/Game/Props/SM_NewCrate", dry_run=True)
+       new_asset_path="/YourProject/Props/SM_NewCrate", dry_run=True)
 tb.run("actor_replace_class", old_class_filter="OldCrate",
-       new_asset_path="/Game/Props/SM_NewCrate", dry_run=False)
+       new_asset_path="/YourProject/Props/SM_NewCrate", dry_run=False)
 
 # Auto-cluster all selected actors by 1000cm proximity into folders
 tb.run("actor_cluster_to_folder", radius=1000.0, folder_prefix="Island", min_cluster_size=3)
@@ -311,18 +311,18 @@ tb.run("stamp_delete", name="guard_post")
 | Tool | Key Params | What it does |
 |---|---|---|
 | `lod_auto_generate_selection` | `num_lods=4` | ⚠️ Disabled — UEFN mesh reduction crash (UEFN_QUIRKS.md #18) |
-| `lod_auto_generate_folder` | `folder="/Game/"`, `num_lods=4` | ⚠️ Disabled — UEFN mesh reduction crash (UEFN_QUIRKS.md #18) |
-| `lod_set_collision_folder` | `folder="/Game/"`, `complexity="simple"` | Batch collision setup |
-| `lod_audit_folder` | `folder="/Game/"` | Audit for missing LODs / collision |
-| `memory_scan` | `scan_path="/Game/"` | Full project scan (textures + meshes) |
+| `lod_auto_generate_folder` | `folder=""`, `num_lods=4` | ⚠️ Disabled — UEFN mesh reduction crash (UEFN_QUIRKS.md #18) |
+| `lod_set_collision_folder` | `folder=""`, `complexity="simple"` | Batch collision setup |
+| `lod_audit_folder` | `folder=""` | Audit for missing LODs / collision |
+| `memory_scan` | `scan_path=""` | Full project scan (textures + meshes) |
 | `memory_scan_textures` | `scan_path`, `warn_px=2048`, `crit_px=4096` | Find oversized textures |
 | `memory_scan_meshes` | `scan_path`, `warn_tris=50000` | Find high-poly meshes |
-| `memory_top_offenders` | `limit=20`, `scan_path="/Game/"` | Heaviest assets ranked |
-| `memory_autofix_lods` | `scan_path="/Game/"` | Auto-generate missing LODs |
+| `memory_top_offenders` | `limit=20`, `scan_path=""` | Heaviest assets ranked |
+| `memory_autofix_lods` | `scan_path=""` | Auto-generate missing LODs |
 
 ```python
 # lod_auto_generate_folder is disabled in UEFN — use lod_audit_folder to find meshes, add LODs manually in Static Mesh Editor
-tb.run("lod_audit_folder", folder_path="/Game/Meshes")
+tb.run("lod_audit_folder", folder_path="")
 tb.run("memory_top_offenders", limit=10)
 ```
 
@@ -364,7 +364,7 @@ tb.run("memory_top_offenders", limit=10)
 | `curve_list` | `scan_path`, `curve_type="all"`, `max_results=200` | List CurveFloat/CurveVector/CurveLinearColor assets. Filter: `float`, `vector`, `color` |
 | `curve_inspect` | `asset_path` | Read all key time/value pairs from a CurveFloat |
 | `curve_export` | `scan_path`, `output_path=""` | Export all curves in a folder to JSON |
-| `curve_create` | `name="CM_NewCurve"`, `destination="/Game/Curves/"` | Create a new empty CurveFloat asset |
+| `curve_create` | `name="CM_NewCurve"`, `destination=""` | Create a new empty CurveFloat asset |
 
 ### Blueprints
 
@@ -417,13 +417,13 @@ tb.run("physics_list")    # check which actors can have physics
 
 | Tool | Key Params | What it does |
 |---|---|---|
-| `rename_dry_run` | `scan_path="/Game/"` | Preview naming violations |
-| `rename_enforce_conventions` | `scan_path="/Game/"` | Fix naming convention violations |
-| `rename_strip_prefix` | `prefix="Old_"`, `folder="/Game/"` | Strip a prefix from all assets |
-| `rename_report` | `scan_path="/Game/"` | Export full naming audit JSON |
-| `import_fbx` | `file_path`, `destination="/Game/"` | Import single FBX |
-| `import_fbx_folder` | `folder_path`, `destination="/Game/"` | Batch import folder |
-| `organize_assets` | `folder="/Game/"` | Sort by asset type into subfolders |
+| `rename_dry_run` | `scan_path=""` | Preview naming violations |
+| `rename_enforce_conventions` | `scan_path=""` | Fix naming convention violations |
+| `rename_strip_prefix` | `prefix="Old_"`, `folder=""` | Strip a prefix from all assets |
+| `rename_report` | `scan_path=""` | Export full naming audit JSON |
+| `import_fbx` | `file_path`, `dest_path=""` | Import single FBX (blank dest auto-generates under the project mount) |
+| `import_fbx_folder` | `folder_path`, `dest_base=""` | Batch import folder (blank dest auto-generates) |
+| `organize_assets` | `folder=""` | Sort by asset type into subfolders |
 | `ui_icon_import_open` | — | Open the UI Icon Importer — paste any image from clipboard (browser, Figma, Photoshop), auto-imports with TC_UserInterface2D · NoMipmaps · TextureGroup_UI. File browse and drag-drop also supported |
 | `prefab_migrate_open` | — | Open the Prefab Asset Migrator window — copy assets with full dependency closure (meshes, materials, textures) within the project or to disk for cross-project import |
 | `prefab_parse_refs` | `t3d_text` | Parse T3D clipboard text (Ctrl+C in viewport) and return all asset references |
@@ -439,18 +439,18 @@ tb.run("physics_list")    # check which actors can have physics
 
 | Tool | Key Params | What it does |
 |---|---|---|
-| `ref_audit_orphans` | `scan_path="/Game/"` | Assets with no referencers |
-| `ref_audit_redirectors` | `scan_path="/Game/"` | Stale ObjectRedirectors |
-| `ref_audit_duplicates` | `scan_path="/Game/"` | Assets sharing the same base name |
-| `ref_audit_unused_textures` | `scan_path="/Game/"` | Textures with no material refs |
+| `ref_audit_orphans` | `scan_path=""` | Assets with no referencers |
+| `ref_audit_redirectors` | `scan_path=""` | Stale ObjectRedirectors |
+| `ref_audit_duplicates` | `scan_path=""` | Assets sharing the same base name |
+| `ref_audit_unused_textures` | `scan_path=""` | Textures with no material refs |
 | `ref_fix_redirectors` | `scan_path`, `dry_run=True` | Consolidate redirectors |
 | `ref_delete_orphans` | `scan_path`, `dry_run=True` | Delete unreferenced assets |
-| `ref_full_report` | `scan_path="/Game/"` | All scans → JSON health report |
+| `ref_full_report` | `scan_path=""` | All scans → JSON health report |
 
 ```python
 # Always dry_run first
-tb.run("ref_fix_redirectors", scan_path="/Game", dry_run=True)
-tb.run("ref_fix_redirectors", scan_path="/Game", dry_run=False)
+tb.run("ref_fix_redirectors", scan_path="", dry_run=True)
+tb.run("ref_fix_redirectors", scan_path="", dry_run=False)
 ```
 
 ---
@@ -485,13 +485,13 @@ All tags use the `TB:` namespace prefix to avoid collisions.
 | `tag_add` | `key`, `value` | Tag selected CB assets |
 | `tag_remove` | `key` | Remove tag key from selected assets |
 | `tag_show` | — | Print tags on selected assets |
-| `tag_search` | `key`, `value=""`, `folder="/Game/"` | Find assets by tag |
-| `tag_list_all` | `folder="/Game/"` | All tag keys with asset counts |
-| `tag_export` | `folder="/Game/"` | Export tag index to JSON |
+| `tag_search` | `key`, `value=""`, `folder=""` | Find assets by tag |
+| `tag_list_all` | `folder=""` | All tag keys with asset counts |
+| `tag_export` | `folder=""` | Export tag index to JSON |
 
 ```python
 tb.run("tag_add", key="biome", value="desert")
-tb.run("tag_search", key="biome", value="desert", folder="/Game/Props")
+tb.run("tag_search", key="biome", value="desert", folder="")
 ```
 
 ---
@@ -700,7 +700,7 @@ Persistent user settings stored in `Saved/UEFN_Toolbelt/config.json`. Survives `
 ```python
 tb.run("config_list")
 tb.run("config_set", key="scatter.default_folder", value="MyScatter")
-tb.run("config_set", key="arena.fallback_mesh", value="/Game/Meshes/SM_MyFloor")
+tb.run("config_set", key="arena.fallback_mesh", value="/YourProject/Meshes/SM_MyFloor")
 tb.run("config_reset", key="all")   # wipe all customisations
 ```
 
@@ -727,7 +727,7 @@ tb.run("config_reset", key="all")   # wipe all customisations
 
 | Tool | Key Params | What it does |
 |---|---|---|
-| `level_health_report` | `scan_path="/Game"` | Run all 6 audit categories (actors, memory, assets, naming, LODs, performance) and return a unified health score 0–100 with grade (A+…F). MCP/AI friendly — structured dict return. |
+| `level_health_report` | `scan_path=""` | Run all 6 audit categories (actors, memory, assets, naming, LODs, performance) and return a unified health score 0–100 with grade (A+…F). MCP/AI friendly — structured dict return. |
 | `level_health_open` | — | Open the Level Health Dashboard window — colour-coded category cards, per-issue drilldown, live audit progress. |
 | `plugin_validate_all` | — | Validate all registered tools against schema |
 | `plugin_list_custom` | — | List all loaded third-party tools from `Saved/UEFN_Toolbelt/Custom_Plugins` |

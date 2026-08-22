@@ -114,7 +114,7 @@ def _resolve_rotation(
         yaw = rng.uniform(0.0, 360.0)
     else:  # world_up
         yaw = base_yaw
-    return unreal.Rotator(0.0, yaw, 0.0)
+    return unreal.Rotator(roll=0.0, pitch=0.0, yaw=yaw)
 
 
 def _resolve_scale(
@@ -191,7 +191,19 @@ def _spawn_pattern(
                     spawned_actors.append(actor)
 
     mode_str = "[PREVIEW] " if preview else ""
-    unreal.log(f"[Patterns] {mode_str}✓ {label}: {spawned}/{total} actors spawned.")
+    if spawned == 0:
+        unreal.log_warning(
+            f"[Patterns] {mode_str}{label}: 0 of {total} actors spawned. Nothing "
+            f"was placed - check that mesh_path points at a real asset "
+            f"('{mesh_path}')."
+        )
+    elif spawned < total:
+        unreal.log_warning(
+            f"[Patterns] {mode_str}{label}: {spawned}/{total} actors spawned - "
+            f"{total - spawned} failed to place."
+        )
+    else:
+        unreal.log(f"[Patterns] {mode_str}✓ {label}: {spawned}/{total} actors spawned.")
     if preview:
         unreal.log("[Patterns]   Run again with preview=False to place the real mesh.")
     if focus and spawned_actors:

@@ -49,7 +49,7 @@ def _actor_sub():
         "Use this to inventory skeletal assets before a memory or LOD audit."
     ),
     tags=["skeletal", "mesh", "list", "assets", "scan"],
-    example='tb.run("skel_list", scan_path="/Game/Characters")',
+    example='tb.run("skel_list", scan_path="")',
 )
 def run_skel_list(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     # Uses AR tag data only — never calls load_asset(), safe on pak-heavy projects.
@@ -86,7 +86,7 @@ def run_skel_list(scan_path: str = "", max_results: int = 200, **kwargs) -> dict
         "Returns a health report with per-mesh status and issue descriptions."
     ),
     tags=["skeletal", "mesh", "audit", "health", "physics"],
-    example='tb.run("skel_audit", scan_path="/Game/Characters")',
+    example='tb.run("skel_audit", scan_path="")',
 )
 def run_skel_audit(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     scan_path = resolve_scan_path(scan_path)

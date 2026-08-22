@@ -24,23 +24,23 @@ USAGE (REPL):
     import UEFN_Toolbelt as tb
 
     # Full scan of /Game — prints summary + saves report
-    tb.run("memory_scan", scan_path="/Game")
+    tb.run("memory_scan", scan_path="")
 
     # Scan only textures
-    tb.run("memory_scan_textures", scan_path="/Game", max_size_px=2048)
+    tb.run("memory_scan_textures", scan_path="", max_size_px=2048)
 
     # Scan only meshes
-    tb.run("memory_scan_meshes", scan_path="/Game")
+    tb.run("memory_scan_meshes", scan_path="")
 
     # Auto-fix: add LODs to all meshes missing them
-    tb.run("memory_autofix_lods", scan_path="/Game/Meshes")
+    tb.run("memory_autofix_lods", scan_path="")
 
     # View top 10 heaviest assets
-    tb.run("memory_top_offenders", scan_path="/Game", top_n=10)
+    tb.run("memory_top_offenders", scan_path="", top_n=10)
 
 BLUEPRINT:
     "Execute Python Command" →
-        import UEFN_Toolbelt as tb; tb.run("memory_scan", scan_path="/Game")
+        import UEFN_Toolbelt as tb; tb.run("memory_scan", scan_path="")
 """
 
 from __future__ import annotations

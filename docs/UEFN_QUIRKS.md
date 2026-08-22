@@ -1479,3 +1479,69 @@ same module object. Existing references stay live.
 
 The raw one-liner avoids this only because it rebinds `tb` after the pop — put
 the `import ... as tb` *before* the pop and it fails the same way.
+
+---
+
+## Quirk #41 — `unreal.Rotator` positional args are (roll, pitch, yaw) (Discovered: 2026-08-21)
+
+**Symptom:** props "tilt" instead of turning, patterned meshes lie on their
+faces, the viewport camera leans diagonally, and restored snapshots come back
+rotated wrong. Nothing raises. Everything reports success.
+
+**Why:** the constructor follows the C++ `FRotator` field order, which is
+**(roll, pitch, yaw)** — not the (pitch, yaw, roll) order that UE docs,
+tooltips, and every Blueprint node use when *describing* a rotation.
+
+```python
+r = unreal.Rotator(10.0, 20.0, 30.0)
+# r.roll == 10.0   r.pitch == 20.0   r.yaw == 30.0
+```
+
+So the natural-looking `unreal.Rotator(0, yaw, 0)` sets **pitch**, not yaw.
+
+**How it was found:** not by a bug report. `bulk_randomize` defaults to
+`rot_range=360.0` (yaw) and `pitch_range=0.0`, so on a fixture starting at zero
+it should produce a random yaw and a pitch of exactly 0. The integration log
+from 2026-08-21 shows the opposite:
+
+```
+Rot: {pitch: 23.004272, yaw: 0.000000, roll: -0.000000}
+```
+
+The random value landed in pitch. That is only possible under (roll, pitch, yaw).
+
+**The fix — always keyword args:**
+
+```python
+unreal.Rotator(roll=0.0, pitch=0.0, yaw=90.0)   # ✓ turns 90° as intended
+unreal.Rotator(0.0, 90.0, 0.0)                  # ✗ pitches 90° instead
+```
+
+31 call sites across 14 modules were wrong. `tests/test_rotator_argument_order.py`
+now fails on any positional `unreal.Rotator(...)` with a non-zero argument, so
+this cannot come back. All-zero calls are allowed because they are
+order-independent.
+
+**Confirmed live on UEFN 42.00, 2026-08-21:**
+
+```
+Rotator(10,20,30) -> roll=10.0 pitch=20.0 yaw=30.0
+Color(10,20,30)   -> r=30 g=20 b=10
+```
+
+**It is not only Rotator.** `FColor` is declared `(B, G, R, A)`, so
+`unreal.Color(r, g, b, 255)` assigns red to blue and blue to red. `sign_tools`
+did exactly that, which means every red sign has been rendering blue and every
+blue sign red for as long as the tool has existed. `text_painter` already used
+keyword args and was never affected.
+
+`unreal.Vector` (X, Y, Z) and `unreal.LinearColor` (R, G, B, A) are declared in
+the order you would expect and are safe positionally.
+
+The rule that generalises: **any `unreal.*` struct constructor called
+positionally is a bet on the C++ field order.** Use keyword args and the bet
+disappears.
+
+**Wire format:** the MCP bridge documents rotations as `[pitch, yaw, roll]` and
+maps them through `_rotator_from_list()`. Never `unreal.Rotator(*rotation)` —
+that unpacks straight into the wrong order, which is what it was doing.

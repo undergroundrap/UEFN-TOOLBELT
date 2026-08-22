@@ -272,7 +272,7 @@ def run_scatter_props(
             world_z = _surface_z(world_x, world_y, fallback_z=cz) if snap_to_surface else cz
 
             loc = unreal.Vector(world_x, world_y, world_z)
-            rot = unreal.Rotator(0, rng.uniform(-rot_yaw_range / 2, rot_yaw_range / 2), 0)
+            rot = unreal.Rotator(roll=0, pitch=0, yaw=rng.uniform(-rot_yaw_range / 2, rot_yaw_range / 2))
             s   = rng.uniform(scale_min, scale_max)
             scale = unreal.Vector(s, s, s)
 
@@ -372,7 +372,7 @@ def run_scatter_hism(
 
             transform = unreal.Transform(
                 location=unreal.Vector(x, y, cz),
-                rotation=unreal.Rotator(0, yaw, 0),
+                rotation=unreal.Rotator(roll=0, pitch=0, yaw=yaw),
                 scale=unreal.Vector(s, s, s),
             )
             hism.add_instance(transform)
@@ -440,7 +440,7 @@ def run_scatter_along_path(
                 actor = spawn_static_mesh_actor(
                     mesh_path,
                     unreal.Vector(x, y, pz),
-                    rotation=unreal.Rotator(0, yaw, 0),
+                    rotation=unreal.Rotator(roll=0, pitch=0, yaw=yaw),
                     scale=unreal.Vector(s, s, s),
                 )
                 if actor:
@@ -650,7 +650,7 @@ def run_scatter_avoid(
             actor = spawn_static_mesh_actor(
                 mesh_path,
                 unreal.Vector(wx, wy, wz),
-                rotation=unreal.Rotator(0, yaw, 0),
+                rotation=unreal.Rotator(roll=0, pitch=0, yaw=yaw),
                 scale=unreal.Vector(sc, sc, sc),
             )
             if actor:
@@ -823,7 +823,7 @@ def run_scatter_road_edge(
                     actor = spawn_static_mesh_actor(
                         mesh_path,
                         unreal.Vector(fx, fy, fz),
-                        rotation=unreal.Rotator(0, yaw, 0),
+                        rotation=unreal.Rotator(roll=0, pitch=0, yaw=yaw),
                         scale=unreal.Vector(sc, sc, sc),
                     )
                     if actor:

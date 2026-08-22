@@ -286,7 +286,7 @@ def run_text_place(
     })
 
     loc = unreal.Vector(*location)
-    rot = unreal.Rotator(0, rotation_yaw, 0)
+    rot = unreal.Rotator(roll=0, pitch=0, yaw=rotation_yaw)
     safe_label = f"Text_{text[:20].replace(' ', '_')}"
 
     with undo_transaction(f"Text Painter: Place '{text}'"):
@@ -327,7 +327,7 @@ def run_text_label_selection(
         return {"status": "error", "count": 0}
 
     style_data = _resolve_style(style, {"color": color, "world_size": world_size})
-    rot = unreal.Rotator(0, rotation_yaw, 0)
+    rot = unreal.Rotator(roll=0, pitch=0, yaw=rotation_yaw)
 
     log_info(f"Labeling {len(actors)} actors…")
 
@@ -383,7 +383,7 @@ def run_text_paint_grid(
         return {"status": "error", "placed": 0}
 
     style_data = _resolve_style(style, {"color": color, "world_size": world_size})
-    rot = unreal.Rotator(0, rotation_yaw, 0)
+    rot = unreal.Rotator(roll=0, pitch=0, yaw=rotation_yaw)
     ox, oy, oz = origin
 
     log_info(f"Painting {cols}×{rows} grid from {origin}…")
@@ -437,7 +437,7 @@ def run_text_color_cycle(
         texts = ["RED", "ORANGE", "YELLOW", "GREEN",
                  "CYAN",  "BLUE",   "PURPLE", "PINK"]
 
-    rot = unreal.Rotator(0, rotation_yaw, 0)
+    rot = unreal.Rotator(roll=0, pitch=0, yaw=rotation_yaw)
     ox, oy, oz = start_location
 
     log_info(f"Placing {len(texts)} color-cycled text actors…")

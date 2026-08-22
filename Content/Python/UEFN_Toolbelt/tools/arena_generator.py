@@ -197,7 +197,7 @@ def _place_walls(
                 )
                 actor = spawn_static_mesh_actor(
                     mesh, loc,
-                    rotation=unreal.Rotator(0, rot_yaw, 0),
+                    rotation=unreal.Rotator(roll=0, pitch=0, yaw=rot_yaw),
                     scale=wall_scale_h,
                 )
                 if actor:

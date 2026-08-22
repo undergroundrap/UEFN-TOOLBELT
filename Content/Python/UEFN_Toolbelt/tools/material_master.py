@@ -331,6 +331,27 @@ def _all_presets() -> dict[str, Any]:
     return merged
 
 
+def _count_result(applied: int, attempted: int, what: str) -> dict:
+    """Report what actually happened, not what was attempted.
+
+    These tools used to return {"status": "ok", "count": len(actors)} regardless
+    of whether a single material was applied. _apply_preset_to_actor already
+    returns a bool saying whether it worked; six callers discarded it.
+    """
+    if applied == 0:
+        log_error(
+            f"{what}: 0 of {attempted} actor(s) updated - nothing was applied. "
+            f"Check the errors above; the master material may be missing."
+        )
+        return {"status": "error", "count": 0, "attempted": attempted,
+                "reason": "nothing_applied"}
+    if applied < attempted:
+        log_warning(f"{what}: {applied} of {attempted} actor(s) updated.")
+        return {"status": "partial", "count": applied, "attempted": attempted}
+    log_info(f"{what} complete: {applied}/{attempted} actor(s).")
+    return {"status": "ok", "count": applied, "attempted": attempted}
+
+
 def _apply_preset_to_actor(actor: unreal.Actor, preset: dict[str, Any], instance_suffix: str) -> bool:
     """
     Create a material instance from the preset and assign it to every
@@ -473,6 +494,7 @@ def run_randomize_colors(saturation: float = 0.8, **kwargs) -> dict:
 
     log_info(f"Randomizing colors on {len(actors)} actor(s)…")
 
+    applied = 0
     with undo_transaction("Material Master: Randomize Colors"):
         for actor in actors:
             hue = random.random()
@@ -491,10 +513,9 @@ def run_randomize_colors(saturation: float = 0.8, **kwargs) -> dict:
                 "emissive_color": (r * 0.1, g * 0.1, b * 0.1, 1),
                 "emissive_intensity": 0.0,
             }
-            _apply_preset_to_actor(actor, preset, "Random")
+            applied += 1 if _apply_preset_to_actor(actor, preset, "Random") else 0
 
-    log_info("Color randomization complete.")
-    return {"status": "ok", "count": len(actors)}
+    return _count_result(applied, len(actors), "Color randomization")
 
 
 @register_tool(
@@ -536,6 +557,7 @@ def run_gradient_painter(
 
     log_info(f"Painting gradient ({color_a}→{color_b}) along {axis} axis over {len(actors)} actors…")
 
+    applied = 0
     with undo_transaction("Material Master: Gradient Painter"):
         for actor, pos in zip(actors, positions, strict=False):
             t = clamp((get_coord(pos) - mn) / span, 0.0, 1.0)
@@ -548,10 +570,9 @@ def run_gradient_painter(
                 "emissive_color": (r * 0.05, g * 0.05, b * 0.05, 1),
                 "emissive_intensity": 0.0,
             }
-            _apply_preset_to_actor(actor, preset, "Gradient")
+            applied += 1 if _apply_preset_to_actor(actor, preset, "Gradient") else 0
 
-    log_info("Gradient paint complete.")
-    return {"status": "ok", "count": len(actors)}
+    return _count_result(applied, len(actors), "Gradient paint")
 
 
 @register_tool(
@@ -585,11 +606,11 @@ def run_team_color_split(**kwargs) -> dict:
         for actor in actors:
             x = actor.get_actor_location().x
             if x >= mid:
-                _apply_preset_to_actor(actor, red_preset,  "TeamRed")
-                r_count += 1
+                if _apply_preset_to_actor(actor, red_preset, "TeamRed"):
+                    r_count += 1
             else:
-                _apply_preset_to_actor(actor, blue_preset, "TeamBlue")
-                b_count += 1
+                if _apply_preset_to_actor(actor, blue_preset, "TeamBlue"):
+                    b_count += 1
 
     log_info(f"Team split done: {r_count} Red, {b_count} Blue.")
     return {"status": "ok", "red": r_count, "blue": b_count}
@@ -624,6 +645,7 @@ def run_pattern_painter(
 
     data_a, data_b = all_p[preset_a], all_p[preset_b]
 
+    applied = 0
     with undo_transaction(f"Material Master: {pattern.capitalize()} Pattern"):
         for i, actor in enumerate(actors):
             if pattern == "checkerboard":
@@ -635,11 +657,11 @@ def run_pattern_painter(
             else:  # stripes
                 use_a = i % 2 == 0
 
-            _apply_preset_to_actor(actor, data_a if use_a else data_b,
-                                   f"{pattern}_A" if use_a else f"{pattern}_B")
+            applied += 1 if _apply_preset_to_actor(
+                actor, data_a if use_a else data_b,
+                f"{pattern}_A" if use_a else f"{pattern}_B") else 0
 
-    log_info(f"{pattern.capitalize()} pattern applied to {len(actors)} actors.")
-    return {"status": "ok", "count": len(actors)}
+    return _count_result(applied, len(actors), f"{pattern.capitalize()} pattern")
 
 
 @register_tool(
@@ -666,12 +688,15 @@ def run_glow_pulse_preview(
     preset_data = dict(all_p.get(base_preset, all_p["neon"]))
     preset_data["emissive_intensity"] = intensity
 
+    applied = 0
     with undo_transaction("Material Master: Glow Pulse Preview"):
         for actor in actors:
-            _apply_preset_to_actor(actor, preset_data, "GlowPulse")
+            applied += 1 if _apply_preset_to_actor(actor, preset_data, "GlowPulse") else 0
 
-    log_info(f"Glow pulse preview applied (intensity={intensity}). Use Animate slider in Blueprint for live pulse.")
-    return {"status": "ok", "count": len(actors)}
+    if applied:
+        log_info(f"Glow pulse preview applied to {applied}/{len(actors)} actor(s) "
+                 f"(intensity={intensity}). Use the Animate slider in Blueprint for a live pulse.")
+    return _count_result(applied, len(actors), "Glow pulse preview")
 
 
 @register_tool(
@@ -726,6 +751,7 @@ def run_color_harmony(
     palettes = [hsv_to_lc(hue, s, v) for hue in harmony_hues]
     log_info(f"Harmony: {harmony} — {len(palettes)} colors for {len(actors)} actors.")
 
+    applied = 0
     with undo_transaction(f"Material Master: Color Harmony ({harmony})"):
         for i, actor in enumerate(actors):
             r2, g2, b2 = palettes[i % len(palettes)]
@@ -735,10 +761,11 @@ def run_color_harmony(
                 "emissive_color": (r2 * 0.1, g2 * 0.1, b2 * 0.1, 1),
                 "emissive_intensity": 0.0,
             }
-            _apply_preset_to_actor(actor, preset, f"Harmony_{harmony}")
+            applied += 1 if _apply_preset_to_actor(actor, preset, f"Harmony_{harmony}") else 0
 
-    log_info("Color harmony applied.")
-    return {"status": "ok", "count": len(actors), "harmony": harmony}
+    result = _count_result(applied, len(actors), "Color harmony")
+    result["harmony"] = harmony
+    return result
 
 
 @register_tool(

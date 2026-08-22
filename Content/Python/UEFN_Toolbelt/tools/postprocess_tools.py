@@ -267,17 +267,23 @@ def world_settings_set(gravity=None, time_dilation=None, **kwargs) -> dict:
                 log_warning(f"[WORLD] Could not set gravity: {e}")
 
         if time_dilation is not None:
-            try:
-                ws.set_editor_property("default_world_gravity_z", float(gravity))
-            except Exception:
-                pass
-            try:
-                # TimeDilation is on the world itself, not WorldSettings in all builds
-                world = unreal.EditorLevelLibrary.get_editor_world()
-                world.set_editor_property("world_settings", ws)
-            except Exception:
-                pass
-            # Direct approach
+            # Two dead blocks lived here, both silenced by `except: pass`:
+            #
+            #   ws.set_editor_property("default_world_gravity_z", float(gravity))
+            #
+            # inside the time_dilation branch, using `gravity` - which is None
+            # whenever the caller sets only time_dilation, so float(None) raised
+            # TypeError on every call and the pass hid it. When gravity WAS
+            # supplied it re-set gravity from the wrong branch under a property
+            # name the editor does not expose anyway.
+            #
+            #   world.set_editor_property("world_settings", ws)
+            #
+            # assigning the world's settings object back onto the world, which
+            # is not a thing, also silenced.
+            #
+            # Neither could ever have worked. Removed rather than left looking
+            # like fallbacks that might be doing something.
             try:
                 ws.set_editor_property("time_dilation", float(time_dilation))
                 applied["time_dilation"] = float(time_dilation)

@@ -106,8 +106,34 @@ def run_entity_spawn_kit(kit_name: str = "Lobby Starter", **kwargs) -> dict:
                 actor.set_actor_label(item["label"])
                 spawned_count += 1
 
-    log_info(f"✓ Successfully spawned entity kit '{kit_name}' with {spawned_count} devices.")
-    return {"status": "ok", "kit": kit_name, "count": spawned_count}
+    # "Successfully spawned ... with 0 devices" was a real line in the
+    # 2026-08-21 integration log, printed with a checkmark directly under two
+    # warnings saying the device class could not be loaded. The tool spawned
+    # nothing and reported success; the suite recorded it as a pass.
+    #
+    # A kit that placed none of its devices did not succeed.
+    requested = len(kit_data)
+    if spawned_count == 0:
+        log_error(
+            f"Entity kit '{kit_name}': none of its {requested} device(s) could be "
+            f"spawned. The device classes above are not exposed to Python on this "
+            f"UEFN build, so there is nothing to place."
+        )
+        return {"status": "error", "kit": kit_name, "count": 0,
+                "requested": requested,
+                "reason": "no_device_classes_available"}
+
+    if spawned_count < requested:
+        log_warning(
+            f"Entity kit '{kit_name}': spawned {spawned_count} of {requested} "
+            f"device(s). The rest could not be loaded - see the warnings above."
+        )
+        return {"status": "partial", "kit": kit_name, "count": spawned_count,
+                "requested": requested}
+
+    log_info(f"✓ Spawned entity kit '{kit_name}' - {spawned_count}/{requested} devices.")
+    return {"status": "ok", "kit": kit_name, "count": spawned_count,
+            "requested": requested}
 
 @register_tool(
     name="entity_list_kits",

@@ -46,7 +46,7 @@ _SOUND_CLASSES = ["SoundWave", "SoundCue"]
         "Use sound_type to filter: 'wave', 'cue', or 'all'."
     ),
     tags=["sound", "audio", "list", "assets", "scan"],
-    example='tb.run("sound_asset_list", scan_path="/Game/Audio", sound_type="wave")',
+    example='tb.run("sound_asset_list", scan_path="", sound_type="wave")',
 )
 def run_sound_asset_list(
     scan_path: str = "",
@@ -94,7 +94,7 @@ def run_sound_asset_list(
         "Returns a health report useful for audio budget and mixing reviews."
     ),
     tags=["sound", "audio", "audit", "health", "quality", "soundclass"],
-    example='tb.run("sound_asset_audit", scan_path="/Game/Audio", warn_duration_sec=60)',
+    example='tb.run("sound_asset_audit", scan_path="", warn_duration_sec=60)',
 )
 def run_sound_asset_audit(
     scan_path: str = "",
@@ -168,7 +168,7 @@ def run_sound_asset_audit(
         "Returns asset paths — use to audit which attenuation presets exist in the project."
     ),
     tags=["sound", "attenuation", "audio", "list", "3d", "spatial"],
-    example='tb.run("sound_attenuation_list", scan_path="/Game/Audio")',
+    example='tb.run("sound_attenuation_list", scan_path="")',
 )
 def run_sound_attenuation_list(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     scan_path = resolve_scan_path(scan_path)
@@ -199,7 +199,7 @@ def run_sound_attenuation_list(scan_path: str = "", max_results: int = 200, **kw
         "Use this to audit your audio mixing hierarchy."
     ),
     tags=["sound", "class", "audio", "list", "mix", "routing"],
-    example='tb.run("sound_class_list", scan_path="/Game/Audio")',
+    example='tb.run("sound_class_list", scan_path="")',
 )
 def run_sound_class_list(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     scan_path = resolve_scan_path(scan_path)

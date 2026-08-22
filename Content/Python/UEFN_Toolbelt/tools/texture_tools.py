@@ -94,7 +94,7 @@ _PRESETS = {
         "Use this to find misconfigured textures before optimizing."
     ),
     tags=["texture", "audit", "compression", "settings", "scan"],
-    example='tb.run("texture_audit", scan_path="/Game/Textures")',
+    example='tb.run("texture_audit", scan_path="")',
 )
 def run_texture_audit(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     # Uses AR tag data only — never calls load_asset(), safe on pak-heavy projects.
@@ -131,7 +131,7 @@ def run_texture_audit(scan_path: str = "", max_results: int = 200, **kwargs) -> 
         "Always dry_run=True first to preview which textures will change."
     ),
     tags=["texture", "compression", "batch", "set"],
-    example='tb.run("texture_set_compression", scan_path="/Game/Textures/Normal", compression="TC_NORMALMAP", dry_run=False)',
+    example='tb.run("texture_set_compression", scan_path="", compression="TC_NORMALMAP", dry_run=False)',
 )
 def run_texture_set_compression(
     scan_path: str = "",
@@ -195,7 +195,7 @@ def run_texture_set_compression(
         "TextureGroup controls mip streaming budget and quality tier."
     ),
     tags=["texture", "group", "lod", "batch", "set"],
-    example='tb.run("texture_set_group", scan_path="/Game/UI/Icons", group="ui", dry_run=False)',
+    example='tb.run("texture_set_group", scan_path="", group="ui", dry_run=False)',
 )
 def run_texture_set_group(
     scan_path: str = "",
@@ -258,7 +258,7 @@ def run_texture_set_group(
         "Incorrect sRGB settings cause color-space errors in materials."
     ),
     tags=["texture", "srgb", "color", "batch", "set"],
-    example='tb.run("texture_set_srgb", scan_path="/Game/Textures/Normals", srgb=False, dry_run=False)',
+    example='tb.run("texture_set_srgb", scan_path="", srgb=False, dry_run=False)',
 )
 def run_texture_set_srgb(
     scan_path: str = "",
@@ -313,7 +313,7 @@ def run_texture_set_srgb(
         "Always dry_run=True first — this changes multiple settings at once."
     ),
     tags=["texture", "preset", "batch", "compression", "fix"],
-    example='tb.run("texture_apply_preset", scan_path="/Game/Textures/UI", preset="ui", dry_run=False)',
+    example='tb.run("texture_apply_preset", scan_path="", preset="ui", dry_run=False)',
 )
 def run_texture_apply_preset(
     scan_path: str = "",

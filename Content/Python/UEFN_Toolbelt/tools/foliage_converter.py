@@ -67,7 +67,17 @@ def run_foliage_convert_selected_to_actor(**kwargs) -> dict:
             actor.destroy_actor()
             converted_count += 1
 
-    log_info(f"✓ Successfully converted {converted_count} actors to environmental placeholders.")
+    if converted_count == 0:
+        # Same shape as entity_spawn_kit: a checkmark and "success" for having
+        # done nothing. If nothing converted, say so.
+        log_warning(
+            "No actors were converted - select StaticMesh actors first, or check "
+            "the warnings above for actors that could not be processed."
+        )
+        return {"status": "error", "converted": 0,
+                "reason": "nothing_converted"}
+
+    log_info(f"✓ Converted {converted_count} actor(s) to environmental placeholders.")
     return {"status": "ok", "converted": converted_count}
 
 @register_tool(

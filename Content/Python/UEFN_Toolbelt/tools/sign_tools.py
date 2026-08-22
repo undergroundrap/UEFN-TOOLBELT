@@ -62,7 +62,11 @@ def _hex_to_fcolor(hex_str: str) -> unreal.Color:
     r = int(h[0:2], 16)
     g = int(h[2:4], 16)
     b = int(h[4:6], 16)
-    return unreal.Color(r, g, b, 255)
+    # Keyword args, not positional. FColor is declared (B, G, R, A) in C++ and
+    # unreal's positional constructors follow field order - the same trap as
+    # Quirk #41 - so unreal.Color(r, g, b, 255) can swap red and blue. Naming
+    # them is correct under either order.
+    return unreal.Color(r=r, g=g, b=b, a=255)
 
 
 def _spawn_sign(
@@ -77,7 +81,7 @@ def _spawn_sign(
     folder: str,
 ) -> unreal.TextRenderActor | None:
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-    rot = unreal.Rotator(0.0, yaw, 0.0)
+    rot = unreal.Rotator(roll=0.0, pitch=0.0, yaw=yaw)
     actor: unreal.TextRenderActor = actor_sub.spawn_actor_from_class(
         unreal.TextRenderActor, location, rot
     )
@@ -329,6 +333,7 @@ def run_sign_batch_rename(
         return {"status": "error", "message": "No signs selected."}
 
     renamed = 0
+    text_failures = 0
     with unreal.ScopedEditorTransaction("Billboard Batch Rename") as _t:
         for i, actor in enumerate(signs):
             new_label = f"{prefix}_{start + i:02d}"
@@ -336,8 +341,12 @@ def run_sign_batch_rename(
             if sync_text:
                 try:
                     actor.text_render.set_editor_property("text", new_label)
-                except Exception:
-                    pass
+                except Exception as e:
+                    text_failures += 1
+                    log_warning(
+                        f"[sign_batch_rename] '{new_label}' was renamed but its "
+                        f"displayed text could not be updated: {e}"
+                    )
             renamed += 1
 
     log_info(f"[sign_batch_rename] Renamed {renamed} signs with prefix '{prefix}'.")

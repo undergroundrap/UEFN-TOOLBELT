@@ -61,7 +61,7 @@ def run_viewport_goto(
     """
     try:
         loc = unreal.Vector(x, y, z)
-        rot = unreal.Rotator(pitch, yaw, 0)
+        rot = unreal.Rotator(roll=0, pitch=pitch, yaw=yaw)
         _set_camera(loc, rot)
         log_info(f"viewport_goto: camera moved to ({x}, {y}, {z}) pitch={pitch} yaw={yaw}")
         return {
@@ -337,7 +337,7 @@ def run_viewport_bookmark_jump(name: str = "", **kwargs) -> dict:
             }
         bm = bookmarks[name]
         loc = unreal.Vector(bm["x"], bm["y"], bm["z"])
-        rot = unreal.Rotator(bm["pitch"], bm["yaw"], 0)
+        rot = unreal.Rotator(roll=0, pitch=bm["pitch"], yaw=bm["yaw"])
         _set_camera(loc, rot)
         log_info(f"viewport_bookmark_jump: jumped to '{name}'")
         return {

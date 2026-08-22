@@ -402,6 +402,20 @@ def _c_get_selected_actors() -> dict:
     return {"actors": [_serialize_actor(a) for a in actors], "count": len(actors)}
 
 
+def _rotator_from_list(rotation) -> unreal.Rotator:
+    """Build a Rotator from the documented wire order [pitch, yaw, roll].
+
+    Never `unreal.Rotator(*rotation)`. The constructor's positional order is
+    (roll, pitch, yaw), so unpacking a documented [pitch, yaw, roll] list put
+    every component on the wrong axis - a caller asking for yaw 90 got roll 90.
+    See UEFN_QUIRKS.md Quirk #41.
+    """
+    if not rotation:
+        return unreal.Rotator(roll=0.0, pitch=0.0, yaw=0.0)
+    pitch, yaw, roll = (list(rotation) + [0.0, 0.0, 0.0])[:3]
+    return unreal.Rotator(roll=float(roll), pitch=float(pitch), yaw=float(yaw))
+
+
 @_cmd("spawn_actor")
 def _c_spawn_actor(
     asset_path: str = "",
@@ -411,7 +425,7 @@ def _c_spawn_actor(
     label: str = "",
 ) -> dict:
     loc = unreal.Vector(*location) if location else unreal.Vector(0, 0, 0)
-    rot = unreal.Rotator(*rotation) if rotation else unreal.Rotator(0, 0, 0)
+    rot = _rotator_from_list(rotation)
 
     sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     if asset_path:
@@ -466,7 +480,7 @@ def _c_set_actor_transform(
     if location is not None:
         target.set_actor_location(unreal.Vector(*location), False, False)
     if rotation is not None:
-        target.set_actor_rotation(unreal.Rotator(*rotation), False)
+        target.set_actor_rotation(_rotator_from_list(rotation), False)
     if scale is not None:
         target.set_actor_scale3d(unreal.Vector(*scale))
     return {"actor": _serialize_actor(target)}
@@ -713,7 +727,7 @@ def _c_set_viewport_camera(
 ) -> dict:
     cur_loc, cur_rot = unreal.EditorLevelLibrary.get_level_viewport_camera_info()
     loc = unreal.Vector(*location) if location else cur_loc
-    rot = unreal.Rotator(*rotation) if rotation else cur_rot
+    rot = _rotator_from_list(rotation) if rotation else cur_rot
     unreal.EditorLevelLibrary.set_level_viewport_camera_info(loc, rot)
     return {"location": _serialize(loc), "rotation": _serialize(rot)}
 

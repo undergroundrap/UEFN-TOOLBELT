@@ -266,11 +266,7 @@ def stamp_place(
                 log_warning(f"[STAMP] Could not load '{entry['mesh']}' — skipping '{entry['label']}'")
                 continue
 
-            world_rot = unreal.Rotator(
-                entry["rotation"][0],
-                entry["rotation"][1] + yaw_offset,
-                entry["rotation"][2],
-            )
+            world_rot = unreal.Rotator(roll=entry["rotation"][2], pitch=entry["rotation"][0], yaw=entry["rotation"][1] + yaw_offset)
 
             actor = unreal.EditorLevelLibrary.spawn_actor_from_object(mesh, world_loc, world_rot)
             if not actor:

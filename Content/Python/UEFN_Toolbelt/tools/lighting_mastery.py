@@ -29,7 +29,7 @@ import random
 
 import unreal
 
-from ..core import log_info, undo_transaction
+from ..core import log_info, log_warning, undo_transaction
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -118,8 +118,11 @@ def light_place(light_type: str = "point", intensity: float = 1000.0,
                 if key in ("point", "spot", "rect"):
                     try:
                         comp.set_editor_property("attenuation_radius", float(attenuation))
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        log_warning(
+                            f"[LIGHTING] attenuation_radius not set on '{actor_label}': "
+                            f"{e}. The light was placed; its falloff is the engine default."
+                        )
 
     log_info(f"[LIGHTING] Placed {key} light '{actor_label}' at {loc}")
     return {
@@ -209,7 +212,7 @@ def sky_set_time(hour: float = 12.0, **kwargs) -> dict:
         for actor in all_actors:
             if isinstance(actor, unreal.DirectionalLight):
                 cur = actor.get_actor_rotation()
-                actor.set_actor_rotation(unreal.Rotator(pitch, yaw, cur.roll), False)
+                actor.set_actor_rotation(unreal.Rotator(roll=cur.roll, pitch=pitch, yaw=yaw), False)
                 found = True
                 log_info(f"[LIGHTING] Sun → hour={hour:.1f}  pitch={pitch:.1f}  yaw={yaw:.1f}")
                 break
@@ -305,11 +308,7 @@ def run_light_randomize_sky(**kwargs) -> dict:
     with undo_transaction("Randomize Sky"):
         for actor in all_actors:
             if isinstance(actor, unreal.DirectionalLight):
-                new_rot = unreal.Rotator(
-                    random.uniform(-90, -10),
-                    random.uniform(0, 360),
-                    0.0
-                )
+                new_rot = unreal.Rotator(roll=0.0, pitch=random.uniform(-90, -10), yaw=random.uniform(0, 360))
                 actor.set_actor_rotation(new_rot, True)
                 log_info(f"[LIGHTING] Sun → pitch={new_rot.pitch:.1f}  yaw={new_rot.yaw:.1f}")
                 return {"status": "ok", "pitch": new_rot.pitch, "yaw": new_rot.yaw}

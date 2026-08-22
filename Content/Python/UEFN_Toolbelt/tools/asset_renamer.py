@@ -51,27 +51,27 @@ USAGE (REPL):
     import UEFN_Toolbelt as tb
 
     # Preview what would change in /Game/MyProject — no changes made
-    tb.run("rename_dry_run", scan_path="/Game/MyProject")
+    tb.run("rename_dry_run", scan_path="")
 
     # Actually rename everything in /Game/Assets
-    tb.run("rename_enforce_conventions", scan_path="/Game/Assets")
+    tb.run("rename_enforce_conventions", scan_path="")
 
     # Rename only assets matching a specific class
     tb.run("rename_enforce_conventions",
-           scan_path="/Game/Textures",
+           scan_path="",
            class_filter="Texture2D")
 
     # Strip a wrong prefix from all assets in a folder
     tb.run("rename_strip_prefix",
-           scan_path="/Game/OldAssets",
+           scan_path="",
            prefix="T_")
 
     # Generate a full naming report without making changes
-    tb.run("rename_report", scan_path="/Game")
+    tb.run("rename_report", scan_path="")
 
 BLUEPRINT:
     "Execute Python Command" →
-        import UEFN_Toolbelt as tb; tb.run("rename_dry_run", scan_path="/Game/MyProject")
+        import UEFN_Toolbelt as tb; tb.run("rename_dry_run", scan_path="")
 """
 
 from __future__ import annotations
@@ -275,11 +275,17 @@ def run_dry_run(
 def run_enforce_conventions(
     scan_path: str = "",
     class_filter: str | None = None,
-    dry_run: bool = False,
+    dry_run: bool = True,
     **kwargs,
 ) -> dict:
     """
-    Renames every violating asset. Always run rename_dry_run first to review.
+    Renames every violating asset.
+
+    dry_run defaults to True. It used to default to False, which meant the
+    docstring said "always run rename_dry_run first to review" while the
+    default did the renaming immediately. Renaming assets across a scan path
+    is not a small mistake to undo, so the safe path is the one you get for
+    free; pass dry_run=False when you have reviewed the preview.
 
     Args:
         scan_path:    Content Browser folder to scan (recursive).
@@ -309,10 +315,25 @@ def run_enforce_conventions(
             new_path = f"{folder}/{new_name}"
 
             try:
-                unreal.EditorAssetLibrary.rename_asset(path, new_path)
-                renamed += 1
-                records.append({"old": path, "new": new_path, "class": cls, "status": "renamed"})
-                log_info(f"  ✓ {old_name}  →  {new_name}")
+                # rename_asset returns False when the asset is checked out by
+                # someone else or read-only - it does not raise. This counted
+                # every attempt as a rename, so the report said assets had been
+                # renamed that were untouched. organize_assets in this same
+                # codebase already checked this return; this one did not.
+                if unreal.EditorAssetLibrary.rename_asset(path, new_path):
+                    renamed += 1
+                    records.append({"old": path, "new": new_path, "class": cls,
+                                    "status": "renamed"})
+                    log_info(f"  ✓ {old_name}  →  {new_name}")
+                else:
+                    failed += 1
+                    records.append({"old": path, "class": cls, "status": "failed",
+                                    "error": "rename_asset returned False "
+                                             "(revision control or read-only)"})
+                    log_warning(
+                        f"  ✗ {old_name}: rename_asset returned False - check "
+                        f"revision control or the read-only flag."
+                    )
             except Exception as e:
                 failed += 1
                 records.append({"old": path, "class": cls, "status": "failed", "error": str(e)})

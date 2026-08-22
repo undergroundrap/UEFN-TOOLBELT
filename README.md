@@ -2088,9 +2088,9 @@ import UEFN_Toolbelt as tb; tb.run("text_paint_grid", cols=4, rows=4, cell_size=
 import UEFN_Toolbelt as tb; tb.run("text_clear_folder")
 
 # Assets
-import UEFN_Toolbelt as tb; tb.run("rename_dry_run", scan_path="/Game")
+import UEFN_Toolbelt as tb; tb.run("rename_dry_run", scan_path="")
 # lod_auto_generate_folder is disabled in UEFN (see UEFN_QUIRKS.md #18) — use lod_audit_folder to find meshes, then add LODs manually in the Static Mesh Editor
-import UEFN_Toolbelt as tb; tb.run("lod_audit_folder", folder_path="/Game")
+import UEFN_Toolbelt as tb; tb.run("lod_audit_folder", folder_path="")
 import UEFN_Toolbelt as tb; tb.run("organize_assets", source_path="/Game/Imports")
 
 # Verse
@@ -2101,11 +2101,11 @@ import UEFN_Toolbelt as tb; tb.run("verse_list_devices")
 import UEFN_Toolbelt as tb; tb.run("verse_bulk_set_property", property_name="bIsEnabled", value=True)
 
 # Optimization
-import UEFN_Toolbelt as tb; tb.run("memory_scan", scan_path="/Game")
-import UEFN_Toolbelt as tb; tb.run("memory_scan_textures", scan_path="/Game")
-import UEFN_Toolbelt as tb; tb.run("memory_scan_meshes", scan_path="/Game")
+import UEFN_Toolbelt as tb; tb.run("memory_scan", scan_path="")
+import UEFN_Toolbelt as tb; tb.run("memory_scan_textures", scan_path="")
+import UEFN_Toolbelt as tb; tb.run("memory_scan_meshes", scan_path="")
 import UEFN_Toolbelt as tb; tb.run("memory_top_offenders", limit=20)
-import UEFN_Toolbelt as tb; tb.run("memory_autofix_lods", scan_path="/Game/Meshes")
+import UEFN_Toolbelt as tb; tb.run("memory_autofix_lods", scan_path="")
 
 # API Explorer
 import UEFN_Toolbelt as tb; tb.run("api_export_full")
@@ -2228,7 +2228,7 @@ All of these also appear in `deploy.bat` output — after deploying, just copy f
 | Something isn't loading after an update | Module may be cached. Paste: `import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.launch_qt()` |
 | LOD generation fails | `StaticMeshEditorSubsystem.set_lods_with_notification` requires the mesh to be fully loaded. Run `load_asset()` first. |
 | Menu bar entry missing (UEFN ≤ 40.10) | `init_unreal.py` failed silently — check Output Log for `[TOOLBELT]` error lines on startup. |
-| Menu bar entry missing (UEFN 40.20 – 41.x) | Epic sandboxed `ToolMenus` extensions for third-party Python on those builds — the menu will not appear regardless of configuration. Use `tb.launch_qt()` or the dashboard instead; all 362 tools work normally. **Fixed on 42.00** — the menu registers again (verified 2026-08-21). |
+| Menu bar entry missing (UEFN 40.20+, including 42.00) | Epic sandboxes `ToolMenus` extensions for third-party Python. Every registration call succeeds and the log says so, but nothing renders in the top bar. **Confirmed still absent on 42.00** (2026-08-21, screenshot of the top bar: File / Edit / Window / Tools / Verse / Build / Select / Help, no Toolbelt). Toolbelt now checks `is_menu_registered` and says which happened instead of always claiming success. Use `tb.launch_qt()` or the dashboard; all 362 tools work normally. |
 
 ---
 

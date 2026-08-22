@@ -346,4 +346,26 @@ def build_toolbelt_menu() -> None:
            "import UEFN_Toolbelt as tb; tb.run('api_crawl_level_classes')")
 
     menus.refresh_all_widgets()
-    unreal.log("[TOOLBELT] ✓ Menu registered — look for 'Toolbelt' in the top menu bar.")
+
+    # Do not claim the menu appeared. Every call above succeeds on builds where
+    # Epic sandboxes ToolMenus for third-party Python, and the menu still never
+    # renders - that is what made issue #4 hard to diagnose, and it is why a
+    # "Menu registered" line in the log was read here as proof it was fixed on
+    # 42.00 when a screenshot of the top bar showed it was not.
+    #
+    # is_menu_registered on the target is the closest thing to a real check:
+    # it returns False on 40.20+, where the extension is accepted and discarded.
+    try:
+        renders = menus.is_menu_registered("MainFrame.MainTabMenu")
+    except Exception:
+        renders = False
+
+    if renders:
+        unreal.log("[TOOLBELT] ✓ Menu registered — look for 'Toolbelt' in the top menu bar.")
+    else:
+        unreal.log(
+            "[TOOLBELT] Menu entries submitted, but MainFrame.MainTabMenu is not "
+            "registered on this build - UEFN sandboxes ToolMenus for third-party "
+            "Python (40.20 onward, still true on 42.00), so no Toolbelt menu will "
+            "appear in the top bar. Use the dashboard instead: tb.launch_qt()"
+        )

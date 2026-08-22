@@ -18,7 +18,7 @@ import tempfile
 
 import unreal
 
-from ..core import log_error, log_info, resolve_content_path
+from ..core import log_error, log_info, log_warning, resolve_content_path
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -248,8 +248,14 @@ def run_text_voxelize_3d(
     try:
         unreal.EditorAssetLibrary.save_asset(merged_path)
         unreal.EditorAssetLibrary.sync_browser_to_objects([merged_path])
-    except Exception:
-        pass
+    except Exception as e:
+        # The merge succeeded in memory but the asset was not written. Saying
+        # nothing here meant the tool reported success for a mesh that would
+        # not survive a restart.
+        log_warning(
+            f"Voxelized mesh was created but could not be saved to "
+            f"{merged_path}: {e}. Save it manually before closing the editor."
+        )
 
     log_info(f"Successfully Voxelized Text to Solid Mesh: {merged_path} (from {len(actors)} cubes)")
     return {"status": "success", "asset_path": merged_path, "cubes_used": len(actors)}

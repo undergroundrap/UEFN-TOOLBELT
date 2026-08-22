@@ -170,7 +170,7 @@ class ToolbeltClient:
             ue.run_tool("snapshot_save", name="before_cleanup")
             ue.run_tool("tag_add", key="biome", value="desert")
             ue.run_tool("screenshot_focus_selection", width=1920, height=1080)
-            ue.run_tool("ref_full_report", scan_path="/Game")
+            ue.run_tool("ref_full_report", scan_path="")
         """
         return self._send(
             "run_tool",

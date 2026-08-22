@@ -16,7 +16,23 @@ Any MCP-compatible AI connects via `.mcp.json` (pre-configured).
 4. **Bump `__tool_count__` and `__category_count__`** in `Content/Python/UEFN_Toolbelt/__init__.py` when adding tools.
 5. **Full UEFN restart required** when adding a new module to `tools/__init__.py`. Nuclear reload crashes. See `docs/UEFN_QUIRKS.md` Quirk #26.
 6. **All tool functions must return `{"status": "ok"/"error", ...}`** — never None, never a bare primitive.
-7. **Check the registry before building anything** — 362 tools exist. Search first:
+
+7. **Never build an `unreal.*` struct with positional args.** Their order follows
+   the C++ field declaration, not the order the docs describe them in.
+   Confirmed live on UEFN 42.00:
+
+   ```python
+   unreal.Rotator(10, 20, 30)   # roll=10  pitch=20  yaw=30   (NOT pitch,yaw,roll)
+   unreal.Color(10, 20, 30)     # r=30     g=20      b=10     (FColor is B,G,R,A)
+   ```
+
+   `unreal.Rotator(0, yaw, 0)` sets *pitch* and nothing raises, so props tilt
+   instead of turning. `unreal.Color(r, g, b, 255)` swaps red and blue. 31
+   Rotator sites and one Color site were wrong this way before it was caught.
+   Use keyword args: `unreal.Rotator(roll=0, pitch=0, yaw=yaw)`.
+   `tests/test_rotator_argument_order.py` fails the build if this returns.
+   See `docs/UEFN_QUIRKS.md` Quirk #41.
+8. **Check the registry before building anything** — 362 tools exist. Search first:
    ```bash
    grep -rh 'name="' Content/Python/UEFN_Toolbelt/tools/ --include="*.py" \
      | grep -o 'name="[^"]*"' | sed 's/name="//;s/"//' | sort | grep <keyword>

@@ -156,7 +156,7 @@ result = ue.run_tool("verse_list_devices")
 result = ue.run_tool("snapshot_diff", name_a="before", name_b="after")
 # → {"status": "ok", "added_count": 3, "removed_count": 0, "moved_count": 7, "moved": [...]}
 
-result = ue.run_tool("tag_search", tag_name="hero_prop", folder="/Game")
+result = ue.run_tool("tag_search", tag_name="hero_prop", folder="")
 # → {"status": "ok", "count": 12, "matches": ["/Game/Props/...", ...]}
 ```
 

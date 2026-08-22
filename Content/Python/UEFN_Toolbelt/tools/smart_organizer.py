@@ -15,10 +15,10 @@ USAGE (REPL):
     import UEFN_Toolbelt as tb
 
     # Preview what would happen
-    tb.run("organize_smart_categorize", scan_path="/Game/Imported", organized_root="/Game/MyLevel", dry_run=True)
+    tb.run("organize_smart_categorize", scan_path="", organized_root="/Game/MyLevel", dry_run=True)
 
     # Actually execute
-    tb.run("organize_smart_categorize", scan_path="/Game/Imported", organized_root="/Game/MyLevel", dry_run=False)
+    tb.run("organize_smart_categorize", scan_path="", organized_root="/Game/MyLevel", dry_run=False)
 """
 
 from __future__ import annotations

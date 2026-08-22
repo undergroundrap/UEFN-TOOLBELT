@@ -25,7 +25,7 @@ USAGE:
     tb.run("convert_to_hism", dry_run=False, folder="Optimized")
 
     # Audit MI parents in a folder
-    tb.run("material_parent_audit", scan_path="/Game/Materials")
+    tb.run("material_parent_audit", scan_path="")
 """
 
 from __future__ import annotations
@@ -242,6 +242,7 @@ def run_convert_to_hism(
     # Execute merge
     actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     merged_actors = 0
+    undeleted = 0
     hism_actors_created = 0
 
     with undo_transaction(f"Convert to HISM: {len(mergeable)} group(s)"):
@@ -286,12 +287,17 @@ def run_convert_to_hism(
                 except Exception as exc:
                     log_warning(f"convert_to_hism: skipped instance — {exc}")
 
-            # Delete the originals
+            # Delete the originals. A swallowed failure here is the worst
+            # outcome this tool has: the HISM instances exist AND the source
+            # actors remain, so the level silently ends up with double the
+            # geometry it should have - reported as a successful optimisation.
             for src in actors_in_group:
                 try:
-                    actor_sub.destroy_actor(src)
-                except Exception:
-                    pass
+                    if not actor_sub.destroy_actor(src):
+                        undeleted += 1
+                except Exception as exc:
+                    undeleted += 1
+                    log_warning(f"convert_to_hism: could not delete source actor - {exc}")
 
             hism_actors_created += 1
             log_info(f"  ✓ {label}: {len(actors_in_group)} actors → 1 HISM")

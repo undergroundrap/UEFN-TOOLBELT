@@ -201,11 +201,7 @@ def run_randomize(
 
             if randomize_rot and (rot_range > 0 or pitch_range > 0):
                 rot = actor.get_actor_rotation()
-                new_rot = unreal.Rotator(
-                    rot.pitch + rnd(pitch_range),
-                    rot.yaw   + rnd(rot_range),
-                    rot.roll,
-                )
+                new_rot = unreal.Rotator(roll=rot.roll, pitch=rot.pitch + rnd(pitch_range), yaw=rot.yaw + rnd(rot_range))
                 actor.set_actor_rotation(new_rot, False)
 
             if randomize_scale and scale_min != scale_max:
@@ -367,9 +363,9 @@ def run_mirror(axis: str = "X", **kwargs) -> dict:
             # Mirror rotation yaw for X/Y mirrors
             rot = actor.get_actor_rotation()
             if axis == "X":
-                actor.set_actor_rotation(unreal.Rotator(rot.pitch, -rot.yaw, rot.roll), False)
+                actor.set_actor_rotation(unreal.Rotator(roll=rot.roll, pitch=rot.pitch, yaw=-rot.yaw), False)
             elif axis == "Y":
-                actor.set_actor_rotation(unreal.Rotator(rot.pitch, 180 - rot.yaw, rot.roll), False)
+                actor.set_actor_rotation(unreal.Rotator(roll=rot.roll, pitch=rot.pitch, yaw=180 - rot.yaw), False)
 
     log_info(f"Mirrored {len(actors)} actors across {axis}.")
     return {"count": len(actors), "axis": axis}
@@ -427,7 +423,7 @@ def run_face_camera(**kwargs) -> dict:
             dx = cam_loc.x - loc.x
             dy = cam_loc.y - loc.y
             yaw = math.degrees(math.atan2(dy, dx))
-            actor.set_actor_rotation(unreal.Rotator(0, yaw, 0), False)
+            actor.set_actor_rotation(unreal.Rotator(roll=0, pitch=0, yaw=yaw), False)
 
     log_info(f"Rotated {len(actors)} actors to face camera.")
     return {"count": len(actors)}
@@ -438,7 +434,7 @@ def run_face_camera(**kwargs) -> dict:
     category="Bulk Ops",
     description=(
         "Merge all selected StaticMesh actors into a single mesh asset — "
-        "one draw call instead of N. Saves to /Game/UEFN_Toolbelt/Merged/ by default."
+        "one draw call instead of N. Saves under your project mount by default."
     ),
     tags=["merge", "static mesh", "optimization", "draw call", "bulk", "performance"],
 )
@@ -452,7 +448,9 @@ def run_mesh_merge_selection(
     Merge selected StaticMesh actors into one combined StaticMesh asset.
 
     Args:
-        dest_path:         Content Browser folder for the new asset (default /Game/UEFN_Toolbelt/Merged)
+        dest_path:         Content Browser folder for the new asset. Blank resolves
+                           to <project>/UEFN_Toolbelt/Merged - never /Game, which in
+                           UEFN is Epic's install rather than your project.
         asset_name:        Name of the resulting mesh asset (default MergedMesh)
         replace_originals: If True, delete source actors after merge (default False — keep originals)
 

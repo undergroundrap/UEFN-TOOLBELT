@@ -126,7 +126,7 @@ def _camera_for_bounds(
         center.y + offset.y,
         center.z + offset.z,
     )
-    cam_rot = unreal.Rotator(pitch, yaw + 180.0, 0.0)  # +180 to look back at center
+    cam_rot = unreal.Rotator(roll=0.0, pitch=pitch, yaw=yaw + 180.0)  # +180 to look back at center
 
     return cam_loc, cam_rot
 

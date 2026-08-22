@@ -23,4 +23,4 @@ It returns `ready` / `warnings` / `blocked` with a score and ordered next steps.
 After the user pastes the result, diagnose any `blocked` issues first, then `warnings`.
 For Verse errors: run `tb.run("verse_patch_errors")` and fix the build.
 For unsaved assets: run `tb.run("save_all_dirty")`.
-For redirectors: run `tb.run("ref_fix_redirectors", scan_path="/Game", dry_run=False)`.
+For redirectors: run `tb.run("ref_fix_redirectors", scan_path="", dry_run=False)`.

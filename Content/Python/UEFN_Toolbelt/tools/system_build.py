@@ -8,6 +8,60 @@ import unreal
 from ..core import log_error, log_info, log_warning, with_progress
 from ..registry import register_tool
 
+# ---- Build-log reading -------------------------------------------------------
+# Two bugs lived here, both of the "confident wrong answer" kind.
+#
+# 1. Saved/Logs holds many .log files - UnrealRevisionControl.log, crash
+#    backups, and more. Picking the most recently modified one routinely lands
+#    on a log that has never contained a VerseBuild line, so build status came
+#    back UNKNOWN with nothing obviously wrong. Prefer the editor log by name.
+#
+# 2. A session log holds every build you have run. The old scan let any SUCCESS
+#    marker win permanently, so once one build in the session went green, every
+#    later failure was still reported as SUCCESS. In the Phase 5 build-and-fix
+#    loop that tells the agent its broken code compiled.
+_MAIN_LOG_NAME = "UnrealEditorFortnite.log"
+
+# KNOWN LIMITATION: the editor localises these lines, so a non-English install
+# reports UNKNOWN forever. Matching translated markers is only worth doing with
+# strings verified against a real localised editor - guessing at them produces a
+# checker that looks like it covers other locales and does not. Left English-only
+# and stated, rather than half-covered and silent.
+_BUILD_SUCCESS_PAT = re.compile(
+    r"(VerseBuild.*SUCCESS"
+    r"|LogSolLoadCompiler.*finished.*SUCCESS"
+    r"|LogSolaris.*VerseBuild.*SUCCESS)",
+    re.IGNORECASE,
+)
+_BUILD_FAILED_PAT = re.compile(
+    r"(VerseBuild.*(?:FAIL|ERROR)"
+    r"|LogSolLoadCompiler.*finished.*(?:FAIL|ERROR))",
+    re.IGNORECASE,
+)
+
+
+def _pick_build_log(log_files: list) -> str:
+    """The editor log if present, else the most recently modified file."""
+    for path in log_files:
+        if os.path.basename(path).lower() == _MAIN_LOG_NAME.lower():
+            return path
+    return max(log_files, key=os.path.getmtime)
+
+
+def _scan_build_status(lines) -> str:
+    """Last marker in file order wins - never "any SUCCESS wins".
+
+    Pure function so the ordering rule is testable without an editor.
+    """
+    status = "UNKNOWN"
+    for line in lines:
+        if _BUILD_SUCCESS_PAT.search(line):
+            status = "SUCCESS"
+        elif _BUILD_FAILED_PAT.search(line):
+            status = "FAILED"
+    return status
+
+
 
 class VerseBuildService:
     @staticmethod
@@ -113,7 +167,7 @@ def system_get_last_build_log(**kwargs) -> dict:
     if not logs:
         return {"status": "error", "path": None, "tail": "No log files found."}
 
-    latest_log = max(logs, key=os.path.getmtime)
+    latest_log = _pick_build_log(logs)
     with open(latest_log, encoding='utf-8', errors='ignore') as f:
         content = f.read().splitlines()
 
@@ -214,7 +268,7 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
         return {"status": "no_log", "message": "No log files found.",
                 "errors": [], "files": {}, "build_status": "UNKNOWN"}
 
-    latest_log = max(log_files, key=os.path.getmtime)
+    latest_log = _pick_build_log(log_files)
 
     with open(latest_log, encoding="utf-8", errors="ignore") as f:
         log_lines = f.readlines()
@@ -230,14 +284,9 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
     #   Output Log:  "VerseBuild: SUCCESS -- Build complete."
     #   .log file:   "LogSolLoadCompiler: ... finished: SUCCESS."
     #   .log file:   "LogSolaris: ... VerseBuild SUCCESS"
-    success_pattern = re.compile(
-        r'(VerseBuild.*SUCCESS|LogSolLoadCompiler.*finished.*SUCCESS|LogSolaris.*VerseBuild.*SUCCESS)',
-        re.IGNORECASE
-    )
-    failed_pattern = re.compile(
-        r'(VerseBuild.*(?:FAIL|ERROR)|LogSolLoadCompiler.*finished.*(?:FAIL|ERROR))',
-        re.IGNORECASE
-    )
+    # Shared, localisation-aware — defined once at module top.
+    success_pattern = _BUILD_SUCCESS_PAT
+    failed_pattern = _BUILD_FAILED_PAT
     # LogSolaris error lines (another common pattern)
     _solaris_error   = re.compile(r'LogSolaris.*Error.*\.verse', re.IGNORECASE)
 
@@ -272,8 +321,7 @@ def verse_patch_errors(verse_file: str = "", **kwargs) -> dict:
         if success_pattern.search(line):
             build_status = "SUCCESS"
         elif failed_pattern.search(line):
-            if build_status != "SUCCESS":
-                build_status = "FAILED"
+            build_status = "FAILED"
 
         m = error_pattern.search(line)
         if m:
@@ -442,7 +490,7 @@ def verse_build_status(stale_threshold_sec: float = 300.0, **kwargs) -> dict:
         return {"status": "no_log", "build_status": "UNKNOWN",
                 "error_count": 0, "stale": True, "tip": "No log files found."}
 
-    latest_log = max(log_files, key=os.path.getmtime)
+    latest_log = _pick_build_log(log_files)
     log_mtime = os.path.getmtime(latest_log)
     age_sec = time.time() - log_mtime
     is_stale = age_sec > stale_threshold_sec
@@ -452,14 +500,8 @@ def verse_build_status(stale_threshold_sec: float = 300.0, **kwargs) -> dict:
     build_status = "UNKNOWN"
     error_count = 0
 
-    success_pat = re.compile(
-        r'(VerseBuild.*SUCCESS|LogSolLoadCompiler.*finished.*SUCCESS|LogSolaris.*VerseBuild.*SUCCESS)',
-        re.IGNORECASE
-    )
-    failed_pat = re.compile(
-        r'(VerseBuild.*(?:FAIL|ERROR)|LogSolLoadCompiler.*finished.*(?:FAIL|ERROR))',
-        re.IGNORECASE
-    )
+    success_pat = _BUILD_SUCCESS_PAT
+    failed_pat = _BUILD_FAILED_PAT
     error_line_pat = re.compile(
         r'[^\s]+\.verse\(\d+(?::\d+)?\)\s*:.*(?:error\s+)?.+',
         re.IGNORECASE
@@ -471,8 +513,7 @@ def verse_build_status(stale_threshold_sec: float = 300.0, **kwargs) -> dict:
                 if success_pat.search(line):
                     build_status = "SUCCESS"
                 elif failed_pat.search(line):
-                    if build_status != "SUCCESS":
-                        build_status = "FAILED"
+                    build_status = "FAILED"
                 if error_line_pat.search(line):
                     error_count += 1
     except Exception as e:

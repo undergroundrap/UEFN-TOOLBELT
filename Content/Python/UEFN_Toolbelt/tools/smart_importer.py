@@ -321,15 +321,22 @@ def run_import_fbx_folder(
 def run_organize_assets(
     source_path: str = "",
     target_base: str = "",
+    dry_run: bool = True,
     **kwargs,
 ) -> dict:
     """
     Moves assets from source_path into target_base/Meshes, target_base/Materials,
     target_base/Textures, etc., based on asset class.
 
+    dry_run defaults to True. This tool had no preview at all, and moving assets
+    between Content Browser folders is a real mutation - a run against the wrong
+    source_path rehomes everything under it, and the asset registry can be left
+    reporting packages as both deleted and modified on disk afterwards.
+
     Args:
         source_path: Content Browser folder to scan.
         target_base: Destination base folder.
+        dry_run:     Preview the moves without performing them (default True).
     """
     target_base = resolve_content_path(target_base, "Organized")
     source_path = resolve_content_path(source_path, "Imports")
@@ -359,7 +366,9 @@ def run_organize_assets(
     }
 
     moved = 0
-    log_info(f"Organizing {len(asset_paths)} assets from {source_path}…")
+    planned: list[dict] = []
+    mode = "[DRY RUN] " if dry_run else ""
+    log_info(f"{mode}Organizing {len(asset_paths)} assets from {source_path}…")
 
     for asset_path in asset_paths:
         asset = load_asset(asset_path)
@@ -374,6 +383,11 @@ def run_organize_assets(
         asset_name = asset_path.split("/")[-1]
         new_path = f"{target_folder}/{asset_name}"
 
+        if dry_run:
+            planned.append({"from": asset_path, "to": new_path})
+            log_info(f"  [DRY RUN] {asset_name}  ->  {target_folder}/")
+            continue
+
         try:
             success = unreal.EditorAssetLibrary.rename_asset(asset_path, new_path)
             if success:
@@ -383,5 +397,22 @@ def run_organize_assets(
         except Exception as e:
             log_warning(f"  Could not move {asset_name}: {e}")
 
-    log_info(f"Organize complete: {moved} assets moved to {target_base}/")
+    if dry_run:
+        log_info(
+            f"[DRY RUN] {len(planned)} asset(s) would move into {target_base}/. "
+            f"Nothing was changed. Re-run with dry_run=False to apply."
+        )
+        return {"status": "ok", "dry_run": True, "moved": 0,
+                "would_move": len(planned), "planned": planned,
+                "total": len(asset_paths), "target": target_base}
+
+    if moved == 0:
+        log_warning(
+            f"Organize moved 0 of {len(asset_paths)} asset(s) - see the warnings "
+            f"above. Nothing was reorganised."
+        )
+        return {"status": "error", "moved": 0, "total": len(asset_paths),
+                "target": target_base, "reason": "nothing_moved"}
+
+    log_info(f"Organize complete: {moved}/{len(asset_paths)} assets moved to {target_base}/")
     return {"status": "ok", "moved": moved, "total": len(asset_paths), "target": target_base}

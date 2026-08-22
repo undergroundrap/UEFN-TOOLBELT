@@ -48,9 +48,19 @@ def _assert_delta(val: float, expected: float, tolerance: float = 1.0) -> bool:
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
-def _record(section: str, name: str, passed: bool, detail: str = "") -> None:
+def _record(section: str, name: str, passed: bool, detail: str = "",
+            verified: bool = True) -> None:
+    """Record one check.
+
+    verified=False marks an execution-only check: it proves the tool ran
+    without raising, not that it did the right thing. Those are legitimate
+    smoke coverage, but counting them inside a headline "180/180" overstates
+    what the suite knows - which is how Quirk #41 (wrong rotation axis) sat
+    inside a fully green run. The summary now reports both numbers.
+    """
     icon = "✓" if passed else "✗"
-    _results.append({"section": section, "name": name, "passed": passed, "detail": detail})
+    _results.append({"section": section, "name": name, "passed": passed,
+                     "detail": detail, "verified": verified})
     msg = f"[TEST]  [{icon}] {name}{f'  —  {detail}' if detail else ''}"
     if passed:
         unreal.log(msg)
@@ -118,6 +128,7 @@ def _cleanup_fixtures() -> None:
 def _save_report() -> str:
     os.makedirs(_SAVED, exist_ok=True)
     passed = sum(1 for r in _results if r["passed"])
+    verified_n = sum(1 for r in _results if r.get("verified", True))
     total = len(_results)
     elapsed = time.time() - _start_time
 
@@ -126,6 +137,8 @@ def _save_report() -> str:
         "=" * 60,
         f"Date:    {datetime.now().isoformat()}",
         f"Passed:  {passed}/{total}",
+        f"Verified: {verified_n} checked a real outcome · "
+        f"{total - verified_n} execution-only (ran without raising)",
         f"Elapsed: {elapsed:.2f}s",
         "=" * 60,
         "",
@@ -280,11 +293,20 @@ def _test_bulk_ops_advanced() -> None:
     a_rand = _spawn_fixture(location=unreal.Vector(0,0,0))
     _select_fixture([a_rand])
     try:
-        tb.run("bulk_randomize", rot_min=-180, rot_max=180)
+        # rot_min/rot_max were not real parameters - they fell into **kwargs and
+        # were ignored, so this ran on defaults without anyone noticing.
+        tb.run("bulk_randomize", rot_range=360.0, pitch_range=0.0,
+               randomize_scale=False)
         r = a_rand.get_actor_rotation()
-        # Check if rotation is no longer (0,0,0). (Possible but unlikely to hit 0,0,0 randomly)
-        passed = abs(r.roll) > 0.1 or abs(r.pitch) > 0.1 or abs(r.yaw) > 0.1
-        _record("Bulk Ops", "Randomize (Rot)", passed, f"Rot: {r}")
+        # The old assertion accepted ANY axis moving, which is exactly how
+        # Quirk #41 hid here: the yaw landed in pitch and this still passed.
+        # pitch_range=0 on a zeroed fixture makes pitch and roll deterministic.
+        axes_ok = abs(r.pitch) < 0.01 and abs(r.roll) < 0.01
+        _record(
+            "Bulk Ops", "Randomize (Rot)", axes_ok,
+            f"yaw={r.yaw:.2f} pitch={r.pitch:.2f} roll={r.roll:.2f} "
+            f"(pitch/roll must stay 0 — a value here means Quirk #41 is back)",
+        )
     except Exception as e:
         _record("Bulk Ops", "Randomize", False, str(e))
 
@@ -304,7 +326,7 @@ def _test_bulk_ops_advanced() -> None:
 
     # --- Test Reset ---
     a_bad = _spawn_fixture(location=unreal.Vector(1,2,3))
-    a_bad.set_actor_rotation(unreal.Rotator(10,20,30), True)
+    a_bad.set_actor_rotation(unreal.Rotator(roll=30, pitch=10, yaw=20), True)
     a_bad.set_actor_scale3d(unreal.Vector(2,2,2))
     _select_fixture([a_bad])
     try:
@@ -362,7 +384,7 @@ def _test_bulk_ops_extensions() -> None:
     try:
         tb.run("bulk_face_camera")
         # Hard to assert specific value without knowing camera pos, just assert no crash
-        _record("Bulk Ops", "Face Camera", True)
+        _record("Bulk Ops", "Face Camera", True, verified=False)
     except Exception as e:
         _record("Bulk Ops", "Face Camera", False, str(e))
 
@@ -526,13 +548,13 @@ def _test_snapshots() -> None:
 
         # 4. Compare Live
         tb.run("snapshot_compare_live", name=snap_name)
-        _record("Snapshots", "Compare Live", True) # Just testing no crash
+        _record("Snapshots", "Compare Live", True, verified=False) # Just testing no crash
 
         # 5. Save Snapshot B & Diff
         snap_name_b = "test_integration_snap_B"
         tb.run("snapshot_save", name=snap_name_b)
         tb.run("snapshot_diff", name_a=snap_name, name_b=snap_name_b)
-        _record("Snapshots", "Diff JSON", True)
+        _record("Snapshots", "Diff JSON", True, verified=False)
 
         # 6. Restore
         a_diff.set_actor_location(unreal.Vector(999, 999, 999), False, False)
@@ -596,18 +618,18 @@ def _test_asset_tagger() -> None:
 
         # Add tag (passing explicit asset_paths to bypass selection)
         tb.run("tag_add", asset_paths=[asset_path], tag_name=tag_name, value="verified")
-        _record("Asset Tagger", "Add Tag", True)
+        _record("Asset Tagger", "Add Tag", True, verified=False)
 
         # Select and Show tags
         _select_fixture([actor])
         tb.run("tag_show")
-        _record("Asset Tagger", "Show Tags", True)
+        _record("Asset Tagger", "Show Tags", True, verified=False)
 
         # Search & List
         search_folder = "/Engine/BasicShapes"
         tb.run("tag_search", tag_name=tag_name, value="verified", folder=search_folder)
         tb.run("tag_list_all", folder=search_folder)
-        _record("Asset Tagger", "Search & List All", True)
+        _record("Asset Tagger", "Search & List All", True, verified=False)
 
         # Export
         tb.run("tag_export", folder=search_folder)
@@ -616,7 +638,7 @@ def _test_asset_tagger() -> None:
 
         # Remove tag
         tb.run("tag_remove", asset_paths=[asset_path], tag_name=tag_name)
-        _record("Asset Tagger", "Remove Tag", True)
+        _record("Asset Tagger", "Remove Tag", True, verified=False)
     except Exception as e:
         _record("Asset Tagger", "Execution", False, str(e))
 
@@ -627,13 +649,13 @@ def _test_verse() -> None:
     try:
         # Test snippet listing
         tb.run("verse_list_snippets")
-        _record("Verse", "List Snippets", True)
+        _record("Verse", "List Snippets", True, verified=False)
 
         # Test device generation (requires selection)
         actor = _spawn_fixture()
         _select_fixture([actor])
         tb.run("verse_gen_device_declarations")
-        _record("Verse", "Gen Device Declarations", True)
+        _record("Verse", "Gen Device Declarations", True, verified=False)
     except Exception as e:
         _record("Verse", "Execution", False, str(e))
 
@@ -648,7 +670,7 @@ def _test_verse_advanced() -> None:
         tb.run("verse_gen_game_skeleton", device_name="TestIntegrationGameMgr")
         tb.run("verse_gen_prop_spawner")
         tb.run("verse_gen_scoring_tracker", max_score=50)
-        _record("Verse", "CodeGen Boilerplates", True)
+        _record("Verse", "CodeGen Boilerplates", True, verified=False)
 
         # Device Editors
         tb.run("verse_list_devices")
@@ -688,11 +710,11 @@ def _test_screenshots() -> None:
         a1 = _spawn_fixture()
         _select_fixture([a1])
         tb.run("screenshot_focus_selection", name="focus_shot", width=1280, height=720, restore_camera=False)
-        _record("Screenshots", "Focus Selection", True)
+        _record("Screenshots", "Focus Selection", True, verified=False)
 
         # Test Timed Series (short interval for speed)
         tb.run("screenshot_timed_series", name="series_shot", count=2, width=1280, height=720, interval_sec=0.1)
-        _record("Screenshots", "Timed Series", True)
+        _record("Screenshots", "Timed Series", True, verified=False)
 
         # Test Open Folder
         tb.run("screenshot_open_folder")
@@ -770,7 +792,7 @@ def _test_splines() -> None:
         tb.run("spline_to_verse_points", sample_count=10)
         tb.run("spline_to_verse_patrol", device_name="TestSplinePatrol")
         tb.run("spline_to_verse_zone_boundary", zone_name="TestSplineZone")
-        _record("Spline", "Code Generate Verse", True)
+        _record("Spline", "Code Generate Verse", True, verified=False)
 
         # 3. Spline Export
         tb.run("spline_export_json", sample_count=5, include_tangents=True)
@@ -780,7 +802,7 @@ def _test_splines() -> None:
         # Cleanup
         tb.run("spline_clear_props", folder_name="TestSplineProps")
         spline_host.destroy_actor()
-        _record("Spline", "Clear Props", True)
+        _record("Spline", "Clear Props", True, verified=False)
 
     except Exception as e:
         _record("Spline", "Error", False, str(e))
@@ -816,15 +838,18 @@ def _test_assets() -> None:
         tb.run("rename_report", scan_path=test_dir)
         _record("Assets", "Rename Report", os.path.exists(report_path), "JSON Report created")
 
-        # Test Enforce
-        tb.run("rename_enforce_conventions", scan_path=test_dir)
-        _record("Assets", "Enforce Conventions", True, "Tool executed and processed assets")
+        # Test Enforce. dry_run defaults True now, so the real path is opted
+        # into deliberately - and the result is checked rather than assumed.
+        enforced = tb.run("rename_enforce_conventions", scan_path=test_dir, dry_run=False)
+        _record("Assets", "Enforce Conventions",
+                enforced.get("status") in ("ok", "partial") and enforced.get("renamed", 0) > 0,
+                f"renamed={enforced.get('renamed')} status={enforced.get('status')}")
 
         # Test Strip
         # Spawn a fresh asset for strip_prefix so it's in the registry's initial state
         asset_tools.create_asset("MI_StripMe", test_dir, unreal.MaterialInstanceConstant, factory)
         tb.run("rename_strip_prefix", scan_path=test_dir, prefix="MI_", dry_run=False)
-        _record("Assets", "Strip Prefix", True, "Tool executed without errors")
+        _record("Assets", "Strip Prefix", True, "Tool executed without errors", verified=False)
 
         # Cleanup
         unreal.EditorAssetLibrary.delete_directory(test_dir)
@@ -845,13 +870,13 @@ def _test_memory() -> None:
 
         # Run specific scans (read-only)
         tb.run("memory_scan_textures", scan_path="/Engine/EngineMaterials")
-        _record("Optimization", "Scan Textures", True)
+        _record("Optimization", "Scan Textures", True, verified=False)
 
         tb.run("memory_scan_meshes", scan_path="/Engine/BasicShapes")
-        _record("Optimization", "Scan Meshes", True)
+        _record("Optimization", "Scan Meshes", True, verified=False)
 
         tb.run("memory_top_offenders", scan_path="/Engine/BasicShapes", top_n=5)
-        _record("Optimization", "Top Offenders", True)
+        _record("Optimization", "Top Offenders", True, verified=False)
 
         # Test Auto-Fix LODs
         # We cannot duplicate engine meshes because they are cooked.
@@ -861,7 +886,7 @@ def _test_memory() -> None:
         unreal.EditorAssetLibrary.make_directory(test_dir)
 
         tb.run("memory_autofix_lods", scan_path=test_dir, num_lods=3)
-        _record("Optimization", "Auto-Fix LODs", True, "Tool runs safely on Empty Dir")
+        _record("Optimization", "Auto-Fix LODs", True, "Tool runs safely on Empty Dir", verified=False)
 
         # Cleanup
         unreal.EditorAssetLibrary.delete_directory(test_dir)
@@ -877,16 +902,16 @@ def _test_reference_auditor() -> None:
     try:
         # Run audit scans on engine shapes (we don't delete them, just verify tools run)
         tb.run("ref_audit_orphans", scan_path="/Engine/BasicShapes", excluded_classes=[])
-        _record("Assets", "Audit Orphans", True)
+        _record("Assets", "Audit Orphans", True, verified=False)
 
         tb.run("ref_audit_redirectors", scan_path="/Engine/BasicShapes")
-        _record("Assets", "Audit Redirectors", True)
+        _record("Assets", "Audit Redirectors", True, verified=False)
 
         tb.run("ref_audit_duplicates", scan_path="/Engine/BasicShapes")
-        _record("Assets", "Audit Duplicates", True)
+        _record("Assets", "Audit Duplicates", True, verified=False)
 
         tb.run("ref_audit_unused_textures", scan_path="/Engine/EngineMaterials")
-        _record("Assets", "Audit Unused Textures", True)
+        _record("Assets", "Audit Unused Textures", True, verified=False)
 
         tb.run("ref_full_report", scan_path="/Engine/BasicShapes", excluded_classes=[])
         report_path = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "ref_audit_report.json")
@@ -908,7 +933,7 @@ def _test_project_scaffold() -> None:
 
         # 1. Preview
         tb.run("scaffold_preview", template="solo_dev", project_name=test_project, base=test_base)
-        _record("Project", "Scaffold Preview", True)
+        _record("Project", "Scaffold Preview", True, verified=False)
 
         # 2. Generate
         tb.run("scaffold_generate", template="solo_dev", project_name=test_project, base=test_base)
@@ -918,11 +943,11 @@ def _test_project_scaffold() -> None:
 
         # 3. Save Custom Template
         tb.run("scaffold_save_template", template_name="TEST_Tmpl", folders=["A", "B/C"])
-        _record("Project", "Scaffold Save Template", True)
+        _record("Project", "Scaffold Save Template", True, verified=False)
 
         # 4. Delete Custom Template
         tb.run("scaffold_delete_template", template_name="TEST_Tmpl")
-        _record("Project", "Scaffold Delete Template", True)
+        _record("Project", "Scaffold Delete Template", True, verified=False)
 
         # Cleanup
         unreal.EditorAssetLibrary.delete_directory(test_base)
@@ -952,17 +977,17 @@ def _test_text_painter() -> None:
 
         # 3. Save Style & List Styles
         tb.run("text_save_style", style_name="TEST_Style", color="#FF0000")
-        _record("Procedural", "Text Save Style", True)
+        _record("Procedural", "Text Save Style", True, verified=False)
         tb.run("text_list_styles")
 
         # 4. Color Cycle & Label Selection
         tb.run("text_color_cycle", start_location=(0,500,1000), spacing_x=200)
-        _record("Procedural", "Text Color Cycle", True)
+        _record("Procedural", "Text Color Cycle", True, verified=False)
 
         a1 = _spawn_fixture()
         _select_fixture([a1])
         tb.run("text_label_selection", offset_z=100.0, color="#FF00FF")
-        _record("Procedural", "Text Label Selection", True)
+        _record("Procedural", "Text Label Selection", True, verified=False)
         a1.destroy_actor()
 
         # 5. Clear Folder
@@ -995,34 +1020,34 @@ def _test_advanced_materials() -> None:
 
         # 1. Randomize Colors
         tb.run("material_randomize_colors", saturation=0.8)
-        _record("Materials", "Randomize Colors", True)
+        _record("Materials", "Randomize Colors", True, verified=False)
 
         # 2. Gradient Painter
         tb.run("material_gradient_painter", color_a="#0000FF", color_b="#FF0000", axis="X")
-        _record("Materials", "Gradient Painter", True)
+        _record("Materials", "Gradient Painter", True, verified=False)
 
         # 3. Team Color Split
         tb.run("material_team_color_split")
-        _record("Materials", "Team Color Split", True)
+        _record("Materials", "Team Color Split", True, verified=False)
 
         # 4. Pattern Painter
         tb.run("material_pattern_painter", pattern="checkerboard", preset_a="neon", preset_b="rubber")
-        _record("Materials", "Pattern Painter", True)
+        _record("Materials", "Pattern Painter", True, verified=False)
 
         # 5. Glow Pulse Preview
         tb.run("material_glow_pulse_preview", intensity=10.0)
-        _record("Materials", "Glow Pulse Preview", True)
+        _record("Materials", "Glow Pulse Preview", True, verified=False)
 
         # 6. Color Harmony
         tb.run("material_color_harmony", harmony="triadic")
-        _record("Materials", "Color Harmony", True)
+        _record("Materials", "Color Harmony", True, verified=False)
 
         # 7. Save Preset / List Presets
         actor_sub.set_selected_level_actors([a1])
         tb.run("material_apply_preset", preset="chrome")
         tb.run("material_save_preset", preset_name="TEST_Integration_Preset")
         tb.run("material_list_presets")
-        _record("Materials", "Save & List Presets", True)
+        _record("Materials", "Save & List Presets", True, verified=False)
 
         # 8. Bulk Swap (Basic verification without precise paths)
         # Apply neon to all 3, then swap neon for rubber. We use the engine fallback since we don't have exact material paths
@@ -1030,7 +1055,7 @@ def _test_advanced_materials() -> None:
         # So we'll run it with dummy paths expecting it to exit cleanly without erroring.
         actor_sub.set_selected_level_actors([a1, a2, a3])
         tb.run("material_bulk_swap", old_material_path="/Engine/BasicShapes/BasicShapeMaterial", new_material_path="/Engine/EngineMaterials/DefaultMaterial", scope="selection")
-        _record("Materials", "Bulk Swap", True)
+        _record("Materials", "Bulk Swap", True, verified=False)
 
         # Cleanup
         for a in [a1, a2, a3]:
@@ -1130,7 +1155,9 @@ def toolbelt_integration_test(**kwargs) -> dict:
 
             unreal.log("\n══════════════════════════════════════════════════════")
             unreal.log("  INTEGRATION TEST COMPLETE")
+            verified_n = sum(1 for r in _results if r.get("verified", True))
             unreal.log(f"  Passed: {passed}/{total}")
+            unreal.log(f"  Verified: {verified_n} · execution-only: {total - verified_n}")
             unreal.log(f"  Results: {report_path}")
             unreal.log("══════════════════════════════════════════════════════")
 
@@ -1139,6 +1166,8 @@ def toolbelt_integration_test(**kwargs) -> dict:
                 "passed": passed,
                 "failed": total - passed,
                 "total": total,
+                "verified": verified_n,
+                "execution_only": total - verified_n,
                 "report": report_path,
                 "failures": [
                     {"section": r.get("section"), "name": r.get("name"),
@@ -1171,7 +1200,7 @@ def _test_lods_safe() -> None:
         # Instead of duplicating project meshes (which might be cooked),
         # we'll test the audit and folder tools which are the main goal.
         tb.run("lod_audit_folder", folder_path=test_folder)
-        _record("LODs", "Audit Folder", True, "Audit executed on test folder")
+        _record("LODs", "Audit Folder", True, "Audit executed on test folder", verified=False)
 
     except Exception as e:
         _record("LODs", "Error", False, str(e))
@@ -1185,7 +1214,7 @@ def _test_optimization_safe() -> None:
 
         tb.run("memory_scan_textures", scan_path=test_folder)
         tb.run("memory_scan_meshes", scan_path=test_folder)
-        _record("Optimization", "Safe Scans", True, f"Scanned: {test_folder}")
+        _record("Optimization", "Safe Scans", True, f"Scanned: {test_folder}", verified=False)
 
     except Exception as e:
         _record("Optimization", "Error", False, str(e))
@@ -1205,7 +1234,7 @@ def _test_arena_safe() -> None:
         # MANDATORY CLEANUP: Mass destroy everything in the Arena folder
         for a in arena_actors:
             a.destroy_actor()
-        _record("Arena", "Cleanup", True, "All arena actors destroyed")
+        _record("Arena", "Cleanup", True, "All arena actors destroyed", verified=False)
 
     except Exception as e:
         _record("Arena", "Error", False, str(e))
@@ -1225,7 +1254,7 @@ def _test_scatter_advanced_safe() -> None:
 
         # CLEANUP
         tb.run("scatter_clear", folder=test_folder)
-        _record("Scatter", "Cleanup", True, "Test folder cleared")
+        _record("Scatter", "Cleanup", True, "Test folder cleared", verified=False)
 
     except Exception as e:
         _record("Scatter", "Error", False, str(e))
@@ -1246,12 +1275,22 @@ def _test_assets_advanced_safe() -> None:
 
         if mi:
             # Test enforce (mi_ -> MI_)
-            tb.run("rename_enforce_conventions", scan_path=test_dir)
-            _record("Assets", "Enforce Conventions", True, "Tool executed on specific path")
+            enforced = tb.run("rename_enforce_conventions", scan_path=test_dir, dry_run=False)
+            _record("Assets", "Enforce Conventions",
+                    enforced.get("renamed", 0) > 0,
+                    f"renamed={enforced.get('renamed')}")
 
-            # Test organize
-            tb.run("organize_assets", source_path=test_dir, target_base=resolve_content_path("/Game/TOOLBELT_TEST/Organized"))
-            _record("Assets", "Organize Assets", True, "Tool executed on specific path")
+            # Test organize. A dry run first, so the preview path is covered too.
+            preview = tb.run("organize_assets", source_path=test_dir,
+                             target_base=resolve_content_path("/Game/TOOLBELT_TEST/Organized"),
+                             dry_run=True)
+            moved = tb.run("organize_assets", source_path=test_dir,
+                           target_base=resolve_content_path("/Game/TOOLBELT_TEST/Organized"),
+                           dry_run=False)
+            _record("Assets", "Organize Assets",
+                    preview.get("dry_run") is True and preview.get("moved") == 0
+                    and moved.get("moved", 0) > 0,
+                    f"preview would_move={preview.get('would_move')} moved={moved.get('moved')}")
 
         # Cleanup
         unreal.EditorAssetLibrary.delete_directory(resolve_content_path("/Game/TOOLBELT_TEST/AssetOps"))
@@ -1266,9 +1305,9 @@ def _test_bridge_safe() -> None:
     try:
         # Start/Stop bridge
         tb.run("mcp_start")
-        _record("Bridge", "Start", True)
+        _record("Bridge", "Start", True, verified=False)
         tb.run("mcp_stop")
-        _record("Bridge", "Stop", True)
+        _record("Bridge", "Stop", True, verified=False)
     except Exception as e:
         _record("Bridge", "Error", False, str(e))
 
@@ -1372,10 +1411,16 @@ def _test_entities() -> None:
         kits = tb.run("entity_list_kits")
         _record("Entities", "List Kits", "Lobby Starter" in kits.get("kits", []))
 
-        # Test Spawn Kit — only verify the tool ran cleanly; creative device class
-        # availability varies by UEFN build so exact spawn count is not reliable.
+        # Creative device class availability genuinely varies by UEFN build, so
+        # this cannot require a spawn. What it CAN require is that the tool
+        # tells the truth about what happened: on 2026-08-21 it logged
+        # "Successfully spawned ... with 0 devices" and this recorded a pass.
         spawned = tb.run("entity_spawn_kit", kit_name="Teleport Link")
-        _record("Entities", "Spawn Kit", spawned.get("status") == "ok", f"count={spawned.get('count')}")
+        status, count = spawned.get("status"), spawned.get("count", 0)
+        honest = (status == "ok" and count > 0) or (status in ("error", "partial") and count < spawned.get("requested", 0))
+        _record("Entities", "Spawn Kit", honest,
+                f"status={status} count={count}/{spawned.get('requested')} "
+                f"(status must match the count - ok with 0 spawned is the bug)")
 
         # Verify and Cleanup
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -1422,9 +1467,9 @@ def _test_lighting_integration() -> None:
     try:
         # Just test execution path (hard to verify visual state without complex property checks)
         tb.run("light_cinematic_preset", mood="Cyberpunk")
-        _record("Lighting", "Apply Preset (Cyberpunk)", True)
+        _record("Lighting", "Apply Preset (Cyberpunk)", True, verified=False)
         tb.run("light_randomize_sky")
-        _record("Lighting", "Randomize Sky", True)
+        _record("Lighting", "Randomize Sky", True, verified=False)
     except Exception as e:
         _record("Lighting", "Error", False, str(e))
 
@@ -1434,7 +1479,7 @@ def _test_project_admin_integration() -> None:
     try:
         # Perf Audit
         tb.run("system_perf_audit")
-        _record("Project Admin", "Perf Audit", True)
+        _record("Project Admin", "Perf Audit", True, verified=False)
     except Exception as e:
         _record("Project Admin", "Error", False, str(e))
 
@@ -1827,7 +1872,7 @@ def _test_postprocess_and_world() -> None:
 
         # reset to neutral
         tb.run("postprocess_preset", preset="reset")
-        _record("PostProcess", "postprocess_preset (reset)", True)
+        _record("PostProcess", "postprocess_preset (reset)", True, verified=False)
 
         # world_settings_set — UEFN blocks gravity via set_editor_property on WorldSettings.
         # Tool returns status=error on a standard template level. Mark as expected-limited.

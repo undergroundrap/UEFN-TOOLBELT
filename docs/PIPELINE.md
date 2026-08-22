@@ -86,12 +86,12 @@ PLAYABLE GAME
 |---|---|---|
 | `scaffold_generate` | `template="uefn_standard"`, `project_name` | Creates full `/Game/` folder tree |
 | `scaffold_list_templates` | — | Preview available templates |
-| `organize_assets` | `folder="/Game/"` | Sorts loose assets into typed subfolders |
-| `rename_enforce_conventions` | `scan_path="/Game/"` | Fixes naming convention violations |
+| `organize_assets` | `folder=""` | Sorts loose assets into typed subfolders |
+| `rename_enforce_conventions` | `scan_path=""` | Fixes naming convention violations |
 
 ```python
 tb.run("scaffold_generate", template="uefn_standard", project_name="MyGame")
-tb.run("organize_assets", folder="/Game/")
+tb.run("organize_assets", folder="")
 ```
 
 **Claude should do this once per new project before anything else.**
@@ -313,7 +313,7 @@ When asked to build a game from scratch, Claude should execute this sequence:
 ```python
 # ── PHASE 0: Setup ──────────────────────────────────────────────
 tb.run("scaffold_generate", template="uefn_standard", project_name="MyGame")
-tb.run("organize_assets", folder="/Game/")
+tb.run("organize_assets", folder="")
 
 # ── PHASE 1: Reconnaissance ─────────────────────────────────────
 tb.run("device_catalog_scan")     # load docs/device_catalog.json

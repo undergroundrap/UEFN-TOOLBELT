@@ -54,7 +54,7 @@ def _ar():
         "Use this to inventory all custom Blueprints in the project."
     ),
     tags=["blueprint", "list", "assets", "scan"],
-    example='tb.run("blueprint_list", scan_path="/Game/Blueprints")',
+    example='tb.run("blueprint_list", scan_path="")',
 )
 def run_blueprint_list(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     scan_path = resolve_scan_path(scan_path)
@@ -156,7 +156,7 @@ def run_blueprint_inspect(asset_path: str = "", **kwargs) -> dict:
         "Returns a health report — run blueprint_compile_folder to fix issues."
     ),
     tags=["blueprint", "audit", "compile", "health"],
-    example='tb.run("blueprint_audit", scan_path="/Game/Blueprints")',
+    example='tb.run("blueprint_audit", scan_path="")',
 )
 def run_blueprint_audit(scan_path: str = "", max_results: int = 200, **kwargs) -> dict:
     scan_path = resolve_scan_path(scan_path)
@@ -212,7 +212,7 @@ def run_blueprint_audit(scan_path: str = "", max_results: int = 200, **kwargs) -
         "Run blueprint_audit first to identify which Blueprints need fixing."
     ),
     tags=["blueprint", "compile", "batch", "fix"],
-    example='tb.run("blueprint_compile_folder", scan_path="/Game/Blueprints", dry_run=False)',
+    example='tb.run("blueprint_compile_folder", scan_path="", dry_run=False)',
 )
 def run_blueprint_compile_folder(
     scan_path: str = "",

@@ -49,7 +49,7 @@ _CURVE_CLASSES = ["CurveFloat", "CurveVector", "CurveLinearColor"]
         "Use curve_type to filter: 'float', 'vector', 'color', or 'all'."
     ),
     tags=["curve", "list", "assets", "animation", "scan"],
-    example='tb.run("curve_list", scan_path="/Game/Curves", curve_type="float")',
+    example='tb.run("curve_list", scan_path="", curve_type="float")',
 )
 def run_curve_list(scan_path: str = "", curve_type: str = "all", max_results: int = 200, **kwargs) -> dict:
     scan_path = resolve_scan_path(scan_path)
@@ -156,7 +156,7 @@ def run_curve_inspect(asset_path: str = "", **kwargs) -> dict:
         "Includes asset paths, class types, and any readable key data."
     ),
     tags=["curve", "export", "json", "data"],
-    example='tb.run("curve_export", scan_path="/Game/Curves")',
+    example='tb.run("curve_export", scan_path="")',
 )
 def run_curve_export(scan_path: str = "", output_path: str = "", **kwargs) -> dict:
     scan_path = resolve_scan_path(scan_path)

@@ -98,7 +98,7 @@ def _deserialize_transform(data: dict[str, Any]) -> tuple[
     scl = data["scale"]
     return (
         unreal.Vector(loc["x"], loc["y"], loc["z"]),
-        unreal.Rotator(rot["pitch"], rot["yaw"], rot["roll"]),
+        unreal.Rotator(roll=rot["roll"], pitch=rot["pitch"], yaw=rot["yaw"]),
         unreal.Vector(scl["x"], scl["y"], scl["z"]),
     )
 

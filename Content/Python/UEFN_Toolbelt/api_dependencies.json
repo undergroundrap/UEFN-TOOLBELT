@@ -2870,6 +2870,7 @@
         "tools/integration_test.py",
         "tools/level_snapshot.py",
         "tools/mcp_bridge.py",
+        "tools/prop_patterns.py",
         "tools/reference_auditor.py",
         "tools/screenshot_tools.py"
       ],

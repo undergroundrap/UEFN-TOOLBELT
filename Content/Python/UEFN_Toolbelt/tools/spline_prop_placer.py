@@ -181,7 +181,7 @@ def run_place_props(
                 rot = unreal.Rotator(0, 0, 0)
 
             if random_yaw > 0:
-                rot = unreal.Rotator(rot.pitch, rot.yaw + random.uniform(-random_yaw, random_yaw), rot.roll)
+                rot = unreal.Rotator(roll=rot.roll, pitch=rot.pitch, yaw=rot.yaw + random.uniform(-random_yaw, random_yaw))
 
             # Scale
             s = random.uniform(scale_min, scale_max)

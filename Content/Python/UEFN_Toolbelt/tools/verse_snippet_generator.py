@@ -37,6 +37,7 @@ USAGE:
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
 
@@ -44,6 +45,7 @@ import unreal
 
 from ..core import (
     get_selected_actors,
+    log_error,
     log_info,
     log_warning,
 )
@@ -312,41 +314,116 @@ def _find_uefn_project_root() -> str:
         curr = parent
 
 
+def _verse_dir_from_workspace(project_root: str) -> str:
+    """The Verse source package as declared by <project>.code-workspace.
+
+    UEFN 41+ stopped compiling <project>/Verse/. The workspace file is the
+    project's own statement of where its Verse package lives, and on 42.00 it
+    points at <project>/Content. Verified against a real project 2026-08-21:
+
+        "folders": [
+          {"name": "/user@fortnite.com/PROJ (PROJ)",
+           "path": "C:/.../Fortnite Projects/PROJ/Content"},          <- this one
+          {"name": "... (PROJ/Assets)", "path": ".../AppData/.../Digests/..."},
+          {"name": "vproject (read-only)", "path": ".../vproject"},
+          {"name": "Built-in Digests",    "path": ".../Digests/BuiltIn"}
+        ]
+
+    The entry is chosen by whether its path lives inside the project root, not
+    by list position or by name matching. The read-only digest and vproject
+    folders all sit under AppData, so containment separates them cleanly and
+    keeps working if Epic reorders or renames the list.
+    """
+    try:
+        root = os.path.abspath(project_root)
+        for entry in os.listdir(project_root):
+            if not entry.endswith(".code-workspace"):
+                continue
+            with open(os.path.join(project_root, entry), encoding="utf-8") as f:
+                workspace = json.load(f)
+            for folder in workspace.get("folders", []):
+                path = folder.get("path", "")
+                if not path or not os.path.isdir(path):
+                    continue
+                candidate = os.path.abspath(path)
+                if os.path.commonpath([candidate, root]) == root:
+                    return candidate
+    except Exception as e:
+        log_warning(f"Could not read the .code-workspace Verse package path: {e}")
+    return ""
+
+
 def _find_verse_project_dir() -> str:
     """
     Auto-detect the Verse source directory for the current UEFN project.
 
     Search order:
     1. config verse.project_path (user override — most reliable)
-    2. [ProjectRoot]/Verse/  (standard UEFN layout)
-    3. [ProjectRoot]/*.verse/ (Epic's Verse package folder naming)
-    4. Falls back to Saved/UEFN_Toolbelt/snippets/custom/ with a clear warning
+    2. <project>.code-workspace declared package dir (UEFN 41+, usually Content/)
+    3. [ProjectRoot]/Verse/  (pre-41 layout, only if it already exists)
+    4. [ProjectRoot]/*.verse/ (Epic's Verse package folder naming)
+    5. [ProjectRoot]/Content  (41+ default)
+
+    This used to try Verse/ first and, when it was missing, CREATE it and
+    return it. UEFN 41+ does not compile that directory, so verse_write_file
+    wrote a file nobody would ever build, reported success, and the Phase 5
+    build loop then waited on a build that could not contain the code. Nothing
+    errored at any point. Creating the directory also made the mistake look
+    legitimate to the next person who opened the project.
 
     NOTE: Never uses unreal.Paths.project_dir() — in UEFN that resolves to
     the FortniteGame engine directory, not the user's project directory.
+    """
+    return _resolve_verse_dir()[0]
+
+
+def _resolve_verse_dir() -> tuple:
+    """(path, source) — the single implementation both callers use.
+
+    run_verse_find_project_path used to carry its own copy of this search,
+    which had drifted: it still created the uncompiled Verse/ directory and
+    reported {"status": "ok", "source": "created"} while doing it. Two copies
+    of a path resolver is one copy too many.
     """
     from ..core.config import get_config
     cfg = get_config()
     user_path = cfg.get("verse.project_path", "")
     if user_path and os.path.isdir(user_path):
-        return user_path
+        return user_path, "config"
 
     project_root = _find_uefn_project_root()
 
-    # Standard layout
-    standard = os.path.join(project_root, "Verse")
-    if os.path.isdir(standard):
-        return standard
+    # UEFN 41+: the workspace declares the real package directory.
+    workspace_dir = _verse_dir_from_workspace(project_root)
+    if workspace_dir:
+        return workspace_dir, "workspace"
+
+    # Pre-41 layout — honoured only when it actually exists.
+    legacy = os.path.join(project_root, "Verse")
+    if os.path.isdir(legacy):
+        return legacy, "legacy"
 
     # Epic's .verse package folder naming
     for entry in os.listdir(project_root):
         full = os.path.join(project_root, entry)
         if entry.endswith(".verse") and os.path.isdir(full):
-            return full
+            return full, "package"
 
-    # Fallback — create standard Verse dir in project root
-    os.makedirs(standard, exist_ok=True)
-    return standard
+    # 41+ default. Never create a Verse/ directory that will not be compiled.
+    content = os.path.join(project_root, "Content")
+    if os.path.isdir(content):
+        log_warning(
+            "No .code-workspace package path found — falling back to "
+            f"{content}. If your Verse files do not compile, set it explicitly: "
+            "tb.run('config_set', key='verse.project_path', value='<dir>')"
+        )
+        return content, "content"
+
+    log_error(
+        f"Could not locate a Verse source directory under {project_root}. "
+        "Set it explicitly with config_set verse.project_path."
+    )
+    return content, "not_found"
 
 
 @register_tool(
@@ -361,30 +438,19 @@ def run_verse_find_project_path(**kwargs) -> dict:
     Set config verse.project_path to override auto-detection.
 
     Returns:
-        {"status": "ok", "path": str, "source": "config"|"standard"|"package"|"created"}
+        {"status": "ok", "path": str,
+         "source": "config"|"workspace"|"legacy"|"package"|"content"}
+        or {"status": "error", ..., "source": "not_found"} when nothing
+        usable was found. It no longer creates a Verse/ directory as a
+        fallback — UEFN 41+ does not compile that path.
     """
-    from ..core.config import get_config
-    cfg = get_config()
-    user_path = cfg.get("verse.project_path", "")
-    if user_path and os.path.isdir(user_path):
-        log_info(f"Verse project path (from config): {user_path}")
-        return {"status": "ok", "path": user_path, "source": "config"}
-
-    project_root = _find_uefn_project_root()
-    standard = os.path.join(project_root, "Verse")
-    if os.path.isdir(standard):
-        log_info(f"Verse project path (standard): {standard}")
-        return {"status": "ok", "path": standard, "source": "standard"}
-
-    for entry in os.listdir(project_root):
-        full = os.path.join(project_root, entry)
-        if entry.endswith(".verse") and os.path.isdir(full):
-            log_info(f"Verse project path (package): {full}")
-            return {"status": "ok", "path": full, "source": "package"}
-
-    os.makedirs(standard, exist_ok=True)
-    log_info(f"Verse project path (created): {standard}")
-    return {"status": "ok", "path": standard, "source": "created"}
+    path, source = _resolve_verse_dir()
+    log_info(f"Verse project path ({source}): {path}")
+    if source == "not_found":
+        return {"status": "error", "path": path, "source": source,
+                "message": "No Verse source directory found. Set it with "
+                           "config_set verse.project_path."}
+    return {"status": "ok", "path": path, "source": source}
 
 
 @register_tool(

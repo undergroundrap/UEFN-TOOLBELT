@@ -259,8 +259,21 @@ All 362 tools (100%) return `{"status": "ok"/"error", ...}` structured dicts as 
    mount = max(counts, key=counts.get) if counts else "Game"
    ```
    Canonical implementation: `core/__init__.py` → `detect_project_mount()`. Import it with `from ..core import detect_project_mount`. Never reimplement this per-tool.
-6. **Vectors/Rotators** — `unreal.Vector(x, y, z)` · `unreal.Rotator(pitch, yaw, roll)`
+6. **Vectors/Rotators** — `unreal.Vector(x, y, z)` · `unreal.Rotator(roll=, pitch=, yaw=)` **keyword args only**
    Pitch = tilt up/down · Yaw = rotate left/right · Roll = spin
+
+   **Positional args are (roll, pitch, yaw), NOT (pitch, yaw, roll).** The
+   constructor follows the C++ FRotator field order. `unreal.Rotator(0, yaw, 0)`
+   sets *pitch*, not yaw, and nothing raises. Confirmed live on UEFN 42.00:
+   `unreal.Rotator(10, 20, 30)` gives `roll=10 pitch=20 yaw=30`.
+
+   The same applies to `unreal.Color` - FColor is declared (B, G, R, A), so
+   `unreal.Color(r, g, b, 255)` swaps red and blue. `unreal.Vector` (X, Y, Z)
+   and `unreal.LinearColor` (R, G, B, A) are declared as expected and are safe.
+
+   Rule: any `unreal.*` struct built positionally is a bet on C++ field order.
+   Use keyword args. See `docs/UEFN_QUIRKS.md` Quirk #41 and
+   `tests/test_rotator_argument_order.py`, which fails the build if this returns.
 
 ---
 

@@ -321,7 +321,7 @@ def rotate_around_pivot(
                     new_x = piv_x + dx * cos_a - dy * sin_a
                     new_y = piv_y + dx * sin_a + dy * cos_a
                     new_loc = unreal.Vector(new_x, new_y, loc.z)
-                    new_rot = unreal.Rotator(rot.pitch, rot.yaw + angle_deg, rot.roll)
+                    new_rot = unreal.Rotator(roll=rot.roll, pitch=rot.pitch, yaw=rot.yaw + angle_deg)
 
                 elif axis == "Y":
                     # Rotate in XZ plane around (piv_x, piv_z)
@@ -330,7 +330,7 @@ def rotate_around_pivot(
                     new_x = piv_x + dx * cos_a - dz * sin_a
                     new_z = piv_z + dx * sin_a + dz * cos_a
                     new_loc = unreal.Vector(new_x, loc.y, new_z)
-                    new_rot = unreal.Rotator(rot.pitch + angle_deg, rot.yaw, rot.roll)
+                    new_rot = unreal.Rotator(roll=rot.roll, pitch=rot.pitch + angle_deg, yaw=rot.yaw)
 
                 else:  # X
                     # Rotate in YZ plane around (piv_y, piv_z)
@@ -339,7 +339,7 @@ def rotate_around_pivot(
                     new_y = piv_y + dy * cos_a - dz * sin_a
                     new_z = piv_z + dy * sin_a + dz * cos_a
                     new_loc = unreal.Vector(loc.x, new_y, new_z)
-                    new_rot = unreal.Rotator(rot.pitch, rot.yaw, rot.roll + angle_deg)
+                    new_rot = unreal.Rotator(roll=rot.roll + angle_deg, pitch=rot.pitch, yaw=rot.yaw)
 
                 actor.set_actor_location_and_rotation(new_loc, new_rot, False, False)
                 rotated += 1

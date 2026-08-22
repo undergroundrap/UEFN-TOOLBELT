@@ -71,8 +71,8 @@ curl -X POST http://127.0.0.1:8765 \
 
 ### Safe destructive ops — always dry_run first
 ```python
-tb.run("ref_delete_orphans", scan_path="/Game", dry_run=True)   # preview
-tb.run("ref_delete_orphans", scan_path="/Game", dry_run=False)  # execute
+tb.run("ref_delete_orphans", scan_path="", dry_run=True)   # preview
+tb.run("ref_delete_orphans", scan_path="", dry_run=False)  # execute
 ```
 
 ### Undo safety — all actor ops are wrapped in transactions

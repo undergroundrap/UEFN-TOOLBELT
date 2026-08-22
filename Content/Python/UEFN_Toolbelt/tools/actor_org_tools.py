@@ -269,7 +269,7 @@ def actor_move_to_root(**kwargs) -> dict:
 def actor_rename_folder(
     old_folder: str = "",
     new_folder: str = "",
-    dry_run: bool = False,
+    dry_run: bool = True,
     **kwargs,
 ) -> dict:
     """
