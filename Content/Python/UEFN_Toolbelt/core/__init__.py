@@ -325,6 +325,34 @@ def ensure_folder(path: str) -> None:
         log_info(f"Created folder: {path}")
 
 
+def _clear_instance_overrides(mi: unreal.MaterialInstanceConstant) -> bool:
+    """Drop every parameter override on an existing instance.
+
+    Returns True if at least one clearing route worked. Several are tried
+    because the exposed surface differs between engine versions and this must
+    not become another silent no-op: the caller warns when all of them fail.
+    """
+    fn = getattr(unreal.MaterialEditingLibrary,
+                 "clear_all_material_instance_parameters", None)
+    if fn is not None:
+        try:
+            fn(mi)
+            return True
+        except Exception:
+            pass
+
+    cleared = False
+    for prop in ("scalar_parameter_values",
+                 "vector_parameter_values",
+                 "texture_parameter_values"):
+        try:
+            mi.set_editor_property(prop, [])
+            cleared = True
+        except Exception:
+            continue
+    return cleared
+
+
 def create_material_instance(
     parent_path: str,
     instance_name: str,
@@ -354,13 +382,38 @@ def create_material_instance(
     ensure_folder(package_path)
     full_path = f"{package_path}/{instance_name}"
 
-    # Delete pre-existing asset so we can overwrite
-    if unreal.EditorAssetLibrary.does_asset_exist(full_path):
-        unreal.EditorAssetLibrary.delete_asset(full_path)
+    # Re-apply to an existing instance IN PLACE rather than delete-and-recreate.
+    #
+    # The old path deleted first. When the instance was still assigned to an
+    # actor - which is the normal case for re-applying a preset to the same
+    # prop - the asset is referenced, so the delete could not complete, source
+    # control restored the file, and create_asset() then raised a modal
+    # "Overwrite Existing Object" dialog. An interactive dialog inside an
+    # automation tool blocks a batch run and returns None if the user declines,
+    # which is exactly how material_apply_preset failed live on 2026-08-21.
+    #
+    # Reusing also keeps the actor's existing material reference valid and
+    # skips a delete + revision-control revert + save per material.
+    existing = load_asset(full_path) if         unreal.EditorAssetLibrary.does_asset_exist(full_path) else None
 
-    mi = asset_tools().create_asset(instance_name, package_path,
-                                    unreal.MaterialInstanceConstant,
-                                    unreal.MaterialInstanceConstantFactoryNew())
+    if isinstance(existing, unreal.MaterialInstanceConstant):
+        # Overrides from whichever preset was applied before must go, or the
+        # new preset silently inherits them - gold's emissive surviving under
+        # chrome would look like the tool just picked bad values.
+        if not _clear_instance_overrides(existing):
+            log_warning(
+                f"Could not clear existing parameters on {full_path}; values "
+                f"the new preset does not set may persist from the previous one."
+            )
+        mi = existing
+    else:
+        if existing is not None:
+            # Occupied by something that is not a material instance. Deleting is
+            # the only option, and this path is rare enough to accept the risk.
+            unreal.EditorAssetLibrary.delete_asset(full_path)
+        mi = asset_tools().create_asset(instance_name, package_path,
+                                        unreal.MaterialInstanceConstant,
+                                        unreal.MaterialInstanceConstantFactoryNew())
     if mi is None:
         log_error(f"Failed to create material instance: {full_path}")
         return None
