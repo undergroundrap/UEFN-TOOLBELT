@@ -612,33 +612,64 @@ def _test_asset_tagger() -> None:
         return
 
     try:
-        # Asset path of basic cube
-        asset_path = _CUBE_MESH
+        # This used to tag /Engine/BasicShapes/Cube. Engine content cannot be
+        # saved, so the tag never persisted - and because tag_add discarded
+        # save_asset's return it reported success anyway, while tag_search then
+        # found nothing. Two tools disagreeing, both recorded as passes.
+        #
+        # Tagging a project-owned asset makes the round trip real: write it,
+        # find it by search, remove it, confirm it is gone.
+        tag_dir = resolve_content_path("/Game/TOOLBELT_TEST/Tags")
+        unreal.EditorAssetLibrary.make_directory(tag_dir)
+        asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
+        asset_tools.create_asset("MI_TagTarget", tag_dir,
+                                 unreal.MaterialInstanceConstant,
+                                 unreal.MaterialInstanceConstantFactoryNew())
+        asset_path = f"{tag_dir}/MI_TagTarget"
         tag_name = "TEST_INTEGRATION_TAG"
 
-        # Add tag (passing explicit asset_paths to bypass selection)
-        tb.run("tag_add", asset_paths=[asset_path], tag_name=tag_name, value="verified")
-        _record("Asset Tagger", "Add Tag", True, verified=False)
+        added = tb.run("tag_add", asset_paths=[asset_path],
+                       tag_name=tag_name, value="verified")
+        _record("Asset Tagger", "Add Tag",
+                added.get("status") == "ok" and added.get("tagged") == 1,
+                f"status={added.get('status')} tagged={added.get('tagged')}"
+                f"/{added.get('attempted')}")
 
         # Select and Show tags
         _select_fixture([actor])
         tb.run("tag_show")
         _record("Asset Tagger", "Show Tags", True, verified=False)
 
-        # Search & List
-        search_folder = "/Engine/BasicShapes"
-        tb.run("tag_search", tag_name=tag_name, value="verified", folder=search_folder)
-        tb.run("tag_list_all", folder=search_folder)
-        _record("Asset Tagger", "Search & List All", True, verified=False)
+        # The round trip the old test could not do: the tag must come back.
+        found = tb.run("tag_search", tag_name=tag_name, value="verified",
+                       folder=tag_dir)
+        hits = found.get("matches", [])
+        _record("Asset Tagger", "Search finds the tag it just wrote",
+                any(asset_path in str(h) for h in hits),
+                f"{len(hits)} hit(s) in {tag_dir}")
+
+        tb.run("tag_list_all", folder=tag_dir)
+        _record("Asset Tagger", "List All", True, verified=False)
 
         # Export
-        tb.run("tag_export", folder=search_folder)
+        tb.run("tag_export", folder=tag_dir)
         export_path = os.path.join(unreal.Paths.project_saved_dir(), "UEFN_Toolbelt", "tag_export.json")
         _record("Asset Tagger", "Export Tags", os.path.exists(export_path))
 
-        # Remove tag
-        tb.run("tag_remove", asset_paths=[asset_path], tag_name=tag_name)
-        _record("Asset Tagger", "Remove Tag", True, verified=False)
+        removed = tb.run("tag_remove", asset_paths=[asset_path], tag_name=tag_name)
+        _record("Asset Tagger", "Remove Tag",
+                removed.get("status") == "ok" and removed.get("removed") == 1,
+                f"status={removed.get('status')} removed={removed.get('removed')}"
+                f"/{removed.get('attempted')}")
+
+        gone = tb.run("tag_search", tag_name=tag_name, value="verified",
+                      folder=tag_dir)
+        gone_hits = gone.get("matches", [])
+        _record("Asset Tagger", "Search no longer finds it after removal",
+                not any(asset_path in str(h) for h in gone_hits),
+                f"{len(gone_hits)} hit(s) remaining")
+
+        unreal.EditorAssetLibrary.delete_directory(tag_dir)
     except Exception as e:
         _record("Asset Tagger", "Execution", False, str(e))
 
@@ -1019,28 +1050,44 @@ def _test_advanced_materials() -> None:
         actor_sub.set_selected_level_actors([a1, a2, a3])
 
         # 1. Randomize Colors
-        tb.run("material_randomize_colors", saturation=0.8)
-        _record("Materials", "Randomize Colors", True, verified=False)
+        r = tb.run("material_randomize_colors", saturation=0.8)
+        _record("Materials", "Randomize Colors",
+                r.get("status") == "ok" and r.get("count") == r.get("attempted") == 3,
+                f"{r.get('count')}/{r.get('attempted')} actor(s) status={r.get('status')}")
 
         # 2. Gradient Painter
-        tb.run("material_gradient_painter", color_a="#0000FF", color_b="#FF0000", axis="X")
-        _record("Materials", "Gradient Painter", True, verified=False)
+        r = tb.run("material_gradient_painter", color_a="#0000FF", color_b="#FF0000", axis="X")
+        _record("Materials", "Gradient Painter",
+                r.get("status") == "ok" and r.get("count") == r.get("attempted") == 3,
+                f"{r.get('count')}/{r.get('attempted')} actor(s) status={r.get('status')}")
 
-        # 3. Team Color Split
-        tb.run("material_team_color_split")
-        _record("Materials", "Team Color Split", True, verified=False)
+        # 3. Team Color Split. red+blue must account for every actor - the
+        # counters used to increment on which side of the midpoint an actor sat,
+        # whether or not the material actually applied.
+        r = tb.run("material_team_color_split")
+        red, blue = r.get("red", 0), r.get("blue", 0)
+        _record("Materials", "Team Color Split",
+                r.get("status") == "ok" and red + blue == 3,
+                f"{red} red + {blue} blue = {red + blue} of 3")
 
         # 4. Pattern Painter
-        tb.run("material_pattern_painter", pattern="checkerboard", preset_a="neon", preset_b="rubber")
-        _record("Materials", "Pattern Painter", True, verified=False)
+        r = tb.run("material_pattern_painter", pattern="checkerboard", preset_a="neon", preset_b="rubber")
+        _record("Materials", "Pattern Painter",
+                r.get("status") == "ok" and r.get("count") == r.get("attempted") == 3,
+                f"{r.get('count')}/{r.get('attempted')} actor(s) status={r.get('status')}")
 
         # 5. Glow Pulse Preview
-        tb.run("material_glow_pulse_preview", intensity=10.0)
-        _record("Materials", "Glow Pulse Preview", True, verified=False)
+        r = tb.run("material_glow_pulse_preview", intensity=10.0)
+        _record("Materials", "Glow Pulse Preview",
+                r.get("status") == "ok" and r.get("count") == r.get("attempted") == 3,
+                f"{r.get('count')}/{r.get('attempted')} actor(s) status={r.get('status')}")
 
         # 6. Color Harmony
-        tb.run("material_color_harmony", harmony="triadic")
-        _record("Materials", "Color Harmony", True, verified=False)
+        r = tb.run("material_color_harmony", harmony="triadic")
+        _record("Materials", "Color Harmony",
+                r.get("status") == "ok" and r.get("count") == r.get("attempted") == 3
+                and r.get("harmony") == "triadic",
+                f"{r.get('count')}/{r.get('attempted')} actor(s) harmony={r.get('harmony')}")
 
         # 7. Save Preset / List Presets
         actor_sub.set_selected_level_actors([a1])
@@ -1874,13 +1921,26 @@ def _test_postprocess_and_world() -> None:
         tb.run("postprocess_preset", preset="reset")
         _record("PostProcess", "postprocess_preset (reset)", True, verified=False)
 
-        # world_settings_set — UEFN blocks gravity via set_editor_property on WorldSettings.
-        # Tool returns status=error on a standard template level. Mark as expected-limited.
+        # UEFN 42.00 does not expose default_gravity_z on FortWorldSettings, so
+        # gravity cannot be set from Python here. That is a known Epic-side
+        # limit, and the tool is expected to SAY so rather than half-succeed.
+        #
+        # This used to assert isinstance(result, dict) - which passes for any
+        # return at all, including {}. Now it pins the two outcomes that are
+        # actually correct: the property works and gravity is applied, or it
+        # does not and the tool names it as unavailable. If Epic exposes it in a
+        # later build this flips to the ok branch on its own.
         result = tb.run("world_settings_set", gravity=-980.0)
-        ran = isinstance(result, dict)  # pass if tool ran at all (error is acceptable here)
-        _record("PostProcess", "world_settings_set (gravity)", ran,
-                result.get("message", "ok") if ran else "no result")
-        tb.run("world_settings_set", gravity=-980.0)  # restore default
+        status = result.get("status")
+        honest = (
+            (status == "ok" and result.get("applied", {}).get("gravity") == -980.0)
+            or (status == "error"
+                and result.get("reason") == "properties_not_exposed"
+                and "gravity" in result.get("unavailable", {}))
+        )
+        _record("PostProcess", "world_settings_set (gravity)", honest,
+                f"status={status} applied={result.get('applied')} "
+                f"unavailable={list(result.get('unavailable', {}))}")
 
     except Exception as e:
         _record("PostProcess", "Error", False, str(e))

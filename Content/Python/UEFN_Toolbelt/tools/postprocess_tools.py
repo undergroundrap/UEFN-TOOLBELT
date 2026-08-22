@@ -257,14 +257,23 @@ def world_settings_set(gravity=None, time_dilation=None, **kwargs) -> dict:
     if ws is None:
         return {"status": "error", "message": "Could not find WorldSettings actor."}
 
-    applied = {}
+    applied: dict = {}
+    unavailable: dict = {}
     with undo_transaction("World Settings"):
         if gravity is not None:
             try:
                 ws.set_editor_property("default_gravity_z", float(gravity))
                 applied["gravity"] = float(gravity)
             except Exception as e:
-                log_warning(f"[WORLD] Could not set gravity: {e}")
+                # FortWorldSettings does not expose default_gravity_z on
+                # UEFN 42.00 (UE 6.0) - confirmed live 2026-08-22. Recording
+                # WHICH property was refused, rather than a generic "check the
+                # log", lets the caller and the suite tell an engine limitation
+                # apart from a genuine failure.
+                unavailable["gravity"] = str(e)
+                log_warning(
+                    f"[WORLD] gravity is not settable from Python on this build: {e}"
+                )
 
         if time_dilation is not None:
             # Two dead blocks lived here, both silenced by `except: pass`:
@@ -288,10 +297,31 @@ def world_settings_set(gravity=None, time_dilation=None, **kwargs) -> dict:
                 ws.set_editor_property("time_dilation", float(time_dilation))
                 applied["time_dilation"] = float(time_dilation)
             except Exception as e:
-                log_warning(f"[WORLD] Could not set time_dilation: {e}")
+                unavailable["time_dilation"] = str(e)
+                log_warning(
+                    f"[WORLD] time_dilation is not settable from Python on this "
+                    f"build: {e}"
+                )
 
     if not applied:
-        return {"status": "error", "message": "No settings applied — check UEFN log for property name errors."}
+        names = ", ".join(sorted(unavailable)) or "the requested settings"
+        return {
+            "status": "error",
+            "applied": {},
+            "unavailable": unavailable,
+            "reason": "properties_not_exposed",
+            "message": (
+                f"UEFN does not expose {names} on WorldSettings for this engine "
+                f"build, so nothing was changed. This is an Epic-side limit, not "
+                f"a failure in the call."
+            ),
+        }
+
+    if unavailable:
+        log_info(f"[WORLD] Applied: {applied}")
+        return {"status": "partial", "applied": applied,
+                "unavailable": unavailable,
+                "reason": "properties_not_exposed"}
 
     log_info(f"[WORLD] Applied: {applied}")
-    return {"status": "ok", "applied": applied}
+    return {"status": "ok", "applied": applied, "unavailable": {}}

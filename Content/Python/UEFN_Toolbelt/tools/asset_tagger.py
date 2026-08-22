@@ -77,6 +77,26 @@ def _short_key(full_key: str) -> str:
     return full_key[len(_TAG_PREFIX):] if full_key.startswith(_TAG_PREFIX) else full_key
 
 
+def _tag_result(done: int, attempted: int, tag_name: str,
+                verb: str, **extra) -> dict:
+    """Report what persisted, not what was attempted.
+
+    tag_add and tag_remove both returned {"status": "ok"} no matter what
+    happened, while the worker counted successes and threw them away.
+    """
+    out = {"tag": tag_name, verb: done, "attempted": attempted, **extra}
+    if attempted == 0:
+        out["status"] = "error"
+        out["reason"] = "nothing_selected"
+        return out
+    if done == 0:
+        out["status"] = "error"
+        out["reason"] = "nothing_persisted"
+        return out
+    out["status"] = "ok" if done == attempted else "partial"
+    return out
+
+
 def _set_tag(asset_path: str, key: str, value: str) -> bool:
     """
     Set one metadata tag on an asset.
@@ -91,7 +111,19 @@ def _set_tag(asset_path: str, key: str, value: str) -> bool:
             unreal.log_warning(f"[AssetTagger] Could not load: {asset_path}")
             return False
         unreal.EditorAssetLibrary.set_metadata_tag(asset, unreal.Name(key), value)
-        unreal.EditorAssetLibrary.save_asset(asset_path, only_if_is_dirty=False)
+        # save_asset returns False rather than raising when the package cannot be
+        # written - read-only engine content, or checked out by someone else.
+        # Discarding it meant the tag was set in memory, never persisted, and
+        # reported as a success. tag_search would then find nothing, so the two
+        # tools disagreed and both passed. Observed live on 2026-08-22 tagging
+        # /Engine/BasicShapes/Cube.
+        if not unreal.EditorAssetLibrary.save_asset(asset_path, only_if_is_dirty=False):
+            unreal.log_warning(
+                f"[AssetTagger] {asset_path}: tag set in memory but the asset "
+                f"could not be saved, so it will not persist. Engine and "
+                f"read-only content cannot be tagged."
+            )
+            return False
         return True
     except Exception as e:
         unreal.log_warning(f"[AssetTagger] set_tag failed on {asset_path}: {e}")
@@ -129,7 +161,12 @@ def _remove_tag(asset_path: str, key: str) -> bool:
         if asset is None:
             return False
         unreal.EditorAssetLibrary.remove_metadata_tag(asset, unreal.Name(key))
-        unreal.EditorAssetLibrary.save_asset(asset_path, only_if_is_dirty=False)
+        if not unreal.EditorAssetLibrary.save_asset(asset_path, only_if_is_dirty=False):
+            unreal.log_warning(
+                f"[AssetTagger] {asset_path}: tag removed in memory but the asset "
+                f"could not be saved, so the removal will not persist."
+            )
+            return False
         return True
     except AttributeError:
         # remove_metadata_tag may not exist in all builds — fall back to empty value
@@ -213,11 +250,13 @@ def _list_all_under(folder: str) -> list[str]:
 
 # ─── Tool implementations ─────────────────────────────────────────────────────
 
-def _do_tag_add(tag_name: str, value: str, manual_paths: list[str] = None) -> None:
+def _do_tag_add(tag_name: str, value: str,
+                manual_paths: list[str] = None) -> tuple[int, int]:
+    """(tagged, attempted). Both counts were computed and then discarded."""
     paths = manual_paths if manual_paths is not None else _get_selected_asset_paths()
     if not paths:
         unreal.log_warning("[AssetTagger] Nothing selected and no paths provided.")
-        return
+        return 0, 0
 
     key = _full_key(tag_name)
     val = value or _DEFAULT_VALUE
@@ -232,13 +271,16 @@ def _do_tag_add(tag_name: str, value: str, manual_paths: list[str] = None) -> No
             unreal.log_warning(f"[AssetTagger] ✗  Failed on {path}")
 
     unreal.log(f"[AssetTagger] Tagged {ok}/{total} assets as '{_short_key(key)}'.")
+    return ok, total
 
 
-def _do_tag_remove(tag_name: str, manual_paths: list[str] = None) -> None:
+def _do_tag_remove(tag_name: str,
+                   manual_paths: list[str] = None) -> tuple[int, int]:
+    """(removed, attempted)."""
     paths = manual_paths if manual_paths is not None else _get_selected_asset_paths()
     if not paths:
         unreal.log_warning("[AssetTagger] Nothing selected and no paths provided.")
-        return
+        return 0, 0
 
     key = _full_key(tag_name)
     ok = total = 0
@@ -250,6 +292,7 @@ def _do_tag_remove(tag_name: str, manual_paths: list[str] = None) -> None:
             unreal.log(f"[AssetTagger] ✓  Removed tag '{_short_key(key)}'  from  {path}")
 
     unreal.log(f"[AssetTagger] Removed tag '{_short_key(key)}' from {ok}/{total} assets.")
+    return ok, total
 
 
 def _do_tag_show() -> None:
@@ -401,8 +444,8 @@ def tag_add(
             "Example: tb.run('tag_add', tag_name='hero_prop')"
         )
         return {"status": "error", "message": "tag_name is required."}
-    _do_tag_add(tag_name, value, manual_paths=asset_paths)
-    return {"status": "ok", "tag": tag_name, "value": value}
+    tagged, attempted = _do_tag_add(tag_name, value, manual_paths=asset_paths)
+    return _tag_result(tagged, attempted, tag_name, "tagged", value=value)
 
 
 @register_tool(
@@ -422,8 +465,8 @@ def tag_remove(tag_name: str = "", asset_paths: list[str] = None, **kwargs) -> d
     if not tag_name:
         unreal.log_warning("[AssetTagger] Provide a tag_name to remove.")
         return {"status": "error", "message": "tag_name is required."}
-    _do_tag_remove(tag_name, manual_paths=asset_paths)
-    return {"status": "ok", "tag": tag_name}
+    removed, attempted = _do_tag_remove(tag_name, manual_paths=asset_paths)
+    return _tag_result(removed, attempted, tag_name, "removed")
 
 
 @register_tool(
@@ -461,7 +504,8 @@ def tag_search(
     Args:
         tag_name: Tag key to search for.
         value:    Expected tag value. Default "1" matches boolean/flag tags.
-        folder:   Content path to scan (recursive). Default "/Game".
+        folder:   Content path to scan (recursive). Blank resolves to your
+                  project mount - never /Game, which in UEFN is Epic's install.
 
     Returns:
         dict: {"status", "count", "matches": [asset_path]}

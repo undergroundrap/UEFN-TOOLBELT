@@ -612,8 +612,25 @@ def run_team_color_split(**kwargs) -> dict:
                 if _apply_preset_to_actor(actor, blue_preset, "TeamBlue"):
                     b_count += 1
 
+    # The only material tool that did not go through _count_result. Counting is
+    # already success-gated, but reporting ok for 0 applied is the same shape
+    # the other six had.
+    total = r_count + b_count
+    if total == 0:
+        log_error(
+            f"Team colour split: 0 of {len(actors)} actor(s) updated - nothing "
+            f"was applied. Check the errors above; the master material may be "
+            f"missing."
+        )
+        return {"status": "error", "red": 0, "blue": 0,
+                "attempted": len(actors), "reason": "nothing_applied"}
+    if total < len(actors):
+        log_warning(f"Team split: {total} of {len(actors)} actor(s) updated.")
+        return {"status": "partial", "red": r_count, "blue": b_count,
+                "attempted": len(actors)}
     log_info(f"Team split done: {r_count} Red, {b_count} Blue.")
-    return {"status": "ok", "red": r_count, "blue": b_count}
+    return {"status": "ok", "red": r_count, "blue": b_count,
+            "attempted": len(actors)}
 
 
 @register_tool(
