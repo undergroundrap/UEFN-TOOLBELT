@@ -43,9 +43,11 @@ never auto-starts. See README "Known Issue" and UEFN_QUIRKS.md #36. Detected by
 This document outlines the current testing status of the toolbelt and categorizes which tools are verified by the automated smoke test, and which require manual verification.
 
 ## 🟡 Automated Verification Status: **186 / 362 Tools (52% Coverage)**
-Integration suite has **115 test sections written** (103 verified live + 12 Batch 9 written, pending live UEFN run).
+Integration suite has **115 test sections written**, all run live. The suite
+records 180 individual checks; **180/180 passed on UEFN 42.00** (build ca995f9,
+2026-08-21), which retires the Batch 9 "pending live run" caveat below.
 
-> **Coverage gap:** 75 tools were added after v1.6.0 (zones, stamps, actor org, proximity placement, advanced alignment, signs, audio, post-process, level health, config, lighting extended, world state). Batch 9 integration tests are written and syntax-checked — pending one live UEFN run to confirm green.
+> **Coverage gap:** 75 tools were added after v1.6.0 (zones, stamps, actor org, proximity placement, advanced alignment, signs, audio, post-process, level health, config, lighting extended, world state). Batch 9 integration tests ran green live on 2026-08-21 (180/180).
 >
 > **New modules (2026-03-25, pending integration tests):** `niagara_tools` (4), `pcg_tools` (4), `geometry_tools` (5), `movie_render_tools` (3), `viewport_tools` (3), `activity_log_tools` (3) — 22 tools registered, live-tested manually, not yet in the integration suite.
 
@@ -301,7 +303,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 - Property maps, method lists, and component hierarchies are accessible
 - JSON output is valid and machine-readable for AI analysis
 
-**What the automated integration test (103 live sections + 12 pending) proves:**
+**What the automated integration test (115 live sections, 180 checks, 180/180) proves:**
 - **Viewport Control:** The system can successfully spawn, select, and destroy actors programmatically.
 - **Context-Aware Tools:** Selection-dependent tools (Bulk Ops, Materials) are confirmed to function on live actors.
 - **File System Integrity:** Screenshots, Snapshots, and Crawler JSONs are successfully written/read.
@@ -424,8 +426,11 @@ in the wrong directory and then counted the wrong subdirectory.
   migrated scan-path tools have not been individually exercised in a live
   editor — only the shared `resolve_scan_path()` helper and a representative
   sample have.
-- **Integration test has not been run since these changes.** The smoke test is
-  registration-level — it proves tools load, not that they work.
+- ~~Integration test has not been run since these changes.~~ Run live on
+  2026-08-21: **180/180**. It found two real breaks the smoke test could not
+  see — a UE 6.0 return-shape change in `material_save_preset`, and a modal
+  dialog in `material_apply_preset` — plus one of its own assertions that had
+  been passing by asserting the broken state.
 - **Epic MCP end-to-end.** Registration into the Toolset Registry is confirmed;
   an external MCP client calling `toolbelt_list_tools` through it is not, and is
   blocked by the 42.00 startup-order bug above.

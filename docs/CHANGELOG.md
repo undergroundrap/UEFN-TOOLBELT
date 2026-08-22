@@ -5,7 +5,41 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
-## [Unreleased]
+## [2.3.9] — 2026-08-21
+
+- **Re-applying a material preset popped a modal dialog and failed.**
+  `create_material_instance` deleted any existing asset before creating. When
+  the instance was still assigned to an actor — the normal case for re-applying
+  a preset to the same prop — it is referenced, so the delete could not
+  complete, revision control restored the file, and creating over the occupied
+  path raised UE's "Overwrite Existing Object" dialog. Declining it returned
+  None and the preset silently did not apply. A modal inside an automation tool
+  also blocks any batch or headless run outright.
+
+  Existing instances are now updated in place: parameter overrides cleared,
+  parent re-pointed, new values written. The actor's material reference stays
+  valid instead of being broken and remade, and a delete + revision-control
+  revert + save per material disappears — the integration suite went from 90s
+  to 68s. If no clearing route works the tool says so rather than letting the
+  previous preset's values persist unannounced.
+
+- **`material_save_preset` raised on every call on UEFN 42.00.** UE 5.x returned
+  `(ok, value)` from the material parameter getters; UE 6.0 returns the value
+  directly, so unpacking raised `TypeError: cannot unpack non-iterable
+  LinearColor object`. Both shapes are handled now — users on older UEFN builds
+  run the same code. The integration suite had reported this section as passing,
+  because its assertion only checked that `list_presets` still worked.
+
+- **A test that had been passing by asserting the broken state.** The suite's
+  "Apply Preset" check compared the applied material's path against the *parent*
+  material path — which can only match when the preset failed to apply and the
+  cube still wears its default engine material. It went green for as long as the
+  Materials tools were broken and started failing the moment they were fixed. It
+  now verifies what "applied" means: a MaterialInstanceConstant, named for the
+  preset, parented to the master material, and reports which of the three
+  conditions missed.
+
+  **Integration suite: 180/180 live on UEFN 42.00.**
 
 - **The integration suite was writing into Epic's Fortnite install.** The
   codebase was swept for hardcoded `/Game/` paths in 2.3.8; the suite that
