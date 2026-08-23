@@ -51,7 +51,7 @@ tb.run("audio_place", asset_path="/YourProject/Audio/A_WindLoop", volume=0.6, ra
 | `material_glow_pulse_preview` | `intensity=5.0` | Set emissive peak for preview |
 | `material_color_harmony` | `mode="complementary"` | Complementary/triadic/analogous palettes |
 | `material_save_preset` | `name="MyPreset"` | Save current params as named preset |
-| `material_bulk_swap` | `old_path`, `new_path`, `scope="selection"` | Replace material slot across actors |
+| `material_bulk_swap` | `old_path`, `new_path`, `scope="selection"` | Replace material slot across actors. Returns `status="error"`, `reason="no_slots_matched"` when nothing matched — a near-miss `old_path` is the usual cause and looks identical in the log |
 
 **Built-in presets:** `chrome`, `gold`, `neon`, `hologram`, `lava`, `ice`, `concrete`,
 `wood_oak`, `metal_rust`, `glass`, `team_red`, `team_blue`, `team_green`, `team_yellow`,
@@ -484,7 +484,7 @@ All tags use the `TB:` namespace prefix to avoid collisions.
 |---|---|---|
 | `tag_add` | `key`, `value` | Tag selected CB assets |
 | `tag_remove` | `key` | Remove tag key from selected assets |
-| `tag_show` | — | Print tags on selected assets |
+| `tag_show` | `asset_paths=[...]` (optional) | Show tags on the given assets, or on the Content Browser selection if omitted. Returns `{"assets": {path: {key: value}}}` — no log scraping. `status="error"` when there was nothing to inspect |
 | `tag_search` | `key`, `value=""`, `folder=""` | Find assets by tag |
 | `tag_list_all` | `folder=""` | All tag keys with asset counts |
 | `tag_export` | `folder=""` | Export tag index to JSON |

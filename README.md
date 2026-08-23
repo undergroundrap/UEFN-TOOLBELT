@@ -261,7 +261,15 @@ The smoke test verifies that all tools *register* correctly. The integration tes
 4. **Verifies** the result — property changed, actor spawned, file written, count correct
 5. **Cleans up** every actor it touched via a single undo transaction
 
-**180 checks across 362 tools — 180/180 passing live on UEFN 42.00** — covering materials, bulk ops, patterns, scatter, splines, snapshots, asset management, Verse tools, screenshots, LODs, arena, measurement, localization, zones, stamps, actor org, proximity placement, advanced alignment, signs, post-process, audio, level health, config, lighting, and world state.
+**183 checks across 362 tools — 183/183 passing live on UEFN 42.00** — covering materials, bulk ops, patterns, scatter, splines, snapshots, asset management, Verse tools, screenshots, LODs, arena, measurement, localization, zones, stamps, actor org, proximity placement, advanced alignment, signs, post-process, audio, level health, config, lighting, and world state.
+
+Of those 183, **156 verify a real outcome** — a property changed, a file written,
+an actor count, a tag read back — and **27 are execution-only**: they prove the
+tool ran without raising, nothing more. Both numbers are reported by the suite
+on every run, because a headline "183/183" that silently includes checks which
+cannot fail overstates what the suite knows. That is not hypothetical: a fully
+green run once hid a wrong-rotation-axis bug ([Quirk #41](docs/UEFN_QUIRKS.md))
+for exactly that reason.
 
 This is the closest thing to a full CI suite possible inside the UEFN Python sandbox. If this passes, you have high confidence that the core tool logic is sound — not just that it imported.
 

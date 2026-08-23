@@ -5,6 +5,119 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [Unreleased]
+
+One bug class, found by reading a suite log rather than the code: **success was
+the default, and failure had to opt in.** The engine reports these failures by
+return value and never raises —
+
+    save_asset / save_loaded_asset       -> False
+    rename_asset                         -> False
+    duplicate_asset                      -> None
+    consolidate_assets                   -> False
+    EditorActorSubsystem.destroy_actor    -> False
+
+— so a call used as a bare statement did the work in memory, failed to persist
+it, and reported a checkmark. An audit found **50 discarded returns** of this
+family across the codebase. The change is gone after a restart; nothing warns.
+
+### Behaviour changes
+
+Three, all deliberate. Anyone scripting these should read this section.
+
+- **`dry_run` now defaults to `True`** on `rename_enforce_conventions`,
+  `organize_assets` and `actor_rename_folder`. These rewrite asset names and
+  paths in bulk; the safe mode is now the default one. Pass `dry_run=False` to
+  apply. Scripts that relied on the old default will preview instead of acting.
+- **`material_bulk_swap` returns `status="error"`** with
+  `reason="no_slots_matched"` when a swap matched nothing. It previously logged
+  a checkmark and returned `"ok"` for a swap that changed zero slots, so a
+  caller branching on status believed the material had been replaced. The usual
+  cause is a near-miss `old_material_path`, which looks identical in the log.
+- **`tag_show` gained an optional `asset_paths`** and now returns
+  `{"assets": {path: {key: value}}}` instead of only `{"status": "ok"}`. The
+  tags were previously printed and thrown away, so an MCP caller had to scrape
+  the Output Log for data the tool already had. It reports `error` rather than
+  `ok` when there was nothing to inspect.
+
+### Fixed
+
+- **Asset tags were written to memory and never saved.** `_set_tag` discarded
+  `save_asset`'s `False` — returned for read-only or checked-out content — so
+  `tag_add` logged a checkmark two lines under the editor's own "failed to
+  save" message, and `tag_search` then found nothing. The two tools disagreed
+  and the suite recorded both as passes. `tag_remove` had the identical discard.
+- **The tag read path called a one-argument function with two.**
+  `get_metadata_tag_values` takes only the object; `get_metadata_tag` is the one
+  that takes `(object, tag)`. It also read `AssetData.tag_and_values`, which is
+  the asset-registry tag map and never contains anything written by
+  `set_metadata_tag`. Reading a tag back therefore always returned nothing.
+- **A failed save no longer counts as a change.** `core.save_asset` warns on a
+  `False` return rather than only on an exception, `core.save_loaded_asset` is
+  its counterpart for already-loaded assets, and 27 call sites across 13 tool
+  modules now route through them. Counts are gated on the result:
+  `texture_set_compression` / `set_group` / `set_srgb` / `apply_preset` counted
+  textures whose enum lookup had failed and which were never touched at all;
+  six `nanite_*` / `uv_*` / `lod_set_collision_folder` sites counted meshes that
+  never saved; `rename_strip_prefix` and `scaffold_organize_loose` discarded
+  `rename_asset`; and `prefab_export_to_disk` discarded *both*
+  `duplicate_asset` and `save_asset` before appending to `results["ok"]` — the
+  tool people use to move assets between projects could report every asset
+  migrated with none of them on disk.
+- **Actors were reported deleted when they were not.** `destroy_actor` returns
+  `False` for a locked actor or a read-only sublevel. `sign_clear`,
+  `pattern_clear`, `niagara_clear_systems` and the MCP `delete_actors` handler
+  all counted the attempt. `actor_replace_class` was worse: it ignored the
+  failed destroy and spawned the replacement anyway, leaving **both** actors in
+  the level. It now skips the replacement and counts a failure.
+- **37 returns across 16 tools carried no `status` key**, while CLAUDE.md and
+  the README both promised every tool returns one. The whole Bulk Ops category
+  returned a bare `{"count": N}`, so `result.get("status") == "ok"` read every
+  success as a failure and `result["status"]` raised `KeyError`.
+- **The documented undo promise was false for two tools.**
+  `niagara_spawn_system` spawned an actor and `niagara_clear_systems` deleted
+  every Niagara actor in a folder, both outside any transaction, while
+  `mcp_reference.md` told users Ctrl+Z would cover it.
+- **Quirk #41 — `unreal.Rotator` positional args are `(roll, pitch, yaw)`**,
+  following the C++ `FRotator` field order, so `unreal.Rotator(0, yaw, 0)` set
+  *pitch* and nothing raised. 31 sites fixed. `unreal.Color` has the same trap
+  (`FColor` is declared B, G, R, A). `unreal.Vector` and `unreal.LinearColor`
+  are declared as expected and are safe.
+- **`world_settings_set` now names what it could not set.** UEFN 42.00 does not
+  expose `default_gravity_z` on `FortWorldSettings`; the tool returns an
+  `unavailable` map with `reason="properties_not_exposed"` instead of a generic
+  "check the log".
+
+### Testing
+
+- **The headline number was overstating what the suite knew.** 39 checks were
+  recorded as passing as long as the tool did not raise. That is legitimate
+  smoke coverage, but counted inside a single "180/180" it is what let Quirk #41
+  sit inside a fully green run. The suite now reports both figures on every run,
+  and **12 of those checks became real assertions** — the three cleanup checks
+  re-scan the level instead of trusting a count, `tag_show` is passed the asset
+  explicitly (it had been reading the Content Browser selection while the test
+  selected a *level actor*, so it was asserting nothing at all), and the bridge
+  checks read `mcp_status.running` rather than assuming the listener bound.
+- Six static guards added, each carrying a non-vacuous self-check that proves
+  the detector rejects the shape that was actually wrong:
+  `test_discarded_returns.py` (discriminates `EditorActorSubsystem.destroy_actor(actor)`
+  from the void `Actor.destroy_actor()` by argument count),
+  `test_status_contract.py`, `test_undo_coverage.py`,
+  `test_rotator_argument_order.py`, `test_build_log_reading.py`,
+  `test_verse_source_dir.py`.
+- Suite is **183/183 live on UEFN 42.00** — 156 verified, 27 execution-only.
+
+### Docs
+
+- 80 `/Game`-prefixed paths corrected across 19 files. In UEFN the Content
+  Browser mount point is the project name, not `/Game` (Quirk #23).
+- The README no longer claims the `Toolbelt ▾` top-bar menu works. Epic
+  sandboxes `ToolMenus` for third-party Python — registration succeeds and the
+  menu silently never renders, on 40.20 through 42.00. Use `tb.launch_qt()`.
+
+---
+
 ## [2.3.9] — 2026-08-21
 
 - **Re-applying a material preset popped a modal dialog and failed.**
