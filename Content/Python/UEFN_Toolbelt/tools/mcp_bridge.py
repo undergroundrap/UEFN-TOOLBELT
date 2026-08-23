@@ -452,14 +452,34 @@ def _c_spawn_actor(
 def _c_delete_actors(actor_paths: list[str]) -> dict:
     sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     all_actors = sub.get_all_level_actors()
-    deleted = []
+    deleted: list[str] = []
+    failed: list[str] = []
+    not_found: list[str] = []
     for path in actor_paths:
+        match = None
         for actor in all_actors:
             if actor.get_path_name() == path or actor.get_actor_label() == path:
-                sub.destroy_actor(actor)
-                deleted.append(path)
+                match = actor
                 break
-    return {"deleted": deleted, "count": len(deleted)}
+        if match is None:
+            not_found.append(path)
+            continue
+        # destroy_actor reports failure by returning False - a locked actor or a
+        # read-only sublevel. Appending regardless meant the caller was handed a
+        # list of actors it believed were gone while they were still in the
+        # level, which for an agent driving the bridge is worse than an error.
+        if sub.destroy_actor(match):
+            deleted.append(path)
+        else:
+            failed.append(path)
+    if failed or not_found:
+        _log(
+            f"delete_actors: {len(deleted)} deleted, {len(failed)} refused, "
+            f"{len(not_found)} not found",
+            "warning",
+        )
+    return {"deleted": deleted, "count": len(deleted),
+            "failed": failed, "not_found": not_found}
 
 
 @_cmd("set_actor_transform")

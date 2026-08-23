@@ -776,10 +776,22 @@ def pattern_clear(preview_only: bool = False, **kwargs) -> dict:
         unreal.log(f"[Patterns] No {label} actors found to clear.")
         return {"status": "ok", "deleted": 0}
 
+    deleted = 0
     with undo_transaction("Clear Pattern Actors"):
         for actor in to_delete:
-            actor_subsystem.destroy_actor(actor)
+            if actor_subsystem.destroy_actor(actor):
+                deleted += 1
+            else:
+                unreal.log_warning(
+                    f"[Patterns] '{actor.get_actor_label()}' could not be deleted."
+                )
 
     label = "preview" if preview_only else "all pattern"
-    unreal.log(f"[Patterns] ✓ Cleared {len(to_delete)} {label} actors.")
-    return {"status": "ok", "deleted": len(to_delete)}
+    if deleted < len(to_delete):
+        unreal.log_warning(
+            f"[Patterns] Cleared {deleted} of {len(to_delete)} {label} actors."
+        )
+        return {"status": "partial" if deleted else "error",
+                "deleted": deleted, "attempted": len(to_delete)}
+    unreal.log(f"[Patterns] ✓ Cleared {deleted} {label} actors.")
+    return {"status": "ok", "deleted": deleted, "attempted": len(to_delete)}

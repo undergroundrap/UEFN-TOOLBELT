@@ -256,6 +256,7 @@ def run_niagara_clear_systems(
         actor_sub = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
         all_actors = actor_sub.get_all_level_actors()
         targets = []
+        deleted = 0
 
         for actor in all_actors:
             if str(actor.get_folder_path()) == folder:
@@ -263,14 +264,23 @@ def run_niagara_clear_systems(
                 if comps:
                     targets.append(actor.get_actor_label())
                     if not dry_run:
-                        actor_sub.destroy_actor(actor)
+                        if actor_sub.destroy_actor(actor):
+                            deleted += 1
+                        else:
+                            log_warning(
+                                f"niagara_clear_systems: '{actor.get_actor_label()}' "
+                                f"could not be deleted."
+                            )
 
-        log_info(f"niagara_clear_systems: {'would delete' if dry_run else 'deleted'} {len(targets)} actor(s) from '{folder}'.")
+        count = len(targets) if dry_run else deleted
+        log_info(f"niagara_clear_systems: {'would delete' if dry_run else 'deleted'} {count} actor(s) from '{folder}'.")
         return {
-            "status": "ok",
+            "status": "ok" if dry_run or deleted == len(targets) else (
+                "partial" if deleted else "error"),
             "dry_run": dry_run,
             "folder": folder,
-            "count": len(targets),
+            "count": count,
+            "attempted": len(targets),
             "actors": targets,
         }
     except Exception as e:

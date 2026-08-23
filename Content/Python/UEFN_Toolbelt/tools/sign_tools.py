@@ -432,12 +432,26 @@ def run_sign_clear(
         log_info(f"[sign_clear] DRY RUN — would delete {len(targets)} signs from '{folder}'.")
         return {"status": "ok", "deleted": 0, "would_delete": len(targets), "dry_run": True}
 
+    deleted = 0
     with unreal.ScopedEditorTransaction("Billboard Clear") as _t:
         for actor in targets:
-            actor_sub.destroy_actor(actor)
+            # destroy_actor reports failure by returning False. Reporting
+            # len(targets) meant a sign that survived was still counted deleted.
+            if actor_sub.destroy_actor(actor):
+                deleted += 1
+            else:
+                log_warning(
+                    f"[sign_clear] '{actor.get_actor_label()}' could not be "
+                    f"deleted - it may be locked or in a read-only sublevel."
+                )
 
-    log_info(f"[sign_clear] Deleted {len(targets)} signs from '{folder}'.")
-    return {"status": "ok", "deleted": len(targets), "dry_run": False}
+    if deleted == 0:
+        log_error(f"[sign_clear] Deleted 0 of {len(targets)} signs in '{folder}'.")
+        return {"status": "error", "deleted": 0, "attempted": len(targets),
+                "dry_run": False, "reason": "nothing_deleted"}
+    log_info(f"[sign_clear] Deleted {deleted} of {len(targets)} signs from '{folder}'.")
+    return {"status": "ok" if deleted == len(targets) else "partial",
+            "deleted": deleted, "attempted": len(targets), "dry_run": False}
 
 
 @register_tool(

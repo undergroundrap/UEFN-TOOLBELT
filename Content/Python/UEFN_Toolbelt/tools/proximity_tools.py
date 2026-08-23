@@ -341,7 +341,16 @@ def actor_replace_class(
             label = actor.get_actor_label()
             folder = str(actor.get_folder_path())
 
-            _actor_sub().destroy_actor(actor)
+            # If the old actor survives and the new one spawns, the level ends
+            # up with both - the same doubled-geometry outcome convert_to_hism
+            # had. Do not replace what could not be removed.
+            if not _actor_sub().destroy_actor(actor):
+                log_warning(
+                    f"[REPLACE] '{label}' could not be deleted, so it was left "
+                    f"alone rather than duplicated. It may be locked."
+                )
+                failed += 1
+                continue
 
             new_actor = unreal.EditorLevelLibrary.spawn_actor_from_object(new_mesh, loc, rot)
             if new_actor:

@@ -2,9 +2,11 @@
 
 The engine never raises for these. It hands back a value and moves on:
 
-    save_asset / save_loaded_asset  -> False
-    rename_asset                    -> False
-    duplicate_asset                 -> None
+    save_asset / save_loaded_asset       -> False
+    rename_asset                         -> False
+    duplicate_asset                      -> None
+    consolidate_assets                   -> False
+    EditorActorSubsystem.destroy_actor   -> False
 
 Called as a bare statement, the failure vanishes. The work is done in memory,
 the tool counts it, the user is told it succeeded, and the change is gone after
@@ -42,6 +44,15 @@ MUST_CHECK = {
     "consolidate_assets",
 }
 
+# destroy_actor exists in two forms and only one of them returns anything:
+#
+#   EditorActorSubsystem.destroy_actor(actor)  -> bool     (takes the actor)
+#   Actor.destroy_actor()                      -> None     (takes nothing)
+#
+# The argument count separates them cleanly. Flagging the void form would be a
+# false positive - foliage_convert_selected_to_actor uses exactly that form.
+ARG_FORM_ONLY = {"destroy_actor"}
+
 # Test scaffolding tears down its own fixtures; a failed cleanup is not user work.
 EXEMPT = {"integration_test.py"}
 
@@ -57,7 +68,9 @@ def _discarded(path: Path) -> list[tuple[int, str]]:
         if not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)):
             continue
         func = node.value.func
-        if isinstance(func, ast.Attribute) and func.attr in MUST_CHECK:
+        if not isinstance(func, ast.Attribute):
+            continue
+        if func.attr in MUST_CHECK or func.attr in ARG_FORM_ONLY and node.value.args:
             out.append((node.lineno, func.attr))
     return out
 
@@ -105,6 +118,11 @@ def test_the_detector_would_catch_a_regression():
     assert count("if not eal.save_asset(p):\n    pass") == 0
     assert count("ok = eal.rename_asset(a, b)") == 0
     assert count("return eal.save_loaded_asset(x)") == 0
+
+    # destroy_actor: the subsystem form returns bool, the Actor method is void.
+    assert count("actor_sub.destroy_actor(actor)") == 1, "missed the bool form"
+    assert count("actor.destroy_actor()") == 0, "flagged the void Actor method"
+    assert count("if actor_sub.destroy_actor(actor):\n    pass") == 0
 
 
 def test_core_supplies_the_checked_helpers():
