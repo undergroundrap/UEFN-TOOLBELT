@@ -132,6 +132,27 @@ def _set_editor_only(actor, value: bool) -> bool:
         return False
 
 
+def _mark_status(changed: int, failed: int, what: str) -> str:
+    """ok / partial / error from what actually happened.
+
+    _set_editor_only swallows the exception and returns False, so a run where
+    every single set failed is otherwise indistinguishable from a clean one -
+    the tool returned "ok" and the caller read the count as done work. If UEFN
+    ever sandboxes is_editor_only_actor the way it sandboxes bLockLocation,
+    that is exactly the shape it would take.
+    """
+    if failed and not changed:
+        log_error(
+            f"{what}: 0 changed, {failed} failed - nothing was marked. "
+            f"is_editor_only_actor may not be settable on these actors."
+        )
+        return "error"
+    if failed:
+        log_warning(f"{what}: {changed} changed, {failed} failed.")
+        return "partial"
+    return "ok"
+
+
 def _save_level() -> None:
     try:
         unreal.EditorLevelLibrary.save_current_level()
@@ -366,7 +387,7 @@ def cooker_mark_batch(
     _save_level()
     log_info(f"cooker_mark_batch: marked {changed}/{len(chosen)} at {percent:g}%  failed={len(failed)}")
     return {
-        "status":        "ok",
+        "status":        _mark_status(changed, len(failed), "cooker_mark_batch"),
         "dry_run":       False,
         "percent":       percent,
         "pool":          total,
@@ -410,9 +431,11 @@ def cooker_unmark_all(**kwargs) -> dict:
                     failed.append(row["label"])
 
     _save_level()
+    # changed=0 with no failures means nothing was marked in the first place,
+    # which is a legitimate no-op rather than a failure.
     log_info(f"cooker_unmark_all: cleared {changed}  failed={len(failed)}")
     return {
-        "status":        "ok",
+        "status":        _mark_status(changed, len(failed), "cooker_unmark_all"),
         "changed":       changed,
         "failed":        len(failed),
         "failed_labels": failed[:20],
@@ -468,7 +491,7 @@ def cooker_mark_selection(mark: bool = True, **kwargs) -> dict:
     _save_level()
     log_info(f"cooker_mark_selection: {action} {changed}/{len(actors)}  failed={len(failed)}")
     return {
-        "status":        "ok",
+        "status":        _mark_status(changed, len(failed), "cooker_mark_selection"),
         "action":        action,
         "changed":       changed,
         "failed":        len(failed),

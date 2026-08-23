@@ -115,5 +115,20 @@ def run_text_apply_translation(manifest_path: str = "", **kwargs) -> dict:
             else:
                 log_warning(f"Could not find or update actor at {path}")
 
+    # A manifest with entries where nothing resolved is a failed apply, not an
+    # empty one - every miss above already logged a warning, but the return said
+    # "ok" and the caller had no way to tell the difference.
+    attempted = len(data)
+    if attempted and not applied_count:
+        log_error(
+            f"Applied 0 of {attempted} translations - no actor in the manifest "
+            f"could be resolved. The level may have changed since it was exported."
+        )
+        return {"status": "error", "applied": 0, "attempted": attempted,
+                "reason": "nothing_applied"}
+    if applied_count < attempted:
+        log_warning(f"Applied {applied_count} of {attempted} translations.")
+        return {"status": "partial", "applied": applied_count, "attempted": attempted}
+
     log_info(f"✓ Applied {applied_count} translations from manifest.")
-    return {"status": "ok", "applied": applied_count}
+    return {"status": "ok", "applied": applied_count, "attempted": attempted}

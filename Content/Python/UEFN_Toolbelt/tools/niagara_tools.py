@@ -230,9 +230,27 @@ def run_niagara_bulk_set_parameter(
                 log_warning(f"Failed to set param on {actor.get_actor_label()}: {e}")
                 skipped += 1
 
+    # skipped counts both actors with no Niagara component and components whose
+    # set_variable_* raised. Either way, 0 updated means the parameter was not
+    # set anywhere - which is not "ok" just because nothing raised out here.
+    if skipped and not updated:
+        log_error(
+            f"niagara_bulk_set_parameter: 0 component(s) updated, {skipped} "
+            f"skipped - '{parameter_name}' was not set on anything. Check the "
+            f"parameter name against the system's exposed User. parameters."
+        )
+        status = "error"
+    elif skipped:
+        log_warning(
+            f"niagara_bulk_set_parameter: {updated} updated, {skipped} skipped."
+        )
+        status = "partial"
+    else:
+        status = "ok"
+
     log_info(f"niagara_bulk_set_parameter: {updated} component(s) updated, {skipped} skipped.")
     return {
-        "status": "ok",
+        "status": status,
         "parameter": parameter_name,
         "updated": updated,
         "skipped": skipped,

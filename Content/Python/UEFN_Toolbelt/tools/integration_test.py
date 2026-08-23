@@ -1215,6 +1215,7 @@ def toolbelt_integration_test(**kwargs) -> dict:
             _test_scatter_advanced_safe()
             _test_assets_advanced_safe()
             _test_bridge_safe()
+            _test_cooker_safe()
             _test_measurement()
             _test_localization()
             _test_environmental()
@@ -1425,6 +1426,51 @@ def _test_bridge_safe() -> None:
                 f"running={after_stop.get('running')}")
     except Exception as e:
         _record("Bridge", "Error", False, str(e))
+
+def _test_cooker_safe() -> None:
+    _header("8.7 Cooker Optimizer (mark/unmark selection)")
+    import UEFN_Toolbelt as tb
+    try:
+        a1 = _spawn_fixture(location=unreal.Vector(0, 4000, 0))
+        a2 = _spawn_fixture(location=unreal.Vector(200, 4000, 0))
+        _select_fixture([a1, a2])
+
+        # The assertion is status-matches-count, not a fixed outcome.
+        # is_editor_only_actor may or may not be settable on this UEFN build -
+        # _set_editor_only swallows the exception either way. What must never
+        # happen is "ok" alongside 0 changed, which is what it used to return.
+        marked = tb.run("cooker_mark_selection", mark=True)
+        st, changed, failed = (marked.get("status"),
+                               marked.get("changed", 0),
+                               marked.get("failed", 0))
+        consistent = (
+            (st == "ok" and changed and not failed)
+            or (st == "partial" and changed and failed)
+            or (st == "error" and not changed and failed)
+        )
+        _record("Cooker", "mark_selection status matches the count", consistent,
+                f"status={st} changed={changed} failed={failed} "
+                f"(ok with 0 changed is the bug)")
+
+        # Restore, so the fixtures do not leave the level in a marked state.
+        cleared = tb.run("cooker_mark_selection", mark=False)
+        c_st, c_changed, c_failed = (cleared.get("status"),
+                                     cleared.get("changed", 0),
+                                     cleared.get("failed", 0))
+        c_consistent = (
+            (c_st == "ok" and c_changed and not c_failed)
+            or (c_st == "partial" and c_changed and c_failed)
+            or (c_st == "error" and not c_changed and c_failed)
+        )
+        _record("Cooker", "mark_selection(False) status matches the count", c_consistent,
+                f"status={c_st} changed={c_changed} failed={c_failed}")
+
+        for a in (a1, a2):
+            a.destroy_actor()
+
+    except Exception as e:
+        _record("Cooker", "Error", False, str(e))
+
 
 def _test_measurement() -> None:
     _header("9. Measurement Tools")
