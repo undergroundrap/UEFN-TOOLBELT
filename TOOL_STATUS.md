@@ -44,16 +44,16 @@ This document outlines the current testing status of the toolbelt and categorize
 
 ## 🟡 Automated Verification Status: **186 / 362 Tools (52% Coverage)**
 Integration suite has **115 test sections written**, all run live. The suite
-records 183 individual checks; **183/183 passed on UEFN 42.00** (build 07486a0,
-2026-08-22), which retires the Batch 9 "pending live run" caveat below.
+records 185 individual checks; **185/185 passed on UEFN 42.00** (build 2fd81b1,
+2026-08-23), which retires the Batch 9 "pending live run" caveat below.
 
-**Read the split, not the total.** Of the 183, **156 verify a real outcome** and
+**Read the split, not the total.** Of the 185, **158 verify a real outcome** and
 **27 are execution-only** — they assert the tool did not raise and nothing more.
 The suite prints both figures on every run. Treating the total as coverage is
 what let Quirk #41 (wrong rotator axis) sit inside a green run, and what let
 `material_bulk_swap` report success for a swap that changed nothing.
 
-> **Coverage gap:** 75 tools were added after v1.6.0 (zones, stamps, actor org, proximity placement, advanced alignment, signs, audio, post-process, level health, config, lighting extended, world state). Batch 9 integration tests ran green live on 2026-08-21 (180/180), and again on 2026-08-22 (183/183).
+> **Coverage gap:** 75 tools were added after v1.6.0 (zones, stamps, actor org, proximity placement, advanced alignment, signs, audio, post-process, level health, config, lighting extended, world state). Batch 9 integration tests ran green live on 2026-08-21 (180/180), 2026-08-22 (183/183), and 2026-08-23 (185/185).
 >
 > **New modules (2026-03-25, pending integration tests):** `niagara_tools` (4), `pcg_tools` (4), `geometry_tools` (5), `movie_render_tools` (3), `viewport_tools` (3), `activity_log_tools` (3) — 22 tools registered, live-tested manually, not yet in the integration suite.
 
@@ -252,7 +252,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 4. Verifies the result (properties, file outputs)
 5. Cleans up with a single `undo_transaction`
 
-**Current Integration Coverage (362 tools — 115 sections written, all run live; 156 of 183 checks verify a real outcome):**
+**Current Integration Coverage (362 tools — 115 sections written, all run live; 158 of 185 checks verify a real outcome):**
 
 > ✅ = Confirmed passing in live UEFN
 > 🔵 = Written + syntax-checked, pending first live run (Batch 9)
@@ -309,7 +309,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 - Property maps, method lists, and component hierarchies are accessible
 - JSON output is valid and machine-readable for AI analysis
 
-**What the automated integration test (115 live sections, 183 checks, 183/183 — 156 verified, 27 execution-only) proves:**
+**What the automated integration test (115 live sections, 185 checks, 185/185 — 158 verified, 27 execution-only) proves:**
 - **Viewport Control:** The system can successfully spawn, select, and destroy actors programmatically.
 - **Context-Aware Tools:** Selection-dependent tools (Bulk Ops, Materials) are confirmed to function on live actors.
 - **File System Integrity:** Screenshots, Snapshots, and Crawler JSONs are successfully written/read.
