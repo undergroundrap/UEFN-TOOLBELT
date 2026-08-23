@@ -661,6 +661,7 @@
         "delete_asset": {
           "used_by": [
             "core/__init__.py",
+            "tools/integration_test.py",
             "tools/mcp_bridge.py",
             "tools/reference_auditor.py"
           ],
@@ -676,6 +677,7 @@
           "used_by": [
             "core/__init__.py",
             "tools/arena_generator.py",
+            "tools/integration_test.py",
             "tools/material_master.py",
             "tools/mcp_bridge.py",
             "tools/reference_auditor.py",

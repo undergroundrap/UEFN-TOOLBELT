@@ -1216,6 +1216,7 @@ def toolbelt_integration_test(**kwargs) -> dict:
             _test_assets_advanced_safe()
             _test_bridge_safe()
             _test_cooker_safe()
+            _test_curve_create_safe()
             _test_measurement()
             _test_localization()
             _test_environmental()
@@ -1478,6 +1479,47 @@ def _test_cooker_safe() -> None:
 
     except Exception as e:
         _record("Cooker", "Error", False, str(e))
+
+
+def _test_curve_create_safe() -> None:
+    """curve_create: does the returned path actually exist on disk?
+
+    This tool creates an asset, saves it, and returns the path - but it used to
+    discard the save's return value and report "ok" regardless. save_loaded_asset
+    returns False rather than raising when a package cannot be written, so the
+    caller got a path to an asset that lived only in memory and was gone after a
+    restart. The whole curve_tools module had no coverage, which is why it sat.
+    """
+    _header("8.8 Curve Tools (create → verify on disk → delete)")
+    import UEFN_Toolbelt as tb
+    curve_dir = resolve_content_path("/Game/TOOLBELT_TEST/Curves")
+    name = "CM_IntegrationCurve"
+    try:
+        res = tb.run("curve_create", name=name, destination=curve_dir)
+        st = res.get("status")
+        path = res.get("path", "")
+
+        # status must reflect the save, not merely the in-memory creation.
+        saved = res.get("saved")
+        _record("Curves", "curve_create reports whether it saved", saved is not None,
+                f"status={st} saved={saved} (missing key = save is unchecked again)")
+
+        # The real assertion: the path it handed back must resolve on disk.
+        on_disk = bool(path) and unreal.EditorAssetLibrary.does_asset_exist(path)
+        _record("Curves", "returned path exists on disk", on_disk,
+                f"path={path!r} exists={on_disk}")
+
+        # ok must mean saved; partial is the honest answer when it did not.
+        _record("Curves", "ok is not claimed for an unsaved asset",
+                (st == "ok") == bool(saved),
+                f"status={st} saved={saved}")
+
+        if on_disk:
+            unreal.EditorAssetLibrary.delete_asset(path)
+        unreal.EditorAssetLibrary.delete_directory(curve_dir)
+
+    except Exception as e:
+        _record("Curves", "Error", False, str(e))
 
 
 def _test_measurement() -> None:

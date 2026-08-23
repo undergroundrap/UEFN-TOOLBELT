@@ -206,9 +206,15 @@ def run_anim_create_montage(
             return {"status": "error", "message": f"Failed to create montage '{montage_name}'"}
 
         path = f"{destination.rstrip('/')}/{montage_name}"
-        save_asset(path)
+        saved = save_asset(path)
         log_info(f"[anim_create_montage] Created: {path}")
-        return {"status": "ok", "path": path, "name": montage_name, "skeleton": skeleton.get_name()}
+        return {
+            "status": "ok" if saved else "partial",
+            "path": path,
+            "name": montage_name,
+            "saved": saved,
+            "skeleton": skeleton.get_name(),
+        }
     except Exception as e:
         log_error(f"[anim_create_montage] {e}")
         return {"status": "error", "message": str(e)}

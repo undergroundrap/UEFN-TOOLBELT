@@ -204,16 +204,18 @@ def run_skel_set_physics_asset(
         if not isinstance(phys, unreal.PhysicsAsset):
             return {"status": "error", "message": f"'{physics_path}' is not a PhysicsAsset."}
 
+        saved = True
         if not dry_run:
             mesh.set_editor_property("physics_asset", phys)
-            save_loaded_asset(mesh)
+            saved = save_loaded_asset(mesh, label=mesh_path)
 
         action = "Would assign" if dry_run else "Assigned"
         log_info(f"[skel_set_physics_asset] {action} {physics_path} → {mesh_path}")
         return {
-            "status": "ok",
+            "status": "ok" if saved else "partial",
             "dry_run": dry_run,
             "mesh": mesh_path,
+            "saved": saved,
             "physics_asset": physics_path,
         }
     except Exception as e:

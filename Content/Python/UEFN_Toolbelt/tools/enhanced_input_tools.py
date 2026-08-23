@@ -204,9 +204,15 @@ def run_input_create_action(
             asset.set_editor_property("value_type", vt)
 
         path = f"{destination.rstrip('/')}/{name}"
-        save_asset(path)
+        saved = save_asset(path)
         log_info(f"[input_create_action] Created: {path} (value_type={value_type})")
-        return {"status": "ok", "path": path, "name": name, "value_type": value_type}
+        return {
+            "status": "ok" if saved else "partial",
+            "path": path,
+            "name": name,
+            "saved": saved,
+            "value_type": value_type,
+        }
     except Exception as e:
         log_error(f"[input_create_action] {e}")
         return {"status": "error", "message": str(e)}

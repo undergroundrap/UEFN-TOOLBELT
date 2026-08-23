@@ -241,10 +241,20 @@ def run_curve_create(
         if new_asset is None:
             return {"status": "error", "message": f"Failed to create CurveFloat '{name}' at '{destination}'."}
 
-        save_loaded_asset(new_asset)
+        saved = save_loaded_asset(new_asset, label=name)
         path = f"{dest}/{name}"
         log_info(f"[curve_create] Created CurveFloat: {path}")
-        return {"status": "ok", "name": name, "path": path, "tip": "Open in Curve Editor to add keys."}
+        # The asset exists in memory either way, so this is not an error - but
+        # returning "ok" with a path that is gone after a restart would send the
+        # caller to load an asset that was never written.
+        return {
+            "status": "ok" if saved else "partial",
+            "name": name,
+            "path": path,
+            "saved": saved,
+            "tip": "Open in Curve Editor to add keys."
+                   if saved else "Created in memory but NOT written to disk - see the log.",
+        }
     except Exception as e:
         log_error(f"[curve_create] {e}")
         return {"status": "error", "message": str(e)}
