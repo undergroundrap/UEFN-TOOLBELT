@@ -407,10 +407,19 @@ def _fix_redirectors(scan_path: str, dry_run: bool) -> int:
                 # consolidate_assets(keep, [discard]) — re-points all refs
                 # from `asset` (the redirector) to `dest` (the real asset).
                 try:
-                    unreal.EditorAssetLibrary.consolidate_assets(dest, [asset])
-                    fixed += 1
-                    unreal.log(f"  ✓ Consolidated: {path} → {dest.get_path_name()}")
-                    continue
+                    # consolidate_assets reports failure by returning False, not
+                    # by raising. Discarding it counted the redirector as fixed
+                    # AND skipped the delete fallback below, so a failed
+                    # consolidation left the redirector in place and reported it
+                    # repaired. Falling through on False gives the fallback its
+                    # chance, which is what the except branch already did.
+                    if unreal.EditorAssetLibrary.consolidate_assets(dest, [asset]):
+                        fixed += 1
+                        unreal.log(f"  ✓ Consolidated: {path} → {dest.get_path_name()}")
+                        continue
+                    unreal.log_warning(
+                        f"  ⚠ Consolidate returned False for {path}, trying delete…"
+                    )
                 except Exception as ce:
                     unreal.log_warning(f"  ⚠ Consolidate failed ({ce}), trying delete…")
 
