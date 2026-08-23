@@ -42,20 +42,22 @@ never auto-starts. See README "Known Issue" and UEFN_QUIRKS.md #36. Detected by
 
 This document outlines the current testing status of the toolbelt and categorizes which tools are verified by the automated smoke test, and which require manual verification.
 
-## 🟡 Automated Verification Status: **186 / 362 Tools (52% Coverage)**
-Integration suite has **115 test sections written**, all run live. The suite
-records 186 individual checks; **186/186 passed on UEFN 42.00** (build 5051459,
-2026-08-23), which retires the Batch 9 "pending live run" caveat below.
+## 🟡 Automated Verification Status: **187 / 362 Tools (52% Coverage)**
+Integration suite has **116 test sections written**, all run live. The suite
+records 189 individual checks; **189/189 passed on UEFN 42.00** (build 25d3daa,
+2026-08-23). Batches 9 and 10 below are now marked from that run rather than
+from intent - the rows still unchecked are the ones the suite genuinely does not
+exercise.
 
-**Read the split, not the total.** Of the 186, **159 verify a real outcome** and
+**Read the split, not the total.** Of the 189, **162 verify a real outcome** and
 **27 are execution-only** — they assert the tool did not raise and nothing more.
 The suite prints both figures on every run. Treating the total as coverage is
 what let Quirk #41 (wrong rotator axis) sit inside a green run, and what let
 `material_bulk_swap` report success for a swap that changed nothing.
 
-> **Coverage gap:** 75 tools were added after v1.6.0 (zones, stamps, actor org, proximity placement, advanced alignment, signs, audio, post-process, level health, config, lighting extended, world state). Batch 9 integration tests ran green live on 2026-08-21 (180/180), 2026-08-22 (183/183), and 2026-08-23 (186/186).
+> **Coverage gap:** 75 tools were added after v1.6.0 (zones, stamps, actor org, proximity placement, advanced alignment, signs, audio, post-process, level health, config, lighting extended, world state). Batch 9 integration tests ran green live on 2026-08-21 (180/180), 2026-08-22 (183/183), and 2026-08-23 (189/189).
 >
-> **New modules (2026-03-25, pending integration tests):** `niagara_tools` (4), `pcg_tools` (4), `geometry_tools` (5), `movie_render_tools` (3), `viewport_tools` (3), `activity_log_tools` (3) — 22 tools registered, live-tested manually, not yet in the integration suite.
+> **Modules still outside the integration suite:** `niagara_tools` (4), `pcg_tools` (4), `geometry_tools` (5), `movie_render_tools` (3), `activity_log_tools` (3) — registered and live-tested by hand, but nothing in the suite exercises them, so treat them as unverified. `viewport_tools` left this list once its showflag and bookmark tools got sections. `curve_tools` got its first coverage on 2026-08-23 (`curve_create` only) — and that section immediately caught a real bug, which is the argument for shrinking this list further.
 
 ---
 
@@ -252,7 +254,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 4. Verifies the result (properties, file outputs)
 5. Cleans up with a single `undo_transaction`
 
-**Current Integration Coverage (362 tools — 115 sections written, all run live; 159 of 186 checks verify a real outcome):**
+**Current Integration Coverage (362 tools — 116 sections written, all run live; 162 of 189 checks verify a real outcome):**
 
 > ✅ = Confirmed passing in live UEFN
 > 🔵 = Written + syntax-checked, pending first live run (Batch 9)
@@ -309,7 +311,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 - Property maps, method lists, and component hierarchies are accessible
 - JSON output is valid and machine-readable for AI analysis
 
-**What the automated integration test (115 live sections, 186 checks, 186/186 — 159 verified, 27 execution-only) proves:**
+**What the automated integration test (116 live sections, 189 checks, 189/189 — 162 verified, 27 execution-only) proves:**
 - **Viewport Control:** The system can successfully spawn, select, and destroy actors programmatically.
 - **Context-Aware Tools:** Selection-dependent tools (Bulk Ops, Materials) are confirmed to function on live actors.
 - **File System Integrity:** Screenshots, Snapshots, and Crawler JSONs are successfully written/read.
@@ -332,28 +334,32 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 ### **Batch 3–8: Core Foundation (COMPLETE — 103 sections)**
 All materials, bulk ops, patterns, scatter, splines, snapshots, crawler, assets, optimization, reference auditor, project structure, text, tagger, Verse, screenshot, LOD, arena, measurement, localization, and MCP bridge.
 
-### **Batch 9: v1.6.0+ Expansion (115 sections written — pending live run)**
-- [ ] **Zone Tools**: `zone_spawn`, `zone_list`, `zone_select_contents`, `zone_snap_to_selection`, `zone_fill_scatter`
-- [ ] **Stamp Tools**: `stamp_save`, `stamp_place`, `stamp_list`, `stamp_info`, `stamp_delete`, `stamp_export`, `stamp_import`
-- [ ] **Actor Org**: `actor_move_to_folder`, `actor_folder_list`, `actor_select_by_folder`, `actor_select_by_class`, `actor_match_transform`, `actor_move_to_root`, `actor_attach_to_parent`, `actor_detach`
-- [ ] **Proximity Placement**: `actor_place_next_to`, `actor_chain_place`, `actor_duplicate_offset`, `actor_copy_to_positions`, `actor_cluster_to_folder`, `actor_replace_class`
-- [ ] **Advanced Alignment**: `align_to_reference`, `distribute_with_gap`, `rotate_around_pivot`, `match_spacing`, `align_to_surface`, `align_to_grid_two_points`
-- [ ] **Sign Tools**: `sign_spawn_bulk`, `sign_list`, `sign_batch_edit`, `sign_batch_rename`, `sign_batch_set_text`, `label_attach`, `sign_clear`
-- [ ] **Post-Process & World**: `postprocess_spawn`, `postprocess_set`, `postprocess_preset`, `world_settings_set`
-- [ ] **Audio**: `audio_place`, `audio_list`, `audio_set_volume`, `audio_set_radius`
-- [ ] **Level Health**: `level_health_report`, `rogue_actor_scan`
-- [ ] **Config**: `config_list`, `config_set`, `config_get`, `config_reset`
-- [ ] **Lighting Extended**: `light_place`, `light_list`, `light_set`, `sky_set_time`
-- [ ] **World State**: `world_state_export`, `device_catalog_scan`
+### **Batch 9: v1.6.0+ Expansion — passing live on UEFN 42.00 (2026-08-23)**
+- [x] **Zone Tools**: `zone_spawn`, `zone_list`, `zone_select_contents`, `zone_snap_to_selection`, `zone_fill_scatter`
+- [x] **Stamp Tools**: `stamp_save`, `stamp_place`, `stamp_list`, `stamp_info`, `stamp_delete`, `stamp_export`, `stamp_import`
+- [x] **Actor Org**: `actor_move_to_folder`, `actor_folder_list`, `actor_select_by_folder`, `actor_select_by_class`, `actor_match_transform`, `actor_move_to_root`, `actor_attach_to_parent`, `actor_detach`
+- [x] **Proximity Placement**: `actor_place_next_to`, `actor_chain_place`, `actor_duplicate_offset`, `actor_copy_to_positions`, `actor_cluster_to_folder`, `actor_replace_class`
+- [x] **Advanced Alignment**: `align_to_reference`, `distribute_with_gap`, `rotate_around_pivot`, `match_spacing`, `align_to_surface`, `align_to_grid_two_points`
+- [x] **Sign Tools**: `sign_spawn_bulk`, `sign_list`, `sign_batch_edit`, `sign_batch_rename`, `sign_batch_set_text`, `label_attach`, `sign_clear`
+- [x] **Post-Process & World**: `postprocess_spawn`, `postprocess_set`, `postprocess_preset`, `world_settings_set`
+- [x] **Audio**: `audio_place`, `audio_list`, `audio_set_volume`, `audio_set_radius`
+- [x] **Level Health**: `level_health_report`, `rogue_actor_scan`
+- [x] **Config**: `config_list`, `config_set`, `config_get`, `config_reset`
+- [x] **Lighting Extended**: `light_place`, `light_list`, `light_set`, `sky_set_time`
+- [x] **World State**: `world_state_export`, `device_catalog_scan`
 - [ ] **Activity Log**: `toolbelt_activity_log`, `toolbelt_activity_stats`, `toolbelt_activity_clear`, `publish_audit` — manually verified live 2026-03-25
 
-**To complete Batch 9:** run `tb.run("toolbelt_integration_test")` in UEFN on a clean template level. Mark each section above with `[x]` after confirming it passes.
+Every checked group above ran green in the 189/189 live run on 2026-08-23. The
+unchecked rows are the honest remainder — they are written but the suite does
+not exercise them, so treat them as unverified rather than passing.
 
-### **Batch 10: v1.9.6 Team Workflow + AI Quality (written — pending live run)**
-- [ ] **Visibility**: `actor_hide`, `actor_show`, `actor_isolate`, `actor_show_all`, `folder_hide`, `folder_show`, `actor_lock`, `actor_unlock`
-- [ ] **Viewport Bookmarks**: `viewport_showflag`, `viewport_bookmark_save`, `viewport_bookmark_list`, `viewport_bookmark_jump`
-- [ ] **Selection Sets**: `selection_save`, `selection_restore`, `selection_list`
-- [ ] **Project Admin**: `save_all_dirty`, `mesh_merge_selection`
+### **Batch 10: v1.9.6 Team Workflow + AI Quality — passing live on UEFN 42.00 (2026-08-23), two gaps noted**
+- [x] **Visibility**: `actor_hide`, `actor_show`, `actor_isolate`, `actor_show_all`, `actor_lock`, `actor_unlock`
+  - [ ] `folder_hide` / `folder_show` — **not exercised by the suite.** The actor-level pair is covered; the folder-level pair is not.
+- [x] **Viewport Bookmarks**: `viewport_showflag`, `viewport_bookmark_save`, `viewport_bookmark_list`, `viewport_bookmark_jump`
+- [x] **Selection Sets**: `selection_save`, `selection_restore`, `selection_list`
+- [x] **Project Admin**: `save_all_dirty`
+  - [ ] `mesh_merge_selection` — **not exercised by the suite.** The merge API may be sandboxed in UEFN, so a fixture cannot prove the success path.
 
 **Depth improvements verified live 2026-03-25 (existing tools enhanced, no new tools):**
 - `world_state_export` — captures `folder`, `parent`, `bounds`, `asset_path` per actor + `summary.class_counts` / `summary.folder_map`; 2888/3404 actors in test level have `asset_path` populated
@@ -362,7 +368,8 @@ All materials, bulk ops, patterns, scatter, splines, snapshots, crawler, assets,
 - `selection_restore` — duplicate-label bug fixed (first match per label only)
 - `get_folder_path()` None bug fixed in `world_state_export` (root actors now store `""` not `"None"`)
 
-**To complete Batch 10:** run `tb.run("toolbelt_integration_test")` in UEFN on a clean template level. Look for Visibility, Viewport, SelectionSets, and ProjectAdmin sections in the output.
+The Visibility, Viewport, SelectionSets and ProjectAdmin sections all appear in
+the live output; the two unchecked members above are the exceptions.
 
 ### **Batch 11: Verse Template Library (manually verified live 2026-03-29)**
 - [x] `verse_template_list` — returns 6 templates with descriptions and device lists

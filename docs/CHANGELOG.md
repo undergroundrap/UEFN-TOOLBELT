@@ -51,6 +51,17 @@ Four, all deliberate. Anyone scripting these should read this section.
 
 ### Fixed
 
+- **Four tools returned a path for an asset they never saved.** `curve_create`,
+  `anim_create_montage`, `input_create_action` and `skel_set_physics_asset`
+  each created an asset, called the save helper as a bare statement, and
+  returned `status: "ok"` with the path. The helpers return `False` rather than
+  raising when a package cannot be written, so the caller was handed a path to
+  something that existed only in memory. All four now return `"partial"` and a
+  `saved` boolean; the asset really was created, so `"error"` would overstate
+  it. None of these four modules had integration coverage, which is why it
+  survived - `curve_create` now has a section that asserts `does_asset_exist`
+  on the returned path.
+
 - **Asset tags were written to memory and never saved.** `_set_tag` discarded
   `save_asset`'s `False` — returned for read-only or checked-out content — so
   `tag_add` logged a checkmark two lines under the editor's own "failed to

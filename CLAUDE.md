@@ -490,9 +490,9 @@ Two separate test systems. Know which is which before running either.
 
 ### Integration Test — `tb.run("toolbelt_integration_test")`
 **What it proves:** tools *work* in a live UEFN editor. The harness spawns real actor fixtures, runs each tool against them, verifies the result (property changed, actor count correct, file written), and cleans up.
-**Coverage:** 115 test sections, **186 checks, 186/186 live on UEFN 42.00** — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
+**Coverage:** 116 test sections, **189 checks, 189/189 live on UEFN 42.00** — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
 
-> **Read the split, not the total.** 159 of the 186 verify a real outcome; **27
+> **Read the split, not the total.** 162 of the 189 verify a real outcome; **27
 > are execution-only** — they prove the tool ran without raising, nothing more.
 > The suite prints both on every run. A check that cannot fail is not coverage:
 > counting all of them as one number is what let Quirk #41 (wrong rotator axis)
@@ -510,7 +510,7 @@ If the editor crashes mid-run, the file contains partial results up to the last 
 | | Smoke Test | Integration Test |
 |---|---|---|
 | Tests registration? | ✅ All 362 tools | ✅ |
-| Tests live execution? | Partial (safe tools only) | ✅ 186 checks on real actors (159 verified, 27 execution-only) |
+| Tests live execution? | Partial (safe tools only) | ✅ 189 checks on real actors (162 verified, 27 execution-only) |
 | Safe in production? | ✅ Yes | ❌ Blank level only |
 | Runtime | ~5s | ~45s |
 | Run when? | After every change | Before every PR |

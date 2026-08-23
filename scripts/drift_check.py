@@ -378,8 +378,9 @@ _SKIP_LINE_FRAGMENTS = [
     "initial release",
     "Simulation, Sequencer",  # README patch notes v1.1 historical entry
     "Batch 9:",               # TOOL_STATUS.md integration test batch heading
-    "pending live run",       # TOOL_STATUS.md batch status notes
-    "pending live UEFN run",
+    "Batch 10:",              # ditto - the heading names the release the batch
+                              # shipped in (v1.9.6), which is history, not a
+                              # claim about the current version.
     "Phase 19",   # patch notes historical entry
     "Phase 18",
     "Phase 17",
