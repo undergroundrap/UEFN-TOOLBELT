@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import log_error, log_info, log_warning
+from ..core import log_error, log_info, log_warning, undo_transaction
 from ..registry import register_tool
 
 
@@ -94,25 +94,30 @@ def run_niagara_spawn_system(
 
     try:
         world = _get_world()
-        actor = unreal.NiagaraFunctionLibrary.spawn_system_at_location(
-            world_context_object=world,
-            system_template=system,
-            location=loc,
-            rotation=unreal.Rotator(0, 0, 0),
-            scale=unreal.Vector(1, 1, 1),
-            auto_destroy=False,
-            auto_activate=auto_activate,
-            pooling_method=unreal.NCPoolMethod.NONE,
-            pre_cull_check=True,
-        )
+        # Spawning was also outside a transaction, so the new actor could not be
+        # undone either.
+        with undo_transaction("Spawn Niagara System"):
+            actor = unreal.NiagaraFunctionLibrary.spawn_system_at_location(
+                world_context_object=world,
+                system_template=system,
+                location=loc,
+                rotation=unreal.Rotator(roll=0.0, pitch=0.0, yaw=0.0),
+                scale=unreal.Vector(1, 1, 1),
+                auto_destroy=False,
+                auto_activate=auto_activate,
+                pooling_method=unreal.NCPoolMethod.NONE,
+                pre_cull_check=True,
+            )
 
-        if actor is None:
-            return {"status": "error", "error": "spawn_system_at_location returned None. Check asset path and world context."}
+            if actor is None:
+                return {"status": "error",
+                        "error": "spawn_system_at_location returned None. "
+                                 "Check asset path and world context."}
 
-        if label:
-            actor.set_actor_label(label)
-        if folder:
-            actor.set_folder_path(folder)
+            if label:
+                actor.set_actor_label(label)
+            if folder:
+                actor.set_folder_path(folder)
 
         log_info(f"Spawned Niagara system: {asset_path} at {loc}")
         return {
@@ -258,19 +263,23 @@ def run_niagara_clear_systems(
         targets = []
         deleted = 0
 
-        for actor in all_actors:
-            if str(actor.get_folder_path()) == folder:
-                comps = _get_niagara_components(actor)
-                if comps:
-                    targets.append(actor.get_actor_label())
-                    if not dry_run:
-                        if actor_sub.destroy_actor(actor):
-                            deleted += 1
-                        else:
-                            log_warning(
-                                f"niagara_clear_systems: '{actor.get_actor_label()}' "
-                                f"could not be deleted."
-                            )
+        # mcp_reference.md promises "all actor ops are wrapped in transactions".
+        # This one deleted actors outside any transaction, so Ctrl+Z could not
+        # bring them back.
+        with undo_transaction(f"Clear Niagara Systems in '{folder}'"):
+            for actor in all_actors:
+                if str(actor.get_folder_path()) == folder:
+                    comps = _get_niagara_components(actor)
+                    if comps:
+                        targets.append(actor.get_actor_label())
+                        if not dry_run:
+                            if actor_sub.destroy_actor(actor):
+                                deleted += 1
+                            else:
+                                log_warning(
+                                    f"niagara_clear_systems: '{actor.get_actor_label()}' "
+                                    f"could not be deleted."
+                                )
 
         count = len(targets) if dry_run else deleted
         log_info(f"niagara_clear_systems: {'would delete' if dry_run else 'deleted'} {count} actor(s) from '{folder}'.")
