@@ -31,6 +31,7 @@ from ..core import (
     missing_unreal_apis,
     resolve_content_path,
     resolve_scan_path,
+    save_asset,
 )
 from ..registry import register_tool
 
@@ -203,7 +204,7 @@ def run_input_create_action(
             asset.set_editor_property("value_type", vt)
 
         path = f"{destination.rstrip('/')}/{name}"
-        unreal.EditorAssetLibrary.save_asset(path)
+        save_asset(path)
         log_info(f"[input_create_action] Created: {path} (value_type={value_type})")
         return {"status": "ok", "path": path, "name": name, "value_type": value_type}
     except Exception as e:

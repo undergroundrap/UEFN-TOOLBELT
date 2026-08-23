@@ -46,6 +46,7 @@ from ..core import (
     log_error,
     log_info,
     log_warning,
+    save_asset,
     spawn_static_mesh_actor,
     undo_transaction,
 )
@@ -325,7 +326,7 @@ def _create_flat_color_material(asset_path: str, r: float, g: float, b: float):
             color_expr, "", unreal.MaterialProperty.MP_BASE_COLOR
         )
         mel.recompile_material(mat)
-        unreal.EditorAssetLibrary.save_asset(asset_path)
+        save_asset(asset_path)
         log_info(f"[Arena] Created material: {asset_path}")
         return mat
     except Exception as e:

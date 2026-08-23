@@ -310,11 +310,50 @@ def load_asset(path: str) -> unreal.Object | None:
 
 
 def save_asset(path: str) -> bool:
-    """Save asset by path. Returns True on success."""
+    """Save asset by path. Returns True on success.
+
+    The engine returns False rather than raising when a package cannot be
+    written - read-only content, or an asset checked out by someone else - so a
+    silent False here means the caller's edit exists only in memory and will be
+    gone after a restart. Say so.
+    """
     try:
-        return unreal.EditorAssetLibrary.save_asset(path, only_if_is_dirty=False)
+        if unreal.EditorAssetLibrary.save_asset(path, only_if_is_dirty=False):
+            return True
+        log_warning(
+            f"save_asset({path}) returned False - the change was made in memory "
+            f"but not written to disk. Read-only or checked-out content cannot "
+            f"be saved."
+        )
+        return False
     except Exception as e:
         log_error(f"save_asset({path}): {e}")
+        return False
+
+
+def save_loaded_asset(asset, label: str = "") -> bool:
+    """Save an already-loaded asset object. Returns True on success.
+
+    The checked counterpart to unreal.EditorAssetLibrary.save_loaded_asset,
+    which returns False instead of raising. Tools across this codebase called it
+    as a bare statement and then counted the asset as changed regardless, so a
+    batch operation could report N assets updated with none of them persisted.
+    """
+    if asset is None:
+        log_warning(f"save_loaded_asset: nothing to save{f' ({label})' if label else ''}.")
+        return False
+    try:
+        if unreal.EditorAssetLibrary.save_loaded_asset(asset):
+            return True
+        name = label or getattr(asset, "get_name", lambda: str(asset))()
+        log_warning(
+            f"save_loaded_asset({name}) returned False - the change was made in "
+            f"memory but not written to disk. Read-only or checked-out content "
+            f"cannot be saved."
+        )
+        return False
+    except Exception as e:
+        log_error(f"save_loaded_asset({label or asset}): {e}")
         return False
 
 

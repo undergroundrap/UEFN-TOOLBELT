@@ -29,7 +29,14 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import api_unavailable, log_error, log_info, log_warning, missing_unreal_apis
+from ..core import (
+    api_unavailable,
+    log_error,
+    log_info,
+    log_warning,
+    missing_unreal_apis,
+    save_loaded_asset,
+)
 from ..registry import register_tool
 
 # unreal.* names this module uses but does not require.
@@ -145,7 +152,7 @@ def run_geometry_weld_edges(
                     options=write_opts,
                     lod_type=unreal.GeometryScriptLODType.MAXIMUM_AVAILABLE,
                 )
-                unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                save_loaded_asset(mesh)
 
             results.append({"actor": actor.get_actor_label(), "status": "ok", "mesh": mesh.get_name()})
         except Exception as e:
@@ -208,7 +215,7 @@ def run_geometry_fill_holes(
                     options=write_opts,
                     lod_type=unreal.GeometryScriptLODType.MAXIMUM_AVAILABLE,
                 )
-                unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                save_loaded_asset(mesh)
 
             results.append({"actor": actor.get_actor_label(), "status": "ok", "mesh": mesh.get_name()})
         except Exception as e:
@@ -273,7 +280,7 @@ def run_geometry_compute_normals(
                     options=write_opts,
                     lod_type=unreal.GeometryScriptLODType.MAXIMUM_AVAILABLE,
                 )
-                unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                save_loaded_asset(mesh)
 
             results.append({"actor": actor.get_actor_label(), "status": "ok"})
         except Exception as e:
@@ -344,7 +351,7 @@ def run_geometry_generate_lightmap_uvs(
                     options=write_opts,
                     lod_type=unreal.GeometryScriptLODType.MAXIMUM_AVAILABLE,
                 )
-                unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                save_loaded_asset(mesh)
 
             results.append({"actor": actor.get_actor_label(), "status": "ok", "uv_channel": uv_channel})
         except Exception as e:
@@ -431,7 +438,7 @@ def run_geometry_boolean_union(
             options=write_opts,
             lod_type=unreal.GeometryScriptLODType.MAXIMUM_AVAILABLE,
         )
-        unreal.EditorAssetLibrary.save_loaded_asset(mesh_a)
+        save_loaded_asset(mesh_a)
 
         log_info(f"geometry_boolean_union: {actor_a.get_actor_label()} ∪ {actor_b.get_actor_label()} → saved.")
         return {
@@ -498,7 +505,7 @@ def run_geometry_boolean_subtract(dry_run: bool = True, **kwargs) -> dict:
             from_dynamic_mesh=dyn_a, to_static_mesh_asset=mesh_a,
             options=write_opts, lod_type=unreal.GeometryScriptLODType.MAXIMUM_AVAILABLE,
         )
-        unreal.EditorAssetLibrary.save_loaded_asset(mesh_a)
+        save_loaded_asset(mesh_a)
         log_info(f"geometry_boolean_subtract: {actor_a.get_actor_label()} − {actor_b.get_actor_label()} → saved.")
         return {"status": "ok", "dry_run": False, "saved_mesh": mesh_a.get_name()}
     except Exception as e:
@@ -558,7 +565,7 @@ def run_geometry_boolean_intersect(dry_run: bool = True, **kwargs) -> dict:
             from_dynamic_mesh=dyn_a, to_static_mesh_asset=mesh_a,
             options=write_opts, lod_type=unreal.GeometryScriptLODType.MAXIMUM_AVAILABLE,
         )
-        unreal.EditorAssetLibrary.save_loaded_asset(mesh_a)
+        save_loaded_asset(mesh_a)
         log_info(f"geometry_boolean_intersect: {actor_a.get_actor_label()} ∩ {actor_b.get_actor_label()} → saved.")
         return {"status": "ok", "dry_run": False, "saved_mesh": mesh_a.get_name()}
     except Exception as e:
@@ -613,7 +620,7 @@ def run_geometry_remove_degenerate(min_area: float = 0.0001, dry_run: bool = Tru
                 from_dynamic_mesh=dyn, to_static_mesh_asset=mesh,
                 options=write_opts, lod_type=unreal.GeometryScriptLODType.MAXIMUM_AVAILABLE,
             )
-            unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+            save_loaded_asset(mesh)
             repaired.append(mesh.get_name())
         except Exception as e:
             failed.append({"mesh": mesh.get_name(), "error": str(e)})

@@ -54,6 +54,7 @@ from ..core import (
     log_info,
     log_warning,
     resolve_content_path,
+    save_asset,
     scannable_assets,
     spawn_static_mesh_actor,
 )
@@ -140,7 +141,7 @@ def _apply_auto_material(mesh_path: str) -> None:
             return
 
         mesh.set_material(0, mi)
-        unreal.EditorAssetLibrary.save_asset(mesh_path)
+        save_asset(mesh_path)
         log_info(f"  Applied auto-material to {asset_name}")
     except Exception as e:
         log_warning(f"  Auto-material apply failed for {mesh_path}: {e}")

@@ -166,7 +166,7 @@ def ensure_parent_material():
         mel.connect_material_property(mult, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 
         mel.recompile_material(mat)
-        unreal.EditorAssetLibrary.save_asset(path)
+        save_asset(path)
         log_info(f"[MaterialMaster] Created master material: {path}")
         return mat
     except Exception as e:

@@ -646,8 +646,14 @@ def run_scaffold_organize_loose(
     done = failed = 0
     for src, dst in moves:
         try:
-            unreal.EditorAssetLibrary.rename_asset(src, dst)
-            done += 1
+            if unreal.EditorAssetLibrary.rename_asset(src, dst):
+                done += 1
+            else:
+                failed += 1
+                log_warning(
+                    f"  {src.split('/')[-1]}: rename_asset returned False - "
+                    f"check revision control or the read-only flag."
+                )
         except Exception as e:
             log_warning(f"  Failed to move {src.split('/')[-1]}: {e}")
             failed += 1

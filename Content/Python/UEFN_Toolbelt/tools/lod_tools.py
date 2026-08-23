@@ -64,6 +64,8 @@ from ..core import (
     log_info,
     log_warning,
     resolve_scan_path,
+    save_asset,
+    save_loaded_asset,
     scannable_assets,
     with_progress,
 )
@@ -310,7 +312,8 @@ def run_set_collision_folder(
                 body = mesh.get_editor_property("body_setup")
                 if body:
                     body.set_editor_property("collision_trace_flag", flag)
-                    unreal.EditorAssetLibrary.save_asset(path)
+                    if not save_asset(path):
+                        continue
                     done += 1
             except Exception as e:
                 log_warning(f"  {path.split('/')[-1]}: {e}")
@@ -496,7 +499,8 @@ def run_nanite_enable_folder(
                     continue
                 if not dry_run:
                     mesh_sub.enable_nanite(mesh, enable)
-                    unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                    if not save_loaded_asset(mesh, mesh.get_name()):
+                        continue
                 changed.append(mesh.get_name())
             except Exception as ex:
                 log_warning(f"[nanite_enable_folder] {asset_path}: {ex}")
@@ -550,7 +554,8 @@ def run_nanite_enable_selection(enable: bool = True, dry_run: bool = False, **kw
                 try:
                     if not dry_run:
                         mesh_sub.enable_nanite(mesh, enable)
-                        unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                        if not save_loaded_asset(mesh, mesh.get_name()):
+                            continue
                     changed.append(mesh.get_name())
                 except Exception as ex:
                     log_warning(f"[nanite_enable_selection] {mesh.get_name()}: {ex}")
@@ -645,7 +650,8 @@ def run_uv_generate_planar(
                             unreal.Rotator(0, 0, 0),
                             unreal.Vector2D(size, size),
                         )
-                        unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                        if not save_loaded_asset(mesh, mesh.get_name()):
+                            continue
                     changed.append(mesh.get_name())
                 except Exception as ex:
                     log_warning(f"[uv_generate_planar] {mesh.get_name()}: {ex}")
@@ -698,7 +704,8 @@ def run_uv_generate_box(
                             unreal.Rotator(0, 0, 0),
                             unreal.Vector(size, size, size),
                         )
-                        unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                        if not save_loaded_asset(mesh, mesh.get_name()):
+                            continue
                     changed.append(mesh.get_name())
                 except Exception as ex:
                     log_warning(f"[uv_generate_box] {mesh.get_name()}: {ex}")
@@ -741,7 +748,8 @@ def run_uv_add_channel(dry_run: bool = False, **kwargs) -> dict:
                 try:
                     if not dry_run and mesh_sub:
                         mesh_sub.add_uv_channel(mesh, 0)
-                        unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+                        if not save_loaded_asset(mesh, mesh.get_name()):
+                            continue
                     changed.append(mesh.get_name())
                 except Exception as ex:
                     log_warning(f"[uv_add_channel] {mesh.get_name()}: {ex}")

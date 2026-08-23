@@ -778,26 +778,14 @@
         "save_asset": {
           "used_by": [
             "core/__init__.py",
-            "tools/animation_tools.py",
-            "tools/arena_generator.py",
             "tools/asset_tagger.py",
-            "tools/enhanced_input_tools.py",
-            "tools/lod_tools.py",
-            "tools/material_master.py",
-            "tools/mcp_bridge.py",
-            "tools/smart_importer.py",
-            "tools/text_voxelizer.py",
-            "tools/ui_icon_import.py"
+            "tools/mcp_bridge.py"
           ],
           "optional": false
         },
         "save_loaded_asset": {
           "used_by": [
-            "tools/curve_tools.py",
-            "tools/geometry_tools.py",
-            "tools/lod_tools.py",
-            "tools/skeletal_mesh_tools.py",
-            "tools/texture_tools.py"
+            "core/__init__.py"
           ],
           "optional": false
         },
@@ -827,7 +815,6 @@
         "tools/curve_tools.py",
         "tools/datatable_tools.py",
         "tools/enhanced_input_tools.py",
-        "tools/geometry_tools.py",
         "tools/integration_test.py",
         "tools/landscape_tools.py",
         "tools/lod_tools.py",

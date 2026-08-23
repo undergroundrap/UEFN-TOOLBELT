@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import log_error, log_info, resolve_content_path, resolve_scan_path
+from ..core import log_error, log_info, resolve_content_path, resolve_scan_path, save_asset
 from ..registry import register_tool
 
 
@@ -206,7 +206,7 @@ def run_anim_create_montage(
             return {"status": "error", "message": f"Failed to create montage '{montage_name}'"}
 
         path = f"{destination.rstrip('/')}/{montage_name}"
-        unreal.EditorAssetLibrary.save_asset(path)
+        save_asset(path)
         log_info(f"[anim_create_montage] Created: {path}")
         return {"status": "ok", "path": path, "name": montage_name, "skeleton": skeleton.get_name()}
     except Exception as e:

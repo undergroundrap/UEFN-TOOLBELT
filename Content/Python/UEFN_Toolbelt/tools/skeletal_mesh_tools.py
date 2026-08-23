@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import log_error, log_info, log_warning, resolve_scan_path
+from ..core import log_error, log_info, log_warning, resolve_scan_path, save_loaded_asset
 from ..registry import register_tool
 
 
@@ -206,7 +206,7 @@ def run_skel_set_physics_asset(
 
         if not dry_run:
             mesh.set_editor_property("physics_asset", phys)
-            unreal.EditorAssetLibrary.save_loaded_asset(mesh)
+            save_loaded_asset(mesh)
 
         action = "Would assign" if dry_run else "Assigned"
         log_info(f"[skel_set_physics_asset] {action} {physics_path} → {mesh_path}")

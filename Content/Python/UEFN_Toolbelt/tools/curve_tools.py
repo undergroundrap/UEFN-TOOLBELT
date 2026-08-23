@@ -27,7 +27,14 @@ import os
 
 import unreal
 
-from ..core import log_error, log_info, log_warning, resolve_content_path, resolve_scan_path
+from ..core import (
+    log_error,
+    log_info,
+    log_warning,
+    resolve_content_path,
+    resolve_scan_path,
+    save_loaded_asset,
+)
 from ..registry import register_tool
 
 
@@ -234,7 +241,7 @@ def run_curve_create(
         if new_asset is None:
             return {"status": "error", "message": f"Failed to create CurveFloat '{name}' at '{destination}'."}
 
-        unreal.EditorAssetLibrary.save_loaded_asset(new_asset)
+        save_loaded_asset(new_asset)
         path = f"{dest}/{name}"
         log_info(f"[curve_create] Created CurveFloat: {path}")
         return {"status": "ok", "name": name, "path": path, "tip": "Open in Curve Editor to add keys."}

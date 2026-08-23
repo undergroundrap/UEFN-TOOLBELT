@@ -31,7 +31,7 @@ import tempfile
 
 import unreal
 
-from ..core import detect_project_mount, log_error, log_info, log_warning
+from ..core import detect_project_mount, log_error, log_info, log_warning, save_asset
 from ..core.base_window import ToolbeltWindow
 from ..registry import register_tool
 
@@ -125,7 +125,7 @@ def _apply_texture_settings(pkg_path: str, preset: dict) -> None:
         tex.set_editor_property("lod_group", lod)
 
         tex.post_edit_change()
-        unreal.EditorAssetLibrary.save_asset(pkg_path)
+        save_asset(pkg_path)
     except Exception as e:
         log_warning(f"[UI ICON] Could not apply texture settings to {pkg_path}: {e}")
 

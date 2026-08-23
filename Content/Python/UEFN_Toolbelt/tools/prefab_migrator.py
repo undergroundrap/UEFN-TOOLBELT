@@ -249,8 +249,25 @@ def _export_within_project(
             continue
 
         try:
-            eal.duplicate_asset(asset_path, dst_pkg)
-            eal.save_asset(dst_pkg, only_if_is_dirty=False)
+            # Both of these report failure by return value rather than by
+            # raising: duplicate_asset gives None, save_asset gives False. Both
+            # were discarded and the package was appended to results["ok"]
+            # regardless, so a migration could report every asset copied with
+            # none of them on disk. This is the tool people use to move work
+            # between projects.
+            copied = eal.duplicate_asset(asset_path, dst_pkg)
+            if copied is None:
+                results["error"].append(
+                    f"{pkg}: duplicate_asset returned nothing - the destination "
+                    f"may already exist or be read-only ({dst_pkg})"
+                )
+                continue
+            if not eal.save_asset(dst_pkg, only_if_is_dirty=False):
+                results["error"].append(
+                    f"{pkg}: copied but could not be saved to {dst_pkg}, so it "
+                    f"will not survive a restart"
+                )
+                continue
             results["ok"].append(pkg)
         except Exception as exc:
             results["error"].append(f"{pkg}: {exc}")

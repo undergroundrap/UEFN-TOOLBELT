@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import unreal
 
-from ..core import log_error, log_info, log_warning, resolve_scan_path
+from ..core import log_error, log_info, log_warning, resolve_scan_path, save_loaded_asset
 from ..registry import register_tool
 
 
@@ -164,9 +164,16 @@ def run_texture_set_compression(
                     continue
                 if not dry_run:
                     comp_enum = getattr(unreal.TextureCompressionSettings, compression_value, None)
-                    if comp_enum is not None:
-                        tex.set_editor_property("compression_settings", comp_enum)
-                        unreal.EditorAssetLibrary.save_loaded_asset(tex)
+                    if comp_enum is None:
+                        log_warning(
+                            f"[texture_set_compression] {a.asset_name}: this build "
+                            f"does not expose TextureCompressionSettings."
+                            f"{compression_value} - skipped."
+                        )
+                        continue
+                    tex.set_editor_property("compression_settings", comp_enum)
+                    if not save_loaded_asset(tex, str(a.asset_name)):
+                        continue
                 changed.append({"name": str(a.asset_name), "from": current, "to": compression_value})
             except Exception as ex:
                 log_warning(f"[texture_set_compression] {a.asset_name}: {ex}")
@@ -226,9 +233,15 @@ def run_texture_set_group(
                     continue
                 if not dry_run:
                     group_enum = getattr(unreal.TextureGroup, group_value, None)
-                    if group_enum is not None:
-                        tex.set_editor_property("lod_group", group_enum)
-                        unreal.EditorAssetLibrary.save_loaded_asset(tex)
+                    if group_enum is None:
+                        log_warning(
+                            f"[texture_set_group] {a.asset_name}: this build does "
+                            f"not expose TextureGroup.{group_value} - skipped."
+                        )
+                        continue
+                    tex.set_editor_property("lod_group", group_enum)
+                    if not save_loaded_asset(tex, str(a.asset_name)):
+                        continue
                 changed.append({"name": str(a.asset_name), "from": current, "to": group_value})
             except Exception as ex:
                 log_warning(f"[texture_set_group] {a.asset_name}: {ex}")
@@ -283,7 +296,8 @@ def run_texture_set_srgb(
                     continue
                 if not dry_run:
                     tex.set_editor_property("srgb", srgb)
-                    unreal.EditorAssetLibrary.save_loaded_asset(tex)
+                    if not save_loaded_asset(tex, str(a.asset_name)):
+                        continue
                 changed.append({"name": str(a.asset_name), "from": current, "to": srgb})
             except Exception as ex:
                 log_warning(f"[texture_set_srgb] {a.asset_name}: {ex}")
@@ -350,7 +364,8 @@ def run_texture_apply_preset(
                     tex.set_editor_property("srgb", srgb_val)
                     if mip_enum is not None:
                         tex.set_editor_property("mip_gen_settings", mip_enum)
-                    unreal.EditorAssetLibrary.save_loaded_asset(tex)
+                    if not save_loaded_asset(tex, str(a.asset_name)):
+                        continue
                 changed += 1
             except Exception as ex:
                 errors.append({"name": str(a.asset_name), "error": str(ex)})

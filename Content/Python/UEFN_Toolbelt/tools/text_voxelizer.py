@@ -18,7 +18,7 @@ import tempfile
 
 import unreal
 
-from ..core import log_error, log_info, log_warning, resolve_content_path
+from ..core import log_error, log_info, log_warning, resolve_content_path, save_asset
 from ..registry import register_tool
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -246,7 +246,7 @@ def run_text_voxelize_3d(
 
     # Save the output geometry
     try:
-        unreal.EditorAssetLibrary.save_asset(merged_path)
+        save_asset(merged_path)
         unreal.EditorAssetLibrary.sync_browser_to_objects([merged_path])
     except Exception as e:
         # The merge succeeded in memory but the asset was not written. Saying

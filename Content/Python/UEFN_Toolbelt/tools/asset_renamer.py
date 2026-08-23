@@ -394,16 +394,33 @@ def run_strip_prefix(
         log_info("Dry run — no changes made. Pass dry_run=False to apply.")
         return {"status": "ok", "done": 0, "total": len(targets), "dry_run": True}
 
-    done = 0
+    done = failed = 0
     for path, old, folder, new in targets:
         try:
-            unreal.EditorAssetLibrary.rename_asset(path, f"{folder}/{new}")
-            done += 1
+            if unreal.EditorAssetLibrary.rename_asset(path, f"{folder}/{new}"):
+                done += 1
+            else:
+                failed += 1
+                log_warning(
+                    f"  {old}: rename_asset returned False - check revision "
+                    f"control or the read-only flag."
+                )
         except Exception as e:
+            failed += 1
             log_warning(f"  Failed: {old} — {e}")
 
+    if done == 0:
+        log_error(f"Stripped prefix from 0 of {len(targets)} assets - see above.")
+        return {"status": "error", "done": 0, "failed": failed,
+                "total": len(targets), "dry_run": False,
+                "reason": "nothing_renamed"}
+    if failed:
+        log_warning(f"Stripped prefix from {done}/{len(targets)} assets, {failed} failed.")
+        return {"status": "partial", "done": done, "failed": failed,
+                "total": len(targets), "dry_run": False}
     log_info(f"Stripped prefix from {done}/{len(targets)} assets.")
-    return {"status": "ok", "done": done, "total": len(targets), "dry_run": False}
+    return {"status": "ok", "done": done, "failed": 0,
+            "total": len(targets), "dry_run": False}
 
 
 @register_tool(
