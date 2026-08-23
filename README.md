@@ -261,12 +261,12 @@ The smoke test verifies that all tools *register* correctly. The integration tes
 4. **Verifies** the result — property changed, actor spawned, file written, count correct
 5. **Cleans up** every actor it touched via a single undo transaction
 
-**185 checks across 362 tools — 185/185 passing live on UEFN 42.00** — covering materials, bulk ops, patterns, scatter, splines, snapshots, asset management, Verse tools, screenshots, LODs, arena, measurement, localization, zones, stamps, actor org, proximity placement, advanced alignment, signs, post-process, audio, level health, config, lighting, and world state.
+**186 checks across 362 tools — 186/186 passing live on UEFN 42.00** — covering materials, bulk ops, patterns, scatter, splines, snapshots, asset management, Verse tools, screenshots, LODs, arena, measurement, localization, zones, stamps, actor org, proximity placement, advanced alignment, signs, post-process, audio, level health, config, lighting, and world state.
 
-Of those 185, **158 verify a real outcome** — a property changed, a file written,
+Of those 186, **159 verify a real outcome** — a property changed, a file written,
 an actor count, a tag read back — and **27 are execution-only**: they prove the
 tool ran without raising, nothing more. Both numbers are reported by the suite
-on every run, because a headline "185/185" that silently includes checks which
+on every run, because a headline "186/186" that silently includes checks which
 cannot fail overstates what the suite knows. That is not hypothetical: a fully
 green run once hid a wrong-rotation-axis bug ([Quirk #41](docs/UEFN_QUIRKS.md))
 for exactly that reason.

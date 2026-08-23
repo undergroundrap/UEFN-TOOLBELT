@@ -490,9 +490,9 @@ Two separate test systems. Know which is which before running either.
 
 ### Integration Test — `tb.run("toolbelt_integration_test")`
 **What it proves:** tools *work* in a live UEFN editor. The harness spawns real actor fixtures, runs each tool against them, verifies the result (property changed, actor count correct, file written), and cleans up.
-**Coverage:** 115 test sections, **185 checks, 185/185 live on UEFN 42.00** — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
+**Coverage:** 115 test sections, **186 checks, 186/186 live on UEFN 42.00** — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
 
-> **Read the split, not the total.** 158 of the 185 verify a real outcome; **27
+> **Read the split, not the total.** 159 of the 186 verify a real outcome; **27
 > are execution-only** — they prove the tool ran without raising, nothing more.
 > The suite prints both on every run. A check that cannot fail is not coverage:
 > counting all of them as one number is what let Quirk #41 (wrong rotator axis)
@@ -500,7 +500,7 @@ Two separate test systems. Know which is which before running either.
 > value or re-read the state — `_record(..., True)` is a last resort and must
 > pass `verified=False`.
 **⚠️ INVASIVE — only run in a blank template level.** It spawns and deletes actors. Never run in a production project.
-**Run after:** Before any PR. After adding a new tool. After major refactors. ~85 seconds.
+**Run after:** Before any PR. After adding a new tool. After major refactors. ~45 seconds.
 
 ```
 Results: Saved/UEFN_Toolbelt/integration_test_results.txt
@@ -510,9 +510,9 @@ If the editor crashes mid-run, the file contains partial results up to the last 
 | | Smoke Test | Integration Test |
 |---|---|---|
 | Tests registration? | ✅ All 362 tools | ✅ |
-| Tests live execution? | Partial (safe tools only) | ✅ 185 checks on real actors (158 verified, 27 execution-only) |
+| Tests live execution? | Partial (safe tools only) | ✅ 186 checks on real actors (159 verified, 27 execution-only) |
 | Safe in production? | ✅ Yes | ❌ Blank level only |
-| Runtime | ~5s | ~85s |
+| Runtime | ~5s | ~45s |
 | Run when? | After every change | Before every PR |
 
 ---

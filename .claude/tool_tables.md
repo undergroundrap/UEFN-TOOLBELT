@@ -328,6 +328,44 @@ tb.run("memory_top_offenders", limit=10)
 
 ---
 
+### Cooker Optimizer
+
+Marks actors `is_editor_only_actor` so they are excluded from the cook — the
+main lever for session launch time on a heavy level. Unlike `bLockLocation`,
+this property **is** settable on UEFN 42.00.
+
+| Tool | Key Params | What it does |
+|---|---|---|
+| `cooker_scan` | `blueprints=True`, `static_meshes=True`, `landscapes=False`, `exclude_already_editor_only=False` | Scan level actors and build the pool the mark tools operate on |
+| `cooker_mark_batch` | `percent=50.0`, `dry_run=True`, `save=True` | Mark a percentage of the scanned pool editor-only. Always `dry_run=True` first |
+| `cooker_unmark_all` | `save=True` | Clear the editor-only flag from every actor that has it |
+| `cooker_mark_selection` | `mark=True`, `save=True` | Mark or clear the flag on the current viewport selection |
+| `cooker_open` | — | Open the Cooker Optimizer window |
+
+All three mark tools return `status` derived from what actually happened —
+`ok` (all set), `partial` (some failed), `error` (nothing changed but failures
+occurred) — plus `changed`, `failed`, and `saved`. `_set_editor_only` swallows
+the engine exception, so a run where every set failed would otherwise be
+indistinguishable from a clean one.
+
+**`save` defaults to `True` on purpose.** The cook reads from disk, so a mark
+only affects a session launch once the level is saved. Pass `save=False` when
+making several calls in a row — a full level save triggers an asset alias
+refresh and is the slowest part of the operation — then save once at the end.
+
+```python
+tb.run("cooker_scan")
+tb.run("cooker_mark_batch", percent=50.0, dry_run=True)    # preview
+tb.run("cooker_mark_batch", percent=50.0, dry_run=False)   # apply + save
+
+# scripting several calls: skip the per-call save, save once at the end
+tb.run("cooker_mark_selection", mark=True, save=False)
+tb.run("cooker_mark_selection", mark=True, save=False)
+tb.run("save_all_dirty")
+```
+
+---
+
 ### DataTable
 
 | Tool | Key Params | What it does |

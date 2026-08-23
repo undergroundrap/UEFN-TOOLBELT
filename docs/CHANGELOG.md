@@ -23,7 +23,7 @@ family across the codebase. The change is gone after a restart; nothing warns.
 
 ### Behaviour changes
 
-Three, all deliberate. Anyone scripting these should read this section.
+Four, all deliberate. Anyone scripting these should read this section.
 
 - **`dry_run` now defaults to `True`** on `rename_enforce_conventions`,
   `organize_assets` and `actor_rename_folder`. These rewrite asset names and
@@ -39,6 +39,15 @@ Three, all deliberate. Anyone scripting these should read this section.
   tags were previously printed and thrown away, so an MCP caller had to scrape
   the Output Log for data the tool already had. It reports `error` rather than
   `ok` when there was nothing to inspect.
+- **The cooker tools gained a `save` parameter**, defaulting to `True` so
+  existing callers are unaffected. `cooker_mark_batch`, `cooker_unmark_all` and
+  `cooker_mark_selection` previously saved the level on every invocation, which
+  meant a user marking selections one at a time paid a full synchronous level
+  save — and its asset alias refresh — per click. The save cannot simply be
+  dropped, because the cook reads from disk and an unsaved mark has no effect on
+  a session launch; so it is now a knob. Pass `save=False` when making several
+  calls in a row and save once at the end. All three return `"saved"` so a
+  caller can tell what happened.
 
 ### Fixed
 
