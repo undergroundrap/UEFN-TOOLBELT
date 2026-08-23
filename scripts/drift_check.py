@@ -378,6 +378,14 @@ _SKIP_LINE_FRAGMENTS = [
     "initial release",
     "Simulation, Sequencer",  # README patch notes v1.1 historical entry
     "Batch 9:",               # TOOL_STATUS.md integration test batch heading
+    # README patch notes for v2.4.0 - both are statements about history, and
+    # bumping either would make it false rather than current.
+    "read the changelog rather than this",  # names the v1.6.0-v2.3.9 gap
+    "stopped being maintained after v",     # ditto - names where the
+                                            # README patch notes went stale.
+    "carried no `status` key",              # "37 returns across 16 tools" - the
+                                            # count of tools that had the bug,
+                                            # not the total tool count.
     "Batch 10:",              # ditto - the heading names the release the batch
                               # shipped in (v1.9.6), which is history, not a
                               # claim about the current version.

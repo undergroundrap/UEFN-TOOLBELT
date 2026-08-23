@@ -5,7 +5,7 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
-## [Unreleased]
+## [2.4.0] — 2026-08-23
 
 One bug class, found by reading a suite log rather than the code: **success was
 the default, and failure had to opt in.** The engine reports these failures by
@@ -126,7 +126,8 @@ Four, all deliberate. Anyone scripting these should read this section.
   `test_status_contract.py`, `test_undo_coverage.py`,
   `test_rotator_argument_order.py`, `test_build_log_reading.py`,
   `test_verse_source_dir.py`.
-- Suite is **183/183 live on UEFN 42.00** — 156 verified, 27 execution-only.
+- Suite is **189/189 live on UEFN 42.00** — 162 verified, 27 execution-only,
+  across 116 sections. Runtime 48.6s.
 
 ### Docs
 

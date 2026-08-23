@@ -5,7 +5,7 @@
 
 [![CI](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/workflows/ci.yml/badge.svg)](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.3.9-green.svg)](docs/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.4.0-green.svg)](docs/CHANGELOG.md)
 [![Discussions](https://img.shields.io/badge/community-discussions-blueviolet)](https://github.com/undergroundrap/UEFN-TOOLBELT/discussions)
 
 ![UEFN Toolbelt Dashboard](docs/dashboard_hero.png)
@@ -2498,6 +2498,85 @@ Built for the 2026 UEFN Python wave. First. Most complete. Spec-accurate.
 ---
 
 ## Patch Notes
+
+Full history for every release lives in [docs/CHANGELOG.md](docs/CHANGELOG.md).
+The entries below stopped being maintained after v1.5.3 and are kept as-is;
+for anything between v1.6.0 and v2.3.9, read the changelog rather than this
+section.
+
+### v2.4.0 — August 2026 (Stopped reporting success for things that did not happen)
+
+**Why this matters:** the platform had one bug class running through it —
+**success was the default, and failure had to opt in.** Several engine calls
+report failure by *return value* and never raise:
+
+```
+save_asset / save_loaded_asset      -> False
+rename_asset                        -> False
+duplicate_asset                     -> None
+consolidate_assets                  -> False
+destroy_actor                       -> False
+```
+
+Used as a bare statement, each one did the work in memory, failed to persist
+it, and reported a checkmark. An audit found **50 discarded returns** of this
+family. The change was gone after a restart and nothing warned you.
+
+**⚠️ Four behaviour changes — read before upgrading if you script these:**
+
+- **`dry_run` now defaults to `True`** on `rename_enforce_conventions`,
+  `organize_assets` and `actor_rename_folder`. These rewrite names and paths in
+  bulk, so the safe mode is now the default. Pass `dry_run=False` to apply.
+  **Existing scripts relying on the old default will preview instead of acting.**
+- **`material_bulk_swap` returns `status="error"`** (`reason="no_slots_matched"`)
+  when a swap matched nothing. It used to log a ✓ and return `"ok"` for a swap
+  that changed zero slots.
+- **`tag_show` returns data**, not just `{"status": "ok"}` — `{"assets": {path:
+  {key: value}}}`, plus an optional `asset_paths`. MCP callers no longer have to
+  scrape the Output Log.
+- **Cooker tools gained `save`** (default `True`, so existing callers are
+  unaffected). `cooker_mark_selection` used to force a full synchronous level
+  save on *every* click. Pass `save=False` when scripting several calls and save
+  once at the end.
+
+**Fixed:**
+
+- **Asset tags were written to memory and never saved** — `tag_add` logged a ✓
+  two lines under the editor's own "failed to save" message, and `tag_search`
+  then found nothing. The tag *read* path was also calling a one-argument
+  function with two arguments, so reading a tag back always returned nothing.
+- **Actors reported deleted when they were not.** `actor_replace_class` was the
+  worst case: it ignored a failed destroy and spawned the replacement anyway,
+  leaving **both** actors in your level.
+- **Four tools returned a path for an asset they never saved** — `curve_create`,
+  `anim_create_montage`, `input_create_action`, `skel_set_physics_asset`.
+- **`prefab_export_to_disk` could report every asset migrated with none of them
+  on disk** — it discarded both `duplicate_asset` and `save_asset`.
+- **37 returns across 16 tools carried no `status` key** despite the docs
+  promising every tool returns one. The whole Bulk Ops category returned a bare
+  `{"count": N}`, so `result["status"]` raised `KeyError`.
+- **Quirk #41 — `unreal.Rotator` positional args are `(roll, pitch, yaw)`**, so
+  `unreal.Rotator(0, yaw, 0)` silently set *pitch*. 31 sites fixed. `unreal.Color`
+  has the same trap (`FColor` is B, G, R, A).
+- **Undo now works** for `niagara_spawn_system` and `niagara_clear_systems`,
+  which the docs had promised and the code never delivered.
+
+**Testing — read the split, not the total:**
+
+- The headline number was overstating what the suite knew. 39 checks passed as
+  long as the tool did not *raise*. Counted inside one "180/180", that is what
+  let Quirk #41 sit inside a fully green run. The suite now prints **both**
+  figures every run, and 12 of those checks became real assertions.
+- Suite is **189/189 live on UEFN 42.00** — 162 verified, 27 execution-only,
+  116 sections, 48.6s.
+- Six static guards added, each with a non-vacuous self-check proving the
+  detector rejects the shape that was actually wrong.
+
+**Docs:** 80 `/Game`-prefixed paths corrected across 19 files — in UEFN the mount
+point is your project name, not `/Game` (Quirk #23). The README no longer claims
+the `Toolbelt ▾` top-bar menu works; Epic sandboxes `ToolMenus` for third-party
+Python, so registration succeeds and the menu silently never renders. Use
+`tb.launch_qt()`.
 
 ### v1.5.3 — March 2026 (Audit Fixes + MCP Auto-Start)
 

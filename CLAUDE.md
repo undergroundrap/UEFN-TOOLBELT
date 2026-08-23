@@ -4,7 +4,7 @@
 > It gives Claude full knowledge of the UEFN Toolbelt so you can use natural language
 > to control UEFN without looking up tool names or parameters.
 
-<!-- last full audit: v2.3.9 — 2026-08-21 -->
+<!-- last full audit: v2.4.0 — 2026-08-23 -->
 
 ---
 
