@@ -322,6 +322,7 @@ def cooker_scan(
 def cooker_mark_batch(
     percent: float = 50.0,
     dry_run: bool = True,
+    save: bool = True,
     **kwargs,
 ) -> dict:
     """
@@ -330,11 +331,17 @@ def cooker_mark_batch(
     Args:
         percent:  Percentage of scanned pool to mark (1-100). Start at 50.
         dry_run:  Preview without changes if True (default True — always preview first).
+        save:     Save the level afterwards (default True). The cook reads from
+            disk, so the mark only affects a session launch once it is saved -
+            which is why this defaults on. Pass False when scripting several
+            calls in a row: a full level save is expensive (it triggers an asset
+            alias refresh) and you only need it before you launch.
 
     Returns:
         {
           "status": "ok", "dry_run": bool, "percent": float,
           "pool": int, "target_count": int, "changed": int, "failed": int,
+          "saved": bool,
           "actors": [str, ...]  -- first 50 labels
         }
     """
@@ -384,10 +391,12 @@ def cooker_mark_batch(
             else:
                 failed.append(row["label"])
 
-    _save_level()
+    if save:
+        _save_level()
     log_info(f"cooker_mark_batch: marked {changed}/{len(chosen)} at {percent:g}%  failed={len(failed)}")
     return {
         "status":        _mark_status(changed, len(failed), "cooker_mark_batch"),
+        "saved":         bool(save),
         "dry_run":       False,
         "percent":       percent,
         "pool":          total,
@@ -409,12 +418,16 @@ def cooker_mark_batch(
     tags=["cooker", "cook", "editor-only", "optimization", "restore", "unmark"],
     example='tb.run("cooker_unmark_all")',
 )
-def cooker_unmark_all(**kwargs) -> dict:
+def cooker_unmark_all(save: bool = True, **kwargs) -> dict:
     """
     Remove editor-only flag from every actor in the current scan cache.
 
+    Args:
+        save: Save the level afterwards (default True). See cooker_mark_batch
+            for why this defaults on and when to turn it off.
+
     Returns:
-        {"status": "ok", "changed": int, "failed": int}
+        {"status": "ok", "changed": int, "failed": int, "saved": bool}
     """
     if not _scan_cache["scanned"] or not _scan_cache["rows"]:
         return {"status": "error", "error": "Run cooker_scan first."}
@@ -430,12 +443,14 @@ def cooker_unmark_all(**kwargs) -> dict:
                 else:
                     failed.append(row["label"])
 
-    _save_level()
+    if save:
+        _save_level()
     # changed=0 with no failures means nothing was marked in the first place,
     # which is a legitimate no-op rather than a failure.
     log_info(f"cooker_unmark_all: cleared {changed}  failed={len(failed)}")
     return {
         "status":        _mark_status(changed, len(failed), "cooker_unmark_all"),
+        "saved":         bool(save),
         "changed":       changed,
         "failed":        len(failed),
         "failed_labels": failed[:20],
@@ -452,15 +467,20 @@ def cooker_unmark_all(**kwargs) -> dict:
     tags=["cooker", "cook", "editor-only", "selection", "mark", "optimization"],
     example='tb.run("cooker_mark_selection", mark=True)',
 )
-def cooker_mark_selection(mark: bool = True, **kwargs) -> dict:
+def cooker_mark_selection(mark: bool = True, save: bool = True, **kwargs) -> dict:
     """
     Apply or remove editor-only flag on the current viewport selection.
 
     Args:
         mark: True to mark as editor-only, False to clear (default True).
+        save: Save the level afterwards (default True). See cooker_mark_batch
+            for why this defaults on and when to turn it off. Marking selections
+            one at a time is the common interactive case, and a full level save
+            per click is the slowest part of it.
 
     Returns:
-        {"status": "ok", "action": str, "changed": int, "failed": int}
+        {"status": "ok", "action": str, "changed": int, "failed": int,
+         "saved": bool}
     """
     actors = _selected_actors()
     if not actors:
@@ -488,11 +508,13 @@ def cooker_mark_selection(mark: bool = True, **kwargs) -> dict:
                 except Exception:
                     failed.append("<unknown>")
 
-    _save_level()
+    if save:
+        _save_level()
     log_info(f"cooker_mark_selection: {action} {changed}/{len(actors)}  failed={len(failed)}")
     return {
         "status":        _mark_status(changed, len(failed), "cooker_mark_selection"),
         "action":        action,
+        "saved":         bool(save),
         "changed":       changed,
         "failed":        len(failed),
         "failed_labels": failed[:20],

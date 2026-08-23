@@ -1439,7 +1439,10 @@ def _test_cooker_safe() -> None:
         # is_editor_only_actor may or may not be settable on this UEFN build -
         # _set_editor_only swallows the exception either way. What must never
         # happen is "ok" alongside 0 changed, which is what it used to return.
-        marked = tb.run("cooker_mark_selection", mark=True)
+        # save=False: these fixtures are destroyed a few lines below, so writing
+        # them to disk is pure cost. A full level save triggers an asset alias
+        # refresh - it was adding well over half a minute to the suite.
+        marked = tb.run("cooker_mark_selection", mark=True, save=False)
         st, changed, failed = (marked.get("status"),
                                marked.get("changed", 0),
                                marked.get("failed", 0))
@@ -1452,8 +1455,13 @@ def _test_cooker_safe() -> None:
                 f"status={st} changed={changed} failed={failed} "
                 f"(ok with 0 changed is the bug)")
 
+        # save=False must actually be honoured, or the knob is decoration and
+        # the suite silently pays for a level save it asked to skip.
+        _record("Cooker", "save=False is honoured", marked.get("saved") is False,
+                f"saved={marked.get('saved')} (expected False)")
+
         # Restore, so the fixtures do not leave the level in a marked state.
-        cleared = tb.run("cooker_mark_selection", mark=False)
+        cleared = tb.run("cooker_mark_selection", mark=False, save=False)
         c_st, c_changed, c_failed = (cleared.get("status"),
                                      cleared.get("changed", 0),
                                      cleared.get("failed", 0))
