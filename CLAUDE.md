@@ -27,7 +27,14 @@ This is the single most important rule in this project. Syntax checks and unit t
 | MCP bridge change | `deploy.bat` → `tb.run("mcp_start")` + ping from Claude Code |
 | `core/` module change | `deploy.bat` → nuclear reload → `tb.run("toolbelt_smoke_test")` |
 | `install.py` / `deploy.bat` change | Run the script end-to-end |
+| Launch Session / Push Changes / publish | `prepare_launch.bat` → upload → `restore_after_launch.bat` |
 | Any change touching PySide6 windows | `deploy.bat` → **full UEFN restart** → open window, interact |
+
+> **UEFN 42.00 upload rule:** the `VKCreateUGC` role rejects every `.py` anywhere
+> under the project root. `.urcignore` does not affect Valkyrie module staging,
+> and Fortnite may open before the remote failure arrives. Always run
+> `prepare_launch.bat` before Launch Session / Push Changes / publish and
+> `restore_after_launch.bat` after validation. See Quirk #42.
 
 ### Two-phase validation workflow
 
@@ -490,9 +497,9 @@ Two separate test systems. Know which is which before running either.
 
 ### Integration Test — `tb.run("toolbelt_integration_test")`
 **What it proves:** tools *work* in a live UEFN editor. The harness spawns real actor fixtures, runs each tool against them, verifies the result (property changed, actor count correct, file written), and cleans up.
-**Coverage:** 116 test sections, **189 checks, 189/189 live on UEFN 42.00** — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
+**Coverage:** 116 test sections, **190 checks, 190/190 live on UEFN 42.00** — materials, bulk ops, patterns, scatter, zones, stamps, actor org, proximity, alignment, signs, post-process, audio, lighting, world state, and more.
 
-> **Read the split, not the total.** 162 of the 189 verify a real outcome; **27
+> **Read the split, not the total.** 163 of the 190 verify a real outcome; **27
 > are execution-only** — they prove the tool ran without raising, nothing more.
 > The suite prints both on every run. A check that cannot fail is not coverage:
 > counting all of them as one number is what let Quirk #41 (wrong rotator axis)
@@ -500,7 +507,7 @@ Two separate test systems. Know which is which before running either.
 > value or re-read the state — `_record(..., True)` is a last resort and must
 > pass `verified=False`.
 **⚠️ INVASIVE — only run in a blank template level.** It spawns and deletes actors. Never run in a production project.
-**Run after:** Before any PR. After adding a new tool. After major refactors. ~45 seconds.
+**Run after:** Before any PR. After adding a new tool. After major refactors. ~70 seconds.
 
 ```
 Results: Saved/UEFN_Toolbelt/integration_test_results.txt
@@ -510,9 +517,9 @@ If the editor crashes mid-run, the file contains partial results up to the last 
 | | Smoke Test | Integration Test |
 |---|---|---|
 | Tests registration? | ✅ All 362 tools | ✅ |
-| Tests live execution? | Partial (safe tools only) | ✅ 189 checks on real actors (162 verified, 27 execution-only) |
+| Tests live execution? | Partial (safe tools only) | ✅ 190 checks on real actors (163 verified, 27 execution-only) |
 | Safe in production? | ✅ Yes | ❌ Blank level only |
-| Runtime | ~5s | ~45s |
+| Runtime | ~5s | ~70s |
 | Run when? | After every change | Before every PR |
 
 ---

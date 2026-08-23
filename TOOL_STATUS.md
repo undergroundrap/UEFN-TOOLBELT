@@ -44,18 +44,18 @@ This document outlines the current testing status of the toolbelt and categorize
 
 ## 🟡 Automated Verification Status: **187 / 362 Tools (52% Coverage)**
 Integration suite has **116 test sections written**, all run live. The suite
-records 189 individual checks; **189/189 passed on UEFN 42.00** (build 25d3daa,
-2026-08-23). Batches 9 and 10 below are now marked from that run rather than
+records 190 individual checks; **190/190 passed on UEFN 42.00** (publishing
+hardening build based on 112671c, 2026-08-23). Batches 9 and 10 below are now marked from that run rather than
 from intent - the rows still unchecked are the ones the suite genuinely does not
 exercise.
 
-**Read the split, not the total.** Of the 189, **162 verify a real outcome** and
+**Read the split, not the total.** Of the 190, **163 verify a real outcome** and
 **27 are execution-only** — they assert the tool did not raise and nothing more.
 The suite prints both figures on every run. Treating the total as coverage is
 what let Quirk #41 (wrong rotator axis) sit inside a green run, and what let
 `material_bulk_swap` report success for a swap that changed nothing.
 
-> **Coverage gap:** 75 tools were added after v1.6.0 (zones, stamps, actor org, proximity placement, advanced alignment, signs, audio, post-process, level health, config, lighting extended, world state). Batch 9 integration tests ran green live on 2026-08-21 (180/180), 2026-08-22 (183/183), and 2026-08-23 (189/189).
+> **Coverage gap:** 75 tools were added after v1.6.0 (zones, stamps, actor org, proximity placement, advanced alignment, signs, audio, post-process, level health, config, lighting extended, world state). Batch 9 integration tests ran green live on 2026-08-21 (180/180), 2026-08-22 (183/183), and 2026-08-23 (189/189); the publishing-hardening run later that day passed 190/190.
 >
 > **Modules still outside the integration suite:** `niagara_tools` (4), `pcg_tools` (4), `geometry_tools` (5), `movie_render_tools` (3), `activity_log_tools` (3) — registered and live-tested by hand, but nothing in the suite exercises them, so treat them as unverified. `viewport_tools` left this list once its showflag and bookmark tools got sections. `curve_tools` got its first coverage on 2026-08-23 (`curve_create` only) — and that section immediately caught a real bug, which is the argument for shrinking this list further.
 
@@ -254,7 +254,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 4. Verifies the result (properties, file outputs)
 5. Cleans up with a single `undo_transaction`
 
-**Current Integration Coverage (362 tools — 116 sections written, all run live; 162 of 189 checks verify a real outcome):**
+**Current Integration Coverage (362 tools — 116 sections written, all run live; 163 of 190 checks verify a real outcome):**
 
 > ✅ = Confirmed passing in live UEFN
 > 🔵 = Written + syntax-checked, pending first live run (Batch 9)
@@ -311,7 +311,7 @@ The `toolbelt_integration_test` tool bridges the gap between pure code checks an
 - Property maps, method lists, and component hierarchies are accessible
 - JSON output is valid and machine-readable for AI analysis
 
-**What the automated integration test (116 live sections, 189 checks, 189/189 — 162 verified, 27 execution-only) proves:**
+**What the automated integration test (116 live sections, 190 checks, 190/190 — 163 verified, 27 execution-only) proves:**
 - **Viewport Control:** The system can successfully spawn, select, and destroy actors programmatically.
 - **Context-Aware Tools:** Selection-dependent tools (Bulk Ops, Materials) are confirmed to function on live actors.
 - **File System Integrity:** Screenshots, Snapshots, and Crawler JSONs are successfully written/read.
@@ -349,7 +349,7 @@ All materials, bulk ops, patterns, scatter, splines, snapshots, crawler, assets,
 - [x] **World State**: `world_state_export`, `device_catalog_scan`
 - [ ] **Activity Log**: `toolbelt_activity_log`, `toolbelt_activity_stats`, `toolbelt_activity_clear`, `publish_audit` — manually verified live 2026-03-25
 
-Every checked group above ran green in the 189/189 live run on 2026-08-23. The
+Every checked group above ran green in the 190/190 live run on 2026-08-23. The
 unchecked rows are the honest remainder — they are written but the suite does
 not exercise them, so treat them as unverified rather than passing.
 

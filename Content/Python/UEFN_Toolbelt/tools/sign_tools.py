@@ -6,6 +6,8 @@ in your UEFN level without touching every actor manually.
 
 NOTE: These are TextRenderActors, NOT Fortnite Billboard devices.
 TextRenderActors give full Python control over text, color, and size.
+UEFN 42.00 remote validation rejects them. They are editor visualization only
+and must be removed before Launch Session or publishing.
 
 FEATURES:
   • Spawn N signs in a row, column, or grid at camera / any location
@@ -35,6 +37,7 @@ from ..registry import register_tool
 # ─────────────────────────────────────────────────────────────────────────────
 
 SIGN_FOLDER = "Signs"
+_PUBLISH_BLOCKER_CLEANUP = 'tb.run("sign_clear", all_text_actors=True, dry_run=False)'
 
 try:
     _H_ALIGN = {
@@ -54,6 +57,20 @@ except AttributeError:
 # ─────────────────────────────────────────────────────────────────────────────
 #  Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _warn_publish_blocker(tool_name: str) -> None:
+    log_warning(
+        f"[{tool_name}] PUBLISH BLOCKER: TextRenderActor is disallowed by UEFN "
+        f"remote validation. Remove these actors before Launch Session or publishing: "
+        f"{_PUBLISH_BLOCKER_CLEANUP}"
+    )
+
+
+def _publish_blocker_result() -> dict[str, str]:
+    return {
+        "publish_blocker": "TextRenderActor",
+        "cleanup": _PUBLISH_BLOCKER_CLEANUP,
+    }
 
 def _hex_to_fcolor(hex_str: str) -> unreal.Color:
     h = hex_str.lstrip("#")
@@ -136,7 +153,8 @@ def _get_selected_signs() -> list[unreal.TextRenderActor]:
     name="sign_spawn_bulk",
     category="Text & Signs",
     description=(
-        "Spawn N billboards in a row, column, or grid at a given location. "
+        "Spawn N TextRenderActor signs in a row, column, or grid. PUBLISH BLOCKER: "
+        "remove them before Launch Session or publishing. "
         "All signs get auto-numbered labels and share the same style. "
         "Omit location to spawn at world origin; use the dashboard to spawn at camera."
     ),
@@ -181,6 +199,7 @@ def run_sign_spawn_bulk(
     Returns:
         {"status", "spawned", "folder", "labels"}
     """
+    _warn_publish_blocker("sign_spawn_bulk")
     ox, oy, oz = location
     labels: list[str] = []
 
@@ -202,7 +221,13 @@ def run_sign_spawn_bulk(
                 labels.append(label)
 
     log_info(f"[sign_spawn_bulk] Spawned {len(labels)} signs in folder '{folder}'.")
-    return {"status": "ok", "spawned": len(labels), "folder": folder, "labels": labels}
+    return {
+        "status": "ok",
+        "spawned": len(labels),
+        "folder": folder,
+        "labels": labels,
+        **_publish_blocker_result(),
+    }
 
 
 @register_tool(
@@ -401,20 +426,25 @@ def run_sign_list(
 @register_tool(
     name="sign_clear",
     category="Text & Signs",
-    description="Delete all billboards in a named World Outliner folder.",
+    description=(
+        "Delete TextRenderActors in a named folder, or pass all_text_actors=True "
+        "to remove every publish-blocking TextRenderActor from the level."
+    ),
     tags=["billboard", "sign", "clear", "delete"],
 )
 def run_sign_clear(
     folder: str = SIGN_FOLDER,
     dry_run: bool = False,
+    all_text_actors: bool = False,
     **kwargs,
 ) -> dict:
     """
     Delete all TextRenderActors inside a given World Outliner folder.
 
     Args:
-        folder:  Folder name to clear (default: "Billboards").
-        dry_run: If True, report what would be deleted without deleting.
+        folder:          Folder name to clear (default: "Signs").
+        dry_run:         If True, report what would be deleted without deleting.
+        all_text_actors: If True, ignore folder and delete every TextRenderActor.
 
     Returns:
         {"status", "deleted", "dry_run"}
@@ -422,15 +452,20 @@ def run_sign_clear(
     actor_sub  = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     all_actors = actor_sub.get_all_level_actors() or []
 
-    targets = [
-        a for a in all_actors
-        if isinstance(a, unreal.TextRenderActor)
-        and folder.lower() in str(a.get_folder_path()).lower()
-    ]
+    targets = [a for a in all_actors if isinstance(a, unreal.TextRenderActor) and (
+        all_text_actors or folder.lower() in str(a.get_folder_path()).lower()
+    )]
+    scope = "the level" if all_text_actors else f"'{folder}'"
 
     if dry_run:
-        log_info(f"[sign_clear] DRY RUN — would delete {len(targets)} signs from '{folder}'.")
-        return {"status": "ok", "deleted": 0, "would_delete": len(targets), "dry_run": True}
+        log_info(f"[sign_clear] DRY RUN — would delete {len(targets)} signs from {scope}.")
+        return {"status": "ok", "deleted": 0, "would_delete": len(targets),
+                "dry_run": True, "all_text_actors": all_text_actors}
+
+    if not targets and all_text_actors:
+        log_info("[sign_clear] No publish-blocking TextRenderActors remain in the level.")
+        return {"status": "ok", "deleted": 0, "attempted": 0,
+                "dry_run": False, "all_text_actors": True}
 
     deleted = 0
     with unreal.ScopedEditorTransaction("Billboard Clear") as _t:
@@ -446,19 +481,22 @@ def run_sign_clear(
                 )
 
     if deleted == 0:
-        log_error(f"[sign_clear] Deleted 0 of {len(targets)} signs in '{folder}'.")
+        log_error(f"[sign_clear] Deleted 0 of {len(targets)} signs in {scope}.")
         return {"status": "error", "deleted": 0, "attempted": len(targets),
-                "dry_run": False, "reason": "nothing_deleted"}
-    log_info(f"[sign_clear] Deleted {deleted} of {len(targets)} signs from '{folder}'.")
+                "dry_run": False, "all_text_actors": all_text_actors,
+                "reason": "nothing_deleted"}
+    log_info(f"[sign_clear] Deleted {deleted} of {len(targets)} signs from {scope}.")
     return {"status": "ok" if deleted == len(targets) else "partial",
-            "deleted": deleted, "attempted": len(targets), "dry_run": False}
+            "deleted": deleted, "attempted": len(targets), "dry_run": False,
+            "all_text_actors": all_text_actors}
 
 
 @register_tool(
     name="label_attach",
     category="Text & Signs",
     description=(
-        "Spawn a floating text label above each selected actor and attach it so the label "
+        "Spawn a floating TextRenderActor label above each selected actor. PUBLISH BLOCKER: "
+        "remove labels before Launch Session or publishing. The label "
         "moves with the actor. Perfect for NPC name tags, device markers, and prop labels. "
         "Label text defaults to the actor's own name."
     ),
@@ -497,6 +535,7 @@ def run_label_attach(
     if not selected:
         return {"status": "error", "message": "No actors selected. Select actors in the viewport first."}
 
+    _warn_publish_blocker("label_attach")
     attached = skipped = 0
 
     with unreal.ScopedEditorTransaction("Label Attach") as _t:
@@ -546,4 +585,10 @@ def run_label_attach(
                 skipped += 1
 
     log_info(f"[label_attach] Attached {attached} labels, skipped {skipped}.")
-    return {"status": "ok", "attached": attached, "skipped": skipped, "folder": folder}
+    return {
+        "status": "ok",
+        "attached": attached,
+        "skipped": skipped,
+        "folder": folder,
+        **_publish_blocker_result(),
+    }

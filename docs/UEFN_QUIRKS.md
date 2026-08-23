@@ -1373,10 +1373,11 @@ Both flagged properties are **component pointers on a stock Engine actor class**
 On any placed instance that pointer necessarily differs from the CDO's, and the
 Fortnite validator reports the difference as an illegal override.
 
-**Nothing to fix in Toolbelt.** The warnings come from placing the Engine class
-in a Fortnite level. Tools that spawn `TextRenderActor` — `text_place`,
+The warnings come from placing the Engine class in a Fortnite level. Tools that
+spawn `TextRenderActor` — `text_place`,
 `text_paint_grid`, `text_color_cycle`, `text_label_selection`, `sign_spawn_bulk`,
-`label_attach` — will all produce them.
+`label_attach` — will all produce them. Toolbelt now warns on every spawn and
+`publish_audit` treats even one instance as a hard blocker.
 
 **Nothing persists in the level.** Deleting the actors and re-saving clears the
 warnings completely — verified: the same level went from four warnings to a clean
@@ -1384,9 +1385,24 @@ asset check with no other change. So this is not accumulated damage to the map,
 and there is nothing to repair in an existing project beyond removing the actors
 if you want a silent check.
 
-They are `Warning`, not `Error`. Whether Epic's publish pipeline treats them as
-blocking is **not established** — if you need to know, test a publish rather than
-assume either way.
+The local asset-check messages are `Warning`, but remote validation is stricter.
+Confirmed on UEFN 42.00 with 16 instances:
+
+```
+Error: Disallowed reference to /Script/Engine.TextRenderActor
+```
+
+That error blocks Launch Session and publishing. Remove every instance, not only
+the usual Toolbelt folders:
+
+```python
+tb.run("sign_clear", all_text_actors=True, dry_run=False)
+```
+
+The integration suite used to leave `label_attach` actors in `/Labels` while its
+cleanup only scanned `TOOLBELT_TEST_Signs`; `Grok_Test_Actor` also relied on the
+unchecked `Actor.destroy_actor()` path. Both now use checked subsystem deletion,
+and the Signs section re-scans the whole level for zero remaining text actors.
 
 ---
 
@@ -1545,3 +1561,63 @@ disappears.
 **Wire format:** the MCP bridge documents rotations as `[pitch, yaw, roll]` and
 maps them through `_rotator_from_list()`. Never `unreal.Rotator(*rotation)` —
 that unpacks straight into the wrong order, which is what it was doing.
+
+---
+
+## Quirk #42 — Project `.py` files pass local staging but fail remote validation (Discovered: 2026-08-23)
+
+UEFN 42.00 accepts Python for editor automation but the standard `VKCreateUGC`
+role cannot upload Python as island content. Launch Session or Push Changes can
+compile Verse, upload locally, connect matchmaking, and even open Fortnite
+before the remote candidate result arrives:
+
+```
+[ContainsPythonData] Permission required to upload Python (.py)
+Unable to play: At least 1 module failed remote validation
+```
+
+Fortnite opening is therefore not evidence that validation passed.
+
+### `.urcignore` does not control module staging
+
+Adding this rule had no effect:
+
+```
+**/Content/Python/**
+```
+
+The same five validation messages returned. `.urcignore` controls Unreal
+Revision Control, while Valkyrie builds its candidate from a separate module
+staging path.
+
+Moving only `Content/Python` was also insufficient. Old deployments and the dev
+workflow had left root scripts, `tests/*.py`, and Verse lexer helpers elsewhere
+in the project. The validator repeats a generic message and the count is not a
+trustworthy inventory; the only safe precondition is **zero `.py` files anywhere
+under the UEFN project root**.
+
+### Verified workflow
+
+From the Toolbelt repo:
+
+```bat
+prepare_launch.bat
+```
+
+The helper finds the selected project by its `.uefnproject` file, moves every
+`.py` into a recoverable `%LOCALAPPDATA%\UEFN-Toolbelt\SessionPythonStash`
+tree, writes a manifest, and verifies zero remain. Launch Session or Push Changes,
+wait for remote validation, then restore development files:
+
+```bat
+restore_after_launch.bat
+```
+
+Restore preflights every destination and refuses to overwrite a file created
+while the stash was active. A failed prepare rolls back what it moved; a failed
+restore leaves the recoverable stash in place.
+
+**Confirmed live on UEFN 42.00 / TOOL_TEST:** after 40 remaining root/dev Python
+files and the runtime package were moved outside the project, Push Changes logged
+`FlowStep_SignalSuccess`, `OnUploadProjectsCompleted ... UpToDate`, zero
+`ContainsPythonData`, and completed session setup successfully.

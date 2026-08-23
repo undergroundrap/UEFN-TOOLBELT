@@ -1594,7 +1594,9 @@ def _test_localization() -> None:
         _record("Localization", "Error", False, str(e))
     finally:
         if txt_actor:
-            txt_actor.destroy_actor()
+            destroyed = actor_sub.destroy_actor(txt_actor)
+            _record("Localization", "Cleanup TextRenderActor", destroyed,
+                    "destroy_actor returned False" if not destroyed else "")
 
 def _test_environmental() -> None:
     _header("11. Environmental Tools")
@@ -2054,13 +2056,20 @@ def _test_sign_tools() -> None:
         fixtures = _spawn_fixture(_CUBE_MESH, unreal.Vector(0, 3000, 0))
         if fixtures:
             _select_fixture([fixtures])
-            result = tb.run("label_attach", offset_z=120, use_actor_name=True)
+            result = tb.run("label_attach", offset_z=120, use_actor_name=True,
+                            folder=test_folder)
             passed = isinstance(result, dict) and result.get("status") == "ok"
             _record("Signs", "label_attach", passed)
 
-        # cleanup
-        result = tb.run("sign_clear", folder=test_folder, dry_run=False)
-        _record("Signs", "sign_clear (cleanup)", result.get("status") == "ok")
+        # Publish-safe cleanup: this suite must leave no TextRenderActor in any
+        # folder. Labels used to default to /Labels and survived the test-folder
+        # cleanup, so a green suite left islands unable to launch.
+        result = tb.run("sign_clear", all_text_actors=True, dry_run=False)
+        remaining_text = [a for a in actor_sub.get_all_level_actors()
+                          if isinstance(a, unreal.TextRenderActor)]
+        cleanup_passed = (result.get("status") == "ok" and not remaining_text)
+        _record("Signs", "sign_clear (publish-safe cleanup)", cleanup_passed,
+                f"deleted={result.get('deleted', 0)}, remaining={len(remaining_text)}")
 
     except Exception as e:
         _record("Signs", "Error", False, str(e))

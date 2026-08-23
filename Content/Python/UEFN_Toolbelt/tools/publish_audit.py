@@ -3,7 +3,7 @@ UEFN TOOLBELT — publish_audit.py
 ===================================
 Fortnite island publish-readiness checker.
 
-Runs a fast 9-layer audit and returns a go/no-go decision with an ordered
+Runs a fast 10-layer audit and returns a go/no-go decision with an ordered
 action list — so creators know exactly what to fix before hitting "Publish"
 and waiting 10 minutes to find out it failed.
 
@@ -25,6 +25,7 @@ What this ADDS (not covered elsewhere):
   7. Stale redirector count (quick Asset Registry scan)
   8. Level name sanity (not "Untitled")
   9. Memory report freshness reference (reads cached memory_report.json)
+ 10. Disallowed TextRenderActors that hard-block remote validation
 
 MCP usage:
     tb.run("publish_audit")
@@ -132,6 +133,24 @@ def _check_rogue_actors(actors: list) -> dict:
         "severity": "warn" if rogues else "ok",
         "note":     "No rogue actors ✓" if not rogues
                     else f"{len(rogues)} actors with scale/location issues — run rogue_actor_scan for details",
+    }
+
+
+def _check_disallowed_text_actors(actors: list) -> dict:
+    blocked = [a for a in actors if isinstance(a, unreal.TextRenderActor)]
+    labels = [a.get_actor_label() for a in blocked[:20]]
+    count = len(blocked)
+    return {
+        "pass": count == 0,
+        "count": count,
+        "labels": labels,
+        "severity": "fail" if count else "ok",
+        "note": (
+            "No TextRenderActors — remote validation safe ✓"
+            if count == 0 else
+            f"{count} TextRenderActor(s) block Launch Session and publishing — "
+            'run tb.run("sign_clear", all_text_actors=True, dry_run=False)'
+        ),
     }
 
 
@@ -259,7 +278,8 @@ def _check_memory(toolbelt_saved_dir: str, warn_mb: float, crit_mb: float) -> di
     category="Project Admin",
     description=(
         "Full Fortnite publish-readiness audit — actor budget, required devices, "
-        "lights, rogue actors, Verse build status, unsaved changes, redirectors, "
+        "lights, rogue actors, disallowed TextRenderActors, Verse build status, "
+        "unsaved changes, redirectors, "
         "level name, and memory. Returns go/no-go with ordered next steps."
     ),
     tags=["publish", "audit", "validate", "health", "fortnite", "readiness", "checklist", "ai"],
@@ -275,16 +295,17 @@ def publish_audit(
     """
     Run a full publish-readiness audit on the current UEFN island.
 
-    Checks 9 layers in one fast pass without spawning actors or modifying anything:
+    Checks 10 layers in one fast pass without spawning actors or modifying anything:
       1. actor_count     — total actors vs budget limit
       2. required_devices — spawn pads (and any others you specify)
       3. lights          — light count warning
       4. rogue_actors    — zero/extreme scale, off-map, at-origin actors
-      5. verse_build     — last Verse build log SUCCESS / FAILED / UNKNOWN
-      6. unsaved_level   — level has unsaved changes
-      7. redirectors     — stale ObjectRedirectors in the project
-      8. level_name      — world name not "Untitled" or default
-      9. memory          — references cached memory_report.json if < 2h old
+      5. text_render_actors — disallowed class that blocks remote validation
+      6. verse_build     — last Verse build log SUCCESS / FAILED / UNKNOWN
+      7. unsaved_level   — level has unsaved changes
+      8. redirectors     — stale ObjectRedirectors in the project
+      9. level_name      — world name not "Untitled" or default
+     10. memory          — references cached memory_report.json if < 2h old
 
     Args:
         actor_limit:      Max actors before FAIL (default 2000).
@@ -319,12 +340,13 @@ def publish_audit(
     world   = unreal.EditorLevelLibrary.get_editor_world()
     req_list = [r.strip() for r in required_devices.split(",") if r.strip()]
 
-    # ── Run all 9 checks ──────────────────────────────────────────────────
+    # ── Run all 10 checks ─────────────────────────────────────────────────
     checks = {
         "actor_count":      _check_actor_count(actors, actor_limit),
         "required_devices": _check_required_devices(req_list, actors),
         "lights":           _check_lights(actors, light_warn),
         "rogue_actors":     _check_rogue_actors(actors),
+        "text_render_actors": _check_disallowed_text_actors(actors),
         "verse_build":      _check_verse_build(unreal.Paths.project_saved_dir()),
         "unsaved_level":    _check_unsaved(world),
         "redirectors":      _check_redirectors(),

@@ -261,17 +261,17 @@ The smoke test verifies that all tools *register* correctly. The integration tes
 4. **Verifies** the result — property changed, actor spawned, file written, count correct
 5. **Cleans up** every actor it touched via a single undo transaction
 
-**189 checks across 362 tools — 189/189 passing live on UEFN 42.00** — covering materials, bulk ops, patterns, scatter, splines, snapshots, asset management, Verse tools, screenshots, LODs, arena, measurement, localization, zones, stamps, actor org, proximity placement, advanced alignment, signs, post-process, audio, level health, config, lighting, and world state.
+**190 checks across 362 tools — 190/190 passing live on UEFN 42.00** — covering materials, bulk ops, patterns, scatter, splines, snapshots, asset management, Verse tools, screenshots, LODs, arena, measurement, localization, zones, stamps, actor org, proximity placement, advanced alignment, signs, post-process, audio, level health, config, lighting, and world state.
 
-Of those 189, **162 verify a real outcome** — a property changed, a file written,
+Of those 190, **163 verify a real outcome** — a property changed, a file written,
 an actor count, a tag read back — and **27 are execution-only**: they prove the
 tool ran without raising, nothing more. Both numbers are reported by the suite
-on every run, because a headline "189/189" that silently includes checks which
+on every run, because a headline "190/190" that silently includes checks which
 cannot fail overstates what the suite knows. That is not hypothetical: a fully
 green run once hid a wrong-rotation-axis bug ([Quirk #41](docs/UEFN_QUIRKS.md))
 for exactly that reason.
 
-This is the closest thing to a full CI suite possible inside the UEFN Python sandbox. If this passes, you have high confidence that the core tool logic is sound — not just that it imported.
+This is the closest thing to a full CI suite possible inside the UEFN Python sandbox. If this passes, you have high confidence that the core tool logic is sound — not just that it imported. The current live run takes about 70 seconds.
 
 ### How to run it
 
@@ -300,7 +300,7 @@ If the editor crashes mid-run (rare), the file will contain partial results up t
 | Tests all 362 tools? | Registry only | Live execution |
 | Requires level actors? | No | Yes (spawns its own) |
 | Safe in production? | Yes | **No — use blank level** |
-| Runtime | ~5 seconds | ~35 seconds |
+| Runtime | ~5 seconds | ~70 seconds |
 | Command | `tb.run("toolbelt_smoke_test")` | `tb.run("toolbelt_integration_test")` |
 
 Run the smoke test after every change. Run the integration test before submitting a PR.
@@ -1213,6 +1213,14 @@ for angle, x, y in [(0,5000,0),(90,0,5000),(180,-5000,0),(287,0,-5000)]:
 
 ### Text & Signs (14)
 
+> **Publish blocker:** these six spawning tools create `TextRenderActor`, which
+> UEFN 42.00 rejects during remote validation: `text_place`,
+> `text_label_selection`, `text_paint_grid`, `text_color_cycle`,
+> `sign_spawn_bulk`, and `label_attach`. They are editor-visualization helpers.
+> Before Launch Session or publishing, run
+> `tb.run("sign_clear", all_text_actors=True, dry_run=False)` and confirm
+> `tb.run("publish_audit")` reports zero `text_render_actors`.
+
 | Tool | Description |
 |---|---|
 | `text_place` | Place a single styled 3D text actor at a world location. |
@@ -1227,7 +1235,7 @@ for angle, x, y in [(0,5000,0),(90,0,5000),(180,-5000,0),(287,0,-5000)]:
 | `sign_batch_set_text` | Assign individual text strings to each selected sign in order. |
 | `sign_batch_rename` | Rename selected signs sequentially: `prefix_01`, `prefix_02`, … |
 | `sign_list` | List all TextRenderActors in a folder with their current text. |
-| `sign_clear` | Delete all signs in a named folder. |
+| `sign_clear` | Delete signs in a named folder, or every TextRenderActor with `all_text_actors=True`. |
 | `label_attach` | Spawn a floating text label above each selected actor, parented so it follows movement. |
 
 ---
@@ -1376,12 +1384,19 @@ python install.py --project "C:\Users\YOURNAME\Documents\Fortnite Projects\YOURP
 
 `deploy.bat` is the dev workflow tool. Double-click it or run it from a terminal. In addition to copying files it will:
 - Check and install PySide6 automatically if it's missing
-- Copy the `tests/` folder and `verse-book/` spec alongside the package
+- Copy the `verse-book/` reference without its Python lexer helpers
 - Print the hot-reload command to paste into UEFN so you don't need a full restart
 
 ```bat
 deploy.bat
 ```
+
+> **Before Launch Session, Push Changes, or publishing:** UEFN 42.00 rejects
+> every `.py` under the project for the standard `VKCreateUGC` role.
+> `.urcignore` does not affect this upload check. Run `prepare_launch.bat`, wait
+> for the upload to finish, then run `restore_after_launch.bat`. The prepare
+> helper stashes every project `.py` outside the project and verifies zero remain;
+> restore refuses to overwrite any file created while the stash was active.
 
 > **Hot-reload after any code change** (no UEFN restart needed):
 > ```python

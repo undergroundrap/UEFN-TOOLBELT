@@ -66,6 +66,8 @@ HOW TextRenderActor WORKS IN UEFN:
     - world_size controls the font height in Unreal Units (1 UU ≈ 1 cm).
     - Does NOT require any external texture or material beyond the default
       text render material already built into the engine.
+    - PUBLISH BLOCKER: UEFN 42.00 remote validation rejects every placed
+      TextRenderActor. Delete them before Launch Session or publishing.
 """
 
 from __future__ import annotations
@@ -116,6 +118,23 @@ COLOR_PALETTE = [
     "#00CCFF", "#4488FF", "#AA44FF", "#FF44AA",
     "#FFFFFF", "#AAAAAA",
 ]
+
+_PUBLISH_BLOCKER_CLEANUP = 'tb.run("sign_clear", all_text_actors=True, dry_run=False)'
+
+
+def _warn_publish_blocker(tool_name: str) -> None:
+    log_warning(
+        f"[{tool_name}] PUBLISH BLOCKER: TextRenderActor is disallowed by UEFN "
+        f"remote validation. Remove these actors before Launch Session or publishing: "
+        f"{_PUBLISH_BLOCKER_CLEANUP}"
+    )
+
+
+def _publish_blocker_result() -> dict[str, str]:
+    return {
+        "publish_blocker": "TextRenderActor",
+        "cleanup": _PUBLISH_BLOCKER_CLEANUP,
+    }
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Alignment enum maps
@@ -247,7 +266,10 @@ def _spawn_text_actor(
 @register_tool(
     name="text_place",
     category="Text & Signs",
-    description="Place a single styled 3D text actor at a world location.",
+    description=(
+        "Place a styled 3D TextRenderActor for editor visualization. "
+        "PUBLISH BLOCKER: remove it before Launch Session or publishing."
+    ),
     shortcut="Ctrl+Alt+T",
     tags=["text", "place", "sign", "label", "3d"],
 )
@@ -278,6 +300,7 @@ def run_text_place(
     Returns:
         The spawned TextRenderActor (useful if calling from another tool).
     """
+    _warn_publish_blocker("text_place")
     style_data = _resolve_style(style, {
         "color": color,
         "world_size": world_size,
@@ -294,13 +317,21 @@ def run_text_place(
 
     if actor:
         log_info(f"Placed text '{text}' at {location}.")
-    return {"status": "ok" if actor else "error", "text": text, "location": list(location)}
+    return {
+        "status": "ok" if actor else "error",
+        "text": text,
+        "location": list(location),
+        **_publish_blocker_result(),
+    }
 
 
 @register_tool(
     name="text_label_selection",
     category="Text & Signs",
-    description="Auto-label every selected actor with its own name, floating above it.",
+    description=(
+        "Auto-label selected actors with TextRenderActors. PUBLISH BLOCKER: "
+        "remove the labels before Launch Session or publishing."
+    ),
     tags=["text", "label", "selection", "auto", "name"],
 )
 def run_text_label_selection(
@@ -326,6 +357,7 @@ def run_text_label_selection(
     if actors is None:
         return {"status": "error", "count": 0}
 
+    _warn_publish_blocker("text_label_selection")
     style_data = _resolve_style(style, {"color": color, "world_size": world_size})
     rot = unreal.Rotator(roll=0, pitch=0, yaw=rotation_yaw)
 
@@ -343,13 +375,16 @@ def run_text_label_selection(
             )
 
     log_info(f"Placed {len(actors)} label actors.")
-    return {"status": "ok", "count": len(actors)}
+    return {"status": "ok", "count": len(actors), **_publish_blocker_result()}
 
 
 @register_tool(
     name="text_paint_grid",
     category="Text & Signs",
-    description="Paint a coordinate grid of text labels across a map area (A1, B2, ...).",
+    description=(
+        "Paint a TextRenderActor coordinate grid for editor visualization. "
+        "PUBLISH BLOCKER: remove it before Launch Session or publishing."
+    ),
     tags=["text", "grid", "map", "coordinate", "zone"],
 )
 def run_text_paint_grid(
@@ -382,6 +417,7 @@ def run_text_paint_grid(
         log_error("text_paint_grid: max 26 columns (A–Z).")
         return {"status": "error", "placed": 0}
 
+    _warn_publish_blocker("text_paint_grid")
     style_data = _resolve_style(style, {"color": color, "world_size": world_size})
     rot = unreal.Rotator(roll=0, pitch=0, yaw=rotation_yaw)
     ox, oy, oz = origin
@@ -405,13 +441,16 @@ def run_text_paint_grid(
                 )
 
     log_info(f"Grid complete: {cols * rows} zone labels placed.")
-    return {"status": "ok", "placed": cols * rows}
+    return {"status": "ok", "placed": cols * rows, **_publish_blocker_result()}
 
 
 @register_tool(
     name="text_color_cycle",
     category="Text & Signs",
-    description="Place multiple text actors cycling through a color palette.",
+    description=(
+        "Place color-cycled TextRenderActors for editor visualization. "
+        "PUBLISH BLOCKER: remove them before Launch Session or publishing."
+    ),
     tags=["text", "color", "cycle", "palette", "multi"],
 )
 def run_text_color_cycle(
@@ -437,6 +476,7 @@ def run_text_color_cycle(
         texts = ["RED", "ORANGE", "YELLOW", "GREEN",
                  "CYAN",  "BLUE",   "PURPLE", "PINK"]
 
+    _warn_publish_blocker("text_color_cycle")
     rot = unreal.Rotator(roll=0, pitch=0, yaw=rotation_yaw)
     ox, oy, oz = start_location
 
@@ -454,7 +494,7 @@ def run_text_color_cycle(
             )
 
     log_info("Color cycle complete.")
-    return {"status": "ok", "placed": len(texts)}
+    return {"status": "ok", "placed": len(texts), **_publish_blocker_result()}
 
 
 @register_tool(

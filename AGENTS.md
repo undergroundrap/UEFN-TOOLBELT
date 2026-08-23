@@ -37,6 +37,10 @@ Any MCP-compatible AI connects via `.mcp.json` (pre-configured).
    grep -rh 'name="' Content/Python/UEFN_Toolbelt/tools/ --include="*.py" \
      | grep -o 'name="[^"]*"' | sed 's/name="//;s/"//' | sort | grep <keyword>
    ```
+9. **Project `.py` files block remote validation.** Before Launch Session, Push
+   Changes, or publishing on UEFN 42.00, run `prepare_launch.bat`; after the
+   upload completes, run `restore_after_launch.bat`. `.urcignore` does not gate
+   Valkyrie staging. See `docs/UEFN_QUIRKS.md` Quirk #42.
 
 ## Key files for agents
 
@@ -78,4 +82,12 @@ deploy.bat                          → sync repo → UEFN project
 [nuclear reload in UEFN console]    → hot-reload modules
 tb.run("tool_name")                 → test live
 [user confirms output]              → commit
+```
+
+For Launch Session / Push Changes validation:
+
+```
+prepare_launch.bat                  → verify zero project .py files
+[Launch Session or Push Changes]    → wait for remote validation
+restore_after_launch.bat            → restore the manifest exactly
 ```

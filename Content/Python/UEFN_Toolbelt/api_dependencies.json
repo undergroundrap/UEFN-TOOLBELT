@@ -2388,6 +2388,7 @@
       "used_by": [
         "tools/integration_test.py",
         "tools/localization_tools.py",
+        "tools/publish_audit.py",
         "tools/sign_tools.py",
         "tools/text_painter.py"
       ],

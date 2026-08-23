@@ -23,9 +23,11 @@ set /a count=0
 echo  Found UEFN projects:
 echo.
 for /d %%D in ("%FP_ROOT%\*") do (
-    set /a count+=1
-    set "proj_!count!=%%~nxD"
-    echo    [!count!]  %%~nxD
+    if exist "%%~fD\*.uefnproject" (
+        set /a count+=1
+        set "proj_!count!=%%~nxD"
+        echo    [!count!]  %%~nxD
+    )
 )
 
 if %count%==0 (
@@ -55,28 +57,29 @@ echo  Deploying to:  !DEST!
 echo.
 
 :: ── Copy files ────────────────────────────────────────────────────────────────
-echo  [1/5]  Copying UEFN_Toolbelt package...
+echo  [1/4]  Copying UEFN_Toolbelt package...
 xcopy /E /I /Y "%~dp0Content\Python\UEFN_Toolbelt" "!DEST!\Content\Python\UEFN_Toolbelt" >nul
 if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
 
-echo  [2/5]  Copying init_unreal.py...
+echo  [2/4]  Copying init_unreal.py...
 xcopy /Y "%~dp0init_unreal.py" "!DEST!\Content\Python\" >nul
 if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
 
-echo  [3/5]  Copying tests folder...
-xcopy /E /I /Y "%~dp0tests" "!DEST!\tests" >nul
-if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
-
-echo  [4/5]  Copying verse-book spec...
-xcopy /E /I /H /Y "%~dp0verse-book" "!DEST!\verse-book" >nul
-if errorlevel 1 ( echo         FAILED & goto :error ) else ( echo         OK )
+echo  [3/4]  Copying verse-book reference without Python helpers...
+if exist "%~dp0verse-book\" (
+    robocopy "%~dp0verse-book" "!DEST!\verse-book" /E /XF *.py *.pyc /XD .git __pycache__ >nul
+    set "ROBOCOPY_EXIT=!ERRORLEVEL!"
+    if !ROBOCOPY_EXIT! GEQ 8 ( echo         FAILED & goto :error ) else ( echo         OK )
+) else (
+    echo         SKIPPED ^(verse-book is not cloned^)
+)
 
 :: -- Build stamp --------------------------------------------------------------
 :: Written AFTER the copy, straight into the destination, so it describes what is
 :: actually deployed rather than what the repo happens to contain. Two test runs
 :: were lost to a project silently sitting 40 minutes behind on a different
 :: build; this makes that visible in the editor instead of needing a file audit.
-echo  [5/5]  Writing build stamp...
+echo  [4/4]  Writing build stamp...
 set "GIT_SHA=unknown"
 set "GIT_DIRTY="
 set "STAMP_TIME=unknown"
@@ -128,10 +131,19 @@ if not "!UE_PYTHON!"=="" (
 )
 
 :: ── Done ──────────────────────────────────────────────────────────────────────
+:: The selection loop needs delayed expansion, but leaving it enabled here eats
+:: literal exclamation marks. That turned "Syntax passing != working" into the
+:: exact opposite in the final safety banner and erased "!! BEFORE COMMITTING !!".
+setlocal DisableDelayedExpansion
 echo.
 echo ==========================================
 echo   All files deployed successfully!
 echo ==========================================
+echo.
+echo BEFORE LAUNCH SESSION OR PUSH CHANGES:
+echo   Run prepare_launch.bat to move every .py outside the UEFN project.
+echo   After the upload finishes, run restore_after_launch.bat.
+echo   UEFN 42.00 rejects project .py files for the VKCreateUGC role.
 echo.
 echo HOT-RELOAD COMMANDS (paste into UEFN Python console):
 echo.

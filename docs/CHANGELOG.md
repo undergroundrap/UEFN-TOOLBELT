@@ -5,6 +5,30 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Launch Session no longer depends on manually hunting Python files.** UEFN
+  42.00 accepts Toolbelt for editor automation but the standard `VKCreateUGC`
+  role rejects every project `.py` during remote validation. `.urcignore` was
+  proven irrelevant, and moving only `Content/Python` missed 40 root/test/spec
+  files in the live project. `prepare_launch.bat` now moves every `.py` into a
+  recoverable LocalAppData manifest stash and verifies zero remain;
+  `restore_after_launch.bat` collision-checks and restores them afterward.
+  `deploy.bat` no longer copies the pytest suite and excludes Python helpers
+  while copying the optional Verse reference.
+- **Text tools now identify the class that blocks publishing.** All six
+  `TextRenderActor` spawners log a publish-blocker warning and return the cleanup
+  command. `publish_audit` hard-fails when any remain, while `sign_clear` gained
+  an explicit `all_text_actors=True` cleanup scope. The integration suite now
+  puts attached labels in its test folder, uses checked subsystem deletion for
+  its localization actor, and re-scans the entire level for zero text actors.
+- **Live verification on UEFN 42.00:** all six spawners emitted the blocker
+  warning; `publish_audit` passed at zero actors, failed on the intentional
+  fixture, and passed again after whole-level cleanup. The integration suite
+  passed **190/190** in 68.63s — 163 verified and 27 execution-only.
+
 ## [2.4.0] — 2026-08-23
 
 One bug class, found by reading a suite log rather than the code: **success was
