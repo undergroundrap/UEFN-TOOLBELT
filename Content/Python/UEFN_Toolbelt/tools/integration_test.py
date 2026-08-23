@@ -635,10 +635,16 @@ def _test_asset_tagger() -> None:
                 f"status={added.get('status')} tagged={added.get('tagged')}"
                 f"/{added.get('attempted')}")
 
-        # Select and Show tags
+        # Show tags. Passing asset_paths explicitly, because tag_show otherwise
+        # reads the CONTENT BROWSER selection - selecting a level actor, as this
+        # test used to, left it with nothing to inspect. It logged "Nothing
+        # selected in the Content Browser" and the check passed anyway.
         _select_fixture([actor])
-        tb.run("tag_show")
-        _record("Asset Tagger", "Show Tags", True, verified=False)
+        shown = tb.run("tag_show", asset_paths=[asset_path])
+        shown_tags = shown.get("assets", {}).get(asset_path, {})
+        _record("Asset Tagger", "Show Tags",
+                shown.get("status") == "ok" and shown_tags.get(tag_name) == "verified",
+                f"status={shown.get('status')} tags={shown_tags}")
 
         # The round trip the old test could not do: the tag must come back.
         found = tb.run("tag_search", tag_name=tag_name, value="verified",
@@ -648,8 +654,9 @@ def _test_asset_tagger() -> None:
                 any(asset_path in str(h) for h in hits),
                 f"{len(hits)} hit(s) in {tag_dir}")
 
-        tb.run("tag_list_all", folder=tag_dir)
-        _record("Asset Tagger", "List All", True, verified=False)
+        all_tags = tb.run("tag_list_all", folder=tag_dir).get("tags", {})
+        _record("Asset Tagger", "List All", all_tags.get(tag_name) == 1,
+                f"{tag_name}={all_tags.get(tag_name)} asset(s), keys={list(all_tags)}")
 
         # Export
         tb.run("tag_export", folder=tag_dir)
@@ -833,7 +840,10 @@ def _test_splines() -> None:
         # Cleanup
         tb.run("spline_clear_props", folder_name="TestSplineProps")
         spline_host.destroy_actor()
-        _record("Spline", "Clear Props", True, verified=False)
+        left = [a for a in actor_sub.get_all_level_actors()
+                if "TestSplineProps" in str(a.get_folder_path())]
+        _record("Spline", "Clear Props", not left,
+                f"{len(props)} placed, {len(left)} left after clear")
 
     except Exception as e:
         _record("Spline", "Error", False, str(e))
@@ -879,8 +889,15 @@ def _test_assets() -> None:
         # Test Strip
         # Spawn a fresh asset for strip_prefix so it's in the registry's initial state
         asset_tools.create_asset("MI_StripMe", test_dir, unreal.MaterialInstanceConstant, factory)
-        tb.run("rename_strip_prefix", scan_path=test_dir, prefix="MI_", dry_run=False)
-        _record("Assets", "Strip Prefix", True, "Tool executed without errors", verified=False)
+        # Assert on the tool's own counts rather than re-reading the registry:
+        # the caching note above means a fresh path lookup in this tick is
+        # unreliable, but done/status come from the checked rename_asset return,
+        # so a refused rename shows up as done=0 status=error.
+        stripped = tb.run("rename_strip_prefix", scan_path=test_dir, prefix="MI_", dry_run=False)
+        _record("Assets", "Strip Prefix",
+                stripped.get("status") in ("ok", "partial") and stripped.get("done", 0) > 0,
+                f"done={stripped.get('done')}/{stripped.get('total')} "
+                f"status={stripped.get('status')}")
 
         # Cleanup
         unreal.EditorAssetLibrary.delete_directory(test_dir)
@@ -972,13 +989,19 @@ def _test_project_scaffold() -> None:
         passed = unreal.EditorAssetLibrary.does_directory_exist(maps_path)
         _record("Project", "Scaffold Generate", passed, f"Maps folder created: {passed}")
 
-        # 3. Save Custom Template
+        # 3. Save Custom Template — read it back rather than trusting the call.
         tb.run("scaffold_save_template", template_name="TEST_Tmpl", folders=["A", "B/C"])
-        _record("Project", "Scaffold Save Template", True, verified=False)
+        listed = tb.run("scaffold_list_templates").get("templates", {})
+        saved = listed.get("TEST_Tmpl")
+        _record("Project", "Scaffold Save Template",
+                saved is not None and saved.get("folder_count") == 2,
+                f"listed as {saved}" if saved else "not present in scaffold_list_templates")
 
-        # 4. Delete Custom Template
+        # 4. Delete Custom Template — and confirm it is actually gone.
         tb.run("scaffold_delete_template", template_name="TEST_Tmpl")
-        _record("Project", "Scaffold Delete Template", True, verified=False)
+        still = tb.run("scaffold_list_templates").get("templates", {})
+        _record("Project", "Scaffold Delete Template", "TEST_Tmpl" not in still,
+                "still listed after delete" if "TEST_Tmpl" in still else "removed from the list")
 
         # Cleanup
         unreal.EditorAssetLibrary.delete_directory(test_base)
@@ -1093,16 +1116,43 @@ def _test_advanced_materials() -> None:
         actor_sub.set_selected_level_actors([a1])
         tb.run("material_apply_preset", preset="chrome")
         tb.run("material_save_preset", preset_name="TEST_Integration_Preset")
-        tb.run("material_list_presets")
-        _record("Materials", "Save & List Presets", True, verified=False)
+        listed = tb.run("material_list_presets")
+        names = listed.get("presets", [])
+        _record("Materials", "Save & List Presets",
+                "TEST_Integration_Preset" in names and "chrome" in names,
+                f"{len(names)} preset(s), saved one present="
+                f"{'TEST_Integration_Preset' in names}")
 
-        # 8. Bulk Swap (Basic verification without precise paths)
-        # Apply neon to all 3, then swap neon for rubber. We use the engine fallback since we don't have exact material paths
-        # stored easily. However, `material_bulk_swap` requires exact string paths.
-        # So we'll run it with dummy paths expecting it to exit cleanly without erroring.
-        actor_sub.set_selected_level_actors([a1, a2, a3])
-        tb.run("material_bulk_swap", old_material_path="/Engine/BasicShapes/BasicShapeMaterial", new_material_path="/Engine/EngineMaterials/DefaultMaterial", scope="selection")
-        _record("Materials", "Bulk Swap", True, verified=False)
+        # 8. Bulk Swap — on a FRESH cube, because a1..a3 have had preset
+        # instances applied above and no longer carry BasicShapeMaterial. That
+        # is why this check used to swap 0 slots and still pass: the tool
+        # returned "ok" for a swap that matched nothing.
+        swap_target = _spawn_fixture(location=unreal.Vector(0, 3000, 0))
+        actor_sub.set_selected_level_actors([swap_target])
+        r = tb.run("material_bulk_swap",
+                   old_material_path="/Engine/BasicShapes/BasicShapeMaterial",
+                   new_material_path="/Engine/EngineMaterials/DefaultMaterial",
+                   scope="selection")
+        _record("Materials", "Bulk Swap",
+                r.get("status") == "ok" and r.get("total_slots", 0) > 0,
+                f"status={r.get('status')} slots={r.get('total_slots')} "
+                f"actors={r.get('actors_touched')}")
+
+        # Running the SAME swap again matches nothing, because the slot no
+        # longer holds BasicShapeMaterial - and both materials still load, so
+        # this reaches the no_slots_matched path rather than an early load
+        # failure. That is the exact shape that used to return "ok" with 0
+        # slots and tell every caller a swap had happened.
+        miss = tb.run("material_bulk_swap",
+                      old_material_path="/Engine/BasicShapes/BasicShapeMaterial",
+                      new_material_path="/Engine/EngineMaterials/DefaultMaterial",
+                      scope="selection")
+        _record("Materials", "Bulk Swap reports a miss as error",
+                miss.get("status") == "error"
+                and miss.get("total_slots", -1) == 0
+                and miss.get("reason") == "no_slots_matched",
+                f"status={miss.get('status')} reason={miss.get('reason')}")
+        swap_target.destroy_actor()
 
         # Cleanup
         for a in [a1, a2, a3]:
@@ -1281,7 +1331,13 @@ def _test_arena_safe() -> None:
         # MANDATORY CLEANUP: Mass destroy everything in the Arena folder
         for a in arena_actors:
             a.destroy_actor()
-        _record("Arena", "Cleanup", True, "All arena actors destroyed", verified=False)
+        # Re-scan rather than trusting the loop. destroy_actor is refused for a
+        # locked actor or a read-only sublevel, and the void Actor form returns
+        # nothing to check, so a survivor is only visible by looking again.
+        left = [a for a in actor_sub.get_all_level_actors()
+                if "Arena" in str(a.get_folder_path())]
+        _record("Arena", "Cleanup", not left,
+                f"{len(arena_actors)} destroyed, {len(left)} still in the Arena folder")
 
     except Exception as e:
         _record("Arena", "Error", False, str(e))
@@ -1299,9 +1355,13 @@ def _test_scatter_advanced_safe() -> None:
         actors = [a for a in actor_sub.get_all_level_actors() if test_folder in str(a.get_folder_path())]
         _record("Scatter", "Along Path", len(actors) == 4, f"Found {len(actors)} actors")
 
-        # CLEANUP
+        # CLEANUP — re-scan, because scatter_clear counting a deletion is not
+        # the same as the actor being gone.
         tb.run("scatter_clear", folder=test_folder)
-        _record("Scatter", "Cleanup", True, "Test folder cleared", verified=False)
+        left = [a for a in actor_sub.get_all_level_actors()
+                if test_folder in str(a.get_folder_path())]
+        _record("Scatter", "Cleanup", not left,
+                f"{len(left)} actor(s) left in '{test_folder}'")
 
     except Exception as e:
         _record("Scatter", "Error", False, str(e))
@@ -1350,11 +1410,19 @@ def _test_bridge_safe() -> None:
     _header("8.6 Bridge Toggle")
     import UEFN_Toolbelt as tb
     try:
-        # Start/Stop bridge
+        # Start/Stop bridge. mcp_status reports whether the listener is
+        # actually up, so assert on that rather than on the call not raising -
+        # a listener that failed to bind its port would have passed before.
         tb.run("mcp_start")
-        _record("Bridge", "Start", True, verified=False)
+        after_start = tb.run("mcp_status")
+        _record("Bridge", "Start", after_start.get("running") is True,
+                f"running={after_start.get('running')} url={after_start.get('url')} "
+                f"commands={after_start.get('commands')}")
+
         tb.run("mcp_stop")
-        _record("Bridge", "Stop", True, verified=False)
+        after_stop = tb.run("mcp_status")
+        _record("Bridge", "Stop", after_stop.get("running") is False,
+                f"running={after_stop.get('running')}")
     except Exception as e:
         _record("Bridge", "Error", False, str(e))
 
@@ -1492,9 +1560,17 @@ def _test_selection() -> None:
         actor_sub.set_selected_level_actors([a1])
         tb.run("select_in_radius", radius=600.0, actor_class_name="StaticMeshActor")
         selected = actor_sub.get_selected_level_actors()
-        # Should be a1 and a2
+        # a1 (0cm) and a2 (500cm) are inside the 600cm radius, a3 (2000cm) is not.
+        # len(selected) also counts whatever else the level happens to have in
+        # range, so it is reported as context - the pass/fail is the three
+        # fixtures only.
         passed_rad = (a1 in selected and a2 in selected and a3 not in selected)
-        _record("Selection", "Select in Radius", passed_rad, f"Selected {len(selected)} (Expected a1, a2)")
+        _record(
+            "Selection", "Select in Radius", passed_rad,
+            f"in-radius fixtures selected={a1 in selected and a2 in selected}, "
+            f"out-of-radius fixture excluded={a3 not in selected} "
+            f"({len(selected)} actors selected in total)",
+        )
 
         # Test Property Selection
         a1.set_actor_label("INTEGRATION_TEST_TARGET")

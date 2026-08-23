@@ -975,13 +975,21 @@ def material_bulk_swap(
 
     old_name = old_material_path.split("/")[-1]
     new_name = new_material_path.split("/")[-1]
+
+    # A swap that matched nothing is a failed swap, not an empty result. This
+    # used to log a checkmark and return status "ok" with total_slots=0, so a
+    # caller reading status believed the material had been replaced. The most
+    # common cause is a near-miss path, which looks identical in the log.
+    if total_slots == 0:
+        log_error(
+            f"[MatSwap] No slots matched '{old_name}' - nothing was swapped. "
+            "Check the exact path with the Content Browser's 'Copy Reference'."
+        )
+        return {"status": "error", "actors_touched": 0, "total_slots": 0,
+                "reason": "no_slots_matched"}
+
     log_info(
         f"[MatSwap] ✓ Swapped '{old_name}' → '{new_name}' "
         f"on {total_slots} slot(s) across {actors_touched} actor(s)."
     )
-    if total_slots == 0:
-        log_warning(
-            f"[MatSwap]   No slots matched '{old_name}'. "
-            "Check the exact path — use the Content Browser's 'Copy Reference' option."
-        )
     return {"status": "ok", "actors_touched": actors_touched, "total_slots": total_slots}

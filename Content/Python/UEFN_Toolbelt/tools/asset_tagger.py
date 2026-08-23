@@ -345,17 +345,26 @@ def _do_tag_remove(tag_name: str,
     return ok, total
 
 
-def _do_tag_show() -> None:
-    paths = _get_selected_asset_paths()
+def _do_tag_show(paths: list[str] | None = None) -> dict[str, dict[str, str]] | None:
+    """Print the tags on each asset and return them.
+
+    Returns {asset_path: {key: value}}, or None when there was nothing to
+    inspect. The tags used to be printed and thrown away, so an MCP caller
+    got back {"status": "ok"} and had to scrape the log for the actual data.
+    """
+    if paths is None:
+        paths = _get_selected_asset_paths()
     if not paths:
         unreal.log_warning("[AssetTagger] Nothing selected in the Content Browser.")
-        return
+        return None
 
+    found: dict[str, dict[str, str]] = {}
     unreal.log(f"\n[AssetTagger] Tags on {len(paths)} selected asset(s):\n")
     any_tags = False
 
     for path in paths:
         tags = _get_all_toolbelt_tags(path)
+        found[path] = tags
         name = path.split("/")[-1]
         if tags:
             any_tags = True
@@ -368,6 +377,7 @@ def _do_tag_show() -> None:
     if not any_tags:
         unreal.log("  (none of the selected assets have Toolbelt tags)")
     unreal.log("")
+    return found
 
 
 def _do_tag_search(tag_name: str, value: str, folder: str) -> list[str]:
@@ -526,13 +536,25 @@ def tag_remove(tag_name: str = "", asset_paths: list[str] = None, **kwargs) -> d
     icon="🔖",
     tags=["tag", "metadata", "inspect", "show"],
 )
-def tag_show(**kwargs) -> dict:
+def tag_show(asset_paths: list[str] = None, **kwargs) -> dict:
     """
     Print all TB: tags on every asset currently selected in the Content Browser.
     Assets with no Toolbelt tags are shown with a '← no Toolbelt tags' note.
+
+    Args:
+        asset_paths: Inspect these assets instead of the Content Browser
+            selection. Lets an MCP caller name the asset directly rather than
+            having to select it in the editor first.
+
+    Returns:
+        dict: {"status", "count", "assets": {asset_path: {key: value}}}
     """
-    _do_tag_show()
-    return {"status": "ok"}
+    found = _do_tag_show(asset_paths)
+    if found is None:
+        # Not an empty result - there was nothing to inspect at all.
+        return {"status": "error", "count": 0, "assets": {},
+                "reason": "nothing_selected"}
+    return {"status": "ok", "count": len(found), "assets": found}
 
 
 @register_tool(
