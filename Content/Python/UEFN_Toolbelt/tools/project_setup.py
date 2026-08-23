@@ -24,10 +24,10 @@ FULL WORKFLOW (copy-paste sequence):
     tb.run("project_setup", project_name="MyGame")
 
     # 2. Organize loose assets (separate call)
-    tb.run("organize_assets", folder="")
+    tb.run("organize_assets", folder="", dry_run=False)
 
     # 3. Fix naming (separate call)
-    tb.run("rename_enforce_conventions", scan_path="")
+    tb.run("rename_enforce_conventions", scan_path="", dry_run=False)
 
     # 4. Spawn the arena layout (separate call)
     tb.run("arena_generate", size="medium")

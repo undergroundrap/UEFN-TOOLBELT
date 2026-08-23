@@ -488,7 +488,7 @@ def _tab_quick_actions(R) -> QScrollArea:
 
     ren_inp = _inp("project root", width=120)
     _btn_inp(g_org, "Fix Asset Naming Conventions",
-             lambda: R("rename_enforce_conventions", scan_path=ren_inp.text()),
+             lambda: R("rename_enforce_conventions", scan_path=ren_inp.text(), dry_run=False),
              ren_inp, tip="Scans the path and automatically fixes Epic naming convention rule violations.")
 
     # 4. Level Design
@@ -890,7 +890,8 @@ def _tab_bulk_ops(R) -> QScrollArea:
     h_ren.addWidget(QLabel("To:")); h_ren.addWidget(new_folder_inp); h_ren.addStretch()
     g_org.addWidget(row_ren)
     _btn(g_org, "Rename Folder",
-         lambda: R("actor_rename_folder", old_folder=old_folder_inp.text(), new_folder=new_folder_inp.text()))
+         lambda: R("actor_rename_folder", old_folder=old_folder_inp.text(),
+                                 new_folder=new_folder_inp.text(), dry_run=False))
 
     sel_folder_inp = _inp("folder name", "", width=160)
     _btn_inp(g_org, "Select All in Folder",
@@ -1218,7 +1219,7 @@ def _tab_assets(R) -> QScrollArea:
          lambda: R("rename_dry_run"),
          "Preview all naming violations without touching anything")
     _btn(g, "Enforce — Apply All Renames",
-         lambda: R("rename_enforce_conventions"))
+         lambda: R("rename_enforce_conventions", dry_run=False))
     _btn(g, "Export Naming Report (JSON)",
          lambda: R("rename_report"))
 
@@ -1541,7 +1542,7 @@ def _tab_project(R) -> QScrollArea:
     _row(g3,
          ("Import File",   lambda: R("import_fbx",        fbx_path=fbx_inp.text())),
          ("Import Folder", lambda: R("import_fbx_folder", folder_path=fbx_inp.text())),
-         ("Organize",      lambda: R("organize_assets",   source_path=fbx_inp.text())),
+         ("Organize",      lambda: R("organize_assets",   source_path=fbx_inp.text(), dry_run=False)),
     )
 
     return scroll

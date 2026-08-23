@@ -29,6 +29,12 @@ Four, all deliberate. Anyone scripting these should read this section.
   `organize_assets` and `actor_rename_folder`. These rewrite asset names and
   paths in bulk; the safe mode is now the default one. Pass `dry_run=False` to
   apply. Scripts that relied on the old default will preview instead of acting.
+  The dashboard was written against the old default and called all three with
+  no `dry_run`, so the flip turned four buttons into no-ops that still reported
+  success - including "Enforce - Apply All Renames", which sits directly under
+  "Audit - Dry Run (no changes)" and had become identical to it. All four now
+  pass `dry_run=False`, and `tests/test_dashboard_dry_run.py` fails if a
+  mutating button ever goes back to relying on the default.
 - **`material_bulk_swap` returns `status="error"`** with
   `reason="no_slots_matched"` when a swap matched nothing. It previously logged
   a checkmark and returned `"ok"` for a swap that changed zero slots, so a

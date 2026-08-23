@@ -2528,6 +2528,10 @@ family. The change was gone after a restart and nothing warned you.
   `organize_assets` and `actor_rename_folder`. These rewrite names and paths in
   bulk, so the safe mode is now the default. Pass `dry_run=False` to apply.
   **Existing scripts relying on the old default will preview instead of acting.**
+  Four dashboard buttons had to be updated to pass `dry_run=False` for the same
+  reason - if you are on a pre-release build of 2.4.0, "Enforce - Apply All
+  Renames", "Fix Asset Naming Conventions", "Rename Folder" and "Organize" were
+  previewing instead of applying.
 - **`material_bulk_swap` returns `status="error"`** (`reason="no_slots_matched"`)
   when a swap matched nothing. It used to log a ✓ and return `"ok"` for a swap
   that changed zero slots.
