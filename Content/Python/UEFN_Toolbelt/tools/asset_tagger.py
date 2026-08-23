@@ -23,7 +23,10 @@ Tag naming convention:
 
 API used:
   unreal.EditorAssetLibrary.set_metadata_tag(asset, tag_key, tag_value)
-  unreal.EditorAssetLibrary.get_metadata_tag_values(asset, tag_key)
+  unreal.EditorAssetLibrary.get_metadata_tag(asset, tag_key)          -> str
+  unreal.EditorAssetLibrary.get_metadata_tag_values(asset)            -> map
+      NOTE: the plural form takes NO key. Passing one raises, and this file
+      did exactly that for every read, so the whole search side never worked.
   unreal.EditorUtilityLibrary.get_selected_assets()   ← Content Browser selection
   unreal.AssetRegistryHelpers.get_asset_registry()    ← fast indexed search
 
@@ -130,6 +133,40 @@ def _set_tag(asset_path: str, key: str, value: str) -> bool:
         return False
 
 
+def _load_for_tags(asset_path: str):
+    """Load an asset for tag reading, or None if it cannot be loaded."""
+    try:
+        return unreal.EditorAssetLibrary.load_asset(asset_path)
+    except Exception as e:
+        unreal.log_warning(f"[AssetTagger] Could not load {asset_path}: {e}")
+        return None
+
+
+def _metadata_map(asset) -> dict | None:
+    """Every metadata tag on an asset as {key: value}, or None if unreadable.
+
+    get_metadata_tag_values takes only the object. Note this is package
+    UMetaData, which is NOT the same thing as AssetData.tag_and_values - that
+    is the asset-registry tag map and never contains tags written with
+    set_metadata_tag, which is why reading it always returned nothing.
+    """
+    try:
+        raw = unreal.EditorAssetLibrary.get_metadata_tag_values(asset)
+    except Exception as e:
+        unreal.log_warning(f"[AssetTagger] metadata unreadable: {e}")
+        return None
+    if raw is None:
+        return {}
+    try:
+        return {str(k): str(v) for k, v in dict(raw).items()}
+    except Exception:
+        try:
+            return {str(k): str(raw[k]) for k in raw}
+        except Exception as e:
+            unreal.log_warning(f"[AssetTagger] metadata map unreadable: {e}")
+            return None
+
+
 def _get_tag(asset_path: str, key: str) -> str | None:
     """
     Metadata value for key on asset_path.
@@ -137,21 +174,32 @@ def _get_tag(asset_path: str, key: str) -> str | None:
     '' when the asset genuinely has no such tag, None when it could not be read.
     Callers must not conflate the two: an unreadable asset may well carry the tag.
     """
-    try:
-        asset = unreal.EditorAssetLibrary.load_asset(asset_path)
-        if asset is None:
-            return None
-        raw = unreal.EditorAssetLibrary.get_metadata_tag_values(asset, unreal.Name(key))
-        # Returns a list of strings; take the first entry
-        if isinstance(raw, (list, tuple)):
-            return str(raw[0]) if raw else ""
-        return str(raw) if raw else ""
-    except Exception:
-        # None, not "" — an unreadable asset is not the same as an untagged one.
-        # Returning "" made it silently fail the == comparison in tag_search, so
-        # a tagged asset that could not be read was quietly missing from results
-        # the caller was told were complete.
+    asset = _load_for_tags(asset_path)
+    if asset is None:
         return None
+
+    # EditorAssetLibrary exposes two readers and they are NOT interchangeable:
+    #
+    #   get_metadata_tag(object, tag)   -> str              one tag
+    #   get_metadata_tag_values(object) -> Map(Name, str)   ALL tags, no key arg
+    #
+    # This used to call the PLURAL form with a key. That is a one-argument
+    # function, so every call raised TypeError, the except swallowed it, and the
+    # function returned None - "could not be read" - for every asset ever
+    # checked. tag_search, tag_list_all and tag_export therefore always found
+    # nothing, no matter what had been written. Confirmed live 2026-08-22: a tag
+    # that had just been written and saved to disk came back unreadable.
+    single = getattr(unreal.EditorAssetLibrary, "get_metadata_tag", None)
+    if single is not None:
+        try:
+            return str(single(asset, unreal.Name(key)) or "")
+        except Exception:
+            pass
+
+    values = _metadata_map(asset)
+    if values is None:
+        return None
+    return str(values.get(key, ""))
 
 
 def _remove_tag(asset_path: str, key: str) -> bool:
@@ -197,24 +245,26 @@ def _get_all_toolbelt_tags(asset_path: str) -> dict[str, str]:
         if asset is None:
             return tags
 
-        # Enumerate every tag key in the unreal metadata map
-        try:
-            _all_tag_keys = unreal.EditorAssetLibrary.get_metadata_tag_values(
-                asset, unreal.Name("")
-            )
-        except Exception:
-            _all_tag_keys = []
+        # The real source of truth: package metadata, which is where
+        # set_metadata_tag writes. The old code called this with a key (it takes
+        # none), discarded the result, and then read AssetData.tag_and_values
+        # instead - the asset-registry map, which never carries these tags. That
+        # is why tag_list_all and tag_export always reported zero.
+        values = _metadata_map(asset)
+        if values:
+            for key, val in values.items():
+                if key.startswith(_TAG_PREFIX):
+                    tags[_short_key(key)] = str(val)
 
-        # Fallback: iterate dir(asset) is not useful for metadata.
-        # Instead, we use the AssetData tag map.
+        # AssetData tags are a secondary source: some tags are surfaced through
+        # the registry as well, and reading both costs nothing.
         try:
-            # asset_data.tag_and_values is an FAssetDataTagMap
             tav = data.tag_and_values
             if tav:
                 for key_obj, val in dict(tav).items():
                     key = str(key_obj)
                     if key.startswith(_TAG_PREFIX):
-                        tags[_short_key(key)] = str(val)
+                        tags.setdefault(_short_key(key), str(val))
         except Exception:
             pass
 
