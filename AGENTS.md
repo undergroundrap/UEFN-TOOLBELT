@@ -41,6 +41,11 @@ Any MCP-compatible AI connects via `.mcp.json` (pre-configured).
    Changes, or publishing on UEFN 42.00, run `prepare_launch.bat`; after the
    upload completes, run `restore_after_launch.bat`. `.urcignore` does not gate
    Valkyrie staging. See `docs/UEFN_QUIRKS.md` Quirk #42.
+10. **Keep owner authorization gates separate.** Implementation, independent
+    review, commit, push, tag, GitHub Release, and social publication are
+    distinct actions. Authorization for one never implies the next. Leave work
+    uncommitted for review unless the owner explicitly authorizes the exact
+    commit; never move an existing tag.
 
 ## Key files for agents
 
@@ -52,7 +57,7 @@ Any MCP-compatible AI connects via `.mcp.json` (pre-configured).
 | `docs/ui_style_guide.md` | Mandatory for any PySide6 window work |
 | `TOOL_STATUS.md` | Per-tool test coverage — check before assuming a tool is tested |
 | `ARCHITECTURE.md` | System design, directory map, data flow |
-| `scripts/drift_check.py` | Run this — validates version/count consistency across all docs |
+| `scripts/drift_check.py` | Run this — validates version/count consistency across docs and agent context |
 | `.agents/workflows/` | Step-by-step workflows: `add_new_tool.md`, `run_tests.md` |
 
 ## Specialized agents in this repo
@@ -81,7 +86,9 @@ python -c "import ast; ast.parse(open('Content/Python/UEFN_Toolbelt/tools/your_t
 deploy.bat                          → sync repo → UEFN project
 [nuclear reload in UEFN console]    → hot-reload modules
 tb.run("tool_name")                 → test live
-[user confirms output]              → commit
+[user confirms output]              → leave the complete change uncommitted
+[independent review accepts]         → owner may authorize the exact commit
+[owner separately authorizes push]  → push and monitor CI to completion
 ```
 
 For Launch Session / Push Changes validation:

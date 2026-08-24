@@ -100,3 +100,144 @@ def test_drift_check_passes(repo_root):
         cwd=repo_root, capture_output=True, text=True,
     )
     assert proc.returncode == 0, f"drift_check failed:\n{proc.stdout}\n{proc.stderr}"
+
+
+def test_drift_check_covers_agent_context_surfaces(repo_root):
+    """Counts in secondary agent entry points must not escape the drift gate."""
+    tree = ast.parse(
+        (repo_root / "scripts" / "drift_check.py").read_text(encoding="utf-8")
+    )
+    assignment = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "SCAN_FILES"
+                for target in node.targets)
+    )
+    assert isinstance(assignment.value, ast.List)
+    scanned = {
+        item.value
+        for item in assignment.value.elts
+        if isinstance(item, ast.Constant) and isinstance(item.value, str)
+    }
+    required = {
+        "AGENTS.md",
+        "CLAUDE.md",
+        "CONTRIBUTING.md",
+        "llms.txt",
+        "docs/PIPELINE.md",
+        ".agents/workflows/add_new_tool.md",
+        ".agents/workflows/run_tests.md",
+        ".github/pull_request_template.md",
+        ".claude/agents/tool-developer.md",
+        ".claude/commands/add-tool.md",
+        ".claude/commands/deploy.md",
+        ".claude/commands/drift.md",
+        ".claude/commands/publish-check.md",
+        ".claude/mcp_reference.md",
+        ".claude/rules/tool_authoring.md",
+    }
+    assert required <= scanned, f"agent context missing from drift scan: {required - scanned}"
+
+
+def test_agent_publish_workflow_preserves_runtime_order(repo_root):
+    """Audits need Python; staging it first makes the documented cleanup unusable."""
+    publish = (repo_root / ".claude" / "commands" / "publish-check.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(publish.split())
+    prohibition = (
+        "Do **not** restart UEFN, hot-reload Toolbelt, deploy again, or create "
+        "replacement Python files while the stash is active."
+    )
+    audit_at = normalized.index('tb.run("publish_audit")')
+    cleanup_at = normalized.index('tb.run("sign_clear"')
+    prepare_at = normalized.index("prepare_launch.bat")
+    prohibition_at = normalized.index(prohibition)
+    restore_at = normalized.rindex("restore_after_launch.bat")
+    assert audit_at < cleanup_at < prepare_at < prohibition_at < restore_at
+    assert "Fortnite opening is not proof" in normalized
+    normalized_lower = normalized.lower()
+    assert normalized_lower.count("deploy again") == 1
+    assert normalized_lower.count("replacement python files") == 1
+
+
+def test_agent_deploy_guidance_stops_before_git_mutation(repo_root):
+    """A live pass is evidence, not implicit commit or push authorization."""
+    deploy = (repo_root / ".claude" / "commands" / "deploy.md").read_text(
+        encoding="utf-8"
+    )
+    for forbidden in ("git add -A", "git add --all", "git commit -m", "git push origin"):
+        assert forbidden not in deploy
+    assert "leave the complete worktree uncommitted" in deploy
+    assert "separate explicit owner go signal" in deploy
+
+
+def test_agent_authoring_guidance_matches_registry_and_release_boundary(repo_root):
+    """Authoring guidance must match the decorator API and release boundary."""
+    developer = (repo_root / ".claude" / "agents" / "tool-developer.md").read_text(
+        encoding="utf-8"
+    )
+    add_command = (repo_root / ".claude" / "commands" / "add-tool.md").read_text(
+        encoding="utf-8"
+    )
+    contributing = (repo_root / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    registry_tree = ast.parse(
+        (repo_root / "Content" / "Python" / "UEFN_Toolbelt" / "registry.py").read_text(
+            encoding="utf-8"
+        )
+    )
+    register_tool = next(
+        node
+        for node in registry_tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "register_tool"
+    )
+    decorator_params = {arg.arg for arg in register_tool.args.args}
+    contributing_normalized = " ".join(contributing.split())
+    assert "example" in decorator_params
+    assert "parameters" not in decorator_params
+    assert "`example=` is optional manifest metadata" in developer
+    assert "the decorator does not accept `parameters=`" in developer
+    assert "`example=` metadata is supported" in contributing_normalized
+    assert "Do not pass `parameters=`" in contributing
+    assert "Do not change `__version__`" in developer
+    assert "Do not change `__version__`" in add_command
+    assert "full UEFN restart" in developer
+    assert "full UEFN restart" in add_command
+
+
+def test_pr_template_preserves_runtime_verification_and_static_na(repo_root):
+    """Static-only N/A must not replace the live gate for runtime changes."""
+    pr_template = (repo_root / ".github" / "pull_request_template.md").read_text(
+        encoding="utf-8"
+    )
+    lines = pr_template.splitlines()
+    deploy_line = next(line for line in lines if "Ran `deploy.bat`" in line)
+    runtime_line = next(line for line in lines if "Tested in live UEFN" in line)
+    new_module_line = next(line for line in lines if "New module:" in line)
+    static_na_line = next(line for line in lines if "Docs/static-only change" in line)
+    checkbox_lines = [line for line in lines if line.startswith("- [ ]")]
+    na_checkboxes = [line for line in checkbox_lines if "N/A" in line.upper()]
+    assert "N/A" not in deploy_line
+    assert "N/A" not in runtime_line
+    assert na_checkboxes == [new_module_line, static_na_line]
+    assert static_na_line.startswith("- [ ] Docs/static-only change:")
+    assert "live UEFN is N/A" in static_na_line
+    assert "reason is stated below" in static_na_line
+    assert "**Live verification or N/A reason:**" in pr_template
+
+
+def test_agent_authority_and_commit_format_are_explicit(repo_root):
+    """Every high-level entry point must preserve the owner's distribution gates."""
+    agent_guide = (repo_root / "AGENTS.md").read_text(encoding="utf-8")
+    claude = (repo_root / "CLAUDE.md").read_text(encoding="utf-8")
+    for text in (agent_guide, claude):
+        for boundary in ("commit", "push", "tag", "GitHub Release", "social"):
+            assert boundary in text
+    contributing = (repo_root / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    pr_template = (repo_root / ".github" / "pull_request_template.md").read_text(
+        encoding="utf-8"
+    )
+    assert "feat(scope): concise description" in contributing
+    assert "type(scope): lowercase description" in pr_template
+    assert "feat: add my_tool" not in contributing

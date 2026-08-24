@@ -4,10 +4,20 @@ description: How to add a new UEFN Toolbelt tool with automated verification
 
 Follow these steps to add a new tool to the UEFN Toolbelt and ensure it is properly verified.
 
-## 1. Consult the High-Fidelity Schema
+## 1. Audit the registry for duplicates
+
+Search all registered names before writing anything. If an existing tool covers
+the capability, extend it instead of adding another entry.
+
+```bash
+grep -rh 'name="' Content/Python/UEFN_Toolbelt/tools/ --include="*.py" \
+  | grep -o 'name="[^"]*"' | sed 's/name="//;s/"//' | sort | grep <keyword>
+```
+
+## 2. Consult the High-Fidelity Schema
 Before writing logic, consult `docs/api_level_classes_schema.json` to find the exact property names and methods for your target UEFN classes (e.g., `BuildingProp`). This is the **Source of Truth** for the project.
 
-## 2. Create the Tool Logic
+## 3. Create the Tool Logic
 Create or edit a `.py` file in `Content/Python/UEFN_Toolbelt/tools/`.
 
 ```python
@@ -57,7 +67,7 @@ return count    # bare primitive
 AI agents calling tools via MCP read the return dict directly from the JSON response.
 If you return `None`, the agent has no signal — it cannot confirm success or act on results.
 
-## 3. Add Integration Test
+## 4. Add Integration Test
 Open `Content/Python/UEFN_Toolbelt/tools/integration_test.py` and add a verification case.
 
 ```python
@@ -80,24 +90,38 @@ def _test_my_new_tool() -> None:
         _record("Category", "Name", False, str(e))
 ```
 
-// turbo
-## 3. Deploy and Verify
-Run the "Nuclear Reload" to see your new tool in action immediately without restarting UEFN.
+## 5. Deploy and Verify
 
 1. Run `deploy.bat` to sync files.
-2. Paste this into the UEFN Python console:
+2. If this is a new module added to `tools/__init__.py`, fully restart UEFN,
+   import Toolbelt fresh, and register all tools. Do not nuclear reload.
+3. If this extends an existing pure tool module, paste this into the UEFN Python console:
 ```python
 import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_integration_test")
 ```
+4. Run the new tool directly and verify its returned data or editor state, not
+   merely that it raised no exception.
 
-## 4. Bump the tool count and run drift check
+## 6. Bump counts and run the static gates
 In `Content/Python/UEFN_Toolbelt/__init__.py`, increment `__tool_count__` by the number of new `@register_tool` entries you added. If you added a new category, increment `__category_count__` too. Both values are read by `scripts/drift_check.py` as the single source of truth.
 
+Do not bump `__version__` during ordinary implementation or a community PR.
+Version changes belong to a separately authorized maintainer release session.
+
 ```bash
+python -m ruff check .
+python -m mypy
+python -m pytest
 python scripts/drift_check.py
 ```
 
-This must pass (`PASS — No drift found`) before committing. If it fails, fix the stale references it reports.
+This must pass (`PASS — No drift found`) before independent review. If it
+fails, fix the stale references it reports.
 
-## 5. Update Health Dashboard
+## 7. Update documentation and hand off
 Mark your tool as **[A]** (Automated Verified) in `TOOL_STATUS.md`.
+Add it to `.claude/tool_tables.md`, the README Tool Reference, and the dashboard
+or menu unless it is intentionally headless.
+
+Leave the complete worktree uncommitted with an empty index for independent
+review. Implementation does not authorize commit or push.

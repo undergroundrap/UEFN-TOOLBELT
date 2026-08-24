@@ -306,6 +306,33 @@ tb.run("snapshot_diff", name_a="before_build", name_b="post_build_v1")
 
 ---
 
+## Publish Boundary — Audit, Stage, Validate, Restore
+
+The six automation phases end before UEFN remote validation. Keep Toolbelt
+Python loaded long enough to run the publish audit and cleanup:
+
+```python
+result = tb.run("publish_audit")
+print(result)
+tb.run("sign_clear", all_text_actors=True, dry_run=False)  # if blocked
+tb.run("save_all_dirty")
+```
+
+After `publish_audit` has no blockers, use the host-side validation workflow:
+
+```text
+prepare_launch.bat
+Launch Session / Push Changes / publish; wait for the remote result
+restore_after_launch.bat
+```
+
+UEFN 42.00 rejects every project `.py` for the standard `VKCreateUGC` role,
+and `.urcignore` does not affect Valkyrie staging. Fortnite opening is not proof
+that remote validation passed. Do not restart, hot-reload, or deploy Toolbelt
+while the Python stash is active. See `docs/UEFN_QUIRKS.md` Quirks #37 and #42.
+
+---
+
 ## Full Pipeline — Claude's Execution Script
 
 When asked to build a game from scratch, Claude should execute this sequence:
@@ -346,6 +373,9 @@ tb.run("world_state_export")
 tb.run("snapshot_save", name="release_v1")
 ```
 
+The Python sequence stops here. Follow the Publish Boundary above before any
+Launch Session, Push Changes, or island submission.
+
 ---
 
 ## Tool Status Map
@@ -369,9 +399,12 @@ tb.run("snapshot_save", name="release_v1")
 
 ---
 
-## The One Remaining Human Step
+## The Remaining Human Build Step
 
-The only action Claude cannot take autonomously today is **clicking Build Verse**.
+Inside the build/fix loop, the remaining human action is **clicking Build Verse**.
+Launch Session, Push Changes, and publishing are separate editor-driven actions
+after the automation pipeline; the host helpers only make their staged project
+validation-safe.
 
 Epic's UEFN Python sandbox does not expose a `BuildVerseCode()` function. The Verse
 compiler is invoked exclusively through the editor UI (Verse menu → Build Verse Code)

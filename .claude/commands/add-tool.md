@@ -16,13 +16,16 @@ Build a new UEFN Toolbelt tool named "$ARGUMENTS". Follow the tool-developer age
 5. **Bump counts** in `Content/Python/UEFN_Toolbelt/__init__.py`:
    - `__tool_count__` += number of new `@register_tool` entries
    - `__category_count__` += 1 if new category
-   - `__version__` patch bump
+   - Do not change `__version__`; releases are separately authorized
 
-6. **Drift check**:
+6. **Static gates**:
    ```bash
+   python -m ruff check .
+   python -m mypy
+   python -m pytest
    python scripts/drift_check.py
    ```
-   Must return PASS.
+   All four must pass.
 
 7. **Syntax check**:
    ```bash
@@ -33,4 +36,8 @@ Build a new UEFN Toolbelt tool named "$ARGUMENTS". Follow the tool-developer age
    - Run `deploy.bat`
    - If new module: full UEFN restart (not nuclear reload — Quirk #26)
    - Otherwise: nuclear reload then `tb.run("your_new_tool")`
-   - Confirm output matches expected return dict before committing
+   - Confirm output matches expected return dict
+   - Leave the complete worktree uncommitted with an empty index for independent review
+
+Do not commit, push, tag, create a GitHub Release, or publish socially without
+the separate owner authorization for that exact action.

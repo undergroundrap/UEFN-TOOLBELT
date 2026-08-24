@@ -23,7 +23,10 @@ If a tool already covers the capability — say so and stop. Extend instead of d
 
 ### Step 3 — Write the tool
 Every tool must:
-- Use `@register_tool(name=..., category=..., description=..., tags=[...], example=...)`
+- Use only supported decorator fields such as
+  `@register_tool(name=..., category=..., description=..., tags=[...], example=...)`;
+  `example=` is optional manifest metadata, while parameter metadata is derived
+  from the function signature (the decorator does not accept `parameters=`)
 - Accept `**kwargs` and return `{"status": "ok"/"error", ...}` — never None
 - Use `get_selected_actors()` from `..core` for selection-based tools
 - Wrap mutations in `unreal.ScopedEditorTransaction("Toolbelt: tool_name")`
@@ -37,13 +40,16 @@ Add `from . import <module>_tools` to `Content/Python/UEFN_Toolbelt/tools/__init
 In `Content/Python/UEFN_Toolbelt/__init__.py`:
 - Increment `__tool_count__` by the number of new `@register_tool` entries
 - Increment `__category_count__` if it's a new category
-- Increment `__version__` patch number
+- Do not change `__version__`; that belongs to a separately authorized release session
 
-### Step 6 — Drift check
+### Step 6 — Static gates
 ```bash
+python -m ruff check .
+python -m mypy
+python -m pytest
 python scripts/drift_check.py
 ```
-Must return `PASS` before stopping. Fix any failures.
+All four must pass before stopping. Fix only failures within the authorized scope.
 
 ### Step 7 — Syntax check
 ```bash
@@ -59,6 +65,7 @@ End with the exact UEFN console commands the user needs to run:
    import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools()
 3. tb.run("your_new_tool")
 4. Confirm output matches expected return dict
+5. Leave the complete worktree uncommitted with an empty index for independent review
 ```
 
 ## Hard rules
@@ -68,3 +75,5 @@ End with the exact UEFN console commands the user needs to run:
 - Never use `load_asset()` in a scan loop — crashes UEFN on pak-heavy projects (Quirk #32)
 - Never add a topbar with only a title label — see ui_style_guide.md
 - Full UEFN restart required for new modules, not nuclear reload (Quirk #26)
+- Never commit, push, tag, create a Release, or post socially without the
+  separate owner authorization for that exact action

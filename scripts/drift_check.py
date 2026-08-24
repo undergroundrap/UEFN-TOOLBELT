@@ -62,6 +62,8 @@ VERSION, TOOL_COUNT, CATEGORY_COUNT = _read_constants()
 SCAN_FILES = [
     "README.md",
     "CLAUDE.md",
+    "CONTRIBUTING.md",
+    "llms.txt",
     "ARCHITECTURE.md",
     "TOOL_STATUS.md",
     "mcp_server.py",
@@ -70,12 +72,20 @@ SCAN_FILES = [
     "docs/ui_style_guide.md",
     "docs/uefn_python_capabilities.md",
     "docs/SCHEMA_EXPLORER.md",
+    "docs/PIPELINE.md",
     "Content/Python/UEFN_Toolbelt/dashboard_pyside6.py",
     "tests/smoke_test.py",
     # Agent context files. These carry tool counts and per-tool tables that go
     # stale exactly like the docs do — three counts had already drifted before
     # they were added here.
     "AGENTS.md",
+    ".agents/workflows/add_new_tool.md",
+    ".agents/workflows/run_tests.md",
+    ".github/pull_request_template.md",
+    ".claude/commands/add-tool.md",
+    ".claude/commands/deploy.md",
+    ".claude/commands/drift.md",
+    ".claude/commands/publish-check.md",
     ".claude/tool_tables.md",
     ".claude/mcp_reference.md",
     ".claude/rules/tool_authoring.md",
@@ -87,7 +97,7 @@ SCAN_FILES = [
 # registry, so registering a tool does NOT make it clickable. Three Epic MCP
 # tools shipped registered-but-unreachable before this check existed.
 #
-# 158 of 361 tools are currently UI-invisible, and many of those are deliberate
+# 158 of 362 tools are currently UI-invisible, and many of those are deliberate
 # (MCP/CLI-only utilities). Failing on all of them would be a permanently red
 # check, which is a check people learn to ignore. So this is a ratchet: the
 # number may fall, never rise. A new tool must be surfaced, or the baseline

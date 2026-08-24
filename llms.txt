@@ -1,7 +1,8 @@
 # UEFN Toolbelt
 
 > Python automation framework for Unreal Editor for Fortnite (UEFN).
-> Exposes 355 tools through a PySide6 dashboard, an editor top-menu, and an MCP HTTP bridge.
+> v2.4.1 exposes 362 tools across 55 categories through a PySide6 dashboard,
+> an editor top-menu integration, and an MCP HTTP bridge.
 > Any MCP-compatible AI (Claude Code, Cursor, Windsurf, Zed, OpenClaw, NemoClaw, etc.) can control UEFN directly.
 
 ## What this is
@@ -12,6 +13,8 @@ It covers ~97% of the UEFN Python API surface. The remaining 3% is locked by Epi
 
 Tools are registered with `@register_tool` and called via `tb.run("tool_name", **kwargs)`.
 Every tool returns `{"status": "ok"/"error", ...data}` — zero None returns, zero log parsing needed.
+The current UEFN 42.00 integration baseline is 190/190 checks: 163 verify a
+real outcome and 27 are execution-only.
 
 ## How to use
 
@@ -34,11 +37,12 @@ tb.run("mcp_start")   # → http://127.0.0.1:8765
 # 2. .mcp.json is pre-configured in this repo — any MCP client auto-connects
 ```
 
-Once connected, an AI agent can call all 355 tools, spawn/move/delete actors,
+Once connected, an AI agent can call all 362 tools, spawn/move/delete actors,
 execute arbitrary Python with full `unreal.*` access, and read structured results.
 
 ## Key files for AI agents
 
+- `AGENTS.md` — repository authority, testing, launch, and publishing gates
 - `CLAUDE.md` — full codebase context, every tool table, mandatory rules
 - `docs/PIPELINE.md` — 6-phase autonomous game-building pipeline
 - `docs/UEFN_QUIRKS.md` — non-obvious UEFN Python behaviors (crashes, thread lock, mount detection)
@@ -48,17 +52,44 @@ execute arbitrary Python with full `unreal.*` access, and read structured result
 - `.agents/workflows/` — step-by-step agent workflows (add_new_tool, run_tests)
 - `scripts/drift_check.py` — validates version/tool-count consistency across all docs
 
-## Tool categories (54 total)
+## Tool categories (55 total)
 
-Lighting · Post-Process · Audio · Materials · Procedural/Layout · Bulk Operations ·
-Advanced Alignment · Actor Organization · Zone Tools · Proximity Placement · Level Stamps ·
-Foliage/Scatter · LOD & Optimization · Nanite · UV Channels · DataTable · Textures ·
-Skeletal Mesh · Curves · Blueprints · Landscape · Sound Assets · Asset Management ·
-Reference Auditor · Level Snapshot · Asset Tagger · Viewport Navigation · Visibility & Lock ·
-Selection Sets · Screenshot · Text & Signs · Verse Tools · Project Scaffold · API Explorer ·
-Config · Plugin Management · Level Health · Entities · Environmental · Generative ·
-Pipeline · Project Admin · Selection · Sequencer · Simulation · System · MCP Bridge ·
-Measurement · Localization · DataTable · World State · Device Catalog · Schema Utils
+API Explorer · Actor Organization · Alignment · Animation · Asset Management ·
+Asset Tagger · Assets · Audio · Blueprints · Bulk Ops · Cinematic · Curves ·
+Dashboard · DataTable · Enhanced Input · Entities · Environmental · Generative ·
+Geometry · Landscape · Level Snapshot · Lighting · Localization · MCP Bridge ·
+Materials · Measurement · Optimization · Physics · Pipeline · Post-Process ·
+Procedural · Project · Project Admin · Prop Patterns · Proximity Tools ·
+Reference Auditor · Screenshot · Selection · Sequencer · Simulation · Skeletal Mesh ·
+Sound Assets · Stamps · Static Meshes · System · Tests · Text & Signs · Textures ·
+Utilities · VFX · Verse Helpers · Viewport · Visibility · World Partition · Zone Tools
+
+## Launch Session, Push Changes, and publishing
+
+Run Python-based audits and cleanup while Toolbelt is still loaded:
+
+```python
+result = tb.run("publish_audit")
+print(result)
+tb.run("sign_clear", all_text_actors=True, dry_run=False)  # when blocked
+```
+
+Then, from the Toolbelt repo:
+
+```bat
+prepare_launch.bat
+```
+
+Wait for remote validation or upload to finish—not merely for Fortnite to
+open—then restore the exact Python tree:
+
+```bat
+restore_after_launch.bat
+```
+
+UEFN 42.00 rejects every project `.py` for the standard `VKCreateUGC` role;
+`.urcignore` does not control Valkyrie staging. Do not restart or hot-reload
+Toolbelt while Python is stashed. See `docs/UEFN_QUIRKS.md` Quirks #37 and #42.
 
 ## Mandatory rules for AI agents
 
@@ -68,4 +99,7 @@ Measurement · Localization · DataTable · World State · Device Catalog · Sch
 4. **Bump `__tool_count__` and `__category_count__`** in `Content/Python/UEFN_Toolbelt/__init__.py` when adding tools.
 5. **Nuclear reload is unsafe for new modules** — use full UEFN restart when adding a new entry to `tools/__init__.py`. See UEFN_QUIRKS.md Quirk #26.
 6. **All PySide6 windows must subclass `ToolbeltWindow`** — see `docs/ui_style_guide.md`.
-7. **Check the tool registry before adding anything** — 355 tools exist; search first.
+7. **Check the tool registry before adding anything** — 362 tools exist; search first.
+8. **Use keyword arguments for every `unreal.*` struct** — positional field order follows C++, not documentation order. See Quirk #41.
+9. **Stage Python before remote validation** — use the prepare/upload/restore sequence above. See Quirk #42.
+10. **Keep authority gates separate** — implementation, review, commit, push, tag, GitHub Release, and social publication each require explicit owner authorization.

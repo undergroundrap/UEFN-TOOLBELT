@@ -11,6 +11,7 @@ Read the files that were most recently modified to determine the change type, th
 | PySide6 window / dashboard UI | `deploy.bat` → **full UEFN restart** → open window, interact |
 | `core/` module change | `deploy.bat` → nuclear reload → `tb.run("toolbelt_smoke_test")` |
 | MCP bridge change | `deploy.bat` → `tb.run("mcp_start")` |
+| Launch Session / Push Changes / publish | run `publish_audit` while Python is loaded → `prepare_launch.bat` → wait for remote validation → `restore_after_launch.bat` |
 
 ## Nuclear reload (paste into UEFN Python console)
 
@@ -20,13 +21,22 @@ import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in
 
 Replace `tb.launch_qt()` with `tb.run("your_tool_name")` for tool-only changes.
 
-## After UEFN confirms it works
+## Required static gates
 
 ```bash
+python -m ruff check .
+python -m mypy
+python -m pytest
 python scripts/drift_check.py
-git add -A
-git commit -m "feat: <description>"
-git push origin main
 ```
 
-**Never commit before the user confirms it works in the live editor.**
+## Stop boundary
+
+After UEFN confirms the behavior and the static gates pass, report the exact
+evidence and leave the complete worktree uncommitted with an empty index for
+independent review.
+
+A successful test does not authorize staging, committing, pushing, tagging,
+creating a GitHub Release, or posting to social media. Each later action needs a
+separate explicit owner go signal. Stage only reviewed paths after commit is
+authorized; never stage the whole repository.

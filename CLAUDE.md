@@ -74,7 +74,11 @@ is deliberately not used — it would destroy the hand-aligned assignment column
 pre-existing violations left alone because fixing them restructures control flow,
 which requires a live UEFN test. Fix them in a separate, tested PR.
 
-When you add a new tool, also bump `__tool_count__` in `Content/Python/UEFN_Toolbelt/__init__.py` alongside `__version__`. Both are read by `drift_check.py` as the single source of truth.
+When you add a new tool, bump `__tool_count__` in
+`Content/Python/UEFN_Toolbelt/__init__.py`, and bump `__category_count__` if the
+category is new. Do **not** bump `__version__` during an ordinary implementation
+or community PR: version changes belong to a separately authorized release
+session. All three constants are read by `drift_check.py` as ground truth.
 
 **Phase 2 — Deploy + live UEFN test (required before every commit):**
 
@@ -116,6 +120,23 @@ import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in
 ```
 
 **Only commit after the user confirms it works in the live editor.**
+
+### Review and publication authority gates
+
+Passing tests or receiving live confirmation does not authorize distribution:
+
+1. Implementation stops with the complete worktree uncommitted for independent
+   review unless the owner explicitly authorized a different boundary.
+2. After independent acceptance, the owner separately authorizes the exact
+   commit. Stage only the reviewed paths; never stage the whole repository.
+3. A commit does not authorize a push. Push only after a separate owner go
+   signal, then inspect every required CI job through a terminal conclusion.
+4. A push does not authorize a tag. A tag does not authorize a GitHub Release.
+5. A GitHub Release does not authorize a social announcement. Each public action
+   requires its own explicit owner approval.
+
+Never move an existing release tag to include later documentation or fixes.
+Follow-up work belongs on `main` and, when warranted, in a later version.
 
 ---
 

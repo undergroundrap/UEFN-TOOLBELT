@@ -122,6 +122,8 @@ tb.run("scatter_props", ...)   # N actors
 | `client.py` | Stdlib-only HTTP client for non-MCP external scripts |
 | `install.py` | One-command community installer — copies Toolbelt into any UEFN project, handles `init_unreal.py` safely |
 | `deploy.bat` | Dev workflow tool — deploy + PySide6 check + prints hot-reload command. Use this for active development. |
+| `prepare_launch.bat` | Host-side pre-validation helper — stashes every project `.py`, writes a recoverable manifest, and verifies zero remain before Launch Session, Push Changes, or publishing. Run Python audits first. |
+| `restore_after_launch.bat` | Restores the exact manifest after remote validation; collision-checks instead of overwriting files created while the stash was active. |
 | `.mcp.json` | Claude Code MCP server config — already configured |
 | `docs/uefn_python_capabilities.md` | Full UEFN Python API surface reference |
 | Epic UE5.7 Python API (https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/?application_version=5.7) | **Primary API reference** — check here first for correct class/method names. UEFN omits some standard UE5 APIs: `KismetMaterialLibrary` is absent, `/FortniteGame/` asset paths are blocked, some editor factories may not be exposed. |
@@ -129,7 +131,7 @@ tb.run("scatter_props", ...)   # N actors
 | `Content/Python/UEFN_Toolbelt/core/theme.py` | **Single source of truth for all UI colors.** Edit `PALETTE` here to change the platform's appearance everywhere. |
 | `Content/Python/UEFN_Toolbelt/core/base_window.py` | `ToolbeltWindow` base class — subclass instead of `QMainWindow` for any tool window. Auto-applies theme + Slate tick. |
 | `docs/ui_style_guide.md` | **UI Style Guide — MANDATORY** for all windowed tools and plugins. Color palette, `ToolbeltWindow` API, widget recipes. Read this before writing any PySide6 UI. |
-| `docs/UEFN_QUIRKS.md` | **Critical reading for tool authors** — non-obvious UEFN Python behaviors. Key quirks: #2 Main Thread Lock, #19 V2 Device Property Wall, #23 `/Game/` mount + disk path detection (all three `Paths.*` functions wrong — use `__file__` walkup), #31 PySide6 window crash pattern, #32 Asset Registry scans crash on pak-heavy projects (use disk scan instead). Any tool that touches assets, paths, or the Content Browser should consult this first. |
+| `docs/UEFN_QUIRKS.md` | **Critical reading for tool authors** — non-obvious UEFN Python behaviors. Key quirks: #2 Main Thread Lock, #19 V2 Device Property Wall, #23 `/Game/` mount + disk path detection, #31 PySide6 window crash pattern, #32 pak-heavy Asset Registry scans, #37 `TextRenderActor` publish blockers, #41 keyword-only `unreal.*` structs, and #42 project-Python remote validation. |
 | `docs/CHANGELOG.md` | Version history — all notable changes by release. |
 | `docs/plugin_dev_guide.md` | Plugin authorship guide — security model, audit format, version stamp |
 | `tests/smoke_test.py` | 5-layer health check — run `tb.smoke_test()` |

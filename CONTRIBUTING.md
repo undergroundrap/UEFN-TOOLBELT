@@ -34,8 +34,10 @@ CLAUDE.md is auto-loaded by Claude Code — it gives you full codebase context, 
    print('OK')
    "
 
-4. LIVE TEST IN UEFN (required — syntax passing ≠ working)
-   Paste into UEFN Python console:
+4. DEPLOY + LIVE TEST IN UEFN (required — syntax passing ≠ working)
+   Run deploy.bat first. The repo and UEFN project are separate trees.
+
+   If you edited an existing module, paste into the UEFN Python console:
    import sys; [sys.modules.pop(k) for k in list(sys.modules) if "UEFN_Toolbelt" in k]; import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("my_tool_name")
 
    When does `tb` already exist vs. when do you need to import?
@@ -44,15 +46,18 @@ CLAUDE.md is auto-loaded by Claude Code — it gives you full codebase context, 
    • Fresh UEFN launch → same as above, always import first
    • Rule of thumb: if you see `NameError: name 'tb' is not defined`, just run the full line above
 
-   ⚠️ If you added a NEW module (new .py file): do a full UEFN restart instead of nuclear reload.
-   Nuclear reload + new module = EXCEPTION_ACCESS_VIOLATION. See UEFN_QUIRKS.md Quirk #26.
+   ⚠️ If you added a NEW module (new .py file): after deploy.bat, do a full UEFN
+   restart instead of nuclear reload, import Toolbelt fresh, register all tools,
+   and run the new tool. Nuclear reload + new module = EXCEPTION_ACCESS_VIOLATION.
+   See UEFN_QUIRKS.md Quirk #26.
 
-5. DOCUMENT AND COMMIT
-   • Add your tool to the table in CLAUDE.md under its category
+5. DOCUMENT AND HAND OFF FOR REVIEW
+   • Add your tool to .claude/tool_tables.md under its category
    • Add a row to the Tool Reference in README.md
-   • Bump __version__ in Content/Python/UEFN_Toolbelt/__init__.py
-   • Add a [version] entry in docs/CHANGELOG.md
-   • Commit format:  feat: add my_tool — one-line description
+   • Bump __tool_count__, and __category_count__ when adding a category
+   • Do not bump __version__; the maintainer does that in an authorized release session
+   • Leave agent-authored work uncommitted for independent review
+   • When the owner later authorizes a commit, use: feat(scope): concise description
 ```
 
 ---
@@ -89,7 +94,11 @@ def my_tool(**kwargs) -> dict:
 | No `subprocess`, `socket`, `ctypes`, or network imports | Blocked by the plugin security scanner |
 
 ### Parameter declaration (for manifest + dashboard)
-Parameters are declared via **Python default values** — `plugin_export_manifest` reads them with `inspect.signature()` at export time. Do not pass a `parameters=` dict to `@register_tool` — it is not a supported argument and will raise `TypeError`.
+Parameters are declared via **Python default values** — `plugin_export_manifest`
+reads them with `inspect.signature()` at export time. Do not pass `parameters=`
+to `@register_tool`; it is unsupported and raises `TypeError`. Optional
+`example=` metadata is supported for a concrete manifest call such as
+`tb.run("my_tool", count=10)` and must agree with the function signature.
 
 ```python
 @register_tool(
@@ -115,6 +124,9 @@ def my_tool(count: int = 10, folder: str = "", dry_run: bool = True, **kwargs) -
 | **#25 — Slate Tick Required** | Long-running Python blocks the editor UI. Use `register_slate_pre_tick_callback` for deferred work. |
 | **#26 — Nuclear Reload + New Module = Crash** | `sys.modules.pop` frees Python objects while stale C++ callbacks still point at them. Adding a new `.py` file to tools? **Full UEFN restart**, not nuclear reload. |
 | **#27 — Hard Restart Clears State Nuclear Reload Cannot** | Nuclear reload fixes **code**. Hard restart fixes **state**. After a crash, project switch, or `Shiboken` abort — close UEFN completely and reopen. `tb` is undefined after switching projects; always import fresh. |
+| **#37 — TextRenderActor Blocks Publishing** | Every placed `TextRenderActor` is disallowed remotely. Run `publish_audit` and remove all instances before submission. |
+| **#41 — Struct Positional Order Is Unsafe** | Build `unreal.*` structs with keyword arguments. `Rotator` is `(roll, pitch, yaw)` and `Color` follows C++ `B,G,R,A` field order. |
+| **#42 — Project Python Fails Remote Validation** | Before Launch Session, Push Changes, or publishing, run `prepare_launch.bat`; after remote validation completes, run `restore_after_launch.bat`. `.urcignore` is not enough. |
 
 Full details: `docs/UEFN_QUIRKS.md`
 
@@ -124,9 +136,10 @@ Full details: `docs/UEFN_QUIRKS.md`
 
 1. **One tool or fix per PR** — keeps review tractable
 2. **Must include live test confirmation** — paste Output Log snippet in the PR description showing the tool ran without errors in UEFN
-3. **Follow commit format**: `feat: tool_name — what it does` (lowercase, no "Phase:", no Title Case)
-4. **Update docs**: CLAUDE.md category table + README Tool Reference row + CHANGELOG entry
-5. **No `__version__` bump needed for community PRs** — maintainer handles versioning at release
+3. **Follow scoped commit format**: `feat(scope): concise description` (lowercase, no "Phase:", no Title Case)
+4. **Update docs**: `.claude/tool_tables.md` category table + README Tool Reference row + `TOOL_STATUS.md`
+5. **Update counts, not the release version**: core tools update `__tool_count__` and, when needed, `__category_count__`; community PRs do not change `__version__` or add a release changelog heading. The maintainer handles those in a separately authorized release session.
+6. **Keep publication gates separate**: implementation does not authorize commit; commit does not authorize push; push does not authorize tags, Releases, or social posts.
 
 ---
 
