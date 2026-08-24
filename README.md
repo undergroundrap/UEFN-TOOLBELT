@@ -5,7 +5,7 @@
 
 [![CI](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/workflows/ci.yml/badge.svg)](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.4.0-green.svg)](docs/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.4.1-green.svg)](docs/CHANGELOG.md)
 [![Discussions](https://img.shields.io/badge/community-discussions-blueviolet)](https://github.com/undergroundrap/UEFN-TOOLBELT/discussions)
 
 ![UEFN Toolbelt Dashboard](docs/dashboard_hero.png)
@@ -2518,6 +2518,36 @@ Full history for every release lives in [docs/CHANGELOG.md](docs/CHANGELOG.md).
 The entries below stopped being maintained after v1.5.3 and are kept as-is;
 for anything between v1.6.0 and v2.3.9, read the changelog rather than this
 section.
+
+### v2.4.1 — August 2026 (Launch Session validation fixes)
+
+**Why this matters:** UEFN 42.00 remote validation can open Fortnite and still
+reject the upload afterward. Two independent blockers were confirmed in a live
+`VKCreateUGC` project: every `.py` staged anywhere under the project root, and
+every placed `/Script/Engine.TextRenderActor`.
+
+**Fixed:**
+
+- **One-command Python staging:** `prepare_launch.bat` moves every project `.py`
+  into a recoverable LocalAppData manifest stash and verifies zero remain.
+  `restore_after_launch.bat` collision-checks and restores the exact tree after
+  Launch Session, Push Changes, or publishing. Hidden files and interrupted
+  prepare/restore operations are covered by recovery tests.
+- **Cleaner deployments:** `deploy.bat` lists only real `.uefnproject` folders,
+  no longer copies the pytest suite, and excludes Python helpers from the
+  optional Verse reference. Repository attributes now force CRLF for Windows
+  batch files so native `cmd.exe` parses the deploy and launch wrappers reliably.
+- **Visible TextRenderActor blockers:** all six text/sign spawners warn in the
+  Output Log and return structured cleanup guidance. `publish_audit` now
+  hard-fails when any remain, and `sign_clear(all_text_actors=True)` removes
+  them through checked editor-subsystem deletion.
+- **Publish-safe integration cleanup:** the live suite now removes and re-scans
+  all text fixtures instead of leaving a green test run that blocks the island.
+
+**Verified:** UEFN 42.00 / TOOL_TEST registered all 362 tools across 55
+categories, opened the dashboard and MCP listener, and passed **190/190** live
+checks — 163 verified and 27 execution-only. The real launch helper round trip
+was 96 Python files before, zero while prepared, and all 96 restored.
 
 ### v2.4.0 — August 2026 (Stopped reporting success for things that did not happen)
 

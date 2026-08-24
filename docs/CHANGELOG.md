@@ -5,7 +5,7 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
-## [Unreleased]
+## [2.4.1] — 2026-08-23
 
 ### Fixed
 
@@ -18,6 +18,10 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
   `restore_after_launch.bat` collision-checks and restores them afterward.
   `deploy.bat` no longer copies the pytest suite and excludes Python helpers
   while copying the optional Verse reference.
+- **Windows batch entry points are pinned to CRLF.** The exact release deploy
+  gate caught native `cmd.exe` misparsing the longer LF-only `deploy.bat` even
+  though its committed content was otherwise unchanged. `.gitattributes` now
+  enforces Windows line endings for every `.bat`, with a regression guard.
 - **Text tools now identify the class that blocks publishing.** All six
   `TextRenderActor` spawners log a publish-blocker warning and return the cleanup
   command. `publish_audit` hard-fails when any remain, while `sign_clear` gained

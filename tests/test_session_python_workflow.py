@@ -14,6 +14,7 @@ SCRIPT = REPO / "scripts" / "session_python.ps1"
 PREPARE = REPO / "prepare_launch.bat"
 RESTORE = REPO / "restore_after_launch.bat"
 DEPLOY = REPO / "deploy.bat"
+GIT_ATTRIBUTES = REPO / ".gitattributes"
 POWERSHELL = shutil.which("powershell")
 
 
@@ -39,6 +40,7 @@ def test_deploy_does_not_copy_python_bearing_dev_folders():
     assert "*.uefnproject" in source
     assert "setlocal disabledelayedexpansion" in source
     assert "syntax passing != working in the editor" in source
+    assert "*.bat text eol=crlf" in GIT_ATTRIBUTES.read_text(encoding="utf-8")
 
 
 @pytest.mark.skipif(POWERSHELL is None, reason="Windows PowerShell is unavailable")
