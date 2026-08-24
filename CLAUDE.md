@@ -138,6 +138,26 @@ Passing tests or receiving live confirmation does not authorize distribution:
 Never move an existing release tag to include later documentation or fixes.
 Follow-up work belongs on `main` and, when warranted, in a later version.
 
+### Repository Work Order memory
+
+Cold-start every repository task from [`WORKORDER.md`](WORKORDER.md) after this
+file. It is the sole authority pointer allowed to name the current issued Work
+Order and authorized session. A roadmap entry, audit finding, chat instruction
+quoted as background, or file under `docs/work-orders/proposed/` is not a go
+signal. If the current issued Work Order or authorized session is `NONE`, stop
+at that owner gate.
+
+Detailed state definitions and mandates live in
+[`docs/work-orders/`](docs/work-orders/README.md). Proposed mandates always say
+`AUTHORIZATION: NOT AUTHORIZED`; normally at most one mandate is issued. Moving
+a file does not combine implementation, independent review, commit, push, tag,
+GitHub Release, repository-description, or social-publication authority.
+
+Security-sensitive work must also cold-start from [`SECURITY.md`](SECURITY.md).
+The accepted official-MCP inventory, autonomous/manual execution ledger, live
+evidence, evidence gaps, and cleanup state are preserved in the
+[`2026-08-24 UEFN 42.00 audit`](docs/audits/2026-08-24-uefn-42-official-mcp-audit.md).
+
 ---
 
 ## ⚠️ MANDATORY: Check the Registry Before Adding Any Tool

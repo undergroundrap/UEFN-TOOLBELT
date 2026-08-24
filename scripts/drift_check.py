@@ -60,6 +60,8 @@ VERSION, TOOL_COUNT, CATEGORY_COUNT = _read_constants()
 # ── Files to scan ─────────────────────────────────────────────────────────────
 
 SCAN_FILES = [
+    "WORKORDER.md",
+    "SECURITY.md",
     "README.md",
     "CLAUDE.md",
     "CONTRIBUTING.md",
@@ -73,6 +75,16 @@ SCAN_FILES = [
     "docs/uefn_python_capabilities.md",
     "docs/SCHEMA_EXPLORER.md",
     "docs/PIPELINE.md",
+    "docs/audits/2026-08-24-uefn-42-official-mcp-audit.md",
+    "docs/audits/evidence/2026-08-24-official-mcp-signatures.json",
+    "docs/work-orders/README.md",
+    "docs/work-orders/proposed/WO-001-custom-mcp-security.md",
+    "docs/work-orders/proposed/WO-002-epic-toolset-integration.md",
+    "docs/work-orders/proposed/WO-003-official-mcp-doc-convergence.md",
+    "docs/work-orders/proposed/WO-004-modal-observability.md",
+    "docs/work-orders/proposed/WO-005-coverage-source-of-truth.md",
+    "docs/work-orders/proposed/WO-006-official-vs-toolbelt-benchmark.md",
+    "docs/work-orders/proposed/WO-007-public-mcp-explainer.md",
     "Content/Python/UEFN_Toolbelt/dashboard_pyside6.py",
     "tests/smoke_test.py",
     # Agent context files. These carry tool counts and per-tool tables that go
@@ -123,6 +135,8 @@ _UI_INVISIBLE_BASELINE = 158
 # /Game/ default fails the check outright.
 
 _GAME_PATH_DEFAULT_BASELINE = 0
+
+_WORK_ORDER_STATES = {"PROPOSED", "ISSUED", "COMPLETED", "SUPERSEDED"}
 
 
 def _game_path_defaults() -> list[str]:
@@ -298,6 +312,123 @@ def check_ui_coverage() -> list[dict]:
         }]
 
     return []
+
+
+def check_work_order_contract() -> list[dict]:
+    """Prevent durable planning files from silently granting authority."""
+    from pathlib import Path
+
+    findings: list[dict] = []
+    root = Path(ROOT)
+    pointer_path = root / "WORKORDER.md"
+    guide_path = root / "docs" / "work-orders" / "README.md"
+    proposed_dir = root / "docs" / "work-orders" / "proposed"
+    issued_dir = root / "docs" / "work-orders" / "issued"
+
+    def add(file: str, kind: str, found: str, expected: str) -> None:
+        findings.append({
+            "file": file,
+            "line": 0,
+            "type": kind,
+            "found": found,
+            "expected": expected,
+            "content": found,
+        })
+
+    if not pointer_path.exists():
+        add("WORKORDER.md", "work order pointer", "missing", "canonical pointer present")
+        return findings
+
+    pointer = pointer_path.read_text(encoding="utf-8")
+    pointer_lines = pointer.splitlines()
+
+    def pointer_value(prefix: str) -> str | None:
+        matches = [line.removeprefix(prefix).strip() for line in pointer_lines
+                   if line.startswith(prefix)]
+        return matches[0] if len(matches) == 1 else None
+
+    current = pointer_value("- Current issued Work Order:")
+    session = pointer_value("- Authorized session:")
+    if current is None:
+        add("WORKORDER.md", "current work order gate", "missing or duplicated",
+            "one '- Current issued Work Order:' line")
+    if session is None:
+        add("WORKORDER.md", "authorized session gate", "missing or duplicated",
+            "one '- Authorized session:' line")
+
+    guide = guide_path.read_text(encoding="utf-8") if guide_path.exists() else ""
+    missing_states = sorted(state for state in _WORK_ORDER_STATES if f"`{state}`" not in guide)
+    if missing_states:
+        add("docs/work-orders/README.md", "work order states",
+            ", ".join(missing_states), "all allowed states documented")
+    for required in (
+        "Only the repository-root `WORKORDER.md`",
+        "no implementation is authorized",
+        "at most one detailed Work Order is issued",
+    ):
+        if required not in guide:
+            add("docs/work-orders/README.md", "work order authority",
+                f"missing {required!r}", "canonical non-authorizing guidance")
+
+    proposals = sorted(proposed_dir.glob("WO-*.md")) if proposed_dir.exists() else []
+    if not proposals:
+        add("docs/work-orders/proposed", "proposed work orders", "none", "at least one proposal")
+    for path in proposals:
+        text = path.read_text(encoding="utf-8")
+        status_lines = [line.strip() for line in text.splitlines()
+                        if line.startswith("STATUS:")]
+        auth_lines = [line.strip() for line in text.splitlines()
+                      if line.startswith("AUTHORIZATION:")]
+        rel = path.relative_to(root).as_posix()
+        if status_lines != ["STATUS: PROPOSED"]:
+            add(rel, "proposed status", repr(status_lines), "exactly STATUS: PROPOSED")
+        if auth_lines != ["AUTHORIZATION: NOT AUTHORIZED"]:
+            add(rel, "proposed authorization", repr(auth_lines),
+                "exactly AUTHORIZATION: NOT AUTHORIZED")
+        if any(line.startswith(("- Current issued Work Order:", "- Authorized session:"))
+               for line in text.splitlines()):
+            add(rel, "canonical gate duplication", "current gate outside WORKORDER.md",
+                "current authority only in WORKORDER.md")
+
+    work_order_docs = sorted((root / "docs" / "work-orders").rglob("*.md"))
+    for path in work_order_docs:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        duplicated = [
+            line
+            for line in lines
+            if line.startswith(("- Current issued Work Order:",
+                                "- Authorized session:",
+                                "- Current gate:"))
+        ]
+        if duplicated:
+            rel = path.relative_to(root).as_posix()
+            add(rel, "canonical gate duplication", repr(duplicated),
+                "current authority only in WORKORDER.md")
+
+    issued = sorted(
+        path for path in issued_dir.glob("*.md")
+        if path.name.lower() != "readme.md"
+    ) if issued_dir.exists() else []
+    if len(issued) > 1:
+        add("docs/work-orders/issued", "issued work order count", str(len(issued)), "at most 1")
+
+    if current == "NONE":
+        if session != "NONE":
+            add("WORKORDER.md", "authorization without issued work order",
+                str(session), "NONE")
+        if issued:
+            add("docs/work-orders/issued", "unpointed issued work order",
+                issued[0].name, "empty while current pointer is NONE")
+    elif current is not None:
+        if len(issued) != 1:
+            add("docs/work-orders/issued", "current issued work order",
+                str(len(issued)), "exactly one file matching the pointer")
+        elif not (current in {issued[0].name, issued[0].stem}
+                  or issued[0].stem.startswith(current)):
+            add("WORKORDER.md", "current issued work order mismatch", current,
+                issued[0].name)
+
+    return findings
 
 
 # ── Patterns ──────────────────────────────────────────────────────────────────
@@ -496,15 +627,27 @@ def run() -> int:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
 
     print(f"\n[drift_check] Ground truth: version={VERSION}  tools={TOOL_COUNT}  categories={CATEGORY_COUNT}")
-    print(f"[drift_check] Scanning {len(SCAN_FILES)} files...\n")
+    scan_files = list(SCAN_FILES)
+    work_order_root = os.path.join(ROOT, "docs", "work-orders")
+    if os.path.isdir(work_order_root):
+        for dirpath, _dirnames, filenames in os.walk(work_order_root):
+            for filename in filenames:
+                if filename.endswith(".md"):
+                    rel = os.path.relpath(os.path.join(dirpath, filename), ROOT)
+                    rel = rel.replace(os.sep, "/")
+                    if rel not in scan_files:
+                        scan_files.append(rel)
+
+    print(f"[drift_check] Scanning {len(scan_files)} files...\n")
 
     all_findings: list[dict] = []
-    for rel in SCAN_FILES:
+    for rel in scan_files:
         findings = scan_file(rel, VERSION, TOOL_COUNT, CATEGORY_COUNT)
         all_findings.extend(findings)
 
     all_findings.extend(check_ui_coverage())
     all_findings.extend(check_game_path_defaults())
+    all_findings.extend(check_work_order_contract())
 
     if not all_findings:
         print("[drift_check] PASS — No drift found. Codebase is consistent.\n")

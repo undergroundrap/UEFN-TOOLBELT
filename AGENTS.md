@@ -46,12 +46,21 @@ Any MCP-compatible AI connects via `.mcp.json` (pre-configured).
     distinct actions. Authorization for one never implies the next. Leave work
     uncommitted for review unless the owner explicitly authorizes the exact
     commit; never move an existing tag.
+11. **Cold-start from `WORKORDER.md`.** It is the sole pointer allowed to name
+    the current issued Work Order and authorized session. Files under
+    `docs/work-orders/proposed/` are planning only and never grant implementation
+    authority. If either current field says `NONE`, stop at the corresponding
+    owner gate.
 
 ## Key files for agents
 
 | File | What to read for |
 |---|---|
+| `WORKORDER.md` | Current issued Work Order, authorized session, base, and exact gate; `NONE` means stop |
 | `CLAUDE.md` | Full project context, mandatory rules, all tool tables |
+| `SECURITY.md` | Current trust boundary; custom MCP remains experimental pending WO-001 |
+| `docs/audits/2026-08-24-uefn-42-official-mcp-audit.md` | Accepted official-MCP, coexistence, security, and repository-truth evidence |
+| `docs/work-orders/README.md` | Work Order states, required contents, and gate sequence |
 | `docs/UEFN_QUIRKS.md` | Non-obvious UEFN Python behaviors — read before touching any API |
 | `docs/PIPELINE.md` | 6-phase autonomous game-building pipeline |
 | `docs/ui_style_guide.md` | Mandatory for any PySide6 window work |

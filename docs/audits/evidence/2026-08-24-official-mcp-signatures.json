@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "captured_on": "2026-08-24",
+  "environment": {
+    "uefn_release": "42.00",
+    "unreal_release": "6.0",
+    "project": "TOOL_TEST",
+    "sanitized": true,
+    "protocol_requested": "2025-03-26",
+    "protocol_negotiated": "2025-11-25",
+    "server_info": {
+      "name": "",
+      "title": "",
+      "version": ""
+    }
+  },
+  "top_level_tools": [
+    "list_toolsets()",
+    "describe_toolset(toolset_name: string)",
+    "call_tool(tool_name: string, toolset_name?: string, arguments?: object)"
+  ],
+  "toolsets": [
+    "EditorToolset.EditorAppToolset",
+    "EditorToolset.LogsToolset",
+    "GameplayTagsToolset.GameplayTagsToolset",
+    "MVVMToolset.MVVMToolset",
+    "NiagaraToolsets.NiagaraToolset_Info",
+    "NiagaraToolsets.NiagaraToolset_Component",
+    "NiagaraToolsets.NiagaraToolset_System",
+    "NiagaraToolsets.NiagaraToolset_Assets",
+    "PhysicsToolsets.PhysicsAssetToolset",
+    "VerseFieldsToolset.VerseFieldsToolset",
+    "WidgetAnimationToolset.WidgetAnimationToolset",
+    "UMGToolSet.UMGToolSet",
+    "ValkyrieToolset.ValkyriePythonToolset",
+    "ValkyrieToolset.VerseToolset",
+    "ValkyrieToolset.SessionToolset",
+    "ValkyrieToolset.DeviceToolset",
+    "ValkyrieToolset.EntityToolset",
+    "editor_toolset.toolsets.actor.ActorTools",
+    "editor_toolset.toolsets.asset.AssetTools",
+    "editor_toolset.toolsets.curve_table.CurveTableTools",
+    "editor_toolset.toolsets.data_table.DataTableTools",
+    "editor_toolset.toolsets.material.MaterialTools",
+    "editor_toolset.toolsets.material_instance.MaterialInstanceTools",
+    "editor_toolset.toolsets.object.ObjectTools",
+    "editor_toolset.toolsets.primitive.PrimitiveTools",
+    "editor_toolset.toolsets.scene.SceneTools",
+    "editor_toolset.toolsets.skeletal_mesh.SkeletalMeshTools",
+    "editor_toolset.toolsets.static_mesh.StaticMeshTools",
+    "editor_toolset.toolsets.texture.TextureTools"
+  ],
+  "surfaces": {
+    "verse": {
+      "toolset": "ValkyrieToolset.VerseToolset",
+      "evidence": "signature-and-live-mutation",
+      "tools": [
+        "WriteFile(path: string, content: string, bCreateIfMissing: boolean, span?: SourceSpan)",
+        "Replace(path: string, oldString: string, newString: string, bReplaceAll: boolean = false)",
+        "ReadFile(path: string, span?: SourceSpan) -> string",
+        "Move(sourcePath: string, destPath: string)",
+        "ListFiles(path: string, bRecursive: boolean) -> FileEntry[]",
+        "Grep(pattern: string, pathGlob: string, maxResults?: integer) -> GrepMatch[]",
+        "Delete(path: string, bRecursive: boolean)",
+        "CreateDirectory(path: string)",
+        "Copy(sourcePath: string, destPath: string, bRecursive: boolean)",
+        "BuildAll() -> Diagnostic[]"
+      ],
+      "diagnostic_schema": {
+        "fields": ["severity", "code", "message", "filePath", "span"],
+        "severity": ["Error", "Warning", "Information", "Hint"]
+      }
+    },
+    "creative_devices": {
+      "toolset": "ValkyrieToolset.DeviceToolset",
+      "evidence": "signature-and-live-mutation",
+      "tools": [
+        "SetDeviceProperty(device: ScriptDevice, propertyName: string, value: string)",
+        "RemoveEventBinding(sourceDevicePath: string, event: string, targetDevicePath: string, function: string)",
+        "PlaceDevice(assetPath: Object, transform: ToolsetTransform) -> Object",
+        "ListEventBindings(devicePath: string)",
+        "ListDeviceProperties(device: ScriptDevice) -> string",
+        "ListDeviceAssets(nameFilter: string = \"\") -> DeviceAssetInfo[]",
+        "GetDeviceProperties(device: ScriptDevice, propertyNames: string[]) -> string",
+        "GetBindingOptions(devicePath: string)",
+        "AddEventBinding(sourceDevicePath: string, event: string, targetDevicePath: string, function: string)"
+      ]
+    },
+    "scene_graph_entities": {
+      "toolset": "ValkyrieToolset.EntityToolset",
+      "evidence": "signature-and-live-mutation",
+      "tools": [
+        "SetEntityTransform(entity: Entity, transform: ToolsetTransform)",
+        "SetComponentProperty(component: Component, propertyName: string, value: string)",
+        "RemoveComponent(entity: Entity, componentClass: ComponentClass)",
+        "ListEntityClasses(nameFilter: string = \"\")",
+        "ListComponentProperties(component: Component)",
+        "ListComponentClasses(nameFilter: string = \"\")",
+        "GetEntityTransform(entity: Entity)",
+        "GetComponents(entity: Entity)",
+        "GetComponentProperty(component: Component, propertyName: string)",
+        "FindEntities(rootEntity?: Entity = null, bRecursive: boolean = true, nameFilter: string = \"\")",
+        "DeleteEntity(entity: Entity)",
+        "CreateEntity(entityClass: EntityClass, transform: ToolsetTransform, name: string = \"\", parentEntity?: Entity = null)",
+        "AddComponent(entity: Entity, componentClass: ComponentClass)"
+      ]
+    },
+    "umg": {
+      "toolset": "UMGToolSet.UMGToolSet",
+      "evidence": "signature-only",
+      "tools": [
+        "WrapWidgets(widgetBlueprint, widgets, wrapperClass)",
+        "SetNamedSlotContent(widgetBlueprint, slotName, widgetClass, widgetName, hostWidget?)",
+        "ReplaceWidgetWithTemplate(widgetBlueprint, widgetToReplace, templateClass)",
+        "ReplaceWidgetWithNamedSlot(widgetBlueprint, widgetToReplace, namedSlot)",
+        "ReplaceWidgetWithChild(widgetBlueprint, widgetToReplace)",
+        "RenameWidget(widgetBlueprint, widget, newDisplayName)",
+        "RemoveWidget(widgetBlueprint, widget)",
+        "RemoveUIComponent(widgetBlueprint, widgetName, componentClass)",
+        "MoveWidget(widgetBlueprint, widget, newParent, childIndex: integer = -1)",
+        "MoveUIComponent(widgetBlueprint, widgetName, componentClassToMove, relativeToComponentClass, bMoveAfter: boolean)",
+        "ListWidgetClasses(filter: string = \"\")",
+        "ListWidgetBlueprints(folderPath: string)",
+        "GetWidgetTreeDepth(widgetBlueprint, startWidget?)",
+        "GetWidgets(widgetBlueprint)",
+        "GetWidgetDescription(widgetBlueprint, startWidget?, maxDepth: integer = -1)",
+        "GetWidgetClassInfo(widgetClass)",
+        "GetNamedSlots(widgetBlueprint)",
+        "CreateWidgetBlueprint(folderPath: string, assetName: string, parentClass)",
+        "CompileWidgetBlueprint(widgetBlueprint)",
+        "AddWidget(widgetBlueprint, widgetClass, widgetDisplayName: string, parentWidget?, childIndex: integer = -1)",
+        "AddUIComponent(widgetBlueprint, widgetName: string, componentClass)"
+      ]
+    },
+    "play_sessions": {
+      "toolset": "ValkyrieToolset.SessionToolset",
+      "evidence": "signature-and-live-session",
+      "tools": [
+        "StopSession()",
+        "StopGame() -> Failed | Completed | StillRunning",
+        "StartSession(location?: Vector, rotation?: Rotator) -> outcome",
+        "StartGame() -> outcome",
+        "PushChanges(bVerseOnly: boolean = false) -> outcome",
+        "GetSessionStatus() -> Disconnected | Connecting | Reconnecting | Connected | UpdatingContent",
+        "GetGameState() -> CanStart | Running | Unconnected",
+        "GetClientLogEntries(pattern: string, maxResults?: integer, startLine: integer = 0) -> {entries, lastEntryLine}"
+      ]
+    },
+    "valkyrie_python": {
+      "toolset": "ValkyrieToolset.ValkyriePythonToolset",
+      "evidence": "signature-only",
+      "tools": [
+        "IsPythonEnabledInUEFN() -> boolean",
+        "EnablePythonInUEFN()"
+      ]
+    }
+  },
+  "known_live_gaps": [
+    "Toolbelt was not externally discoverable through official list/describe/call",
+    "PlaceDevice returned an Actor that stock property tools rejected as not ScriptDevice",
+    "DeleteEntity refused a root-level entity created by CreateEntity",
+    "GetClientLogEntries reported no client log while the session was connected and running",
+    "UMG was signature-confirmed but not mutation-verified"
+  ]
+}
