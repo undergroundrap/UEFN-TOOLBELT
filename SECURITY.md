@@ -6,10 +6,10 @@ as executable code—not as isolated island content.
 
 ## Interim custom MCP warning
 
-The custom HTTP bridge is experimental pending proposed Work Order WO-001.
-Do not expose it beyond the local machine, do not connect an untrusted local
-client, and do not describe the current bridge as authenticated or safe for
-untrusted browser content.
+The custom HTTP bridge remains experimental pending implementation of issued
+Work Order WO-001. Do not expose it beyond the local machine, do not connect an
+untrusted local client, and do not describe the current bridge as authenticated
+or safe for untrusted browser content.
 
 The accepted 2026-08-24 read-only audit established:
 

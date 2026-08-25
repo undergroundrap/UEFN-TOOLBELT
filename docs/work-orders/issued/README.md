@@ -1,5 +1,6 @@
-# Issued Work Order
+# Issued Work Orders
 
-No Work Order is currently issued. This directory normally contains at most one
-detailed mandate, and the root `WORKORDER.md` must point to it before any session
-can be authorized.
+Owner-issued mandates live in this directory. Their presence or status markers
+do not authorize any implementation session. Consult the repository-root
+`WORKORDER.md` for the sole current gate. This directory normally contains at
+most one detailed mandate.

@@ -12,7 +12,9 @@ tools/, and community_plugins/.
 from __future__ import annotations
 
 import ast
+import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 
@@ -131,7 +133,7 @@ def test_drift_check_covers_agent_context_surfaces(repo_root):
         "docs/audits/2026-08-24-uefn-42-official-mcp-audit.md",
         "docs/audits/evidence/2026-08-24-official-mcp-signatures.json",
         "docs/work-orders/README.md",
-        "docs/work-orders/proposed/WO-001-custom-mcp-security.md",
+        "docs/work-orders/issued/WO-001-custom-mcp-security.md",
         "docs/work-orders/proposed/WO-002-epic-toolset-integration.md",
         "docs/work-orders/proposed/WO-003-official-mcp-doc-convergence.md",
         "docs/work-orders/proposed/WO-004-modal-observability.md",
@@ -160,8 +162,11 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
                      if line.startswith("- Current issued Work Order:")]
     session_lines = [line for line in pointer_lines
                      if line.startswith("- Authorized session:")]
+    base_lines = [line for line in pointer_lines
+                  if line.startswith("- Base commit:")]
     assert len(current_lines) == 1
     assert len(session_lines) == 1
+    assert len(base_lines) == 1
     current = current_lines[0].split(":", 1)[1].strip()
     session = session_lines[0].split(":", 1)[1].strip()
     gate_lines = [line for line in pointer_lines if line.startswith("- Current gate:")]
@@ -177,7 +182,6 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
 
     proposals = sorted((work_orders / "proposed").glob("WO-*.md"))
     expected_proposals = {
-        "WO-001-custom-mcp-security.md",
         "WO-002-epic-toolset-integration.md",
         "WO-003-official-mcp-doc-convergence.md",
         "WO-004-modal-observability.md",
@@ -185,7 +189,7 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "WO-006-official-vs-toolbelt-benchmark.md",
         "WO-007-public-mcp-explainer.md",
     }
-    assert expected_proposals <= {path.name for path in proposals}
+    assert {path.name for path in proposals} == expected_proposals
     for proposal in proposals:
         lines = proposal.read_text(encoding="utf-8").splitlines()
         status_lines = [line.strip() for line in lines if line.startswith("STATUS:")]
@@ -206,14 +210,237 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
 
     issued = [path for path in (work_orders / "issued").glob("*.md")
               if path.name.lower() != "readme.md"]
-    assert len(issued) <= 1
-    if current == "NONE":
-        assert session == "NONE"
-        assert issued == []
-        assert gate_lines == ["- Current gate: NO WORK ORDER IMPLEMENTATION AUTHORIZED"]
-    else:
-        assert len(issued) == 1
-        assert current in {issued[0].name, issued[0].stem} or issued[0].stem.startswith(current)
+    assert len(issued) == 1
+    assert issued[0].name == "WO-001-custom-mcp-security.md"
+    assert current == "WO-001"
+    assert session == "NONE"
+    assert base_lines == [
+        "- Base commit: `318c28fa08bfef032280bad9b76eab7cd81f626d`"
+    ]
+    assert gate_lines == [
+        "- Current gate: WO-001 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
+    ]
+    assert "docs/work-orders/issued/WO-001-custom-mcp-security.md" in pointer
+    assert "docs/work-orders/proposed/WO-001-custom-mcp-security.md" not in pointer
+
+    issued_text = issued[0].read_text(encoding="utf-8")
+    issued_lines = issued_text.splitlines()
+    issued_status = [line for line in issued_lines if line.startswith("STATUS:")]
+    issued_auth = [line for line in issued_lines if line.startswith("AUTHORIZATION:")]
+    assert issued_status == ["STATUS: ISSUED"]
+    assert issued_auth == ["AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED"]
+    assert "## Session A — authenticated, fail-closed control plane" in issued_text
+    assert "## Proposed Session A" not in issued_text
+    assert "318c28fa08bfef032280bad9b76eab7cd81f626d" in issued_text
+    assert "32701409756" in issued_text
+    assert "Issuance alone grants no implementation authority" in issued_text
+    assert "NEXT GATE: explicit BDFL/owner authorization for Session A." in issued_text
+
+    issued_readme = (work_orders / "issued" / "README.md").read_text(
+        encoding="utf-8"
+    )
+    assert "No Work Order is currently issued" not in issued_readme
+    assert "repository-root\n`WORKORDER.md` for the sole current gate" in issued_readme
+    security = (repo_root / "SECURITY.md").read_text(encoding="utf-8")
+    security_normalized = " ".join(security.split())
+    assert "pending implementation of issued Work Order WO-001" in security_normalized
+
+
+@pytest.mark.parametrize("permission", (
+    "SESSION A IS AUTHORIZED",
+    "Session A is permitted to begin",
+    "Session A is approved to proceed",
+    "Session A is ready to begin",
+    "Session A may now begin",
+    "You may begin work on Session A",
+    "Proceed with Session A",
+    "The owner has cleared Session A to proceed",
+    "The implementation gate for Session A is open",
+    "Session A can proceed",
+    "Begin implementation work for Session A",
+    "The implementation gate for Session A has passed",
+    "Session A has the green light",
+    "Implementation may commence.",
+    "The owner gave the go-ahead.",
+    "Implementation is unlocked.",
+    "Resume implementation work.",
+    "Approval to implement is granted.",
+    "Session A is not authorized. Nevertheless, work may commence.",
+    "Implementation work can now proceed.",
+    "Owner approval has unlocked implementation.",
+    "The go-ahead came from the owner.",
+    "The green light came from the owner.",
+))
+def test_closed_work_order_rejects_permission_phrasings(
+    repo_root, tmp_path, monkeypatch, permission
+):
+    """Permission language must fail through the real drift contract."""
+    spec = importlib.util.spec_from_file_location(
+        "wo001_drift_check", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+
+    case = tmp_path / "permission"
+    case.mkdir(parents=True)
+    shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
+    shutil.copytree(
+        repo_root / "docs" / "work-orders",
+        case / "docs" / "work-orders",
+    )
+    issued = (
+        case
+        / "docs"
+        / "work-orders"
+        / "issued"
+        / "WO-001-custom-mcp-security.md"
+    )
+    issued.write_text(
+        issued.read_text(encoding="utf-8") + f"\n{permission}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    finding_types = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert "implicit session authorization" in finding_types
+
+
+def test_closed_work_order_rejects_contradiction_after_canonical_negative(
+    repo_root, tmp_path, monkeypatch
+):
+    """A positive clause cannot hide behind the required negative sentence."""
+    spec = importlib.util.spec_from_file_location(
+        "wo001_drift_check", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+
+    case = tmp_path / "canonical-negative-contradiction"
+    case.mkdir(parents=True)
+    shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
+    shutil.copytree(
+        repo_root / "docs" / "work-orders",
+        case / "docs" / "work-orders",
+    )
+    pointer = case / "WORKORDER.md"
+    pointer.write_text(
+        pointer.read_text(encoding="utf-8").replace(
+            "Session A is\nnot authorized.",
+            "Session A is\nnot authorized. Nevertheless, work may commence.",
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    finding_types = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert "implicit session authorization" in finding_types
+
+
+def test_closed_work_order_accepts_canonical_closed_authority_language(
+    repo_root, tmp_path, monkeypatch
+):
+    """The unchanged issued state is the positive control for the detector."""
+    spec = importlib.util.spec_from_file_location(
+        "wo001_drift_check", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+
+    case = tmp_path / "canonical-closed-state"
+    case.mkdir(parents=True)
+    shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
+    shutil.copytree(
+        repo_root / "docs" / "work-orders",
+        case / "docs" / "work-orders",
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    finding_types = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert "implicit session authorization" not in finding_types
+
+
+def test_work_order_issuance_contract_rejects_structural_authority_mutations(
+    repo_root, tmp_path, monkeypatch
+):
+    """Issued metadata must fail closed under structural authority mutations."""
+    spec = importlib.util.spec_from_file_location(
+        "wo001_drift_check", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+
+    def make_case(name):
+        case = tmp_path / name
+        case.mkdir(parents=True)
+        shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
+        shutil.copytree(
+            repo_root / "docs" / "work-orders",
+            case / "docs" / "work-orders",
+        )
+        return case
+
+    def finding_types(case):
+        monkeypatch.setattr(drift_check, "ROOT", str(case))
+        return {finding["type"] for finding in drift_check.check_work_order_contract()}
+
+    wrong_status = make_case("wrong-status")
+    wrong_status_issued = (
+        wrong_status
+        / "docs"
+        / "work-orders"
+        / "issued"
+        / "WO-001-custom-mcp-security.md"
+    )
+    wrong_status_issued.write_text(
+        wrong_status_issued.read_text(encoding="utf-8").replace(
+            "STATUS: ISSUED", "STATUS: PROPOSED"
+        ),
+        encoding="utf-8",
+    )
+    assert "issued status" in finding_types(wrong_status)
+
+    stale_pointer = make_case("stale-pointer")
+    stale_pointer_path = stale_pointer / "WORKORDER.md"
+    stale_pointer_path.write_text(
+        stale_pointer_path.read_text(encoding="utf-8").replace(
+            "Current issued Work Order: WO-001",
+            "Current issued Work Order: WO-009",
+        ),
+        encoding="utf-8",
+    )
+    assert "current issued work order mismatch" in finding_types(stale_pointer)
+
+    duplicate = make_case("duplicate-state")
+    shutil.copy2(
+        duplicate
+        / "docs"
+        / "work-orders"
+        / "issued"
+        / "WO-001-custom-mcp-security.md",
+        duplicate
+        / "docs"
+        / "work-orders"
+        / "proposed"
+        / "WO-001-custom-mcp-security.md",
+    )
+    assert "duplicate work order state" in finding_types(duplicate)
+
+    unauthorized_session = make_case("unauthorized-session")
+    unauthorized_pointer = unauthorized_session / "WORKORDER.md"
+    unauthorized_pointer.write_text(
+        unauthorized_pointer.read_text(encoding="utf-8").replace(
+            "Authorized session: NONE", "Authorized session: A"
+        ),
+        encoding="utf-8",
+    )
+    assert "issued session authorization" in finding_types(unauthorized_session)
 
 
 def test_agent_context_links_audit_work_orders_and_security(repo_root):

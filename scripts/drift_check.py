@@ -78,7 +78,7 @@ SCAN_FILES = [
     "docs/audits/2026-08-24-uefn-42-official-mcp-audit.md",
     "docs/audits/evidence/2026-08-24-official-mcp-signatures.json",
     "docs/work-orders/README.md",
-    "docs/work-orders/proposed/WO-001-custom-mcp-security.md",
+    "docs/work-orders/issued/WO-001-custom-mcp-security.md",
     "docs/work-orders/proposed/WO-002-epic-toolset-integration.md",
     "docs/work-orders/proposed/WO-003-official-mcp-doc-convergence.md",
     "docs/work-orders/proposed/WO-004-modal-observability.md",
@@ -137,6 +137,88 @@ _UI_INVISIBLE_BASELINE = 158
 _GAME_PATH_DEFAULT_BASELINE = 0
 
 _WORK_ORDER_STATES = {"PROPOSED", "ISSUED", "COMPLETED", "SUPERSEDED"}
+_ISSUED_NO_SESSION_AUTH = "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED"
+
+
+def _has_implicit_session_authorization(
+    pointer: str, issued_text: str, expected_gate: str
+) -> bool:
+    """Reject positive activation language while the issued session is closed."""
+    authority_text = " ".join((pointer + "\n" + issued_text).lower().split())
+    allowed_contexts = (
+        expected_gate.lower(),
+        "authorized session: none",
+        "session a is not authorized.",
+        _ISSUED_NO_SESSION_AUTH.lower(),
+        "## session a — authenticated, fail-closed control plane",
+        "next gate: explicit bdfl/owner authorization for session a.",
+    )
+    for context in allowed_contexts:
+        if authority_text.count(context) != 1:
+            return True
+        authority_text = authority_text.replace(context, "", 1)
+
+    if re.search(r"\bsession\s+a\b", authority_text):
+        return True
+
+    # Scan individual statements so an unrelated noun in the mandate cannot
+    # combine with a distant verb to create a false positive. Contrast words
+    # are boundaries too: "not authorized; nevertheless work may commence"
+    # must inspect the positive clause independently from the negative one.
+    statements = re.split(
+        r"[.!?;:]|\b(?:but|however|nevertheless|nonetheless|yet)\b",
+        authority_text,
+    )
+    implementation_context = (
+        r"(?:implement(?:ation|ing)?|work|session|approval|authorization|"
+        r"permission)"
+    )
+    activation_action = re.compile(
+        r"\b(?:begin(?:s|ning)?|start(?:s|ed|ing)?|commenc(?:e|es|ed|ing)|"
+        r"proceed(?:s|ed|ing)?|resum(?:e|es|ed|ing))\b"
+    )
+    positive_state = re.compile(
+        r"\b(?:authorized|permitted|approved|cleared|granted|unlocked|ready)\b"
+    )
+    grant_signal = re.compile(r"\b(?:go[- ]ahead|green\s+light)\b")
+    unlabeled_activation = (
+        re.compile(r"\byou\s+(?:may|can)\s+(?:now\s+)?"
+                   r"(?:begin|start|commence|proceed|resume)\b"),
+        re.compile(r"\bready\s+to\s+"
+                   r"(?:begin|start|commence|proceed|resume)\b"),
+        re.compile(r"\bproceed\s+with\b"),
+    )
+    contextual_action = re.compile(
+        rf"(?:\b{implementation_context}\b.{{0,50}}{activation_action.pattern}|"
+        rf"{activation_action.pattern}.{{0,50}}\b{implementation_context}\b)"
+    )
+    contextual_state = re.compile(
+        rf"(?:\b{implementation_context}\b.{{0,50}}{positive_state.pattern}|"
+        rf"{positive_state.pattern}.{{0,50}}\b{implementation_context}\b)"
+    )
+    gate_state = re.compile(
+        r"(?:\bgate\b.{0,40}\b(?:open|cleared|passed|unlocked)\b|"
+        r"\b(?:open|cleared|passed|unlocked)\b.{0,40}\bgate\b)"
+    )
+    owner_grant = re.compile(
+        r"(?:\bowner\b(?:\s+(?:has|now|explicitly))*\s+"
+        r"(?:authorized|permitted|approved|cleared|granted|unlocked)\b|"
+        r"\bowner\b.{0,40}\b(?:go[- ]ahead|green\s+light)\b|"
+        r"\b(?:go[- ]ahead|green\s+light)\b.{0,40}\bowner\b)"
+    )
+
+    for statement in statements:
+        if any(pattern.search(statement) for pattern in unlabeled_activation):
+            return True
+        if (contextual_action.search(statement)
+                or contextual_state.search(statement)
+                or gate_state.search(statement)
+                or owner_grant.search(statement)
+                or (grant_signal.search(statement)
+                    and re.search(rf"\b{implementation_context}\b", statement))):
+            return True
+
+    return False
 
 
 def _game_path_defaults() -> list[str]:
@@ -349,12 +431,20 @@ def check_work_order_contract() -> list[dict]:
 
     current = pointer_value("- Current issued Work Order:")
     session = pointer_value("- Authorized session:")
+    base = pointer_value("- Base commit:")
+    current_gate = pointer_value("- Current gate:")
     if current is None:
         add("WORKORDER.md", "current work order gate", "missing or duplicated",
             "one '- Current issued Work Order:' line")
     if session is None:
         add("WORKORDER.md", "authorized session gate", "missing or duplicated",
             "one '- Authorized session:' line")
+    if base is None:
+        add("WORKORDER.md", "base commit", "missing or duplicated",
+            "one '- Base commit:' line")
+    if current_gate is None:
+        add("WORKORDER.md", "current gate", "missing or duplicated",
+            "one '- Current gate:' line")
 
     guide = guide_path.read_text(encoding="utf-8") if guide_path.exists() else ""
     missing_states = sorted(state for state in _WORK_ORDER_STATES if f"`{state}`" not in guide)
@@ -412,6 +502,27 @@ def check_work_order_contract() -> list[dict]:
     if len(issued) > 1:
         add("docs/work-orders/issued", "issued work order count", str(len(issued)), "at most 1")
 
+    duplicate_names = sorted({path.name for path in proposals} &
+                             {path.name for path in issued})
+    if duplicate_names:
+        add("docs/work-orders", "duplicate work order state",
+            ", ".join(duplicate_names), "a Work Order in exactly one state directory")
+
+    issued_metadata: dict[str, tuple[list[str], list[str], str]] = {}
+    for path in issued:
+        text = path.read_text(encoding="utf-8")
+        status_lines = [line.strip() for line in text.splitlines()
+                        if line.startswith("STATUS:")]
+        auth_lines = [line.strip() for line in text.splitlines()
+                      if line.startswith("AUTHORIZATION:")]
+        rel = path.relative_to(root).as_posix()
+        issued_metadata[path.name] = (status_lines, auth_lines, text)
+        if status_lines != ["STATUS: ISSUED"]:
+            add(rel, "issued status", repr(status_lines), "exactly STATUS: ISSUED")
+        if len(auth_lines) != 1 or not auth_lines[0].startswith("AUTHORIZATION: ISSUED"):
+            add(rel, "issued authorization", repr(auth_lines),
+                "exactly one AUTHORIZATION: ISSUED marker")
+
     if current == "NONE":
         if session != "NONE":
             add("WORKORDER.md", "authorization without issued work order",
@@ -423,10 +534,35 @@ def check_work_order_contract() -> list[dict]:
         if len(issued) != 1:
             add("docs/work-orders/issued", "current issued work order",
                 str(len(issued)), "exactly one file matching the pointer")
-        elif not (current in {issued[0].name, issued[0].stem}
-                  or issued[0].stem.startswith(current)):
-            add("WORKORDER.md", "current issued work order mismatch", current,
-                issued[0].name)
+        else:
+            issued_id = "-".join(issued[0].stem.split("-")[:2])
+            valid_pointers = {issued[0].name, issued[0].stem, issued_id}
+            if current not in valid_pointers:
+                add("WORKORDER.md", "current issued work order mismatch", current,
+                    ", ".join(sorted(valid_pointers)))
+
+            _statuses, auth_lines, issued_text = issued_metadata[issued[0].name]
+            if session == "NONE":
+                expected_gate = (
+                    f"{issued_id} ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
+                )
+                if auth_lines != [_ISSUED_NO_SESSION_AUTH]:
+                    add(issued[0].relative_to(root).as_posix(),
+                        "issued session authorization", repr(auth_lines),
+                        f"exactly {_ISSUED_NO_SESSION_AUTH}")
+                if current_gate != expected_gate:
+                    add("WORKORDER.md", "closed session gate", str(current_gate),
+                        expected_gate)
+
+                if _has_implicit_session_authorization(
+                    pointer, issued_text, expected_gate
+                ):
+                    add("WORKORDER.md", "implicit session authorization",
+                        "contradictory Session A permission", expected_gate)
+            elif auth_lines == [_ISSUED_NO_SESSION_AUTH]:
+                add(issued[0].relative_to(root).as_posix(),
+                    "issued session authorization", repr(auth_lines),
+                    f"authorization metadata agreeing with session {session}")
 
     return findings
 

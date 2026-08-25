@@ -1,14 +1,22 @@
 # WO-001 — Custom MCP Control-Plane Security
 
-STATUS: PROPOSED
+STATUS: ISSUED
 
-AUTHORIZATION: NOT AUTHORIZED
+AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED
 
 OWNER: Ocean Bennett
 
 PRIORITY: P0
 
-BASELINE: `6b8ffb2b2d672812f8699af2c22f92c19708f29b`
+BASELINE: `318c28fa08bfef032280bad9b76eab7cd81f626d`
+
+ISSUANCE BASIS: The proposal was independently accepted and committed as
+`318c28fa08bfef032280bad9b76eab7cd81f626d`; CI workflow
+[`32701409756`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32701409756)
+passed.
+
+Issuance alone grants no implementation authority. Only the repository-root
+`WORKORDER.md` may authorize an individual session.
 
 ## Problem
 
@@ -17,7 +25,7 @@ and exposes arbitrary in-editor Python. If main-thread callback registration is
 unavailable, it can fail open to executing `unreal.*` work on the HTTP handler
 thread.
 
-## Proposed Session A — authenticated, fail-closed control plane
+## Session A — authenticated, fail-closed control plane
 
 Scope:
 
@@ -43,4 +51,4 @@ host/origin confusion, malformed requests, arbitrary-execution defaults, and
 dispatcher-registration failure. Work remains uncommitted for independent
 review. Commit and push require later, separate owner gates.
 
-NEXT GATE: independent pre-issuance review, then explicit owner issuance.
+NEXT GATE: explicit BDFL/owner authorization for Session A.
