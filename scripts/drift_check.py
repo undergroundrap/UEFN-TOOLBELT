@@ -78,7 +78,7 @@ SCAN_FILES = [
     "docs/audits/2026-08-24-uefn-42-official-mcp-audit.md",
     "docs/audits/evidence/2026-08-24-official-mcp-signatures.json",
     "docs/work-orders/README.md",
-    "docs/work-orders/issued/WO-001-custom-mcp-security.md",
+    "docs/work-orders/completed/WO-001-custom-mcp-security.md",
     "docs/work-orders/proposed/WO-002-epic-toolset-integration.md",
     "docs/work-orders/proposed/WO-003-official-mcp-doc-convergence.md",
     "docs/work-orders/proposed/WO-004-modal-observability.md",
@@ -140,6 +140,16 @@ _WORK_ORDER_STATES = {"PROPOSED", "ISSUED", "COMPLETED", "SUPERSEDED"}
 _ISSUED_NO_SESSION_AUTH = "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED"
 _ISSUED_SESSION_A_AUTH = (
     "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION"
+)
+_COMPLETED_NO_SESSION_AUTH = "AUTHORIZATION: COMPLETED — NO SESSION AUTHORIZED"
+_WO001_COMPLETION_COMMIT = "ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c"
+_WO001_COMPLETION_WORKFLOW = "32921154482"
+_WO001_COMPLETION_JOB = "98034843256"
+_WO001_COMPLETED_GATE = "WO-001 COMPLETED — WO-002 PROPOSED AND NOT AUTHORIZED"
+_FROZEN_RELEASE_TRAIN = "WO-001 through WO-007"
+_CLOSED_RELEASE_GATE = (
+    "NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL "
+    "INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST"
 )
 
 
@@ -259,6 +269,58 @@ def _has_other_session_authorization(
         if positive.search(residual):
             return True
     return False
+
+
+def _has_next_work_order_authorization(pointer: str, completed_text: str) -> bool:
+    """Reject positive WO-002 authority while it remains the next proposal."""
+    authority_text = pointer + "\n" + completed_text
+    statements = re.split(
+        r"[\r\n]+|[.!?;]|\b(?:but|however|nevertheless|nonetheless|yet)\b",
+        authority_text,
+        flags=re.IGNORECASE,
+    )
+    positive = re.compile(
+        r"\b(?:issued|authorized|permitted|approved|cleared|granted|unlocked|ready|"
+        r"go[- ]ahead|green\s+light|begin|start|commence|proceed|implement)\b",
+        re.IGNORECASE,
+    )
+    negative = re.compile(
+        r"\b(?:not\s+issued|not\s+authorized|unauthorized|does\s+not\s+issue|"
+        r"does\s+not\s+authorize|no\s+implementation\s+session\s+is\s+authorized|"
+        r"proposal\s+only|proposed|pre-issuance\s+review|separate\s+owner\s+"
+        r"authorization)\b",
+        re.IGNORECASE,
+    )
+    for statement in statements:
+        if not re.search(r"\bWO-002\b", statement, re.IGNORECASE):
+            continue
+        residual = negative.sub("", statement)
+        if positive.search(residual):
+            return True
+    return False
+
+
+def _has_release_authorization(pointer: str) -> bool:
+    """Reject a positive tag or Release grant while the train gate is closed."""
+    text = " ".join(pointer.split())
+    allowed = (
+        f"- Release gate: {_CLOSED_RELEASE_GATE}",
+        "No tag or GitHub Release is authorized until the frozen train is complete, "
+        "a final integration/repository-truth audit passes, and the owner separately "
+        "authorizes a release session.",
+    )
+    for context in allowed:
+        if text.count(context) != 1:
+            return True
+        text = text.replace(context, "", 1)
+    release_target = r"(?:tag|github\s+release|release\s+session)"
+    positive = r"(?:authorized|permitted|approved|cleared|granted|ready)"
+    return bool(re.search(
+        rf"(?:\b{release_target}\b.{{0,40}}\b{positive}\b|"
+        rf"\b{positive}\b.{{0,40}}\b{release_target}\b)",
+        text,
+        re.IGNORECASE,
+    ))
 
 
 def _game_path_defaults() -> list[str]:
@@ -446,6 +508,8 @@ def check_work_order_contract() -> list[dict]:
     guide_path = root / "docs" / "work-orders" / "README.md"
     proposed_dir = root / "docs" / "work-orders" / "proposed"
     issued_dir = root / "docs" / "work-orders" / "issued"
+    completed_dir = root / "docs" / "work-orders" / "completed"
+    superseded_dir = root / "docs" / "work-orders" / "superseded"
 
     def add(file: str, kind: str, found: str, expected: str) -> None:
         findings.append({
@@ -473,6 +537,8 @@ def check_work_order_contract() -> list[dict]:
     session = pointer_value("- Authorized session:")
     base = pointer_value("- Base commit:")
     current_gate = pointer_value("- Current gate:")
+    release_train = pointer_value("- Release train:")
+    release_gate = pointer_value("- Release gate:")
     if current is None:
         add("WORKORDER.md", "current work order gate", "missing or duplicated",
             "one '- Current issued Work Order:' line")
@@ -485,6 +551,16 @@ def check_work_order_contract() -> list[dict]:
     if current_gate is None:
         add("WORKORDER.md", "current gate", "missing or duplicated",
             "one '- Current gate:' line")
+    if release_train != _FROZEN_RELEASE_TRAIN:
+        add("WORKORDER.md", "release train", str(release_train),
+            _FROZEN_RELEASE_TRAIN)
+    if release_gate != _CLOSED_RELEASE_GATE:
+        add("WORKORDER.md", "release authorization", str(release_gate),
+            _CLOSED_RELEASE_GATE)
+    elif _has_release_authorization(pointer):
+        add("WORKORDER.md", "release authorization",
+            "contradictory tag or GitHub Release permission",
+            "release gate remains closed")
 
     guide = guide_path.read_text(encoding="utf-8") if guide_path.exists() else ""
     missing_states = sorted(state for state in _WORK_ORDER_STATES if f"`{state}`" not in guide)
@@ -539,11 +615,22 @@ def check_work_order_contract() -> list[dict]:
         path for path in issued_dir.glob("*.md")
         if path.name.lower() != "readme.md"
     ) if issued_dir.exists() else []
+    completed = sorted(
+        path for path in completed_dir.glob("*.md")
+        if path.name.lower() != "readme.md"
+    ) if completed_dir.exists() else []
+    superseded = sorted(
+        path for path in superseded_dir.glob("*.md")
+        if path.name.lower() != "readme.md"
+    ) if superseded_dir.exists() else []
     if len(issued) > 1:
         add("docs/work-orders/issued", "issued work order count", str(len(issued)), "at most 1")
 
-    duplicate_names = sorted({path.name for path in proposals} &
-                             {path.name for path in issued})
+    state_paths = proposals + issued + completed + superseded
+    state_counts: dict[str, int] = {}
+    for path in state_paths:
+        state_counts[path.name] = state_counts.get(path.name, 0) + 1
+    duplicate_names = sorted(name for name, count in state_counts.items() if count > 1)
     if duplicate_names:
         add("docs/work-orders", "duplicate work order state",
             ", ".join(duplicate_names), "a Work Order in exactly one state directory")
@@ -563,6 +650,40 @@ def check_work_order_contract() -> list[dict]:
             add(rel, "issued authorization", repr(auth_lines),
                 "exactly one AUTHORIZATION: ISSUED marker")
 
+    completed_metadata: dict[str, tuple[list[str], list[str], str]] = {}
+    for path in completed:
+        text = path.read_text(encoding="utf-8")
+        status_lines = [line.strip() for line in text.splitlines()
+                        if line.startswith("STATUS:")]
+        auth_lines = [line.strip() for line in text.splitlines()
+                      if line.startswith("AUTHORIZATION:")]
+        rel = path.relative_to(root).as_posix()
+        completed_metadata[path.name] = (status_lines, auth_lines, text)
+        if status_lines != ["STATUS: COMPLETED"]:
+            add(rel, "completed status", repr(status_lines),
+                "exactly STATUS: COMPLETED")
+        if auth_lines != [_COMPLETED_NO_SESSION_AUTH]:
+            add(rel, "completed authorization", repr(auth_lines),
+                f"exactly {_COMPLETED_NO_SESSION_AUTH}")
+
+    wo001_name = "WO-001-custom-mcp-security.md"
+    wo001_path = completed_dir / wo001_name
+    wo001_completed_text = ""
+    if [path.name for path in completed].count(wo001_name) != 1:
+        add("docs/work-orders/completed", "completed WO-001 state",
+            str([path.name for path in completed]),
+            "exactly one WO-001-custom-mcp-security.md")
+    else:
+        _statuses, _authorizations, wo001_completed_text = completed_metadata[wo001_name]
+        rel = wo001_path.relative_to(root).as_posix()
+        for evidence, kind in (
+            (_WO001_COMPLETION_COMMIT, "completion commit"),
+            (_WO001_COMPLETION_WORKFLOW, "completion workflow"),
+            (_WO001_COMPLETION_JOB, "completion job"),
+        ):
+            if evidence not in wo001_completed_text:
+                add(rel, kind, "missing", evidence)
+
     if current == "NONE":
         if session != "NONE":
             add("WORKORDER.md", "authorization without issued work order",
@@ -570,6 +691,16 @@ def check_work_order_contract() -> list[dict]:
         if issued:
             add("docs/work-orders/issued", "unpointed issued work order",
                 issued[0].name, "empty while current pointer is NONE")
+        if _has_next_work_order_authorization(pointer, wo001_completed_text):
+            add("WORKORDER.md", "next work order authorization",
+                "implicit WO-002 permission",
+                "WO-002 remains proposed and not authorized")
+        if base != f"`{_WO001_COMPLETION_COMMIT}`":
+            add("WORKORDER.md", "completion base commit", str(base),
+                f"`{_WO001_COMPLETION_COMMIT}`")
+        if current_gate != _WO001_COMPLETED_GATE:
+            add("WORKORDER.md", "completed work order gate", str(current_gate),
+                _WO001_COMPLETED_GATE)
     elif current is not None:
         if len(issued) != 1:
             add("docs/work-orders/issued", "current issued work order",

@@ -14,6 +14,7 @@ from __future__ import annotations
 import ast
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -133,7 +134,7 @@ def test_drift_check_covers_agent_context_surfaces(repo_root):
         "docs/audits/2026-08-24-uefn-42-official-mcp-audit.md",
         "docs/audits/evidence/2026-08-24-official-mcp-signatures.json",
         "docs/work-orders/README.md",
-        "docs/work-orders/issued/WO-001-custom-mcp-security.md",
+        "docs/work-orders/completed/WO-001-custom-mcp-security.md",
         "docs/work-orders/proposed/WO-002-epic-toolset-integration.md",
         "docs/work-orders/proposed/WO-003-official-mcp-doc-convergence.md",
         "docs/work-orders/proposed/WO-004-modal-observability.md",
@@ -210,36 +211,56 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
 
     issued = [path for path in (work_orders / "issued").glob("*.md")
               if path.name.lower() != "readme.md"]
-    assert len(issued) == 1
-    assert issued[0].name == "WO-001-custom-mcp-security.md"
-    assert current == "WO-001"
-    assert session == "A"
+    completed = [path for path in (work_orders / "completed").glob("*.md")
+                 if path.name.lower() != "readme.md"]
+    assert issued == []
+    assert len(completed) == 1
+    assert completed[0].name == "WO-001-custom-mcp-security.md"
+    assert current == "NONE"
+    assert session == "NONE"
     assert base_lines == [
-        "- Base commit: `34c3762b32c36805e3ec2f7f93df68c2c17fd26c`"
+        "- Base commit: `ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-001 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
+        "- Current gate: WO-001 COMPLETED — WO-002 PROPOSED AND NOT AUTHORIZED"
     ]
-    assert "docs/work-orders/issued/WO-001-custom-mcp-security.md" in pointer
-    assert "docs/work-orders/proposed/WO-001-custom-mcp-security.md" not in pointer
-
-    issued_text = issued[0].read_text(encoding="utf-8")
-    issued_lines = issued_text.splitlines()
-    issued_status = [line for line in issued_lines if line.startswith("STATUS:")]
-    issued_auth = [line for line in issued_lines if line.startswith("AUTHORIZATION:")]
-    assert issued_status == ["STATUS: ISSUED"]
-    assert issued_auth == [
-        "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION"
-    ]
-    assert "## Session A — authenticated, fail-closed control plane" in issued_text
-    assert "## Proposed Session A" not in issued_text
-    assert "34c3762b32c36805e3ec2f7f93df68c2c17fd26c" in issued_text
-    assert "32701409756" in issued_text
-    assert "32890583500" in issued_text
-    assert "Issuance alone grants no implementation authority" in issued_text
+    assert "- Release train: WO-001 through WO-007" in pointer
     assert (
-        "NEXT GATE: independent review of the complete uncommitted Session A worktree."
-        in issued_text
+        "- Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE "
+        "FROZEN TRAIN AND FINAL INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST"
+    ) in pointer
+    assert "version 2.4.1" in pointer
+    assert "docs/work-orders/completed/WO-001-custom-mcp-security.md" in pointer
+    assert "docs/work-orders/issued/WO-001-custom-mcp-security.md" not in pointer
+    assert "docs/work-orders/proposed/WO-001-custom-mcp-security.md" not in pointer
+    assert "docs/work-orders/proposed/WO-002-epic-toolset-integration.md" in pointer
+
+    completed_text = completed[0].read_text(encoding="utf-8")
+    completed_lines = completed_text.splitlines()
+    completed_status = [
+        line for line in completed_lines if line.startswith("STATUS:")
+    ]
+    completed_auth = [
+        line for line in completed_lines if line.startswith("AUTHORIZATION:")
+    ]
+    assert completed_status == ["STATUS: COMPLETED"]
+    assert completed_auth == [
+        "AUTHORIZATION: COMPLETED — NO SESSION AUTHORIZED"
+    ]
+    assert "## Session A — authenticated, fail-closed control plane" in completed_text
+    assert "## Proposed Session A" not in completed_text
+    assert "34c3762b32c36805e3ec2f7f93df68c2c17fd26c" in completed_text
+    assert "32701409756" in completed_text
+    assert "32890583500" in completed_text
+    assert "ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c" in completed_text
+    assert "32921154482" in completed_text
+    assert "98034843256" in completed_text
+    assert "Issuance alone grants no implementation authority" in completed_text
+    assert (
+        "NEXT GATE: separate owner authorization for fresh independent pre-issuance\n"
+        "review of WO-002. Completion of WO-001 does not issue or authorize WO-002, "
+        "and\nno implementation session is authorized."
+        in completed_text
     )
 
     issued_readme = (work_orders / "issued" / "README.md").read_text(
@@ -250,6 +271,217 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     security = (repo_root / "SECURITY.md").read_text(encoding="utf-8")
     security_normalized = " ".join(security.split())
     assert "Work Order WO-001" in security_normalized
+
+
+def _make_completed_work_order_case(repo_root, tmp_path, name):
+    """Copy the current terminal WO-001 state for real-checker mutations."""
+    case = tmp_path / name
+    case.mkdir(parents=True)
+    shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
+    shutil.copytree(
+        repo_root / "docs" / "work-orders",
+        case / "docs" / "work-orders",
+    )
+    return case
+
+
+def test_completed_work_order_contract_rejects_terminal_state_mutations(
+    repo_root, tmp_path, monkeypatch
+):
+    """WO-001 completion and the closed WO-002/release gates must fail closed."""
+    spec = importlib.util.spec_from_file_location(
+        "wo001_completed_drift", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+
+    def finding_types(case):
+        monkeypatch.setattr(drift_check, "ROOT", str(case))
+        return {finding["type"] for finding in drift_check.check_work_order_contract()}
+
+    control = _make_completed_work_order_case(repo_root, tmp_path, "control")
+    assert finding_types(control) == set()
+
+    returned_to_issued = _make_completed_work_order_case(
+        repo_root, tmp_path, "returned-to-issued"
+    )
+    completed = (
+        returned_to_issued
+        / "docs"
+        / "work-orders"
+        / "completed"
+        / "WO-001-custom-mcp-security.md"
+    )
+    issued = completed.parent.parent / "issued" / completed.name
+    completed.replace(issued)
+    issued.write_text(
+        issued.read_text(encoding="utf-8").replace(
+            "STATUS: COMPLETED", "STATUS: ISSUED"
+        ).replace(
+            "AUTHORIZATION: COMPLETED — NO SESSION AUTHORIZED",
+            "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED",
+        ),
+        encoding="utf-8",
+    )
+    assert "completed WO-001 state" in finding_types(returned_to_issued)
+
+    duplicate = _make_completed_work_order_case(repo_root, tmp_path, "duplicate")
+    shutil.copy2(
+        duplicate
+        / "docs"
+        / "work-orders"
+        / "completed"
+        / "WO-001-custom-mcp-security.md",
+        duplicate
+        / "docs"
+        / "work-orders"
+        / "issued"
+        / "WO-001-custom-mcp-security.md",
+    )
+    assert "duplicate work order state" in finding_types(duplicate)
+
+    wrong_status = _make_completed_work_order_case(repo_root, tmp_path, "status")
+    status_path = (
+        wrong_status
+        / "docs"
+        / "work-orders"
+        / "completed"
+        / "WO-001-custom-mcp-security.md"
+    )
+    status_path.write_text(
+        status_path.read_text(encoding="utf-8").replace(
+            "STATUS: COMPLETED", "STATUS: ISSUED"
+        ),
+        encoding="utf-8",
+    )
+    assert "completed status" in finding_types(wrong_status)
+
+    wrong_auth = _make_completed_work_order_case(repo_root, tmp_path, "auth")
+    auth_path = (
+        wrong_auth
+        / "docs"
+        / "work-orders"
+        / "completed"
+        / "WO-001-custom-mcp-security.md"
+    )
+    auth_path.write_text(
+        auth_path.read_text(encoding="utf-8").replace(
+            "AUTHORIZATION: COMPLETED — NO SESSION AUTHORIZED",
+            "AUTHORIZATION: COMPLETED — SESSION A AUTHORIZED",
+        ),
+        encoding="utf-8",
+    )
+    assert "completed authorization" in finding_types(wrong_auth)
+
+    pointer_cases = (
+        (
+            "issued-pointer",
+            "Current issued Work Order: NONE",
+            "Current issued Work Order: WO-002",
+            "current issued work order",
+        ),
+        (
+            "authorized-session",
+            "Authorized session: NONE",
+            "Authorized session: A",
+            "authorization without issued work order",
+        ),
+        (
+            "expanded-train",
+            "Release train: WO-001 through WO-007",
+            "Release train: WO-001 through WO-008",
+            "release train",
+        ),
+        (
+            "open-release",
+            "Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE "
+            "FROZEN TRAIN AND FINAL INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST",
+            "Release gate: TAG AND GITHUB RELEASE AUTHORIZED",
+            "release authorization",
+        ),
+    )
+    for name, old, new, expected in pointer_cases:
+        case = _make_completed_work_order_case(repo_root, tmp_path, name)
+        pointer = case / "WORKORDER.md"
+        pointer.write_text(
+            pointer.read_text(encoding="utf-8").replace(old, new),
+            encoding="utf-8",
+        )
+        assert expected in finding_types(case)
+
+    contradictory_release = _make_completed_work_order_case(
+        repo_root, tmp_path, "contradictory-release"
+    )
+    release_pointer = contradictory_release / "WORKORDER.md"
+    release_pointer.write_text(
+        release_pointer.read_text(encoding="utf-8")
+        + "\nThe v2.5.0 tag and GitHub Release are authorized.\n",
+        encoding="utf-8",
+    )
+    assert "release authorization" in finding_types(contradictory_release)
+
+
+@pytest.mark.parametrize(("identifier", "expected"), (
+    ("ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c", "completion commit"),
+    ("32921154482", "completion workflow"),
+    ("98034843256", "completion job"),
+))
+def test_completed_work_order_requires_exact_terminal_evidence(
+    repo_root, tmp_path, monkeypatch, identifier, expected
+):
+    """Accepted commit, workflow, and required job remain durable evidence."""
+    spec = importlib.util.spec_from_file_location(
+        "wo001_evidence_drift", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+    case = _make_completed_work_order_case(repo_root, tmp_path, f"evidence-{identifier}")
+    completed = (
+        case
+        / "docs"
+        / "work-orders"
+        / "completed"
+        / "WO-001-custom-mcp-security.md"
+    )
+    completed.write_text(
+        completed.read_text(encoding="utf-8").replace(identifier, "REMOVED"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    finding_types = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert expected in finding_types
+
+
+@pytest.mark.parametrize("permission", (
+    "WO-002 is issued.",
+    "WO-002 is authorized.",
+    "WO-002 is ready to implement.",
+))
+def test_completed_work_order_rejects_wo002_activation(
+    repo_root, tmp_path, monkeypatch, permission
+):
+    """A completed predecessor cannot silently activate the next proposal."""
+    spec = importlib.util.spec_from_file_location(
+        "wo002_activation_drift", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+    case = _make_completed_work_order_case(repo_root, tmp_path, "wo002-activation")
+    pointer = case / "WORKORDER.md"
+    pointer.write_text(
+        pointer.read_text(encoding="utf-8") + f"\n{permission}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    finding_types = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert "next work order authorization" in finding_types
 
 
 def _make_closed_work_order_case(repo_root, tmp_path, name):
@@ -263,43 +495,45 @@ def _make_closed_work_order_case(repo_root, tmp_path, name):
     )
 
     pointer = case / "WORKORDER.md"
-    pointer_text = pointer.read_text(encoding="utf-8")
-    pointer_text = pointer_text.replace(
-        "- Authorized session: A",
-        "- Authorized session: NONE",
-    ).replace(
-        "- Current gate: WO-001 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY",
-        "- Current gate: WO-001 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED",
-    ).replace(
-        "is issued. The root gate authorizes only its bounded Session A implementation.\n"
-        "Independent review, commit, push, tag, GitHub Release, repository-description\n"
-        "change, and social publication remain separate owner-authorized gates.",
-        "is issued, but issuance alone grants no implementation authority. Session A is\n"
-        "not authorized. Implementation, independent review, commit, push, tag, GitHub\n"
-        "Release, repository-description change, and social publication remain separate\n"
-        "owner-authorized gates.",
+    pointer.write_text(
+        "# Current Work Order Gate\n\n"
+        "This file is the repository's sole authority pointer for current Work Order\n"
+        "state.\n\n"
+        "- Current issued Work Order: WO-001\n"
+        "- Authorized session: NONE\n"
+        "- Base commit: `318c28fa08bfef032280bad9b76eab7cd81f626d`\n"
+        "- Current gate: WO-001 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED\n"
+        "- Release train: WO-001 through WO-007\n"
+        "- Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN "
+        "TRAIN AND FINAL INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST\n\n"
+        "WO-001 is issued, but issuance alone grants no implementation authority. "
+        "Session A is not authorized.\n",
+        encoding="utf-8",
     )
-    pointer.write_text(pointer_text, encoding="utf-8")
 
-    issued = (
+    completed = (
         case
         / "docs"
         / "work-orders"
-        / "issued"
+        / "completed"
         / "WO-001-custom-mcp-security.md"
     )
+    issued = completed.parent.parent / "issued" / completed.name
+    completed.replace(issued)
     issued_text = issued.read_text(encoding="utf-8")
-    issued_text = issued_text.replace(
-        "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION",
+    issued_text = issued_text.replace("STATUS: COMPLETED", "STATUS: ISSUED").replace(
+        "AUTHORIZATION: COMPLETED — NO SESSION AUTHORIZED",
         "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED",
+    )
+    issued_text = re.sub(
+        r"\nSESSION A AUTHORIZATION BASIS:.*?\nIssuance alone",
+        "\nIssuance alone",
+        issued_text,
+        flags=re.DOTALL,
     ).replace(
-        "\nSESSION A AUTHORIZATION BASIS: The issued Work Order was committed as\n"
-        "`34c3762b32c36805e3ec2f7f93df68c2c17fd26c`; CI workflow\n"
-        "[`32890583500`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32890583500)\n"
-        "passed before the owner authorized Session A.\n",
-        "",
-    ).replace(
-        "NEXT GATE: independent review of the complete uncommitted Session A worktree.",
+        "NEXT GATE: separate owner authorization for fresh independent pre-issuance\n"
+        "review of WO-002. Completion of WO-001 does not issue or authorize WO-002, and\n"
+        "no implementation session is authorized.",
         "NEXT GATE: explicit BDFL/owner authorization for Session A.",
     )
     issued.write_text(issued_text, encoding="utf-8")
@@ -378,8 +612,8 @@ def test_closed_work_order_rejects_contradiction_after_canonical_negative(
     pointer = case / "WORKORDER.md"
     pointer.write_text(
         pointer.read_text(encoding="utf-8").replace(
-            "Session A is\nnot authorized.",
-            "Session A is\nnot authorized. Nevertheless, work may commence.",
+            "Session A is not authorized.",
+            "Session A is not authorized. Nevertheless, work may commence.",
         ),
         encoding="utf-8",
     )
@@ -494,12 +728,30 @@ def test_authorized_session_a_contract_rejects_metadata_or_gate_drift(
     spec.loader.exec_module(drift_check)
 
     def make_case(name):
-        case = tmp_path / name
-        case.mkdir(parents=True)
-        shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
-        shutil.copytree(
-            repo_root / "docs" / "work-orders",
-            case / "docs" / "work-orders",
+        case = _make_closed_work_order_case(repo_root, tmp_path, name)
+        pointer = case / "WORKORDER.md"
+        pointer.write_text(
+            pointer.read_text(encoding="utf-8").replace(
+                "Authorized session: NONE", "Authorized session: A"
+            ).replace(
+                "WO-001 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED",
+                "WO-001 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY",
+            ),
+            encoding="utf-8",
+        )
+        issued = (
+            case
+            / "docs"
+            / "work-orders"
+            / "issued"
+            / "WO-001-custom-mcp-security.md"
+        )
+        issued.write_text(
+            issued.read_text(encoding="utf-8").replace(
+                "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED",
+                "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION",
+            ),
+            encoding="utf-8",
         )
         return case
 
@@ -565,12 +817,19 @@ def test_authorized_session_rejects_later_session_activation(
     drift_check = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(drift_check)
 
-    case = tmp_path / "later-session"
-    case.mkdir(parents=True)
-    shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
-    shutil.copytree(
-        repo_root / "docs" / "work-orders",
-        case / "docs" / "work-orders",
+    case_name = "later-session-" + re.sub(
+        r"[^A-Za-z0-9]", "-", permission
+    )[:24]
+    case = _make_closed_work_order_case(repo_root, tmp_path, case_name)
+    pointer = case / "WORKORDER.md"
+    pointer.write_text(
+        pointer.read_text(encoding="utf-8").replace(
+            "Authorized session: NONE", "Authorized session: A"
+        ).replace(
+            "WO-001 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED",
+            "WO-001 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY",
+        ),
+        encoding="utf-8",
     )
     issued = (
         case
@@ -580,7 +839,10 @@ def test_authorized_session_rejects_later_session_activation(
         / "WO-001-custom-mcp-security.md"
     )
     issued.write_text(
-        issued.read_text(encoding="utf-8") + f"\n{permission}\n",
+        issued.read_text(encoding="utf-8").replace(
+            "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED",
+            "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION",
+        ) + f"\n{permission}\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(drift_check, "ROOT", str(case))

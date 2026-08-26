@@ -1,8 +1,8 @@
 # WO-001 — Custom MCP Control-Plane Security
 
-STATUS: ISSUED
+STATUS: COMPLETED
 
-AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION
+AUTHORIZATION: COMPLETED — NO SESSION AUTHORIZED
 
 OWNER: Ocean Bennett
 
@@ -19,6 +19,19 @@ SESSION A AUTHORIZATION BASIS: The issued Work Order was committed as
 `34c3762b32c36805e3ec2f7f93df68c2c17fd26c`; CI workflow
 [`32890583500`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32890583500)
 passed before the owner authorized Session A.
+
+COMPLETION EVIDENCE: Session A was independently accepted and committed as
+`ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c`. CI workflow
+[`32921154482`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32921154482)
+completed successfully, including required job
+[`98034843256` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32921154482/job/98034843256).
+
+Accepted live TOOL_TEST evidence covered a full UEFN restart, authenticated
+queued dispatch, exact HTTP 411 rejection for signed and duplicate
+`Content-Length` without dispatch, exact HTTP 401 rejection for missing and
+wrong credentials, credential non-disclosure, local-only listener lifecycle,
+and clean listener/handoff/port shutdown. No Fortnite session or level mutation
+was required for the final correction.
 
 Issuance alone grants no implementation authority. Only the repository-root
 `WORKORDER.md` may authorize an individual session.
@@ -56,4 +69,6 @@ host/origin confusion, malformed requests, arbitrary-execution defaults, and
 dispatcher-registration failure. Work remains uncommitted for independent
 review. Commit and push require later, separate owner gates.
 
-NEXT GATE: independent review of the complete uncommitted Session A worktree.
+NEXT GATE: separate owner authorization for fresh independent pre-issuance
+review of WO-002. Completion of WO-001 does not issue or authorize WO-002, and
+no implementation session is authorized.
