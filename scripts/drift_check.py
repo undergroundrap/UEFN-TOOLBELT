@@ -79,7 +79,7 @@ SCAN_FILES = [
     "docs/audits/evidence/2026-08-24-official-mcp-signatures.json",
     "docs/work-orders/README.md",
     "docs/work-orders/completed/WO-001-custom-mcp-security.md",
-    "docs/work-orders/proposed/WO-002-epic-toolset-integration.md",
+    "docs/work-orders/issued/WO-002-epic-toolset-integration.md",
     "docs/work-orders/proposed/WO-003-official-mcp-doc-convergence.md",
     "docs/work-orders/proposed/WO-004-modal-observability.md",
     "docs/work-orders/proposed/WO-005-coverage-source-of-truth.md",
@@ -146,6 +146,23 @@ _WO001_COMPLETION_COMMIT = "ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c"
 _WO001_COMPLETION_WORKFLOW = "32921154482"
 _WO001_COMPLETION_JOB = "98034843256"
 _WO001_COMPLETED_GATE = "WO-001 COMPLETED — WO-002 PROPOSED AND NOT AUTHORIZED"
+_WO002_NAME = "WO-002-epic-toolset-integration.md"
+_WO002_ISSUANCE_BASE = "098b38c669dd330cd059ea18dea52cc4e7eaefe2"
+_WO002_BASELINE_MARKER = f"BASELINE: `{_WO002_ISSUANCE_BASE}`"
+_WO002_ISSUANCE_WORKFLOW = "32925047925"
+_WO002_ISSUANCE_JOB = "98046156859"
+_WO002_CLOSED_GATE = "WO-002 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
+_WO002_NEXT_GATE = (
+    "NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone "
+    "grants no implementation authority; Session B remains unauthorized."
+)
+_REMAINING_RELEASE_PROPOSALS = {
+    "WO-003-official-mcp-doc-convergence.md",
+    "WO-004-modal-observability.md",
+    "WO-005-coverage-source-of-truth.md",
+    "WO-006-official-vs-toolbelt-benchmark.md",
+    "WO-007-public-mcp-explainer.md",
+}
 _FROZEN_RELEASE_TRAIN = "WO-001 through WO-007"
 _CLOSED_RELEASE_GATE = (
     "NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL "
@@ -161,18 +178,12 @@ def _has_implicit_session_authorization(
     allowed_contexts = (
         expected_gate.lower(),
         "authorized session: none",
-        "session a is not authorized.",
         _ISSUED_NO_SESSION_AUTH.lower(),
-        "## session a — authenticated, fail-closed control plane",
-        "next gate: explicit bdfl/owner authorization for session a.",
     )
     for context in allowed_contexts:
         if authority_text.count(context) != 1:
             return True
         authority_text = authority_text.replace(context, "", 1)
-
-    if re.search(r"\bsession\s+a\b", authority_text):
-        return True
 
     # Scan individual statements so an unrelated noun in the mandate cannot
     # combine with a distant verb to create a false positive. Contrast words
@@ -220,16 +231,28 @@ def _has_implicit_session_authorization(
         r"\bowner\b.{0,40}\b(?:go[- ]ahead|green\s+light)\b|"
         r"\b(?:go[- ]ahead|green\s+light)\b.{0,40}\bowner\b)"
     )
+    closed_state = re.compile(
+        r"\b(?:not\s+authorized|not\s+permitted|not\s+approved|unauthorized|"
+        r"does\s+not\s+authorize|grants?\s+no\s+implementation\s+authority|"
+        r"no\s+(?:implementation\s+)?session\s+is\s+authorized|"
+        r"do\s+not.{0,120}\b(?:begin|start|commence|proceed|resume)\b|"
+        r"(?:must|may)\s+not\s+(?:begin|start|commence|proceed|resume)"
+        r"(?:\s+(?:until|without)\s+(?:a\s+|an\s+)?(?:separate\s+|explicit\s+)?"
+        r"owner\s+(?:gate|authorization))?|"
+        r"(?:is|are)\s+not\s+ready\s+to\s+"
+        r"(?:begin|start|commence|proceed|resume))\b"
+    )
 
     for statement in statements:
-        if any(pattern.search(statement) for pattern in unlabeled_activation):
+        residual = closed_state.sub("", statement)
+        if any(pattern.search(residual) for pattern in unlabeled_activation):
             return True
-        if (contextual_action.search(statement)
-                or contextual_state.search(statement)
-                or gate_state.search(statement)
-                or owner_grant.search(statement)
-                or (grant_signal.search(statement)
-                    and re.search(rf"\b{implementation_context}\b", statement))):
+        if (contextual_action.search(residual)
+                or contextual_state.search(residual)
+                or gate_state.search(residual)
+                or owner_grant.search(residual)
+                or (grant_signal.search(residual)
+                    and re.search(rf"\b{implementation_context}\b", residual))):
             return True
 
     return False
@@ -596,6 +619,18 @@ def check_work_order_contract() -> list[dict]:
             add(rel, "canonical gate duplication", "current gate outside WORKORDER.md",
                 "current authority only in WORKORDER.md")
 
+    proposal_names = {path.name for path in proposals}
+    current_is_wo002 = current in {
+        "WO-002", _WO002_NAME, _WO002_NAME.removesuffix(".md")
+    }
+    expected_proposals = set(_REMAINING_RELEASE_PROPOSALS)
+    if not current_is_wo002:
+        expected_proposals.add(_WO002_NAME)
+    if proposal_names != expected_proposals:
+        add("docs/work-orders/proposed", "release train proposal set",
+            repr(sorted(proposal_names)),
+            repr(sorted(expected_proposals)))
+
     work_order_docs = sorted((root / "docs" / "work-orders").rglob("*.md"))
     for path in work_order_docs:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -634,6 +669,14 @@ def check_work_order_contract() -> list[dict]:
     if duplicate_names:
         add("docs/work-orders", "duplicate work order state",
             ", ".join(duplicate_names), "a Work Order in exactly one state directory")
+
+    if current_is_wo002:
+        wo002_paths = [path for path in state_paths if path.name == _WO002_NAME]
+        expected_wo002_path = issued_dir / _WO002_NAME
+        if wo002_paths != [expected_wo002_path]:
+            add("docs/work-orders", "WO-002 state",
+                repr([path.relative_to(root).as_posix() for path in wo002_paths]),
+                expected_wo002_path.relative_to(root).as_posix())
 
     issued_metadata: dict[str, tuple[list[str], list[str], str]] = {}
     for path in issued:
@@ -730,6 +773,53 @@ def check_work_order_contract() -> list[dict]:
                 ):
                     add("WORKORDER.md", "implicit session authorization",
                         "contradictory Session A permission", expected_gate)
+                if _has_other_session_authorization(pointer, issued_text, ""):
+                    add("WORKORDER.md", "later session authorization",
+                        "positive permission for a labeled session",
+                        "Session A, Session B, and later sessions remain unauthorized")
+
+                if issued[0].name == _WO002_NAME:
+                    rel = issued[0].relative_to(root).as_posix()
+                    normalized_issued = " ".join(issued_text.split())
+                    baseline_lines = [
+                        line.strip()
+                        for line in issued_text.splitlines()
+                        if line.startswith("BASELINE:")
+                    ]
+                    if baseline_lines != [_WO002_BASELINE_MARKER]:
+                        add(rel, "issuance baseline marker", repr(baseline_lines),
+                            f"exactly {_WO002_BASELINE_MARKER}")
+                    if base != f"`{_WO002_ISSUANCE_BASE}`":
+                        add("WORKORDER.md", "issuance base commit", str(base),
+                            f"`{_WO002_ISSUANCE_BASE}`")
+                    for evidence, kind in (
+                        (_WO002_ISSUANCE_BASE, "issuance baseline"),
+                        (_WO002_ISSUANCE_WORKFLOW, "issuance workflow"),
+                        (_WO002_ISSUANCE_JOB, "issuance job"),
+                    ):
+                        if issued_text.count(evidence) < 1:
+                            add(rel, kind, "missing", evidence)
+                    if current_gate != _WO002_CLOSED_GATE:
+                        add("WORKORDER.md", "WO-002 closed gate",
+                            str(current_gate), _WO002_CLOSED_GATE)
+                    if _WO002_NEXT_GATE not in normalized_issued:
+                        add(rel, "WO-002 next gate", "missing or changed",
+                            _WO002_NEXT_GATE)
+                    if "## Session A —" not in issued_text or "## Session B —" not in issued_text:
+                        add(rel, "issued session headings", "missing",
+                            "Session A and Session B headings")
+                    if "## Proposed Session A" in issued_text or "## Proposed Session B" in issued_text:
+                        add(rel, "issued session headings", "proposal heading remains",
+                            "issued Session A and Session B headings")
+                    issued_link = (
+                        "docs/work-orders/issued/WO-002-epic-toolset-integration.md"
+                    )
+                    if issued_link not in pointer or (
+                        "docs/work-orders/proposed/WO-002-epic-toolset-integration.md"
+                        in pointer
+                    ):
+                        add("WORKORDER.md", "WO-002 pointer path", "stale or missing",
+                            issued_link)
             elif session == "A":
                 expected_gate = (
                     f"{issued_id} SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"

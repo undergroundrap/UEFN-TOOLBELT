@@ -135,7 +135,7 @@ def test_drift_check_covers_agent_context_surfaces(repo_root):
         "docs/audits/evidence/2026-08-24-official-mcp-signatures.json",
         "docs/work-orders/README.md",
         "docs/work-orders/completed/WO-001-custom-mcp-security.md",
-        "docs/work-orders/proposed/WO-002-epic-toolset-integration.md",
+        "docs/work-orders/issued/WO-002-epic-toolset-integration.md",
         "docs/work-orders/proposed/WO-003-official-mcp-doc-convergence.md",
         "docs/work-orders/proposed/WO-004-modal-observability.md",
         "docs/work-orders/proposed/WO-005-coverage-source-of-truth.md",
@@ -183,7 +183,6 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
 
     proposals = sorted((work_orders / "proposed").glob("WO-*.md"))
     expected_proposals = {
-        "WO-002-epic-toolset-integration.md",
         "WO-003-official-mcp-doc-convergence.md",
         "WO-004-modal-observability.md",
         "WO-005-coverage-source-of-truth.md",
@@ -213,16 +212,17 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
               if path.name.lower() != "readme.md"]
     completed = [path for path in (work_orders / "completed").glob("*.md")
                  if path.name.lower() != "readme.md"]
-    assert issued == []
+    assert len(issued) == 1
+    assert issued[0].name == "WO-002-epic-toolset-integration.md"
     assert len(completed) == 1
     assert completed[0].name == "WO-001-custom-mcp-security.md"
-    assert current == "NONE"
+    assert current == "WO-002"
     assert session == "NONE"
     assert base_lines == [
-        "- Base commit: `ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c`"
+        "- Base commit: `098b38c669dd330cd059ea18dea52cc4e7eaefe2`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-001 COMPLETED — WO-002 PROPOSED AND NOT AUTHORIZED"
+        "- Current gate: WO-002 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
     ]
     assert "- Release train: WO-001 through WO-007" in pointer
     assert (
@@ -233,7 +233,35 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "docs/work-orders/completed/WO-001-custom-mcp-security.md" in pointer
     assert "docs/work-orders/issued/WO-001-custom-mcp-security.md" not in pointer
     assert "docs/work-orders/proposed/WO-001-custom-mcp-security.md" not in pointer
-    assert "docs/work-orders/proposed/WO-002-epic-toolset-integration.md" in pointer
+    assert "docs/work-orders/issued/WO-002-epic-toolset-integration.md" in pointer
+    assert "docs/work-orders/proposed/WO-002-epic-toolset-integration.md" not in pointer
+
+    issued_text = issued[0].read_text(encoding="utf-8")
+    issued_lines = issued_text.splitlines()
+    assert [line for line in issued_lines if line.startswith("BASELINE:")] == [
+        "BASELINE: `098b38c669dd330cd059ea18dea52cc4e7eaefe2`"
+    ]
+    assert [line for line in issued_lines if line.startswith("STATUS:")] == [
+        "STATUS: ISSUED"
+    ]
+    assert [line for line in issued_lines if line.startswith("AUTHORIZATION:")] == [
+        "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED"
+    ]
+    for evidence in (
+        "098b38c669dd330cd059ea18dea52cc4e7eaefe2",
+        "32925047925",
+        "98046156859",
+    ):
+        assert evidence in issued_text
+    assert "## Session A — internal contract and truth correction" in issued_text
+    assert "## Session B — external official-MCP proof" in issued_text
+    assert "## Proposed Session A" not in issued_text
+    assert "## Proposed Session B" not in issued_text
+    assert (
+        "NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone\n"
+        "grants no implementation authority; Session B remains unauthorized."
+        in issued_text
+    )
 
     completed_text = completed[0].read_text(encoding="utf-8")
     completed_lines = completed_text.splitlines()
@@ -273,6 +301,248 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "Work Order WO-001" in security_normalized
 
 
+def _make_wo002_issuance_case(repo_root, tmp_path, name):
+    """Copy the current closed WO-002 issuance for real-checker mutations."""
+    case = tmp_path / name
+    case.mkdir(parents=True)
+    shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
+    shutil.copytree(
+        repo_root / "docs" / "work-orders",
+        case / "docs" / "work-orders",
+    )
+    return case
+
+
+@pytest.mark.parametrize("permission", (
+    "Session A is authorized.",
+    "Session A is ready to begin.",
+    "Session A is permitted to proceed.",
+    "Session A is able to begin.",
+))
+def test_wo002_issuance_rejects_session_a_activation(
+    repo_root, tmp_path, monkeypatch, permission
+):
+    """Issuance alone cannot activate Session A in ordinary language."""
+    spec = importlib.util.spec_from_file_location(
+        "wo002_closed_session_drift", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+    case = _make_wo002_issuance_case(repo_root, tmp_path, "session-a")
+    issued = (
+        case / "docs" / "work-orders" / "issued"
+        / "WO-002-epic-toolset-integration.md"
+    )
+    issued.write_text(
+        issued.read_text(encoding="utf-8") + f"\n{permission}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    finding_types = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert "implicit session authorization" in finding_types
+
+
+@pytest.mark.parametrize("permission", (
+    "Session B is authorized.",
+    "Session C is ready to begin.",
+    "Session AA may proceed.",
+))
+def test_wo002_issuance_rejects_later_session_activation(
+    repo_root, tmp_path, monkeypatch, permission
+):
+    """Session B and every later labeled session remain closed at issuance."""
+    spec = importlib.util.spec_from_file_location(
+        "wo002_later_session_drift", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+    case = _make_wo002_issuance_case(repo_root, tmp_path, "later-session")
+    issued = (
+        case / "docs" / "work-orders" / "issued"
+        / "WO-002-epic-toolset-integration.md"
+    )
+    issued.write_text(
+        issued.read_text(encoding="utf-8") + f"\n{permission}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    finding_types = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert "later session authorization" in finding_types
+
+
+def test_wo002_issuance_contract_rejects_structural_mutations(
+    repo_root, tmp_path, monkeypatch
+):
+    """Pointer, state, marker, train, and publication gates fail closed."""
+    spec = importlib.util.spec_from_file_location(
+        "wo002_issuance_drift", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+
+    def finding_types(case):
+        monkeypatch.setattr(drift_check, "ROOT", str(case))
+        return {finding["type"] for finding in drift_check.check_work_order_contract()}
+
+    control = _make_wo002_issuance_case(repo_root, tmp_path, "control")
+    assert finding_types(control) == set()
+
+    for state in ("proposed", "completed", "superseded"):
+        duplicate = _make_wo002_issuance_case(
+            repo_root, tmp_path, f"duplicate-{state}"
+        )
+        shutil.copy2(
+            duplicate / "docs" / "work-orders" / "issued"
+            / "WO-002-epic-toolset-integration.md",
+            duplicate / "docs" / "work-orders" / state
+            / "WO-002-epic-toolset-integration.md",
+        )
+        assert "duplicate work order state" in finding_types(duplicate)
+
+    status = _make_wo002_issuance_case(repo_root, tmp_path, "status")
+    issued = (
+        status / "docs" / "work-orders" / "issued"
+        / "WO-002-epic-toolset-integration.md"
+    )
+    issued.write_text(
+        issued.read_text(encoding="utf-8").replace(
+            "STATUS: ISSUED", "STATUS: PROPOSED"
+        ),
+        encoding="utf-8",
+    )
+    assert "issued status" in finding_types(status)
+
+    authorization = _make_wo002_issuance_case(repo_root, tmp_path, "authorization")
+    issued = (
+        authorization / "docs" / "work-orders" / "issued"
+        / "WO-002-epic-toolset-integration.md"
+    )
+    issued.write_text(
+        issued.read_text(encoding="utf-8").replace(
+            "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED",
+            "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION",
+        ),
+        encoding="utf-8",
+    )
+    assert "issued session authorization" in finding_types(authorization)
+
+    pointer_cases = (
+        (
+            "wrong-pointer",
+            "Current issued Work Order: WO-002",
+            "Current issued Work Order: WO-003",
+            "current issued work order mismatch",
+        ),
+        (
+            "open-session",
+            "Authorized session: NONE",
+            "Authorized session: A",
+            "issued session authorization",
+        ),
+        (
+            "wrong-base",
+            "098b38c669dd330cd059ea18dea52cc4e7eaefe2",
+            "198b38c669dd330cd059ea18dea52cc4e7eaefe2",
+            "issuance base commit",
+        ),
+        (
+            "expanded-train",
+            "Release train: WO-001 through WO-007",
+            "Release train: WO-001 through WO-008",
+            "release train",
+        ),
+    )
+    for name, old, new, expected in pointer_cases:
+        case = _make_wo002_issuance_case(repo_root, tmp_path, name)
+        pointer = case / "WORKORDER.md"
+        pointer.write_text(
+            pointer.read_text(encoding="utf-8").replace(old, new),
+            encoding="utf-8",
+        )
+        assert expected in finding_types(case)
+
+    release = _make_wo002_issuance_case(repo_root, tmp_path, "release")
+    pointer = release / "WORKORDER.md"
+    pointer.write_text(
+        pointer.read_text(encoding="utf-8")
+        + "\nThe next tag and GitHub Release are authorized.\n",
+        encoding="utf-8",
+    )
+    assert "release authorization" in finding_types(release)
+
+
+@pytest.mark.parametrize(("identifier", "expected"), (
+    ("098b38c669dd330cd059ea18dea52cc4e7eaefe2", "issuance baseline"),
+    ("32925047925", "issuance workflow"),
+    ("98046156859", "issuance job"),
+))
+def test_wo002_issuance_requires_exact_basis_evidence(
+    repo_root, tmp_path, monkeypatch, identifier, expected
+):
+    """The accepted baseline and successful CI basis remain durable."""
+    spec = importlib.util.spec_from_file_location(
+        "wo002_evidence_drift", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+    case = _make_wo002_issuance_case(repo_root, tmp_path, f"evidence-{expected}")
+    issued = (
+        case / "docs" / "work-orders" / "issued"
+        / "WO-002-epic-toolset-integration.md"
+    )
+    issued.write_text(
+        issued.read_text(encoding="utf-8").replace(identifier, "REMOVED"),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    finding_types = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert expected in finding_types
+
+
+@pytest.mark.parametrize("mutation", ("changed", "duplicated"))
+def test_wo002_issuance_requires_exactly_one_canonical_baseline_marker(
+    repo_root, tmp_path, monkeypatch, mutation
+):
+    """Other hash occurrences cannot substitute for the canonical header."""
+    spec = importlib.util.spec_from_file_location(
+        "wo002_baseline_marker_drift", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+    case = _make_wo002_issuance_case(repo_root, tmp_path, f"baseline-{mutation}")
+    issued = (
+        case / "docs" / "work-orders" / "issued"
+        / "WO-002-epic-toolset-integration.md"
+    )
+    marker = "BASELINE: `098b38c669dd330cd059ea18dea52cc4e7eaefe2`"
+    text = issued.read_text(encoding="utf-8")
+    if mutation == "changed":
+        text = text.replace(
+            marker,
+            "BASELINE: `198b38c669dd330cd059ea18dea52cc4e7eaefe2`",
+            1,
+        )
+    else:
+        text += f"\n{marker}\n"
+    issued.write_text(text, encoding="utf-8")
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    finding_types = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert "issuance baseline marker" in finding_types
+
+
 def _make_completed_work_order_case(repo_root, tmp_path, name):
     """Copy the current terminal WO-001 state for real-checker mutations."""
     case = tmp_path / name
@@ -281,6 +551,67 @@ def _make_completed_work_order_case(repo_root, tmp_path, name):
     shutil.copytree(
         repo_root / "docs" / "work-orders",
         case / "docs" / "work-orders",
+    )
+    (case / "WORKORDER.md").write_text(
+        "# Current Work Order Gate\n\n"
+        "This file is the repository's sole authority pointer for current Work Order\n"
+        "state. Detailed mandates live under `docs/work-orders/`; their presence alone\n"
+        "never authorizes implementation.\n\n"
+        "- Current issued Work Order: NONE\n"
+        "- Authorized session: NONE\n"
+        "- Base commit: `ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c`\n"
+        "- Current gate: WO-001 COMPLETED — WO-002 PROPOSED AND NOT AUTHORIZED\n"
+        "- Release train: WO-001 through WO-007\n"
+        "- Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN "
+        "TRAIN AND FINAL INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST\n\n"
+        "[`WO-001-custom-mcp-security.md`](docs/work-orders/completed/"
+        "WO-001-custom-mcp-security.md) is completed as "
+        "`ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c` after CI workflow "
+        "`32921154482` passed. "
+        "[`WO-002`](docs/work-orders/proposed/WO-002-epic-toolset-integration.md) "
+        "is the next proposal only; it is not issued and no implementation session "
+        "is authorized.\n\n"
+        "WO-001 through WO-007 form the frozen next release train. The release "
+        "version remains undecided and the repository stays at version 2.4.1. No "
+        "tag or GitHub Release is authorized until the frozen train is complete, a "
+        "final integration/repository-truth audit passes, and the owner separately "
+        "authorizes a release session. New proposals default to the following "
+        "release train unless the owner explicitly classifies one as a blocker.\n",
+        encoding="utf-8",
+    )
+    issued = (
+        case
+        / "docs"
+        / "work-orders"
+        / "issued"
+        / "WO-002-epic-toolset-integration.md"
+    )
+    proposal = issued.parent.parent / "proposed" / issued.name
+    issued.replace(proposal)
+    proposal.write_text(
+        proposal.read_text(encoding="utf-8")
+        .replace("STATUS: ISSUED", "STATUS: PROPOSED")
+        .replace(
+            "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED",
+            "AUTHORIZATION: NOT AUTHORIZED",
+        )
+        .replace(
+            "## Session A — internal contract and truth correction",
+            "## Proposed Session A — internal contract and truth correction",
+        )
+        .replace(
+            "## Session B — external official-MCP proof",
+            "## Proposed Session B — external official-MCP proof",
+        )
+        .replace(
+            "NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance "
+            "alone\ngrants no implementation authority; Session B remains "
+            "unauthorized.",
+            "NEXT GATE: fresh independent pre-issuance review of this corrected "
+            "WO-002\nproposal. Issuance and all implementation sessions remain "
+            "unauthorized.",
+        ),
+        encoding="utf-8",
     )
     return case
 
@@ -486,13 +817,7 @@ def test_completed_work_order_rejects_wo002_activation(
 
 def _make_closed_work_order_case(repo_root, tmp_path, name):
     """Build the former closed state so its fail-closed contract stays permanent."""
-    case = tmp_path / name
-    case.mkdir(parents=True)
-    shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
-    shutil.copytree(
-        repo_root / "docs" / "work-orders",
-        case / "docs" / "work-orders",
-    )
+    case = _make_completed_work_order_case(repo_root, tmp_path, name)
 
     pointer = case / "WORKORDER.md"
     pointer.write_text(
