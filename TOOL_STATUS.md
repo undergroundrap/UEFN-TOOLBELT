@@ -444,9 +444,10 @@ in the wrong directory and then counted the wrong subdirectory.
   see — a UE 6.0 return-shape change in `material_save_preset`, and a modal
   dialog in `material_apply_preset` — plus one of its own assertions that had
   been passing by asserting the broken state.
-- **Epic MCP end-to-end.** Registration into the Toolset Registry is confirmed;
-  an external MCP client calling `toolbelt_list_tools` through it is not, and is
-  blocked by the 42.00 startup-order bug above.
+- **Epic MCP end-to-end.** The in-process registration call returned without an
+  exception, but registry confirmation remained unknown. External official-MCP
+  listing, description, and calls were not proven; the 42.00 startup-order bug
+  still requires manual Toolbelt registration recovery.
 
 ---
 

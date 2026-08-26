@@ -1,12 +1,13 @@
 """
-Epic Unreal MCP integration — exposes Toolbelt through the Toolset Registry.
-==============================================================================
+Epic Unreal MCP integration — in-process Toolset Registry adapter.
+==================================================================
 UEFN 42.00 ships Epic's official Unreal MCP alongside a `ToolsetRegistry`
 plugin. A toolset is a Blueprint Function Library whose static methods carry
-`meta=(AICallable)`; the registry discovers them and Unreal MCP wraps each one
-as an MCP tool for any connected client.
+`meta=(AICallable)`. Submitting that class to the in-editor registry does not
+prove that Epic's external creator-facing MCP policy lists, describes, or calls
+it; those states require separate external evidence.
 
-Rather than emit 361 UFunctions — one per Toolbelt tool, each needing UE-mappable
+Rather than emit 362 UFunctions — one per Toolbelt tool, each needing UE-mappable
 parameter annotations — this exposes three meta-tools that mirror the shape Epic
 already uses in tool-search mode (`list_toolsets` / `describe_toolset` /
 `call_tool`):
@@ -15,9 +16,10 @@ already uses in tool-search mode (`list_toolsets` / `describe_toolset` /
     toolbelt_describe_tool(tool_name)          -> JSON signature
     toolbelt_run_tool(tool_name, arguments_json) -> JSON result
 
-An agent discovers the catalogue and calls into it, without Toolbelt having to
-express every tool's signature in UE's type system. Adding a Toolbelt tool
-requires no change here.
+The generated class can list, describe, and run the catalogue in process
+without Toolbelt having to express every tool's signature in UE's type system.
+Whether Epic's external MCP discovers that class is separate evidence. Adding a
+Toolbelt tool requires no change here.
 
 SAFETY
 ------
@@ -26,7 +28,7 @@ Experimental plugin and the UEFN MCP toolset sits behind a beta-access flag, so
 on most users' machines some or all of it is absent. Nothing here runs at import
 time: the toolset class is built lazily inside `register()`, because applying
 `@unreal.uclass()` to a missing base class would raise during
-`import UEFN_Toolbelt` and take all 361 tools down with it.
+`import UEFN_Toolbelt` and take all 362 tools down with it.
 
 Reference: Engine/Plugins/Experimental/ToolsetRegistry/Content/Python/toolset_registry
 """
@@ -50,10 +52,32 @@ __optional_unreal_apis__ = (
 )
 
 TOOLSET_NAME = "UEFN_Toolbelt"
+META_TOOLS = (
+    "toolbelt_list_tools",
+    "toolbelt_describe_tool",
+    "toolbelt_run_tool",
+)
+
+REGISTRATION_NOT_ATTEMPTED = "not_attempted"
+REGISTRATION_RETURNED = "returned_without_exception"
+REGISTRATION_RAISED = "raised"
+REGISTRATION_ADOPTED = "adopted_from_current_editor_session"
+CONFIRMATION_CONFIRMED = "confirmed"
+CONFIRMATION_UNKNOWN = "unknown"
+CONTRACT_NOT_TESTED = "not_tested"
+CONTRACT_PASSED = "passed"
+CONTRACT_FAILED = "failed"
 
 # Built once by _build_toolset_class(); None until then, or if unavailable.
 _TOOLSET_CLASS: Any = None
 _REGISTERED = False
+_REGISTRATION_ATTEMPT = REGISTRATION_NOT_ATTEMPTED
+_IN_PROCESS_CONFIRMATION = CONFIRMATION_UNKNOWN
+_INTERNAL_CONTRACTS = {
+    "list": CONTRACT_NOT_TESTED,
+    "describe": CONTRACT_NOT_TESTED,
+    "run": CONTRACT_NOT_TESTED,
+}
 
 # Where the live toolset class is parked so it survives a Toolbelt hot-reload.
 #
@@ -121,6 +145,49 @@ def _toolbelt_registry():
     return get_registry()
 
 
+def _state_payload(
+    *,
+    status_value: str,
+    registry_available: bool,
+    reason: str = "",
+) -> dict[str, Any]:
+    """Return the stable Session A truth schema without external inference."""
+    return {
+        "status": status_value,
+        "toolset_registry_available": registry_available,
+        "reason": reason,
+        "toolset": TOOLSET_NAME,
+        "meta_tools": list(META_TOOLS),
+        "registration_attempt": _REGISTRATION_ATTEMPT,
+        "in_process_registration_record": (
+            "present" if _REGISTERED else "absent"
+        ),
+        "in_process_registry_confirmation": _IN_PROCESS_CONFIRMATION,
+        "internal_meta_tools": dict(_INTERNAL_CONTRACTS),
+        "external_official_mcp": {
+            "listable": CONTRACT_NOT_TESTED,
+            "describable": CONTRACT_NOT_TESTED,
+            "callable": CONTRACT_NOT_TESTED,
+        },
+    }
+
+
+def _set_internal_contract(name: str, outcome: str) -> None:
+    _INTERNAL_CONTRACTS[name] = outcome
+
+
+def _contract_failure(contract: str, error: Exception, tool_name: str = "") -> str:
+    """Return an explicit JSON failure that survives Epic's decorator wrapper."""
+    payload = {
+        "status": "error",
+        "contract": contract,
+        "error": f"{type(error).__name__}: {error}",
+    }
+    if tool_name:
+        payload["tool"] = tool_name
+    return _dump(payload)
+
+
 def _raise_if_refusal(tool_name: str, result: Any) -> None:
     """
     Translate a Toolbelt refusal into a raised error.
@@ -130,9 +197,79 @@ def _raise_if_refusal(tool_name: str, result: Any) -> None:
     lookups. Epic's registry signals failure by exception, so a refusal returned
     as a value would reach the agent looking like a success.
     """
-    if isinstance(result, dict) and result.get("status") == "error":
+    refusal_statuses = {"error", "blocked", "denied", "refused", "skipped", "unavailable"}
+    if (isinstance(result, dict)
+            and str(result.get("status", "")).lower() in refusal_statuses):
         raise RuntimeError(
             f"{tool_name}: {result.get('message') or result.get('reason') or 'failed'}")
+
+
+def _list_tools(category: str) -> str:
+    """Execute and record the direct in-process list contract."""
+    try:
+        reg = _toolbelt_registry()
+        tools = reg.list_tools(category or None)
+        payload = {
+            "count": len(tools),
+            "categories": reg.categories(),
+            "tools": [
+                {
+                    "name": tool.get("name"),
+                    "category": tool.get("category"),
+                    "description": tool.get("description"),
+                }
+                for tool in tools
+            ],
+        }
+        encoded = _dump(payload)
+    except Exception as error:
+        _set_internal_contract("list", CONTRACT_FAILED)
+        return _contract_failure("list", error)
+    _set_internal_contract("list", CONTRACT_PASSED)
+    return encoded
+
+
+def _describe_tool(tool_name: str) -> str:
+    """Execute and record the direct in-process describe contract."""
+    try:
+        manifest = _toolbelt_registry().to_manifest()
+        if tool_name not in manifest:
+            raise RuntimeError(
+                f"Unknown Toolbelt tool: {tool_name!r}. "
+                f"{len(manifest)} tools available — call toolbelt_list_tools to see them."
+            )
+        encoded = _dump(manifest[tool_name])
+    except Exception as error:
+        _set_internal_contract("describe", CONTRACT_FAILED)
+        return _contract_failure("describe", error, tool_name)
+    _set_internal_contract("describe", CONTRACT_PASSED)
+    return encoded
+
+
+def _run_tool(tool_name: str, arguments_json: str) -> str:
+    """Execute and record the direct in-process run contract."""
+    try:
+        raw = (arguments_json or "").strip()
+        try:
+            kwargs = json.loads(raw) if raw else {}
+        except json.JSONDecodeError as e:
+            raise RuntimeError(
+                f"arguments_json is not valid JSON: {e}. "
+                f'Pass a JSON object such as {{"intensity": 3000}}.'
+            ) from e
+        if not isinstance(kwargs, dict):
+            raise RuntimeError(
+                f"arguments_json must be a JSON object, got {type(kwargs).__name__}."
+            )
+
+        result = _toolbelt_registry().execute_strict(tool_name, **kwargs)
+        _raise_if_refusal(tool_name, result)
+        encoded = _dump({"tool": tool_name, "result": result})
+    except Exception as error:
+        _set_internal_contract("run", CONTRACT_FAILED)
+        return _contract_failure("run", error, tool_name)
+    _set_internal_contract("run", CONTRACT_PASSED)
+    return encoded
 
 
 # ─── Toolset definition ───────────────────────────────────────────────────────
@@ -153,7 +290,7 @@ def _build_toolset_class() -> Any:
 
     @unreal.uclass()
     class UEFNToolbeltToolset(unreal.ToolsetDefinition):
-        """UEFN Toolbelt — 361 level-design, asset and Verse tools."""
+        """UEFN Toolbelt — 362 level-design, asset and Verse tools."""
 
         @toolset_registry.tool_call
         @staticmethod
@@ -167,18 +304,7 @@ def _build_toolset_class() -> Any:
                 JSON: {"count", "categories", "tools":[{"name","category",
                 "description"}]}
             """
-            reg = _toolbelt_registry()
-            tools = reg.list_tools(category or None)
-            return _dump({
-                "count": len(tools),
-                "categories": reg.categories(),
-                "tools": [
-                    {"name": t.get("name"),
-                     "category": t.get("category"),
-                     "description": t.get("description")}
-                    for t in tools
-                ],
-            })
+            return _list_tools(category)
 
         @toolset_registry.tool_call
         @staticmethod
@@ -191,14 +317,7 @@ def _build_toolset_class() -> Any:
             Returns:
                 JSON manifest entry for the tool.
             """
-            manifest = _toolbelt_registry().to_manifest()
-            for entry in manifest.get("tools", []):
-                if entry.get("name") == tool_name:
-                    return _dump(entry)
-            known = [t.get("name") for t in _toolbelt_registry().list_tools()]
-            raise RuntimeError(
-                f"Unknown Toolbelt tool: {tool_name!r}. "
-                f"{len(known)} tools available — call toolbelt_list_tools to see them.")
+            return _describe_tool(tool_name)
 
         @toolset_registry.tool_call
         @staticmethod
@@ -212,23 +331,7 @@ def _build_toolset_class() -> Any:
             Returns:
                 JSON: {"tool", "result"}.
             """
-            raw = (arguments_json or "").strip()
-            try:
-                kwargs = json.loads(raw) if raw else {}
-            except json.JSONDecodeError as e:
-                raise RuntimeError(
-                    f"arguments_json is not valid JSON: {e}. "
-                    f'Pass a JSON object such as {{"intensity": 3000}}.') from e
-            if not isinstance(kwargs, dict):
-                raise RuntimeError(
-                    f"arguments_json must be a JSON object, got {type(kwargs).__name__}.")
-
-            # execute_strict, not execute: execute() returns None for both a
-            # crash and a tool that legitimately returns nothing, which would
-            # report failures to the agent as success.
-            result = _toolbelt_registry().execute_strict(tool_name, **kwargs)
-            _raise_if_refusal(tool_name, result)
-            return _dump({"tool": tool_name, "result": result})
+            return _run_tool(tool_name, arguments_json)
 
     # Without this the class carries a qualname of
     # "_build_toolset_class.<locals>.UEFNToolbeltToolset", an artefact of being
@@ -253,9 +356,9 @@ def registered_earlier_this_session() -> bool:
     """
     Did a previous load of this module already register the toolset?
 
-    The stash outlives a Toolbelt hot-reload, so its presence means some earlier
-    incarnation got a successful register_toolset_class through — it is only
-    written on the success path.
+    The stash outlives a Toolbelt hot-reload, so its presence means an earlier
+    incarnation received a non-raising return from register_toolset_class and
+    retained the class. It is an adoption signal, not external exposure proof.
 
     This matters because on UEFN 42.00 a toolset name can be claimed exactly once
     per editor session. Re-registering is refused ("already registered"), and
@@ -303,31 +406,51 @@ def _is_registered(toolset: Any) -> bool | None:
 
 def register() -> dict[str, Any]:
     """
-    Register the Toolbelt toolset with Epic's registry.
+    Attempt an in-process Toolbelt toolset registration.
 
     Safe to call when Epic's MCP is absent — reports why and changes nothing.
-    Safe to call repeatedly; re-registers cleanly across a Toolbelt hot-reload.
+    Safe to call repeatedly; adopts the current editor-session registration
+    across a Toolbelt hot-reload. No branch claims external official-MCP
+    listability, describability, or callability.
     """
-    global _REGISTERED
+    global _IN_PROCESS_CONFIRMATION, _REGISTERED, _REGISTRATION_ATTEMPT
 
     state = availability()
     if not state["available"]:
-        log_info(f"[EpicMCP] Not registering: {state['reason']}")
-        return {"status": "skipped", "registered": False, "reason": state["reason"]}
+        _REGISTERED = False
+        _REGISTRATION_ATTEMPT = REGISTRATION_NOT_ATTEMPTED
+        _IN_PROCESS_CONFIRMATION = CONFIRMATION_UNKNOWN
+        log_info(f"[EpicMCP] In-process registration not attempted: {state['reason']}")
+        return _state_payload(
+            status_value="skipped",
+            registry_available=False,
+            reason=state["reason"],
+        )
 
     try:
         toolset = _build_toolset_class()
     except Exception as e:
+        _REGISTERED = False
+        _REGISTRATION_ATTEMPT = REGISTRATION_NOT_ATTEMPTED
+        _IN_PROCESS_CONFIRMATION = CONFIRMATION_UNKNOWN
         log_warning(f"[EpicMCP] Could not define the toolset class: {e}")
-        return {"status": "error", "registered": False, "reason": str(e)}
+        return _state_payload(
+            status_value="error",
+            registry_available=True,
+            reason=str(e),
+        )
 
     # Already registered — leave it alone. register_all_tools() runs again on
     # every smoke test and hot-reload, and churning unregister/register would
-    # briefly drop the toolset out from under a connected client.
+    # unnecessarily disturb the in-process registry entry.
     if _REGISTERED and getattr(unreal, _STASH_ATTR, None) is toolset:
+        _REGISTRATION_ATTEMPT = REGISTRATION_ADOPTED
+        if _is_registered(toolset) is True:
+            _IN_PROCESS_CONFIRMATION = CONFIRMATION_CONFIRMED
+        else:
+            _IN_PROCESS_CONFIRMATION = CONFIRMATION_UNKNOWN
         _stash(toolset)
-        return {"status": "ok", "registered": True, "already_registered": True,
-                "toolset": TOOLSET_NAME, "tools_exposed": len(_toolbelt_registry())}
+        return _state_payload(status_value="ok", registry_available=True)
 
     # Registered earlier this session, before a hot-reload wiped our reference.
     # The name cannot be claimed twice and cannot be released, and UE has already
@@ -335,18 +458,30 @@ def register() -> dict[str, Any]:
     # code. Adopt it rather than provoking two warnings by asking again.
     if registered_earlier_this_session():
         _REGISTERED = True
+        _REGISTRATION_ATTEMPT = REGISTRATION_ADOPTED
+        if _is_registered(toolset) is True:
+            _IN_PROCESS_CONFIRMATION = CONFIRMATION_CONFIRMED
+        else:
+            _IN_PROCESS_CONFIRMATION = CONFIRMATION_UNKNOWN
         _stash(toolset)
-        log_info(f"[EpicMCP] Toolset '{TOOLSET_NAME}' already registered this session; "
-                 f"UE re-instanced the class, so it serves the reloaded code.")
-        return {"status": "ok", "registered": True, "already_registered": True,
-                "registration_confirmed": False,
-                "toolset": TOOLSET_NAME, "tools_exposed": len(_toolbelt_registry())}
+        log_info(
+            f"[EpicMCP] Adopted the in-process '{TOOLSET_NAME}' class from this "
+            "editor session. External official-MCP states remain not_tested."
+        )
+        return _state_payload(status_value="ok", registry_available=True)
 
     try:
         unreal.ToolsetRegistry.register_toolset_class(toolset)
     except Exception as e:
+        _REGISTERED = False
+        _REGISTRATION_ATTEMPT = REGISTRATION_RAISED
+        _IN_PROCESS_CONFIRMATION = CONFIRMATION_UNKNOWN
         log_warning(f"[EpicMCP] Registration failed: {e}")
-        return {"status": "error", "registered": False, "reason": str(e)}
+        return _state_payload(
+            status_value="error",
+            registry_available=True,
+            reason=str(e),
+        )
 
     # Epic's registry LOGS "Unable to register" and returns normally when the
     # name is taken — it does not raise. A call that did not throw is therefore
@@ -357,59 +492,73 @@ def register() -> dict[str, Any]:
     # the previous bug pointed the other way.
     confirmed = _is_registered(toolset) is True
     _REGISTERED = True
+    _REGISTRATION_ATTEMPT = REGISTRATION_RETURNED
+    _IN_PROCESS_CONFIRMATION = (
+        CONFIRMATION_CONFIRMED if confirmed else CONFIRMATION_UNKNOWN
+    )
     _stash(toolset)
 
-    note = "" if confirmed else (
-        " (unconfirmed — this build's registry cannot be queried from Python; "
-        "look for 'LogToolsetRegistry: Registering Toolset' in the editor log)")
-    log_info(f"[EpicMCP] Registered toolset '{TOOLSET_NAME}'{note} "
-             f"— 3 meta-tools fronting {len(_toolbelt_registry())} Toolbelt tools.")
-    return {"status": "ok", "registered": True,
-            "registration_confirmed": confirmed,
-            "already_registered": False,
-            "toolset": TOOLSET_NAME, "tools_exposed": len(_toolbelt_registry())}
+    confirmation = "confirmed in-process" if confirmed else "not confirmed in-process"
+    log_info(
+        f"[EpicMCP] Registration call for '{TOOLSET_NAME}' returned without "
+        f"exception ({confirmation}). External official-MCP states remain not_tested."
+    )
+    return _state_payload(status_value="ok", registry_available=True)
 
 
 def unregister() -> dict[str, Any]:
-    """Remove the Toolbelt toolset from Epic's registry."""
-    global _REGISTERED
+    """Request in-process removal without claiming external state."""
+    global _IN_PROCESS_CONFIRMATION, _REGISTERED
 
-    if _TOOLSET_CLASS is None:
-        return {"status": "skipped", "registered": False, "reason": "never registered"}
+    state = availability()
+    toolset = _TOOLSET_CLASS or getattr(unreal, _STASH_ATTR, None)
+    if toolset is None:
+        _REGISTERED = False
+        _IN_PROCESS_CONFIRMATION = CONFIRMATION_UNKNOWN
+        return _state_payload(
+            status_value="skipped",
+            registry_available=state["available"],
+            reason="no in-process Toolbelt class reference is present",
+        )
     try:
-        unreal.ToolsetRegistry.unregister_toolset_class(_TOOLSET_CLASS)
+        unreal.ToolsetRegistry.unregister_toolset_class(toolset)
     except Exception as e:
-        return {"status": "error", "reason": str(e)}
+        return _state_payload(
+            status_value="error",
+            registry_available=state["available"],
+            reason=str(e),
+        )
     _REGISTERED = False
+    _IN_PROCESS_CONFIRMATION = CONFIRMATION_UNKNOWN
     try:
-        if getattr(unreal, _STASH_ATTR, None) is _TOOLSET_CLASS:
+        if getattr(unreal, _STASH_ATTR, None) is toolset:
             delattr(unreal, _STASH_ATTR)
     except Exception:
         pass
-    return {"status": "ok", "registered": False}
+    return _state_payload(
+        status_value="ok",
+        registry_available=state["available"],
+    )
 
 
 def status() -> dict[str, Any]:
     """
-    Current integration state — for smoke tests and the dashboard.
+    Return the stable internal/external integration truth schema.
 
-    `registered` is read back from the registry, not from our own bookkeeping.
-    A module-level flag only records what we believed at the time we set it; it
-    cannot know about a registration dropped underneath us, and reporting a
-    stale belief as current state is the failure this integration already hit
-    once. `_REGISTERED` is only a fallback for when the registry will not answer.
+    A positive live-class query confirms only the in-process registry state.
+    Missing or false query evidence remains unknown, and no local observation
+    changes an external official-MCP state from ``not_tested``.
     """
+    global _IN_PROCESS_CONFIRMATION, _REGISTERED
     state = availability()
 
     toolset = _TOOLSET_CLASS or getattr(unreal, _STASH_ATTR, None)
-    live = _is_registered(toolset) if toolset is not None else False
+    if toolset is not None and _is_registered(toolset) is True:
+        _REGISTERED = True
+        _IN_PROCESS_CONFIRMATION = CONFIRMATION_CONFIRMED
 
-    return {
-        "status": "ok",
-        "epic_mcp_available": state["available"],
-        "reason": state["reason"],
-        "registered": _REGISTERED if live is None else live,
-        "registration_confirmed": live is not None,
-        "toolset": TOOLSET_NAME,
-        "meta_tools": ["toolbelt_list_tools", "toolbelt_describe_tool", "toolbelt_run_tool"],
-    }
+    return _state_payload(
+        status_value="ok",
+        registry_available=state["available"],
+        reason=state["reason"],
+    )

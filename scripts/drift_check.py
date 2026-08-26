@@ -152,9 +152,17 @@ _WO002_BASELINE_MARKER = f"BASELINE: `{_WO002_ISSUANCE_BASE}`"
 _WO002_ISSUANCE_WORKFLOW = "32925047925"
 _WO002_ISSUANCE_JOB = "98046156859"
 _WO002_CLOSED_GATE = "WO-002 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
+_WO002_SESSION_A_BASE = "d87572e2a272c98f8dd634cfe17ff8a130446a7b"
+_WO002_SESSION_A_WORKFLOW = "32931353926"
+_WO002_SESSION_A_JOB = "98064090312"
+_WO002_SESSION_A_GATE = "WO-002 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
 _WO002_NEXT_GATE = (
     "NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone "
     "grants no implementation authority; Session B remains unauthorized."
+)
+_WO002_SESSION_A_NEXT_GATE = (
+    "NEXT GATE: fresh independent architect review of the complete uncommitted "
+    "Session A implementation. Session B remains unauthorized."
 )
 _REMAINING_RELEASE_PROPOSALS = {
     "WO-003-official-mcp-doc-convergence.md",
@@ -756,6 +764,39 @@ def check_work_order_contract() -> list[dict]:
                     ", ".join(sorted(valid_pointers)))
 
             _statuses, auth_lines, issued_text = issued_metadata[issued[0].name]
+            if issued[0].name == _WO002_NAME:
+                rel = issued[0].relative_to(root).as_posix()
+                baseline_lines = [
+                    line.strip()
+                    for line in issued_text.splitlines()
+                    if line.startswith("BASELINE:")
+                ]
+                if baseline_lines != [_WO002_BASELINE_MARKER]:
+                    add(rel, "issuance baseline marker", repr(baseline_lines),
+                        f"exactly {_WO002_BASELINE_MARKER}")
+                for evidence, kind in (
+                    (_WO002_ISSUANCE_BASE, "issuance baseline"),
+                    (_WO002_ISSUANCE_WORKFLOW, "issuance workflow"),
+                    (_WO002_ISSUANCE_JOB, "issuance job"),
+                ):
+                    if issued_text.count(evidence) < 1:
+                        add(rel, kind, "missing", evidence)
+                if "## Session A —" not in issued_text or "## Session B —" not in issued_text:
+                    add(rel, "issued session headings", "missing",
+                        "Session A and Session B headings")
+                if "## Proposed Session A" in issued_text or "## Proposed Session B" in issued_text:
+                    add(rel, "issued session headings", "proposal heading remains",
+                        "issued Session A and Session B headings")
+                issued_link = (
+                    "docs/work-orders/issued/WO-002-epic-toolset-integration.md"
+                )
+                if issued_link not in pointer or (
+                    "docs/work-orders/proposed/WO-002-epic-toolset-integration.md"
+                    in pointer
+                ):
+                    add("WORKORDER.md", "WO-002 pointer path", "stale or missing",
+                        issued_link)
+
             if session == "NONE":
                 expected_gate = (
                     f"{issued_id} ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
@@ -779,47 +820,16 @@ def check_work_order_contract() -> list[dict]:
                         "Session A, Session B, and later sessions remain unauthorized")
 
                 if issued[0].name == _WO002_NAME:
-                    rel = issued[0].relative_to(root).as_posix()
                     normalized_issued = " ".join(issued_text.split())
-                    baseline_lines = [
-                        line.strip()
-                        for line in issued_text.splitlines()
-                        if line.startswith("BASELINE:")
-                    ]
-                    if baseline_lines != [_WO002_BASELINE_MARKER]:
-                        add(rel, "issuance baseline marker", repr(baseline_lines),
-                            f"exactly {_WO002_BASELINE_MARKER}")
                     if base != f"`{_WO002_ISSUANCE_BASE}`":
                         add("WORKORDER.md", "issuance base commit", str(base),
                             f"`{_WO002_ISSUANCE_BASE}`")
-                    for evidence, kind in (
-                        (_WO002_ISSUANCE_BASE, "issuance baseline"),
-                        (_WO002_ISSUANCE_WORKFLOW, "issuance workflow"),
-                        (_WO002_ISSUANCE_JOB, "issuance job"),
-                    ):
-                        if issued_text.count(evidence) < 1:
-                            add(rel, kind, "missing", evidence)
                     if current_gate != _WO002_CLOSED_GATE:
                         add("WORKORDER.md", "WO-002 closed gate",
                             str(current_gate), _WO002_CLOSED_GATE)
                     if _WO002_NEXT_GATE not in normalized_issued:
                         add(rel, "WO-002 next gate", "missing or changed",
                             _WO002_NEXT_GATE)
-                    if "## Session A —" not in issued_text or "## Session B —" not in issued_text:
-                        add(rel, "issued session headings", "missing",
-                            "Session A and Session B headings")
-                    if "## Proposed Session A" in issued_text or "## Proposed Session B" in issued_text:
-                        add(rel, "issued session headings", "proposal heading remains",
-                            "issued Session A and Session B headings")
-                    issued_link = (
-                        "docs/work-orders/issued/WO-002-epic-toolset-integration.md"
-                    )
-                    if issued_link not in pointer or (
-                        "docs/work-orders/proposed/WO-002-epic-toolset-integration.md"
-                        in pointer
-                    ):
-                        add("WORKORDER.md", "WO-002 pointer path", "stale or missing",
-                            issued_link)
             elif session == "A":
                 expected_gate = (
                     f"{issued_id} SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
@@ -835,6 +845,28 @@ def check_work_order_contract() -> list[dict]:
                     add("WORKORDER.md", "later session authorization",
                         "positive permission for a non-current session",
                         "only Session A authorized")
+                if issued[0].name == _WO002_NAME:
+                    normalized_issued = " ".join(issued_text.split())
+                    if base != f"`{_WO002_SESSION_A_BASE}`":
+                        add("WORKORDER.md", "Session A base commit", str(base),
+                            f"`{_WO002_SESSION_A_BASE}`")
+                    if current_gate != _WO002_SESSION_A_GATE:
+                        add("WORKORDER.md", "WO-002 Session A gate",
+                            str(current_gate), _WO002_SESSION_A_GATE)
+                    for evidence, kind in (
+                        (_WO002_SESSION_A_BASE, "Session A authorization commit"),
+                        (_WO002_SESSION_A_WORKFLOW, "Session A authorization workflow"),
+                        (_WO002_SESSION_A_JOB, "Session A authorization job"),
+                    ):
+                        if issued_text.count(evidence) != 1:
+                            add(rel, kind, str(issued_text.count(evidence)),
+                                f"exactly one {evidence}")
+                    if _WO002_SESSION_A_NEXT_GATE not in normalized_issued:
+                        add(rel, "WO-002 next gate", "missing or changed",
+                            _WO002_SESSION_A_NEXT_GATE)
+                    if "Session A is authorized for implementation under the current root" not in normalized_issued:
+                        add(rel, "Session A authorization statement", "missing",
+                            "authorized only under root WORKORDER.md")
             else:
                 add("WORKORDER.md", "authorized session gate", str(session),
                     "NONE or the specifically authorized session A")

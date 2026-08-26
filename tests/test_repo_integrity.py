@@ -217,12 +217,12 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert len(completed) == 1
     assert completed[0].name == "WO-001-custom-mcp-security.md"
     assert current == "WO-002"
-    assert session == "NONE"
+    assert session == "A"
     assert base_lines == [
-        "- Base commit: `098b38c669dd330cd059ea18dea52cc4e7eaefe2`"
+        "- Base commit: `d87572e2a272c98f8dd634cfe17ff8a130446a7b`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-002 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
+        "- Current gate: WO-002 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
     ]
     assert "- Release train: WO-001 through WO-007" in pointer
     assert (
@@ -245,12 +245,15 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "STATUS: ISSUED"
     ]
     assert [line for line in issued_lines if line.startswith("AUTHORIZATION:")] == [
-        "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED"
+        "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION"
     ]
     for evidence in (
         "098b38c669dd330cd059ea18dea52cc4e7eaefe2",
         "32925047925",
         "98046156859",
+        "d87572e2a272c98f8dd634cfe17ff8a130446a7b",
+        "32931353926",
+        "98064090312",
     ):
         assert evidence in issued_text
     assert "## Session A — internal contract and truth correction" in issued_text
@@ -258,8 +261,8 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "## Proposed Session A" not in issued_text
     assert "## Proposed Session B" not in issued_text
     assert (
-        "NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone\n"
-        "grants no implementation authority; Session B remains unauthorized."
+        "NEXT GATE: fresh independent architect review of the complete uncommitted\n"
+        "Session A implementation. Session B remains unauthorized."
         in issued_text
     )
 
@@ -301,8 +304,8 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "Work Order WO-001" in security_normalized
 
 
-def _make_wo002_issuance_case(repo_root, tmp_path, name):
-    """Copy the current closed WO-002 issuance for real-checker mutations."""
+def _make_wo002_session_a_case(repo_root, tmp_path, name):
+    """Copy the current authorized WO-002 Session A state for mutations."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
@@ -310,6 +313,64 @@ def _make_wo002_issuance_case(repo_root, tmp_path, name):
         repo_root / "docs" / "work-orders",
         case / "docs" / "work-orders",
     )
+    return case
+
+
+def _make_wo002_issuance_case(repo_root, tmp_path, name):
+    """Reconstruct the preserved closed issuance state for historical probes."""
+    case = _make_wo002_session_a_case(repo_root, tmp_path, name)
+    pointer = case / "WORKORDER.md"
+    pointer.write_text(
+        pointer.read_text(encoding="utf-8")
+        .replace("- Authorized session: A", "- Authorized session: NONE")
+        .replace(
+            "- Base commit: `d87572e2a272c98f8dd634cfe17ff8a130446a7b`",
+            "- Base commit: `098b38c669dd330cd059ea18dea52cc4e7eaefe2`",
+        )
+        .replace(
+            "- Current gate: WO-002 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY",
+            "- Current gate: WO-002 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED",
+        )
+        .replace(
+            "is issued. Session A is authorized for implementation under this root gate;\n"
+            "Session B remains unauthorized.",
+            "is issued, but issuance grants no implementation authority. Session A and\n"
+            "Session B remain unauthorized.",
+        ),
+        encoding="utf-8",
+    )
+    issued = (
+        case / "docs" / "work-orders" / "issued"
+        / "WO-002-epic-toolset-integration.md"
+    )
+    text = issued.read_text(encoding="utf-8")
+    authorization_basis = (
+        "\n## Session A authorization basis\n\n"
+        "The issued Work Order was committed as\n"
+        "`d87572e2a272c98f8dd634cfe17ff8a130446a7b`; successful CI workflow\n"
+        "`32931353926` included successful required job `98064090312` (`Lint, types,\n"
+        "tests`). Under the sole current gate in root `WORKORDER.md`, Session A is\n"
+        "authorized for implementation. Session B remains unauthorized.\n"
+    )
+    text = (
+        text.replace(
+            "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION",
+            "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED",
+        )
+        .replace(authorization_basis, "")
+        .replace(
+            "Session A is authorized for implementation under the current root\n"
+            "`WORKORDER.md` gate. This authorization does not extend to Session B.",
+            "Session A is not authorized.",
+        )
+        .replace(
+            "NEXT GATE: fresh independent architect review of the complete uncommitted\n"
+            "Session A implementation. Session B remains unauthorized.",
+            "NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone\n"
+            "grants no implementation authority; Session B remains unauthorized.",
+        )
+    )
+    issued.write_text(text, encoding="utf-8")
     return case
 
 
@@ -543,15 +604,83 @@ def test_wo002_issuance_requires_exactly_one_canonical_baseline_marker(
     assert "issuance baseline marker" in finding_types
 
 
+def test_wo002_session_a_authorization_contract_is_exact(
+    repo_root, tmp_path, monkeypatch
+):
+    """The current gate opens only Session A and preserves all issuance evidence."""
+    spec = importlib.util.spec_from_file_location(
+        "wo002_session_a_drift", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+
+    def finding_types(case):
+        monkeypatch.setattr(drift_check, "ROOT", str(case))
+        return {finding["type"] for finding in drift_check.check_work_order_contract()}
+
+    control = _make_wo002_session_a_case(repo_root, tmp_path, "session-a-control")
+    assert finding_types(control) == set()
+
+    pointer_mutations = (
+        (
+            "session",
+            "- Authorized session: A",
+            "- Authorized session: NONE",
+            "issued session authorization",
+        ),
+        (
+            "base",
+            "d87572e2a272c98f8dd634cfe17ff8a130446a7b",
+            "e87572e2a272c98f8dd634cfe17ff8a130446a7b",
+            "Session A base commit",
+        ),
+        (
+            "gate",
+            "WO-002 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY",
+            "WO-002 SESSION A AUTHORIZED — IMPLEMENT ALL SESSIONS",
+            "authorized session gate",
+        ),
+    )
+    for name, old, new, expected in pointer_mutations:
+        case = _make_wo002_session_a_case(repo_root, tmp_path, f"session-a-{name}")
+        pointer = case / "WORKORDER.md"
+        pointer.write_text(
+            pointer.read_text(encoding="utf-8").replace(old, new),
+            encoding="utf-8",
+        )
+        assert expected in finding_types(case)
+
+    issued_path = (
+        "docs/work-orders/issued/WO-002-epic-toolset-integration.md"
+    )
+    evidence_cases = (
+        ("commit", "d87572e2a272c98f8dd634cfe17ff8a130446a7b",
+         "Session A authorization commit"),
+        ("workflow", "32931353926", "Session A authorization workflow"),
+        ("job", "98064090312", "Session A authorization job"),
+    )
+    for name, evidence, expected in evidence_cases:
+        case = _make_wo002_session_a_case(repo_root, tmp_path, f"session-a-{name}")
+        issued = case / issued_path
+        issued.write_text(
+            issued.read_text(encoding="utf-8").replace(evidence, "REMOVED"),
+            encoding="utf-8",
+        )
+        assert expected in finding_types(case)
+
+    later = _make_wo002_session_a_case(repo_root, tmp_path, "session-b-open")
+    issued = later / issued_path
+    issued.write_text(
+        issued.read_text(encoding="utf-8") + "\nSession B may now begin.\n",
+        encoding="utf-8",
+    )
+    assert "later session authorization" in finding_types(later)
+
+
 def _make_completed_work_order_case(repo_root, tmp_path, name):
     """Copy the current terminal WO-001 state for real-checker mutations."""
-    case = tmp_path / name
-    case.mkdir(parents=True)
-    shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
-    shutil.copytree(
-        repo_root / "docs" / "work-orders",
-        case / "docs" / "work-orders",
-    )
+    case = _make_wo002_issuance_case(repo_root, tmp_path, name)
     (case / "WORKORDER.md").write_text(
         "# Current Work Order Gate\n\n"
         "This file is the repository's sole authority pointer for current Work Order\n"

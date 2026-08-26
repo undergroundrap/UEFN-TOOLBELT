@@ -1737,6 +1737,33 @@ def _tab_api(R) -> QScrollArea:
 
 # ─── MCP tab ─────────────────────────────────────────────────────────────────
 
+def _format_epic_toolset_status(state: dict) -> tuple[str, str]:
+    """Format the separated Session A truth states for the dashboard."""
+    available = state.get("toolset_registry_available")
+    attempt = state.get("registration_attempt", "not_attempted")
+    confirmation = state.get("in_process_registry_confirmation", "unknown")
+    internal = state.get("internal_meta_tools", {})
+    external = state.get("external_official_mcp", {})
+    lines = [
+        f"In-process registry available: {str(bool(available)).lower()}",
+        f"Registration attempt: {attempt}",
+        f"In-process confirmation: {confirmation}",
+        "Internal contracts: "
+        f"list={internal.get('list', 'not_tested')}, "
+        f"describe={internal.get('describe', 'not_tested')}, "
+        f"run={internal.get('run', 'not_tested')}",
+        "External official MCP: "
+        f"listable={external.get('listable', 'not_tested')}, "
+        f"describable={external.get('describable', 'not_tested')}, "
+        f"callable={external.get('callable', 'not_tested')}",
+        "Local registration and internal calls do not prove external exposure.",
+    ]
+    if not available and state.get("reason"):
+        lines.insert(1, str(state["reason"]))
+    color = _color("ok") if confirmation == "confirmed" else "#888888"
+    return "\n".join(lines), color
+
+
 def _tab_mcp(R) -> QScrollArea:
     """MCP Bridge tab — start/stop/status, connection info, quick tool runner."""
     scroll, L = _page()
@@ -1819,30 +1846,12 @@ def _tab_mcp(R) -> QScrollArea:
             from UEFN_Toolbelt import epic_toolset as _et
             st = _et.status()
         except Exception as e:
-            epic_lbl.setText(f"Unavailable: {e}")
+            epic_lbl.setText(f"Epic toolset status read failed: {e}")
             epic_lbl.setStyleSheet("color: #888888; font-size: 11px;")
             return
-        if not st.get("epic_mcp_available"):
-            epic_lbl.setText(
-                "Not available on this build.\n"
-                + (st.get("reason") or "")
-                + "\nToolbelt works normally without it."
-            )
-            epic_lbl.setStyleSheet("color: #888888; font-size: 11px;")
-        elif st.get("registered"):
-            # This build's registry cannot be queried from Python, so say that
-            # rather than presenting our own bookkeeping as a confirmed fact.
-            note = ("" if st.get("registration_confirmed")
-                    else "   (unconfirmed — this build's registry cannot be queried)")
-            epic_lbl.setText(
-                "● REGISTERED" + note
-                + "\n3 meta-tools expose the whole Toolbelt catalogue to any "
-                  "connected MCP client."
-            )
-            epic_lbl.setStyleSheet(f"color: {_color('ok')}; font-size: 11px;")
-        else:
-            epic_lbl.setText("● NOT REGISTERED — click Register below.")
-            epic_lbl.setStyleSheet("color: #FF5555; font-size: 11px;")
+        text, color = _format_epic_toolset_status(st)
+        epic_lbl.setText(text)
+        epic_lbl.setStyleSheet(f"color: {color}; font-size: 11px;")
 
     _refresh_epic()
     epic_lbl.setProperty("refresh_fn", _refresh_epic)
@@ -1856,18 +1865,19 @@ def _tab_mcp(R) -> QScrollArea:
         R("epic_mcp_unregister")
         _refresh_epic()
 
-    _btn(g_epic, "🔗  Register with Epic's Toolset Registry",
+    _btn(g_epic, "🔗  Attempt In-Process Registration",
          _epic_register,
-         "Expose every Toolbelt tool to any MCP client connected to the editor. "
-         "Runs automatically at startup — use this after changing Beta Access settings")
+         "Submit the Toolbelt class to the in-process registry. This does not prove "
+         "external official-MCP discovery or calls. Runs automatically at startup; "
+         "use this after changing Beta Access settings")
 
-    _btn(g_epic, "🔌  Unregister",
+    _btn(g_epic, "🔌  Request In-Process Unregister",
          _epic_unregister,
-         "Withdraw the Toolbelt toolset so connected MCP clients no longer see it")
+         "Request local registry removal without making a claim about external clients")
 
     _btn(g_epic, "📡  Print Epic MCP Status to Log",
          lambda: R("epic_mcp_status"),
-         "Print availability, registration state and the meta-tool list to Output Log")
+         "Print local registration, internal-contract, and external-evidence states")
 
     g2 = _group(L, "Run Any Toolbelt Tool")
     tool_inp = _inp("tool_name  (e.g. material_apply_preset)", width=220)
@@ -3529,4 +3539,3 @@ def update_toolbelt(**kwargs) -> str:
     except Exception as e:
         core.log_error(f"[Updater] Subprocess failed: {e}")
         return "Command error"
-

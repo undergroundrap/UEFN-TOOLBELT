@@ -831,8 +831,8 @@ Low-frequency tools — check these exist before re-implementing similar functio
 | `mcp_stop` | — | Stop listener |
 | `mcp_restart` | `port=0` | Restart and rotate the local session credential |
 | `mcp_status` | — | Print port, state, command count |
-| `epic_mcp_status` | — | Report availability of Epic's official Toolset Registry and whether Toolbelt is registered |
-| `epic_mcp_register` | — | Register Toolbelt's catalogue with Epic's Unreal MCP — 3 meta-tools front all 362 tools |
-| `epic_mcp_unregister` | — | Withdraw the Toolbelt toolset from Epic's registry |
+| `epic_mcp_status` | — | Report separate in-process registry, internal-contract, and external official-MCP evidence states |
+| `epic_mcp_register` | — | Attempt in-process Toolset Registry submission; external exposure remains unproven |
+| `epic_mcp_unregister` | — | Request removal from the in-process registry without claiming external client state |
 
 ---

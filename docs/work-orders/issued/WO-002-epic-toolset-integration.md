@@ -2,7 +2,7 @@
 
 STATUS: ISSUED
 
-AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED
+AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION
 
 OWNER: Ocean Bennett
 
@@ -17,6 +17,14 @@ This proposal is based on commit
 `32925047925`, and successful required job `98046156859` (`Lint, types,
 tests`). Recording that evidence does not issue this Work Order or authorize an
 implementation session.
+
+## Session A authorization basis
+
+The issued Work Order was committed as
+`d87572e2a272c98f8dd634cfe17ff8a130446a7b`; successful CI workflow
+`32931353926` included successful required job `98064090312` (`Lint, types,
+tests`). Under the sole current gate in root `WORKORDER.md`, Session A is
+authorized for implementation. Session B remains unauthorized.
 
 ## Problem and accepted evidence
 
@@ -102,7 +110,8 @@ the same truth model.
 
 ## Session A — internal contract and truth correction
 
-Session A is not authorized.
+Session A is authorized for implementation under the current root
+`WORKORDER.md` gate. This authorization does not extend to Session B.
 
 ### Scope
 
@@ -263,5 +272,5 @@ tag, GitHub Release, repository metadata, or social publication.
 - The frozen WO-001–WO-007 release train and repository version 2.4.1 remain
   unchanged.
 
-NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone
-grants no implementation authority; Session B remains unauthorized.
+NEXT GATE: fresh independent architect review of the complete uncommitted
+Session A implementation. Session B remains unauthorized.

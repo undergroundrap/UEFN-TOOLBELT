@@ -17,18 +17,20 @@ from ..registry import register_tool
 @register_tool(
     name="epic_mcp_status",
     category="MCP Bridge",
-    description="Report whether Epic's official Unreal MCP toolset registry is available",
+    description="Report separate in-process Toolset Registry and external official-MCP evidence",
     icon="🔌",
     tags=["mcp", "epic", "toolset", "status"],
 )
 def run_epic_mcp_status(**kwargs) -> dict:
     """
-    Show whether this build exposes Epic's Toolset Registry, and whether the
-    Toolbelt toolset is currently registered with it.
+    Show the local registration attempt, positive-only in-process confirmation,
+    internal meta-tool contract evidence, and separately unproven external
+    official-MCP states.
 
     Returns:
-        dict: {"epic_mcp_available", "reason", "registered", "toolset",
-               "meta_tools"}
+        dict: Stable truth schema containing ``registration_attempt``,
+              ``in_process_registry_confirmation``, ``internal_meta_tools``,
+              and ``external_official_mcp``.
     """
     return epic_toolset.status()
 
@@ -36,25 +38,29 @@ def run_epic_mcp_status(**kwargs) -> dict:
 @register_tool(
     name="epic_mcp_register",
     category="MCP Bridge",
-    description="Register Toolbelt's tools with Epic's official Unreal MCP toolset registry",
+    description="Attempt Toolbelt registration with the in-process Epic Toolset Registry",
     icon="🔗",
     tags=["mcp", "epic", "toolset", "register"],
 )
 def run_epic_mcp_register(**kwargs) -> dict:
     """
-    Expose Toolbelt to any MCP client connected to the editor.
+    Submit Toolbelt's generated class to the in-process registry.
 
     Registers three meta-tools — toolbelt_list_tools, toolbelt_describe_tool
     and toolbelt_run_tool — which front the whole Toolbelt catalogue. This runs
     automatically on register_all_tools(); call it directly to re-register after
     changing beta-access settings.
 
+    A returned registration call or positive in-process confirmation does not
+    prove external official-MCP listability, describability, or callability.
+
     Reports {"status": "skipped"} rather than failing when Epic's registry is
     absent, which is the normal case on a build without the Experimental
     ToolsetRegistry plugin enabled.
 
     Returns:
-        dict: {"status", "registered", ...}
+        dict: The same stable internal/external truth schema as
+              ``epic_mcp_status``.
     """
     return epic_toolset.register()
 
@@ -62,15 +68,15 @@ def run_epic_mcp_register(**kwargs) -> dict:
 @register_tool(
     name="epic_mcp_unregister",
     category="MCP Bridge",
-    description="Remove Toolbelt's toolset from Epic's Unreal MCP registry",
+    description="Request removal of Toolbelt's class from the in-process registry",
     icon="🔌",
     tags=["mcp", "epic", "toolset", "unregister"],
 )
 def run_epic_mcp_unregister(**kwargs) -> dict:
     """
-    Withdraw the Toolbelt toolset so connected MCP clients no longer see it.
+    Request in-process removal without claiming any external client state.
 
     Returns:
-        dict: {"status", "registered"}
+        dict: The stable internal/external truth schema.
     """
     return epic_toolset.unregister()
