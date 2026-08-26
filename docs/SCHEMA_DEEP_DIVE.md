@@ -925,8 +925,9 @@ if timer:
 ```
 
 > **Note**: `client_*` properties are runtime state — they will be `None` or default values
-> in editor mode. They are most useful when polled during Play/Simulate mode or via
-> `execute_python` through the MCP bridge while a test session is running.
+> in editor mode. They are most useful when polled during Play/Simulate mode from
+> a registered Toolbelt command or a deliberately reviewed script in UEFN's local
+> Python console. Arbitrary remote Python is unavailable through the MCP bridge.
 
 ---
 

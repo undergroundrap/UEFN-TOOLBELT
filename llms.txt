@@ -3,7 +3,8 @@
 > Python automation framework for Unreal Editor for Fortnite (UEFN).
 > v2.4.1 exposes 362 tools across 55 categories through a PySide6 dashboard,
 > an editor top-menu integration, and an MCP HTTP bridge.
-> Any MCP-compatible AI (Claude Code, Cursor, Windsurf, Zed, OpenClaw, NemoClaw, etc.) can control UEFN directly.
+> Any MCP-compatible AI can control UEFN through the configured authenticated,
+> same-user local bridge.
 
 ## What this is
 
@@ -30,15 +31,24 @@ tb.run("verse_template_deploy", name="elimination_scoring", filename="game.verse
 
 ## MCP bridge (AI ↔ UEFN)
 
+The custom bridge uses authenticated same-user loopback. `mcp_server.py` and
+`client.py` load the rotating local session handoff automatically.
+
 ```python
 # 1. Start listener in UEFN
 tb.run("mcp_start")   # → http://127.0.0.1:8765
 
-# 2. .mcp.json is pre-configured in this repo — any MCP client auto-connects
+# 2. .mcp.json is pre-configured in this repo for the external MCP process
 ```
 
-Once connected, an AI agent can call all 362 tools, spawn/move/delete actors,
-execute arbitrary Python with full `unreal.*` access, and read structured results.
+Unauthenticated, browser-originated, and remote-host requests are rejected.
+Arbitrary remote Python is unavailable; use the local UEFN Python console for
+deliberate scripting. `mcp_start`, `mcp_stop`, and `mcp_restart` are local-only.
+
+Once connected, an agent can call registered tools subject to the local-only
+controls, spawn/move/delete actors, and read structured results. Epic's official
+MCP and Toolbelt can coexist. When Epic's UEFN MCP Toolsets beta triggers Quirk
+#36 and suppresses `init_unreal.py`, run `tb.register()` once before `mcp_start`.
 
 ## Key files for AI agents
 

@@ -1,13 +1,13 @@
 """
 UEFN TOOLBELT — mcp_bridge.py
 =========================================
-HTTP listener that exposes the UEFN editor to external processes
-(Claude Code, scripts, CI pipelines) via a simple JSON-over-HTTP protocol.
+Authenticated loopback listener that exposes the UEFN editor to trusted
+same-user processes via a strict JSON-over-HTTP protocol.
 
 Architecture:
     Claude Code  <-- stdio -->  mcp_server.py (external)
                                       |
-                                   HTTP POST 127.0.0.1:8765
+                           authenticated POST 127.0.0.1:8765
                                       |
                           UEFN editor process (this file)
                           ├── HTTP daemon thread (receives commands)
@@ -31,10 +31,12 @@ Why the queue + tick pattern:
 
 What's new vs Kirch's original:
     • run_tool command — call any registered UEFN Toolbelt tool by name,
-      passing kwargs as JSON. Exposes all 355 toolbelt tools to any MCP client.
-    • All 32 commands: Kirch's originals (system, actors, assets, level,
+      passing kwargs as JSON. Exposes the registered catalogue to an
+      authenticated same-user MCP client, except local-only listener lifecycle.
+    • All 31 commands: Kirch's originals (system, actors, assets, level,
       viewport) + set_actor_property, import_asset, run_tool, describe_tool, and more.
-    • Toolbelt-aware: pre-populated globals in execute_python include `tb`.
+    • Arbitrary remote Python execution is not exposed. Operators retain the
+      local UEFN Python console for deliberate in-editor scripting.
     • start / stop / restart / status exposed as @register_tool entries
       so the dashboard can control the bridge without touching the REPL.
 
@@ -61,9 +63,11 @@ Port range:
 
 from __future__ import annotations
 
-import io
+import hmac
 import json
+import os
 import queue
+import secrets
 import socket
 import sys
 import threading
@@ -72,6 +76,7 @@ import traceback
 from collections import deque
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from typing import Any
 
 import unreal
@@ -90,6 +95,8 @@ POLL_INTERVAL_SEC  = 0.02
 STALE_CLEANUP_SEC  = 60.0
 LOG_RING_SIZE      = 200
 HISTORY_CAP        = 500
+MAX_CONTENT_LENGTH = 1_048_576
+TOKEN_FILE_NAME    = "mcp_session.json"
 
 # ─── State ────────────────────────────────────────────────────────────────────
 
@@ -98,8 +105,11 @@ _server_thread:  threading.Thread | None = None
 _tick_handle:    object | None           = None
 _bound_port:     int                        = 0
 _start_time:     float                      = 0.0
-_dispatch_mode:  str                        = "tick"   # "tick" or "direct"
+_dispatch_mode:  str                        = "unavailable"
 _tick_health:    int                        = 0        # incremented each tick
+_remote_dispatch_depth: int                 = 0
+_session_secret: str | None                  = None
+_token_file:     Path | None                 = None
 
 _command_queue   = queue.Queue()
 _responses:      dict[str, dict]            = {}
@@ -109,10 +119,33 @@ _request_counter = 0
 
 _log_ring: deque = deque(maxlen=LOG_RING_SIZE)
 
+_REDACTED = "[REDACTED]"
+
+
+def _redact_text(value: str) -> str:
+    """Remove the active credential from one string without logging it."""
+    secret = _session_secret
+    if not secret:
+        return value
+    return value.replace(secret, _REDACTED)
+
+
+def _redact(value: Any) -> Any:
+    """Recursively remove the active credential before storage or transport."""
+    if isinstance(value, str):
+        return _redact_text(value)
+    if isinstance(value, dict):
+        return {_redact(key): _redact(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_redact(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact(item) for item in value)
+    return value
+
 # ─── Logging ──────────────────────────────────────────────────────────────────
 
 def _log(msg: str, level: str = "info") -> None:
-    entry = f"[MCP] {msg}"
+    entry = _redact_text(f"[MCP] {msg}")
     _log_ring.append(entry)
     if level == "error":
         unreal.log_error(entry)
@@ -198,12 +231,17 @@ def _cmd(name: str):
     return decorator
 
 
+def _public_commands() -> list[str]:
+    """Commands exposed on the authenticated transport."""
+    return sorted(_HANDLERS)
+
+
 def _dispatch(command: str, params: dict) -> dict:
     handler = _HANDLERS.get(command)
     if handler is None:
         raise ValueError(
             f"Unknown command: {command!r}. "
-            f"Available: {sorted(_HANDLERS.keys())}"
+            f"Available: {_public_commands()}"
         )
     return handler(**params)
 
@@ -219,68 +257,24 @@ def _c_ping() -> dict:
         "port":           _bound_port,
         "uptime_s":       round(time.time() - _start_time, 1) if _start_time else 0,
         "timestamp":      time.time(),
-        "commands":       sorted(_HANDLERS.keys()),
+        "commands":       _public_commands(),
+        "transport":      "authenticated_queued",
+        "execute_python_enabled": False,
     }
 
 
 @_cmd("get_log")
 def _c_get_log(last_n: int = 50) -> dict:
-    return {"lines": _log_ring[-last_n:]}
-
-
-@_cmd("execute_python")
-def _c_execute_python(code: str) -> dict:
-    """
-    Execute arbitrary Python code on the main thread.
-    Assign to `result` to return a value.
-    Pre-populated globals: unreal, actor_sub, asset_sub, level_sub, tb.
-    """
-    stdout_buf = io.StringIO()
-    stderr_buf = io.StringIO()
-    old_stdout, old_stderr = sys.stdout, sys.stderr
-
-    globs: dict[str, Any] = {
-        "__builtins__": __builtins__,
-        "unreal":       unreal,
-        "result":       None,
-    }
-    # Subsystems
-    for attr, cls_name in [
-        ("actor_sub", "EditorActorSubsystem"),
-        ("asset_sub", "EditorAssetSubsystem"),
-        ("level_sub", "LevelEditorSubsystem"),
-    ]:
-        try:
-            globs[attr] = unreal.get_editor_subsystem(getattr(unreal, cls_name))
-        except Exception:
-            pass
-    # Toolbelt shortcut
-    try:
-        import UEFN_Toolbelt as _tb
-        globs["tb"] = _tb
-    except Exception:
-        pass
-
-    try:
-        sys.stdout, sys.stderr = stdout_buf, stderr_buf
-        exec(code, globs)
-    except Exception:
-        traceback.print_exc(file=stderr_buf)
-    finally:
-        sys.stdout, sys.stderr = old_stdout, old_stderr
-
-    return {
-        "result": _serialize(globs.get("result")),
-        "stdout": stdout_buf.getvalue(),
-        "stderr": stderr_buf.getvalue(),
-    }
+    count = max(0, min(int(last_n), LOG_RING_SIZE))
+    return {"lines": list(_log_ring)[-count:] if count else []}
 
 
 @_cmd("run_tool")
 def _c_run_tool(tool_name: str, kwargs: dict | None = None) -> dict:
     """
     Run any registered UEFN Toolbelt tool by name.
-    This exposes all 355 toolbelt tools to any MCP client in one command.
+    This exposes the registered Toolbelt catalogue to an authenticated local
+    MCP client, except the listener's own local-only lifecycle controls.
 
     Args:
         tool_name: The registered tool name (e.g. "material_apply_preset").
@@ -291,6 +285,13 @@ def _c_run_tool(tool_name: str, kwargs: dict | None = None) -> dict:
          "params":  {"tool_name": "material_apply_preset",
                      "kwargs":    {"preset": "chrome"}}}
     """
+    if tool_name in {
+        "mcp_start", "mcp_stop", "mcp_restart", "toolbelt_integration_test",
+    }:
+        raise PermissionError(
+            "MCP lifecycle and the self-managing integration suite are local-only; "
+            "use the UEFN console or Toolbelt dashboard"
+        )
     import UEFN_Toolbelt as _tb
     kw = kwargs or {}
     result = _tb.registry.execute(tool_name, **kw)
@@ -381,7 +382,11 @@ def _c_redo() -> dict:
 @_cmd("history")
 def _c_history(tail: int = 30) -> dict:
     """Return recent command history with per-command timing."""
-    return {"entries": _history[-tail:], "total": len(_history)}
+    count = max(0, min(int(tail), HISTORY_CAP))
+    return {
+        "entries": list(_history)[-count:] if count else [],
+        "total": len(_history),
+    }
 
 
 # ─── Actor commands ───────────────────────────────────────────────────────────
@@ -754,38 +759,172 @@ def _c_set_viewport_camera(
 
 # ─── HTTP server ──────────────────────────────────────────────────────────────
 
+def _token_handoff_path() -> Path:
+    """Return the same-user local handoff file used by the external client."""
+    override = os.environ.get("UEFN_MCP_TOKEN_FILE", "").strip()
+    if override:
+        return Path(override).expanduser()
+    return (
+        Path(str(unreal.Paths.project_saved_dir()))
+        / "UEFN_Toolbelt"
+        / TOKEN_FILE_NAME
+    )
+
+
+def _write_token_handoff(secret: str, port: int) -> Path:
+    """Atomically publish listener coordinates without logging the secret."""
+    path = _token_handoff_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    payload = {
+        "version": 1,
+        "host": "127.0.0.1",
+        "port": port,
+        "token": secret,
+    }
+    try:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        fd = os.open(temporary, flags, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            json.dump(payload, handle, separators=(",", ":"))
+            handle.write("\n")
+        try:
+            os.chmod(temporary, 0o600)
+        except OSError:
+            pass
+        os.replace(temporary, path)
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+    return path
+
+
+def _clear_token_handoff() -> None:
+    """Remove only the handoff file created for the current listener."""
+    global _token_file
+    path = _token_file
+    _token_file = None
+    if path is None:
+        return
+    try:
+        path.unlink(missing_ok=True)
+    except OSError as exc:
+        _log(f"Could not remove MCP session handoff: {exc}", "warning")
+
+
+def _authorization_matches(value: str) -> bool:
+    """Compare the bearer credential without secret-dependent early exit."""
+    secret = _session_secret
+    if secret is None:
+        return False
+    expected = f"Bearer {secret}".encode()
+    return hmac.compare_digest(value.encode("utf-8"), expected)
+
+
 class _Handler(BaseHTTPRequestHandler):
 
+    def _one_header(self, name: str) -> str | None:
+        values = self.headers.get_all(name, [])
+        return values[0] if len(values) == 1 else None
+
+    def _discard_body(self, length: int) -> None:
+        """Boundedly drain an already-sized rejected body before closing.
+
+        Windows may reset a TCP connection when a server closes with unread
+        request bytes, causing the client to miss the JSON rejection. Framing
+        and the one-MiB limit are validated before this helper is called. A
+        short socket timeout prevents an unauthenticated partial body from
+        holding the synchronous local listener indefinitely.
+        """
+        previous_timeout = self.connection.gettimeout()
+        remaining = length
+        try:
+            self.connection.settimeout(0.25)
+            while remaining:
+                chunk = self.rfile.read(min(remaining, 65_536))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+        except (OSError, TimeoutError):
+            pass
+        finally:
+            self.connection.settimeout(previous_timeout)
+
+    def _reject(self, code: int, message: str, length: int | None = None) -> None:
+        """Return a deterministic rejection after a bounded request-body drain."""
+        if length is None:
+            declared = self.headers.get_all("Content-Length", [])
+            if declared:
+                try:
+                    length = int(declared[0])
+                except ValueError:
+                    length = None
+        if length is not None and 0 < length <= MAX_CONTENT_LENGTH:
+            self._discard_body(length)
+        self._error(code, message)
+
     def do_GET(self) -> None:
-        body = json.dumps({
-            "status":   "ok",
-            "app":      "UEFN Toolbelt MCP Bridge",
-            "port":     _bound_port,
-            "commands": sorted(_HANDLERS.keys()),
-        }).encode()
-        self._respond(200, body)
+        self._error(405, "Only authenticated POST requests are accepted")
+
+    do_DELETE = do_GET
+    do_CONNECT = do_GET
+    do_HEAD = do_GET
+    do_PATCH = do_GET
+    do_PUT = do_GET
+    do_TRACE = do_GET
 
     def do_POST(self) -> None:
         global _request_counter
-        length = int(self.headers.get("Content-Length", 0))
+        if self.path != "/":
+            self._reject(404, "Unknown path")
+            return
+        if self._one_header("Host") != f"127.0.0.1:{_bound_port}":
+            self._reject(400, "Invalid Host header")
+            return
+        if self.headers.get_all("Origin", []):
+            self._reject(403, "Browser-originated requests are not accepted")
+            return
+        content_type = (self._one_header("Content-Type") or "").split(";", 1)[0]
+        if content_type.strip().lower() != "application/json":
+            self._reject(415, "Content-Type must be application/json")
+            return
+        if self.headers.get_all("Transfer-Encoding", []):
+            self._reject(400, "Transfer-Encoding is not supported")
+            return
+        declared_length = self._one_header("Content-Length") or ""
+        if not declared_length.isascii() or not declared_length.isdigit():
+            self._reject(411, "A valid Content-Length is required")
+            return
+        length = int(declared_length)
+        if length <= 0:
+            self._error(411, "A valid Content-Length is required")
+            return
+        if length > MAX_CONTENT_LENGTH:
+            self._error(413, "Request body is too large")
+            return
+        if not _authorization_matches(self._one_header("Authorization") or ""):
+            self._reject(401, "Authentication required", length)
+            return
+
         raw = self.rfile.read(length)
         try:
-            body = json.loads(raw)
-        except json.JSONDecodeError as e:
-            self._respond(400, json.dumps({"success": False, "error": f"Bad JSON: {e}"}).encode())
+            body = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self._error(400, "Malformed JSON request")
+            return
+        if not isinstance(body, dict):
+            self._error(400, "JSON body must be an object")
             return
 
         command = body.get("command", "")
         params  = body.get("params", {})
-        if not command:
-            self._respond(400, json.dumps({"success": False, "error": "Missing 'command'"}).encode())
+        if not isinstance(command, str) or not command:
+            self._error(400, "Missing 'command'")
             return
-
-        # Direct mode: Slate ticks weren't detected at startup — run on HTTP thread.
-        # Most unreal.* calls succeed from background threads inside the UEFN process.
-        if _dispatch_mode == "direct":
-            result = _execute_command(command, params)
-            self._respond(200, json.dumps(result).encode())
+        if not isinstance(params, dict):
+            self._error(400, "'params' must be an object")
             return
 
         _request_counter += 1
@@ -800,28 +939,31 @@ class _Handler(BaseHTTPRequestHandler):
                     break
             time.sleep(POLL_INTERVAL_SEC)
         else:
-            self._respond(504, json.dumps({"success": False, "error": f"Timeout: {command}"}).encode())
+            self._error(504, f"Command timed out: {command}")
             return
 
-        self._respond(200, json.dumps(result).encode())
+        self._respond(200, result)
 
     def do_OPTIONS(self) -> None:
-        self.send_response(204)
-        self._cors()
-        self.end_headers()
+        self._error(403, "Browser preflight is not accepted")
 
-    def _respond(self, code: int, body: bytes) -> None:
+    def _error(self, code: int, message: str) -> None:
+        self._respond(code, {"success": False, "error": message})
+
+    def _respond(self, code: int, payload: dict) -> None:
+        body = json.dumps(_redact(_serialize(payload))).encode("utf-8")
+        self.close_connection = True
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
-        self._cors()
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
         self.end_headers()
-        self.wfile.write(body)
-
-    def _cors(self) -> None:
-        self.send_header("Access-Control-Allow-Origin", "127.0.0.1")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        try:
+            self.wfile.write(body)
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def log_message(self, fmt: str, *args: Any) -> None:
         pass  # suppress default stderr logging
@@ -830,8 +972,10 @@ class _Handler(BaseHTTPRequestHandler):
 # ─── Tick callback (main thread) ──────────────────────────────────────────────
 
 def _execute_command(command: str, params: dict) -> dict:
-    """Execute a command and return the response dict. Used by both tick and direct modes."""
+    """Execute a queued command on the Slate/main thread and wrap its result."""
+    global _remote_dispatch_depth
     t0 = time.time()
+    _remote_dispatch_depth += 1
     try:
         result   = _dispatch(command, params)
         response = {"success": True, "result": result}
@@ -842,9 +986,15 @@ def _execute_command(command: str, params: dict) -> dict:
             "error":     str(e),
             "traceback": traceback.format_exc(),
         }
+    finally:
+        _remote_dispatch_depth -= 1
+    response = _redact(_serialize(response))
     elapsed_ms = round((time.time() - t0) * 1000, 1)
-    _history.append({"command": command, "elapsed_ms": elapsed_ms,
-                     "success": response["success"]})
+    _history.append(_redact({
+        "command": command,
+        "elapsed_ms": elapsed_ms,
+        "success": response["success"],
+    }))
     return response
 
 
@@ -889,9 +1039,21 @@ def _find_free_port() -> int:
     raise RuntimeError(f"No free port in {DEFAULT_PORT}-{MAX_PORT}")
 
 
+def _require_local_lifecycle() -> None:
+    """Reject direct or indirect listener control from a remote dispatch."""
+    if _remote_dispatch_depth:
+        raise PermissionError(
+            "MCP listener lifecycle commands are local-only; use the UEFN console "
+            "or Toolbelt dashboard"
+        )
+
+
 def start_listener(port: int = 0) -> int:
     """Start the MCP HTTP listener. Returns the bound port."""
-    global _server, _server_thread, _tick_handle, _bound_port, _dispatch_mode, _tick_health
+    global _server, _server_thread, _tick_handle, _bound_port
+    global _dispatch_mode, _tick_health, _session_secret, _token_file, _start_time
+
+    _require_local_lifecycle()
 
     if _server is not None:
         _log(f"Already running on port {_bound_port}", "warning")
@@ -900,56 +1062,119 @@ def start_listener(port: int = 0) -> int:
     if port == 0:
         port = _find_free_port()
 
-    _dispatch_mode = "tick"   # reset so auto-detect runs fresh on each start
+    _dispatch_mode = "unavailable"
     _tick_health   = 0
-
-    _server      = HTTPServer(("127.0.0.1", port), _Handler)
-    _bound_port  = port
-    _start_time  = time.time()
-    _server_thread = threading.Thread(target=_server.serve_forever, daemon=True)
-    _server_thread.start()
-
+    _token_file = _token_handoff_path()
+    _clear_token_handoff()
+    candidate = HTTPServer(("127.0.0.1", port), _Handler, bind_and_activate=False)
     try:
-        _tick_handle = unreal.register_slate_post_tick_callback(_tick)
-        _log("Dispatch: tick-based")
-    except Exception as e:
-        # register_slate_post_tick_callback unavailable (e.g. headless/CI) — fall back.
-        # NOTE: the old sleep-based health check was self-defeating: sleeping on the main
-        # thread blocks Slate from ticking, so _tick_health never incremented and the
-        # bridge always fell back to direct mode even when tick mode would work.
-        _log(f"Tick callback registration failed: {e} — using direct mode", "warning")
-        _dispatch_mode = "direct"
+        candidate.server_bind()
+        tick_handle = unreal.register_slate_post_tick_callback(_tick)
+        if tick_handle is None:
+            raise RuntimeError("Slate callback registration returned no handle")
+        _tick_handle = tick_handle
+
+        secret = secrets.token_urlsafe(32)
+        token_file = _write_token_handoff(secret, port)
+
+        _session_secret = secret
+        _token_file = token_file
+        _bound_port = port
+        _start_time = time.time()
+        _dispatch_mode = "authenticated_queued"
+        candidate.server_activate()
+        _server = candidate
+        _server_thread = threading.Thread(
+            target=candidate.serve_forever,
+            name="UEFN-Toolbelt-MCP",
+            daemon=True,
+        )
+        _server_thread.start()
+    except Exception as exc:
+        if _tick_handle is not None:
+            try:
+                unreal.unregister_slate_post_tick_callback(_tick_handle)
+            except Exception:
+                pass
+        _tick_handle = None
+        _session_secret = None
+        _dispatch_mode = "unavailable"
+        _bound_port = 0
+        _start_time = 0.0
+        _clear_token_handoff()
+        candidate.server_close()
+        _server = None
+        _server_thread = None
+        _log(f"Listener start failed closed: {exc}", "error")
+        raise RuntimeError(
+            "MCP listener unavailable: queued Slate dispatch could not be installed"
+        ) from exc
 
     _log(f"Listener started on http://127.0.0.1:{port}")
-    _log(f"{len(_HANDLERS)} commands registered")
+    _log(f"{len(_public_commands())} authenticated queued commands available")
     return port
 
 
 def stop_listener() -> None:
     """Stop the MCP HTTP listener."""
     global _server, _server_thread, _tick_handle, _bound_port
+    global _dispatch_mode, _session_secret, _start_time
+
+    _require_local_lifecycle()
 
     if _server is None:
+        _session_secret = None
+        _dispatch_mode = "unavailable"
+        _bound_port = 0
+        _start_time = 0.0
+        _clear_token_handoff()
         _log("Listener is not running", "warning")
         return
 
     if _tick_handle is not None:
-        unreal.unregister_slate_post_tick_callback(_tick_handle)
+        try:
+            unreal.unregister_slate_post_tick_callback(_tick_handle)
+        except Exception as exc:
+            _log(f"Tick callback cleanup failed: {exc}", "warning")
         _tick_handle = None
+
+    _session_secret = None
+    _dispatch_mode = "unavailable"
+    _clear_token_handoff()
+
+    pending_ids = []
+    while True:
+        try:
+            req_id, _command, _params = _command_queue.get_nowait()
+            pending_ids.append(req_id)
+        except queue.Empty:
+            break
+    with _responses_lock:
+        for req_id in pending_ids:
+            _responses[req_id] = {
+                "success": False,
+                "error": "MCP listener stopped before command dispatch",
+            }
 
     _server.shutdown()
     if _server_thread:
         _server_thread.join(timeout=3.0)
+    _server.server_close()
+
+    with _responses_lock:
+        _responses.clear()
 
     old_port    = _bound_port
     _server     = None
     _server_thread = None
     _bound_port = 0
+    _start_time = 0.0
     _log(f"Listener stopped (was on port {old_port})")
 
 
 def restart_listener(port: int = 0) -> int:
     """Restart the MCP HTTP listener."""
+    _require_local_lifecycle()
     stop_listener()
     time.sleep(0.5)
     return start_listener(port)
@@ -957,11 +1182,15 @@ def restart_listener(port: int = 0) -> int:
 
 def get_status() -> dict:
     """Return current listener state."""
+    running = _server is not None and _dispatch_mode == "authenticated_queued"
     return {
-        "running": _server is not None,
+        "running": running,
         "port":    _bound_port,
         "url":     f"http://127.0.0.1:{_bound_port}" if _bound_port else None,
-        "commands": len(_HANDLERS),
+        "commands": len(_public_commands()),
+        "transport": _dispatch_mode if running else "unavailable",
+        "authenticated": bool(running and _session_secret),
+        "execute_python_enabled": False,
     }
 
 
@@ -979,8 +1208,8 @@ def mcp_start(port: int = 0, **kwargs) -> dict:
     Start the UEFN Toolbelt MCP HTTP listener.
 
     Once running, the external mcp_server.py (configured in .mcp.json) can
-    control UEFN from Claude Code — spawning actors, running toolbelt tools,
-    executing arbitrary Python, and more.
+    control UEFN from a same-user authenticated local client. Arbitrary remote
+    Python execution is not exposed; use the local UEFN console deliberately.
 
     Args:
         port: Port to bind to. 0 = auto-detect (tries 8765-8770).
@@ -988,11 +1217,10 @@ def mcp_start(port: int = 0, **kwargs) -> dict:
     p = start_listener(port)
     unreal.log(
         f"[MCP] ✓ Listener running on http://127.0.0.1:{p}\n"
-        f"  {len(_HANDLERS)} commands available.\n"
+        f"  {len(_public_commands())} authenticated queued commands available.\n"
         f"  Configure mcp_server.py in .mcp.json, then restart Claude Code."
     )
-    return {"status": "ok", "running": True, "port": p,
-            "url": f"http://127.0.0.1:{p}", "commands": len(_HANDLERS)}
+    return {"status": "ok", **get_status()}
 
 
 @register_tool(
@@ -1017,11 +1245,10 @@ def mcp_stop(**kwargs) -> dict:
     tags=["mcp", "listener", "restart", "reload"],
 )
 def mcp_restart(port: int = 0, **kwargs) -> dict:
-    """Restart the listener — use this after hot-reloading the toolbelt."""
+    """Restart the listener and rotate its same-user session credential."""
     p = restart_listener(port)
     unreal.log(f"[MCP] ✓ Restarted on http://127.0.0.1:{p}")
-    return {"status": "ok", "running": True, "port": p,
-            "url": f"http://127.0.0.1:{p}"}
+    return {"status": "ok", **get_status()}
 
 
 @register_tool(
@@ -1040,6 +1267,9 @@ def mcp_status(**kwargs) -> dict:
             f"  Running:   YES\n"
             f"  URL:       {s['url']}\n"
             f"  Commands:  {s['commands']}\n"
+            f"  Transport: {s['transport']}\n"
+            f"  Auth:      REQUIRED\n"
+            f"  Python:    {'ENABLED' if s['execute_python_enabled'] else 'DISABLED'}\n"
             f"\n  Claude Code .mcp.json config:\n"
             f'  {{"mcpServers": {{"uefn-toolbelt": {{'
             f'"command": "python", "args": ["<path>/mcp_server.py"]}}}}}}\n'

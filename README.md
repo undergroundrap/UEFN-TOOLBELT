@@ -972,14 +972,19 @@ tb.run("snapshot_restore",      name="before_scatter")
 
 ### MCP Bridge (4)
 
-Start the listener in UEFN, then Claude Code (or any MCP client) can run all 362 tools by name, spawn actors, execute arbitrary Python, and more.
+Start the listener in UEFN, then an authenticated same-user MCP client can run
+the registered catalogue by name and operate the editor through queued
+main-thread dispatch. Listener start/stop/restart remain local-only controls.
+Arbitrary remote Python is unavailable and cannot be enabled with the former
+`UEFN_TOOLBELT_MCP_ALLOW_EXECUTE_PYTHON` variable. Deliberate scripting remains
+available through the local UEFN Python console.
 
 | Tool | Description |
 |---|---|
 | `mcp_start` | Start the HTTP listener so Claude Code can control UEFN directly. |
 | `mcp_stop` | Stop the listener. |
-| `mcp_restart` | Restart after hot-reload or port conflict. |
-| `mcp_status` | Print port, running state, and command count. |
+| `mcp_restart` | Restart, rotate authentication, and recover from a port conflict. |
+| `mcp_status` | Print sanitized port, transport, authentication, and command state. |
 
 ```python
 tb.run("mcp_start")
@@ -1544,7 +1549,7 @@ Claude will call `run_toolbelt_tool("toolbelt_smoke_test")` through the bridge a
 - Run any of the 362 tools by name
 - Spawn, move, delete actors directly
 - Generate spec-accurate Verse code (pulls from the live verse-book spec)
-- Execute arbitrary Python inside UEFN
+- Use registered commands remotely; arbitrary Python remains local to UEFN
 - Batch multiple operations in one editor tick
 
 ---
@@ -2278,8 +2283,8 @@ codebase rather than guessing — Claude Code loads `CLAUDE.md`, Codex and Curso
 **How it works:**
 
 ```
-Your AI  ←── MCP stdio ──→  mcp_server.py  ←── HTTP ──→  UEFN editor
-  (IDE)                       (runs outside)              (mcp_bridge.py)
+Your AI  ←── MCP stdio ──→  mcp_server.py  ←── authenticated loopback ──→  UEFN
+  (IDE)                       (same user)                         (mcp_bridge.py)
 ```
 
 **One-time setup:**
@@ -2293,13 +2298,24 @@ import UEFN_Toolbelt as tb; tb.run("mcp_start")
 # Output Log: [MCP] ✓ Listener running on http://127.0.0.1:8765
 ```
 
+If **UEFN MCP Toolsets** is enabled and `mcp_start` reports that Toolbelt is not
+registered, recover once after each full editor start before starting the
+listener (known Quirk #36):
+
+```python
+import UEFN_Toolbelt as tb; tb.register(); tb.run("mcp_start")
+```
+
 `.mcp.json` is already in the repo root — any MCP client picks it up automatically.
+The listener creates a rotating same-user session handoff under
+`Saved/UEFN_Toolbelt/`; `mcp_server.py` reads it automatically. Restart rotates
+the secret and stop removes it. The secret is never printed or returned.
 
 **What any connected AI can do:**
-- Run any of the 362 toolbelt tools by name (`run_toolbelt_tool`)
+- Run registered Toolbelt tools by name (`run_toolbelt_tool`), except local-only
+  listener lifecycle controls
 - Spawn, move, delete actors; read selected actors live
 - List, rename, duplicate, import, delete Content Browser assets
-- Execute arbitrary Python inside UEFN with full `unreal.*` access
 - Create material instances with parameters
 - Batch multiple operations in a single editor tick
 - Undo / redo editor actions
@@ -2307,9 +2323,14 @@ import UEFN_Toolbelt as tb; tb.run("mcp_start")
 - Control the viewport camera
 - Generate spec-accurate Verse code (see below)
 
+Arbitrary remote Python is unavailable through the Toolbelt bridge. Use a
+registered command for remote automation or the local UEFN Python console for
+deliberate in-editor scripting.
+
 **External client — works with any AI, any language:**
 
-`client.py` in the project root is a stdlib-only HTTP client that connects directly to the same listener. No MCP, no SDK, no dependencies — plain HTTP that works from anywhere:
+`client.py` in the project root is a stdlib-only client for trusted same-user
+automation. It loads the current session handoff and authenticates every request:
 
 ```python
 from client import ToolbeltClient
@@ -2324,22 +2345,11 @@ ue.batch([
 ])
 ```
 
-Because the bridge is plain HTTP + JSON, **any agent that can make an HTTP request can control UEFN** — you are not locked into Claude:
-
-| Agent | How |
-|---|---|
-| **LM Studio** (Qwen, Llama, Mistral, etc.) | Point your local model's tool-calling at `client.py` or call `http://127.0.0.1:8765` directly |
-| **Ollama** | Same — any model with function-calling support works |
-| **curl / bash** | `curl -X POST http://127.0.0.1:8765 -d '{"command":"ping","params":{}}'` |
-| **Go / Rust / Node** | Any HTTP client, no library needed |
-| **CI pipelines** | Run `client.py` from GitHub Actions, Jenkins, whatever |
-
-```bash
-# Full UEFN control from curl — no Python, no SDK
-curl -s -X POST http://127.0.0.1:8765 \
-  -H "Content-Type: application/json" \
-  -d '{"command":"run_tool","params":{"tool_name":"snapshot_save","kwargs":{}}}'
-```
+Raw unauthenticated HTTP, browser requests, CORS preflight, remote hosts, and
+cross-machine CI are rejected. A non-Python local client must deliberately
+implement the same protected handoff and bearer-header contract. Treat the
+handoff as privileged editor-control material; loopback is not a sandbox and a
+compromised process running as the same Windows user may be able to read it.
 
 **Confirmed compatible: Claude Code, Codex, and Cursor**, plus any custom agent built against the HTTP API directly. Claude Code additionally auto-loads `CLAUDE.md` on open, which is why the autonomous-build walkthrough above uses it — Codex and Cursor get the same context from `AGENTS.md`.
 

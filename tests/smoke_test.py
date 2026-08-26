@@ -297,20 +297,23 @@ def _layer_mcp() -> None:
     except Exception as e:
         _record("Layer 4", "Commands registered", False, str(e))
 
-    # If listener is running, do a live ping
+    # The smoke suite runs on the editor main thread, so it must not block on an
+    # HTTP command that can only complete when the next Slate tick drains it.
+    # External live verification performs the authenticated ping instead.
     if mcp_bridge._server is not None:
         try:
-            import json as _json
-            import urllib.request
-            url = f"http://127.0.0.1:{mcp_bridge._bound_port}"
-            resp = urllib.request.urlopen(url, timeout=3)
-            body = _json.loads(resp.read())
-            _record("Layer 4", "Live HTTP ping", body.get("status") == "ok",
+            secure = (
+                status.get("transport") == "authenticated_queued"
+                and status.get("authenticated") is True
+                and mcp_bridge._token_handoff_path().exists()
+            )
+            _record("Layer 4", "Authenticated queued listener", secure,
                     f"port {mcp_bridge._bound_port}")
         except Exception as e:
-            _record("Layer 4", "Live HTTP ping", False, str(e))
+            _record("Layer 4", "Authenticated queued listener", False, str(e))
     else:
-        _record("Layer 4", "Live HTTP ping", True, "skipped — listener not running (normal)")
+        _record("Layer 4", "Authenticated queued listener", True,
+                "skipped — listener not running (normal)")
 
 
 # ─── Layer 5: Dashboard ───────────────────────────────────────────────────────

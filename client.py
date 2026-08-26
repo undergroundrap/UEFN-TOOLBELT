@@ -3,16 +3,15 @@ UEFN Toolbelt — External Python Client
 =========================================
 Stdlib-only HTTP client for the UEFN Toolbelt MCP bridge.
 No MCP, no SDK, no dependencies — works from any Python 3.8+ script,
-CI pipeline, Go/Rust tool (via curl), or browser (CORS enabled).
+or trusted same-user local automation.
 
 Usage:
     from client import ToolbeltClient, ToolbeltError
 
-    ue = ToolbeltClient()                  # default: 127.0.0.1:8765
+    ue = ToolbeltClient()                  # loads the current local session handoff
     ue.ping()
     ue.run_tool("material_apply_preset", preset="chrome")
     actors = ue.get_all_actors()
-    ue.execute_python("result = unreal.EditorLevelLibrary.get_editor_world().get_name()")
 
 Requirements:
     - UEFN is running with the Toolbelt loaded
@@ -24,9 +23,27 @@ Author: Ocean Bennett · License: AGPL-3.0
 from __future__ import annotations
 
 import json
+import os
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any
+
+
+def _redact_secret(value: Any, secret: str) -> Any:
+    """Defensively remove the current handoff credential from client output."""
+    if isinstance(value, str):
+        return value.replace(secret, "[REDACTED]")
+    if isinstance(value, dict):
+        return {
+            _redact_secret(key, secret): _redact_secret(item, secret)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_secret(item, secret) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact_secret(item, secret) for item in value)
+    return value
 
 # ─── Exceptions ───────────────────────────────────────────────────────────────
 
@@ -50,6 +67,10 @@ class CommandTimeout(ToolbeltError):
     """The command timed out waiting for UEFN to respond."""
 
 
+class AuthenticationError(ToolbeltError):
+    """The local session credential is missing, stale, or rejected."""
+
+
 # ─── Client ───────────────────────────────────────────────────────────────────
 
 class ToolbeltClient:
@@ -67,11 +88,56 @@ class ToolbeltClient:
     def __init__(
         self,
         host: str = "127.0.0.1",
-        port: int = 8765,
+        port: int | None = None,
         timeout: float = 30.0,
+        token_file: str | os.PathLike[str] | None = None,
     ):
-        self.url = f"http://{host}:{port}"
+        if host != "127.0.0.1":
+            raise ValueError("The Toolbelt client only accepts the loopback host")
+        self._port_override = port
         self.timeout = timeout
+        self._token_file = Path(token_file) if token_file else self._default_token_file()
+
+    @staticmethod
+    def _default_token_file() -> Path:
+        override = os.environ.get("UEFN_MCP_TOKEN_FILE", "").strip()
+        if override:
+            return Path(override).expanduser()
+        local_app_data = os.environ.get("LOCALAPPDATA", "").strip()
+        if not local_app_data:
+            raise AuthenticationError(
+                "LOCALAPPDATA is unset; the UEFN MCP session handoff cannot be located"
+            )
+        return (
+            Path(local_app_data)
+            / "UnrealEditorFortnite"
+            / "Saved"
+            / "UEFN_Toolbelt"
+            / "mcp_session.json"
+        )
+
+    def _session(self) -> tuple[str, str]:
+        try:
+            payload = json.loads(self._token_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise AuthenticationError(
+                "UEFN MCP session is unavailable; start or restart the listener"
+            ) from exc
+        if not isinstance(payload, dict):
+            raise AuthenticationError("UEFN MCP session handoff is invalid")
+        host = payload.get("host")
+        port = self._port_override if self._port_override is not None else payload.get("port")
+        token = payload.get("token")
+        if (
+            payload.get("version") != 1
+            or host != "127.0.0.1"
+            or not isinstance(port, int)
+            or not (1 <= port <= 65535)
+            or not isinstance(token, str)
+            or len(token) < 32
+        ):
+            raise AuthenticationError("UEFN MCP session handoff is invalid")
+        return f"http://127.0.0.1:{port}", token
 
     # ── Core transport ────────────────────────────────────────────────────────
 
@@ -81,31 +147,45 @@ class ToolbeltClient:
         Send one command to UEFN and return the result.
         Raises ToolbeltError / NotConnected / CommandTimeout on failure.
         """
+        url, token = self._session()
         payload = json.dumps({"command": command, "params": params or {}}).encode()
         req = urllib.request.Request(
-            self.url,
+            url,
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
             method="POST",
         )
         t = timeout if timeout is not None else self.timeout
         try:
             with urllib.request.urlopen(req, timeout=t) as resp:
                 body = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            if e.code == 401:
+                raise AuthenticationError(
+                    "UEFN MCP authentication failed; restart the listener"
+                ) from None
+            raise ToolbeltError(f"UEFN MCP request rejected with HTTP {e.code}") from None
         except urllib.error.URLError as e:
-            if "refused" in str(e).lower() or "no connection" in str(e).lower():
+            detail = _redact_secret(str(e), token)
+            if "refused" in detail.lower() or "no connection" in detail.lower():
                 raise NotConnected(
                     "UEFN Toolbelt listener is not running.\n"
                     "  Start it: import UEFN_Toolbelt as tb; tb.run('mcp_start')"
-                ) from e
-            raise ToolbeltError(f"HTTP error: {e}") from e
+                ) from None
+            raise NotConnected("UEFN Toolbelt listener could not be reached") from None
         except Exception as e:
-            if "timed out" in str(e).lower():
+            detail = _redact_secret(str(e), token)
+            if "timed out" in detail.lower():
                 raise CommandTimeout(
-                    f"Command '{command}' timed out after {t}s.\n"
+                    f"Command '{_redact_secret(command, token)}' timed out after {t}s.\n"
                     "  UEFN may be processing a heavy operation."
-                ) from e
-            raise
+                ) from None
+            raise ToolbeltError(detail) from None
+
+        body = _redact_secret(body, token)
 
         if not body.get("success", False):
             raise ToolbeltError(
@@ -161,7 +241,7 @@ class ToolbeltClient:
     def run_tool(self, tool_name: str, timeout: float = 120.0, **kwargs) -> dict:
         """
         Run any registered UEFN Toolbelt tool by name.
-        This is the main interface — 171 tools available.
+        This is the main interface — 362 tools available.
 
         Examples:
             ue.run_tool("material_apply_preset", preset="chrome")
@@ -183,15 +263,11 @@ class ToolbeltClient:
         return self._send("list_tools", {"category": category}).get("tools", [])
 
     def execute_python(self, code: str, timeout: float = 60.0) -> dict:
-        """
-        Execute arbitrary Python inside UEFN on the main thread.
-        Pre-populated globals: unreal, actor_sub, asset_sub, level_sub, tb.
-        Assign to `result` to return a value. Use print() for stdout.
-
-        Example:
-            r = ue.execute_python("result = actor_sub.get_all_level_actors()")
-        """
-        return self._send("execute_python", {"code": code}, timeout=timeout)
+        """Reject arbitrary remote Python; use the local UEFN console instead."""
+        raise ToolbeltError(
+            "execute_python is unavailable on the Toolbelt MCP bridge; "
+            "use the local UEFN Python console"
+        )
 
     # ── Actors ────────────────────────────────────────────────────────────────
 
@@ -354,7 +430,7 @@ class ToolbeltClient:
 
 # ─── Quick connect helper ─────────────────────────────────────────────────────
 
-def connect(port: int = 8765, timeout: float = 30.0) -> ToolbeltClient:
+def connect(port: int | None = None, timeout: float = 30.0) -> ToolbeltClient:
     """Create a client and verify the connection with a ping."""
     client = ToolbeltClient(port=port, timeout=timeout)
     client.ping()   # raises NotConnected if listener isn't running

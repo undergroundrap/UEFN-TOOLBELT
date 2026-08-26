@@ -2,18 +2,23 @@
 
 STATUS: ISSUED
 
-AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED
+AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION
 
 OWNER: Ocean Bennett
 
 PRIORITY: P0
 
-BASELINE: `318c28fa08bfef032280bad9b76eab7cd81f626d`
+BASELINE: `34c3762b32c36805e3ec2f7f93df68c2c17fd26c`
 
 ISSUANCE BASIS: The proposal was independently accepted and committed as
 `318c28fa08bfef032280bad9b76eab7cd81f626d`; CI workflow
 [`32701409756`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32701409756)
 passed.
+
+SESSION A AUTHORIZATION BASIS: The issued Work Order was committed as
+`34c3762b32c36805e3ec2f7f93df68c2c17fd26c`; CI workflow
+[`32890583500`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32890583500)
+passed before the owner authorized Session A.
 
 Issuance alone grants no implementation authority. Only the repository-root
 `WORKORDER.md` may authorize an individual session.
@@ -51,4 +56,4 @@ host/origin confusion, malformed requests, arbitrary-execution defaults, and
 dispatcher-registration failure. Work remains uncommitted for independent
 review. Commit and push require later, separate owner gates.
 
-NEXT GATE: explicit BDFL/owner authorization for Session A.
+NEXT GATE: independent review of the complete uncommitted Session A worktree.

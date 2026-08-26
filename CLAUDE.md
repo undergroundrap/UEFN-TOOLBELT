@@ -24,7 +24,7 @@ This is the single most important rule in this project. Syntax checks and unit t
 | Dashboard UI change (new tab, widget, layout) | `deploy.bat` → **full UEFN restart** → visual inspect |
 | Theme / styling change | `deploy.bat` → **full UEFN restart** → switch themes in Appearance tab |
 | `verse_device_graph.py` or `dashboard_pyside6.py` | `deploy.bat` → **full UEFN restart** (nuclear reload will crash) |
-| MCP bridge change | `deploy.bat` → `tb.run("mcp_start")` + ping from Claude Code |
+| MCP bridge change | `deploy.bat` → **full UEFN restart** → `tb.run("mcp_start")` + authenticated external ping |
 | `core/` module change | `deploy.bat` → nuclear reload → `tb.run("toolbelt_smoke_test")` |
 | `install.py` / `deploy.bat` change | Run the script end-to-end |
 | Launch Session / Push Changes / publish | `prepare_launch.bat` → upload → `restore_after_launch.bat` |
@@ -443,16 +443,34 @@ import UEFN_Toolbelt as tb; tb.run("mcp_start")
 # Output Log: [MCP] ✓ Listener running on http://127.0.0.1:8765
 ```
 
+When Epic's **UEFN MCP Toolsets** beta is enabled, Quirk #36 may prevent
+`init_unreal.py` from registering Toolbelt at startup. If `mcp_start` reports
+only one loaded tool, recover once for that editor session and then start it:
+
+```python
+import UEFN_Toolbelt as tb; tb.register(); tb.run("mcp_start")
+```
+
 Then restart Claude Code — it connects automatically.
+
+The listener accepts only authenticated same-user loopback POSTs. It rotates a
+session secret on every restart, hands it to `mcp_server.py` through the local
+`Saved/UEFN_Toolbelt/mcp_session.json` file, rejects browser origins/CORS, and
+never returns or logs the secret. If Slate queued dispatch cannot register, the
+listener fails closed and does not start.
 
 ### What Claude Code can now do
 
-- Run any of the 362 registered tools by name
+- Run registered tools by name (`mcp_start`, `mcp_stop`, and `mcp_restart`
+  remain local-only lifecycle controls)
 - Spawn, move, delete actors
 - List/rename/import/tag assets
 - Take screenshots, save level snapshots
-- Execute arbitrary Python inside UEFN with full `unreal.*` access
 - Read and write actor/asset properties
+
+Arbitrary remote Python is unavailable through the Toolbelt bridge. Use a
+registered command for remote automation or the local UEFN Python console for
+deliberate in-editor scripting.
 
 ---
 

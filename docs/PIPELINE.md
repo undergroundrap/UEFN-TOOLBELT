@@ -166,7 +166,7 @@ and answers:
 The catalog gives Claude the exact asset paths. The MCP bridge handles spawning.
 
 ```python
-# Via MCP (requires mcp_start to be running):
+# Via authenticated same-user MCP (requires mcp_start to be running):
 # spawn_actor uses the asset path from device_catalog.json
 
 # Example — place a Score Manager at world origin:

@@ -33,8 +33,8 @@ Claude Code config — add to .mcp.json in your project root:
 Then in UEFN (Output Log or Toolbelt dashboard):
     import UEFN_Toolbelt as tb; tb.run("mcp_start")
 
-After that, Claude Code has full control over UEFN — 362 tools, live actor data,
-arbitrary Python execution, viewport control, and more.
+After that, an authenticated same-user client can use Toolbelt tools, live actor
+data, viewport control, and more. Arbitrary remote Python is not exposed.
 
 What this exposes (beyond Kirch's original 22 tools):
     run_toolbelt_tool   — call any of the 362 registered toolbelt tools by name
@@ -54,19 +54,23 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
-try:
-    LISTENER_PORT = int(os.environ.get("UEFN_MCP_PORT", "8765"))
-    if not (1 <= LISTENER_PORT <= 65535):
-        raise ValueError(f"Port {LISTENER_PORT} out of range")
-except ValueError:
-    LISTENER_PORT = 8765
-LISTENER_URL    = f"http://127.0.0.1:{LISTENER_PORT}"
+_PORT_OVERRIDE: int | None = None
+if os.environ.get("UEFN_MCP_PORT"):
+    try:
+        _PORT_OVERRIDE = int(os.environ["UEFN_MCP_PORT"])
+        if not (1 <= _PORT_OVERRIDE <= 65535):
+            raise ValueError
+    except ValueError:
+        _PORT_OVERRIDE = None
+
+TOKEN_FILE_NAME = "mcp_session.json"
 VERSE_BOOK_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "verse-book", "docs")
 
@@ -122,6 +126,66 @@ LONG_OPERATION_TIMEOUT = 120.0   # for tool runs that may take longer
 # ─── HTTP client ──────────────────────────────────────────────────────────────
 
 
+def _redact_secret(value: Any, secret: str) -> Any:
+    """Defensively remove the current handoff credential from MCP output."""
+    if isinstance(value, str):
+        return value.replace(secret, "[REDACTED]")
+    if isinstance(value, dict):
+        return {
+            _redact_secret(key, secret): _redact_secret(item, secret)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_secret(item, secret) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact_secret(item, secret) for item in value)
+    return value
+
+
+def _token_handoff_path() -> Path:
+    override = os.environ.get("UEFN_MCP_TOKEN_FILE", "").strip()
+    if override:
+        return Path(override).expanduser()
+    local_app_data = os.environ.get("LOCALAPPDATA", "").strip()
+    if not local_app_data:
+        raise ConnectionError(
+            "UEFN MCP session handoff is unavailable because LOCALAPPDATA is unset"
+        )
+    return (
+        Path(local_app_data)
+        / "UnrealEditorFortnite"
+        / "Saved"
+        / "UEFN_Toolbelt"
+        / TOKEN_FILE_NAME
+    )
+
+
+def _load_session() -> tuple[str, str]:
+    """Load the current same-user listener coordinates without exposing its token."""
+    path = _token_handoff_path()
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConnectionError(
+            "UEFN MCP session is unavailable. Start or restart the Toolbelt listener."
+        ) from exc
+    if not isinstance(payload, dict):
+        raise ConnectionError("UEFN MCP session handoff is invalid; restart the listener")
+    host = payload.get("host")
+    port = _PORT_OVERRIDE if _PORT_OVERRIDE is not None else payload.get("port")
+    token = payload.get("token")
+    if (
+        payload.get("version") != 1
+        or host != "127.0.0.1"
+        or not isinstance(port, int)
+        or not (1 <= port <= 65535)
+        or not isinstance(token, str)
+        or len(token) < 32
+    ):
+        raise ConnectionError("UEFN MCP session handoff is invalid; restart the listener")
+    return f"http://127.0.0.1:{port}", token
+
+
 def _send(command: str, params: dict | None = None,
           timeout: float = REQUEST_TIMEOUT) -> dict:
     """
@@ -132,36 +196,53 @@ def _send(command: str, params: dict | None = None,
         RuntimeError:    Command failed inside UEFN.
         TimeoutError:    UEFN took too long to respond.
     """
+    listener_url, token = _load_session()
     payload = json.dumps({"command": command, "params": params or {}}).encode()
     req = urllib.request.Request(
-        LISTENER_URL,
+        listener_url,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
         method="POST",
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             body = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            raise PermissionError(
+                "UEFN MCP authentication failed; restart the listener to refresh the session"
+            ) from None
+        raise RuntimeError(
+            f"UEFN MCP request was rejected with HTTP {exc.code}"
+        ) from None
     except urllib.error.URLError as e:
-        if "Connection refused" in str(e) or "No connection" in str(e):
+        detail = _redact_secret(str(e), token)
+        if "Connection refused" in detail or "No connection" in detail:
             raise ConnectionError(
                 "UEFN listener is not running.\n"
                 "  Start it: In UEFN Output Log or Toolbelt dashboard → MCP: Start Listener\n"
                 "  Or:       import UEFN_Toolbelt as tb; tb.run('mcp_start')"
-            ) from e
-        raise
+            ) from None
+        raise ConnectionError("UEFN MCP listener could not be reached") from None
     except Exception as e:
-        if "timed out" in str(e).lower():
+        detail = _redact_secret(str(e), token)
+        if "timed out" in detail.lower():
             raise TimeoutError(
-                f"Command '{command}' timed out after {timeout}s.\n"
+                f"Command '{_redact_secret(command, token)}' timed out after {timeout}s.\n"
                 "  The UEFN editor may be blocked. Try a shorter operation."
-            ) from e
-        raise
+            ) from None
+        raise RuntimeError(detail) from None
+
+    body = _redact_secret(body, token)
 
     if not body.get("success", False):
         err = body.get("error", "Unknown error")
         tb  = body.get("traceback", "")
-        raise RuntimeError(f"UEFN error for '{command}': {err}\n{tb}".strip())
+        safe_command = _redact_secret(command, token)
+        raise RuntimeError(f"UEFN error for '{safe_command}': {err}\n{tb}".strip())
 
     return body.get("result", {})
 
@@ -180,9 +261,10 @@ mcp = FastMCP(
         "for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).\n\n"
         "IMPORTANT: Start the listener in UEFN first:\n"
         "  import UEFN_Toolbelt as tb; tb.run('mcp_start')\n\n"
+        "The listener uses a rotating same-user bearer session and queued main-thread "
+        "dispatch. Browser-originated requests are rejected.\n\n"
         "Key tools:\n"
-        "  run_toolbelt_tool   — run ANY of the 362 registered toolbelt tools\n"
-        "  execute_python      — run arbitrary Python inside UEFN with full unreal.*\n"
+        "  run_toolbelt_tool   — run registered tools except local-only MCP lifecycle\n"
         "  list_toolbelt_tools — see every tool available\n"
         "  get_all_actors      — snapshot the level\n"
         "  get_selected_actors — what the user has selected right now\n\n"
@@ -192,7 +274,7 @@ mcp = FastMCP(
         "  verse_book_update   — git pull the latest spec from upstream\n\n"
         "IMPORTANT for Verse codegen: always call verse_book_search or verse_book_chapter\n"
         "BEFORE writing Verse code to ensure syntax is spec-accurate.\n\n"
-        "The execute_python tool pre-populates: unreal, actor_sub, asset_sub, level_sub, tb."
+        "Arbitrary remote Python is unavailable; use the local UEFN Python console."
     ),
 )
 
@@ -203,42 +285,6 @@ mcp = FastMCP(
 def ping() -> str:
     """Check if the UEFN Toolbelt listener is running and get its status."""
     return _j(_send("ping"))
-
-
-@mcp.tool()
-def execute_python(code: str) -> str:
-    """Execute arbitrary Python inside the UEFN editor on the main thread.
-
-    Pre-populated globals:
-        unreal      — the full unreal Python module (37K+ types)
-        actor_sub   — EditorActorSubsystem
-        asset_sub   — EditorAssetSubsystem
-        level_sub   — LevelEditorSubsystem
-        tb          — UEFN_Toolbelt package (tb.run('tool_name', **kwargs))
-
-    Assign to `result` to return a value. Use print() for stdout.
-
-    Examples:
-        # Get world name
-        result = unreal.EditorLevelLibrary.get_editor_world().get_name()
-
-        # Count actors by class
-        actors = actor_sub.get_all_level_actors()
-        from collections import Counter
-        result = dict(Counter(a.get_class().get_name() for a in actors))
-
-        # Run a toolbelt tool programmatically
-        tb.run('material_apply_preset', preset='chrome')
-    """
-    result = _send("execute_python", {"code": code}, timeout=LONG_OPERATION_TIMEOUT)
-    parts = []
-    if result.get("stdout"):
-        parts.append(f"stdout:\n{result['stdout'].rstrip()}")
-    if result.get("stderr"):
-        parts.append(f"stderr:\n{result['stderr'].rstrip()}")
-    if result.get("result") is not None:
-        parts.append(f"result: {_j(result['result'])}")
-    return "\n\n".join(parts) if parts else "(no output)"
 
 
 @mcp.tool()
@@ -256,9 +302,9 @@ def mcp_get_log(last_n: int = 50) -> str:
 def run_toolbelt_tool(tool_name: str, kwargs: dict | None = None) -> str:
     """Run any registered UEFN Toolbelt tool by name.
 
-    This is the single most powerful MCP tool — it exposes all 362 toolbelt tools
-    to Claude Code through one command. Instead of writing custom execute_python
-    code, just name the tool and pass its arguments as a dict.
+    This exposes the registered Toolbelt catalogue through one command, except
+    local-only MCP listener lifecycle controls. Name the tool and pass its
+    arguments as a dict instead of relying on arbitrary Python.
 
     Args:
         tool_name: Registered tool name (e.g. 'material_apply_preset').
@@ -803,7 +849,9 @@ if __name__ == "__main__":
     # Allow --port override: python mcp_server.py --port 8766
     for i, arg in enumerate(sys.argv[1:], 1):
         if arg == "--port" and i < len(sys.argv) - 1:
-            LISTENER_PORT = int(sys.argv[i + 1])
-            LISTENER_URL  = f"http://127.0.0.1:{LISTENER_PORT}"
+            candidate_port = int(sys.argv[i + 1])
+            if not (1 <= candidate_port <= 65535):
+                raise ValueError(f"Port {candidate_port} out of range")
+            _PORT_OVERRIDE = candidate_port
 
     mcp.run()

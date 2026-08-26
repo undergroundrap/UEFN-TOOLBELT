@@ -4,25 +4,41 @@ UEFN Toolbelt is editor automation with the same privileges as the embedded
 Python process. Treat Toolbelt, custom plugins, MCP clients, and generated Python
 as executable code—not as isolated island content.
 
-## Interim custom MCP warning
+## Experimental custom MCP boundary
 
-The custom HTTP bridge remains experimental pending implementation of issued
-Work Order WO-001. Do not expose it beyond the local machine, do not connect an
-untrusted local client, and do not describe the current bridge as authenticated
-or safe for untrusted browser content.
+Work Order WO-001 Session A adds an authenticated, fail-closed control plane,
+but the custom HTTP bridge remains experimental and trusted-same-user-only. Do
+not expose it beyond the local machine or connect an untrusted local process.
+Loopback plus a bearer token is not a sandbox.
 
-The accepted 2026-08-24 read-only audit established:
+The accepted 2026-08-24 read-only audit established the pre-hardening risks.
+Session A addresses them as follows:
+
+- every listener start generates a cryptographically strong bearer secret and
+  writes it to the same-user local `Saved/UEFN_Toolbelt/mcp_session.json`
+  handoff; restart rotates it and stop removes it;
+- secrets are compared in constant time and recursively redacted before status,
+  command results, errors, logs, history, or client output is stored or emitted;
+- method, path, `Host`, `Origin`, content type, authentication, and body size are
+  checked before JSON parsing or dispatch; browser origins and preflight are
+  rejected and no CORS permission is emitted;
+- arbitrary remote Python is unavailable. The bridge exposes only registered,
+  bounded commands; deliberate scripting remains local to UEFN's Python console;
+- the listener becomes reachable only after Slate callback registration and
+  session handoff succeed. Callback failure leaves no listener, token, or
+  direct-thread fallback;
+- all accepted commands enter the queue and execute from the Slate callback on
+  the editor main thread.
+
+The handoff file is deliberately readable by the same Windows user so
+`mcp_server.py` and `client.py` can authenticate automatically. Another process
+running as that user may be able to read it, inject into the editor process, or
+otherwise act with the user's privileges. The bridge does not defend against a
+compromised same-user account or privileged local malware.
 
 - binding to `127.0.0.1` limits network reach but does not authenticate a client;
-- the request handler does not enforce a client secret, trusted `Host`, trusted
-  `Origin`, or strict content type before command dispatch;
-- `execute_python` permits arbitrary in-editor Python with `unreal.*` access;
-- CORS response headers are not authorization and do not prevent write-only
-  side effects;
-- if Slate callback registration is unavailable, the bridge can fall back to
-  dispatching Unreal work on the HTTP handler thread;
-- all `unreal.*` calls are required to execute on the editor main thread, so
-  inability to install queued dispatch must fail closed.
+the rotating bearer session supplies client authentication within the narrower
+same-user trust model described above.
 
 The audit did not start the custom listener and did not perform malicious or
 destructive exploit testing. These conclusions came from source inspection and
@@ -34,8 +50,8 @@ non-destructive live integration evidence. See the
 - **Repository code:** open for review, but still privileged editor code.
 - **Official Epic MCP:** a separate experimental Epic control plane bound to
   loopback; follow Epic's current documentation and UEFN beta warnings.
-- **Toolbelt custom bridge:** trusted-local-client use only, with the interim
-  restrictions above.
+- **Toolbelt custom bridge:** authenticated same-user local clients only, with
+  the experimental restrictions above.
 - **Custom plugins:** review source and provenance before loading. Static import
   checks reduce obvious risk but do not turn Python into a security sandbox.
 - **Remote downloads and integrations:** some optional Toolbelt features fetch

@@ -8,8 +8,7 @@ When the listener is running, Claude Code can call these directly:
 |---|---|---|
 | `ping` | — | Health check + command list |
 | `get_log` | `last_n=50` | Return last N lines from the MCP command log ring |
-| `execute_python` | `code` | Run Python in UEFN (pre-populated: `unreal`, `actor_sub`, `asset_sub`, `level_sub`, `tb`) |
-| `run_tool` | `tool_name`, `kwargs={}` | Run any of the 362 registered tools |
+| `run_tool` | `tool_name`, `kwargs={}` | Run registered tools; `mcp_start/stop/restart` remain local-only |
 | `list_tools` | `category=""` | List all registered tools |
 | `describe_tool` | `tool_name` | Full manifest entry for one tool (name, description, parameters, tags) |
 | `batch_exec` | `commands=[{command, params}]` | Multiple commands in one tick |
@@ -43,12 +42,14 @@ When the listener is running, Claude Code can call these directly:
 
 ## External HTTP Client (no MCP required)
 
-`client.py` at the project root gives any Python script, Go tool, or curl access to UEFN:
+`client.py` at the project root gives trusted same-user Python automation
+authenticated access to UEFN. It reads the rotating session handoff
+automatically:
 
 ```python
 from client import ToolbeltClient
 
-ue = ToolbeltClient()               # connects to 127.0.0.1:8765
+ue = ToolbeltClient()               # loads Saved/UEFN_Toolbelt/mcp_session.json
 ue.ping()
 ue.run_tool("material_apply_preset", preset="chrome")
 ue.batch([
@@ -58,11 +59,19 @@ ue.batch([
 ])
 ```
 
-Or with curl:
-```bash
-curl -X POST http://127.0.0.1:8765 \
-  -H "Content-Type: application/json" \
-  -d '{"command": "run_tool", "params": {"tool_name": "material_apply_preset", "kwargs": {"preset": "gold"}}}'
+Unauthenticated raw HTTP, browser origins, CORS preflight, non-loopback hosts,
+and requests without the current bearer session are rejected before body
+parsing. The handoff is same-user privileged material, not a sandbox boundary.
+Arbitrary remote Python is unavailable; use registered commands or UEFN's local
+Python console. Listener lifecycle and the self-managing integration suite are
+local-only.
+
+If Epic's **UEFN MCP Toolsets** beta is enabled and the listener command says
+Toolbelt is not registered, Quirk #36 suppressed `init_unreal.py`. Recover once
+for the current editor session before starting the listener:
+
+```python
+import UEFN_Toolbelt as tb; tb.register(); tb.run("mcp_start")
 ```
 
 ---
@@ -95,7 +104,7 @@ tb.run("verse_list_devices")   # lists all devices (works regardless of selectio
 ### Material instance — always call update after params
 ```python
 # This is handled automatically by toolbelt tools
-# If writing raw execute_python, remember:
+# For local UEFN-console material scripting, remember:
 # MaterialEditingLibrary.update_material_instance(mi)  ← never skip
 ```
 

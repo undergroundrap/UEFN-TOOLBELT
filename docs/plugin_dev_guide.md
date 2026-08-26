@@ -136,7 +136,10 @@ To see a list of all currently loaded third-party plugins, click **plugin_list_c
 
 ## 🤖 AI & MCP Integration
 
-Once the Toolbelt's MCP bridge is running (`tb.run("mcp_start")`), every registered tool — including your custom plugin — is instantly callable from Claude Code (or any MCP client) by name.
+Once the Toolbelt's MCP bridge is running (`tb.run("mcp_start")`), every
+registered tool—including your custom plugin—is callable by name from an
+authenticated same-user MCP client. Browser origins and unauthenticated raw
+HTTP are rejected.
 
 ### Discovering Your Plugin via MCP
 

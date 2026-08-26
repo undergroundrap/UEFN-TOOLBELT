@@ -10,7 +10,7 @@ Read the files that were most recently modified to determine the change type, th
 | New module added to `tools/__init__.py` | `deploy.bat` → **full UEFN restart** → `tb.register_all_tools()` → `tb.run("tool_name")` |
 | PySide6 window / dashboard UI | `deploy.bat` → **full UEFN restart** → open window, interact |
 | `core/` module change | `deploy.bat` → nuclear reload → `tb.run("toolbelt_smoke_test")` |
-| MCP bridge change | `deploy.bat` → `tb.run("mcp_start")` |
+| MCP bridge change | `deploy.bat` → **full UEFN restart** → `tb.run("mcp_start")` → authenticated external ping |
 | Launch Session / Push Changes / publish | run `publish_audit` while Python is loaded → `prepare_launch.bat` → wait for remote validation → `restore_after_launch.bat` |
 
 ## Nuclear reload (paste into UEFN Python console)

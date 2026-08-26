@@ -450,32 +450,12 @@ for a in unreal.EditorActorSubsystem().get_selected_level_actors():
 
 ---
 
-## `execute_python` — Direct Device Access
+## Local Python for unsupported inspection
 
-When the MCP bridge is running, Claude Code can run arbitrary Python in UEFN
-to access device properties that no tool exposes:
-
-```python
-# Via MCP — inspect a specific device by label
-ue.execute_python("""
-target = None
-for a in actor_sub.get_all_level_actors():
-    if "score_manager" in a.get_actor_label().lower():
-        target = a
-        break
-
-if target:
-    props = {}
-    for name in dir(target):
-        try:
-            val = getattr(target, name)
-            if not callable(val):
-                props[name] = str(val)
-        except Exception:
-            pass
-    print(props)
-""")
-```
+Arbitrary remote Python is unavailable through the MCP bridge. Prefer a
+registered Toolbelt inspection command. If no bounded command exposes the
+required property, review the script first and run it deliberately in UEFN's
+local Python console; do not turn it into a remote dynamic-execution route.
 
 ---
 

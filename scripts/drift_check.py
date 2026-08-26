@@ -138,6 +138,9 @@ _GAME_PATH_DEFAULT_BASELINE = 0
 
 _WORK_ORDER_STATES = {"PROPOSED", "ISSUED", "COMPLETED", "SUPERSEDED"}
 _ISSUED_NO_SESSION_AUTH = "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED"
+_ISSUED_SESSION_A_AUTH = (
+    "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION"
+)
 
 
 def _has_implicit_session_authorization(
@@ -168,6 +171,7 @@ def _has_implicit_session_authorization(
     statements = re.split(
         r"[.!?;:]|\b(?:but|however|nevertheless|nonetheless|yet)\b",
         authority_text,
+        flags=re.IGNORECASE,
     )
     implementation_context = (
         r"(?:implement(?:ation|ing)?|work|session|approval|authorization|"
@@ -218,6 +222,42 @@ def _has_implicit_session_authorization(
                     and re.search(rf"\b{implementation_context}\b", statement))):
             return True
 
+    return False
+
+
+def _has_other_session_authorization(
+    pointer: str, issued_text: str, authorized_session: str
+) -> bool:
+    """Reject positive activation of a labeled session other than the current one."""
+    authority_text = pointer + "\n" + issued_text
+    statements = re.split(
+        r"[\r\n]+|[.!?;]|\b(?:but|however|nevertheless|nonetheless|yet)\b",
+        authority_text,
+        flags=re.IGNORECASE,
+    )
+    positive = re.compile(
+        r"\b(?:authorized|permitted|approved|cleared|granted|unlocked|ready|"
+        r"go[- ]ahead|green\s+light|begin|start|commence|proceed|resume)\b",
+        re.IGNORECASE,
+    )
+    negative = re.compile(
+        r"\b(?:not\s+authorized|not\s+permitted|not\s+approved|unauthorized|"
+        r"requires?\s+(?:a\s+)?separate\s+(?:owner\s+)?gate|"
+        r"remains?\s+(?:closed|unauthorized)|"
+        r"(?:must|may)\s+not\s+(?:begin|start|commence|proceed|resume)"
+        r"(?:\s+(?:until|without)\s+(?:a\s+|an\s+)?(?:separate\s+|explicit\s+)?"
+        r"owner\s+(?:gate|authorization))?|"
+        r"(?:is|are)\s+not\s+ready\s+to\s+"
+        r"(?:begin|start|commence|proceed|resume))\b",
+        re.IGNORECASE,
+    )
+    for statement in statements:
+        labels = re.findall(r"\bSession\s+([A-Z]{1,3})\b", statement)
+        if not labels or all(label == authorized_session for label in labels):
+            continue
+        residual = negative.sub("", statement)
+        if positive.search(residual):
+            return True
     return False
 
 
@@ -559,11 +599,110 @@ def check_work_order_contract() -> list[dict]:
                 ):
                     add("WORKORDER.md", "implicit session authorization",
                         "contradictory Session A permission", expected_gate)
-            elif auth_lines == [_ISSUED_NO_SESSION_AUTH]:
-                add(issued[0].relative_to(root).as_posix(),
-                    "issued session authorization", repr(auth_lines),
-                    f"authorization metadata agreeing with session {session}")
+            elif session == "A":
+                expected_gate = (
+                    f"{issued_id} SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
+                )
+                if auth_lines != [_ISSUED_SESSION_A_AUTH]:
+                    add(issued[0].relative_to(root).as_posix(),
+                        "issued session authorization", repr(auth_lines),
+                        f"exactly {_ISSUED_SESSION_A_AUTH}")
+                if current_gate != expected_gate:
+                    add("WORKORDER.md", "authorized session gate", str(current_gate),
+                        expected_gate)
+                if _has_other_session_authorization(pointer, issued_text, session):
+                    add("WORKORDER.md", "later session authorization",
+                        "positive permission for a non-current session",
+                        "only Session A authorized")
+            else:
+                add("WORKORDER.md", "authorized session gate", str(session),
+                    "NONE or the specifically authorized session A")
 
+    return findings
+
+
+def check_mcp_security_contract() -> list[dict]:
+    """Keep the compact agent surface aligned with the secured MCP boundary."""
+    from pathlib import Path
+
+    path = Path(ROOT) / "llms.txt"
+    if not path.exists():
+        return [{
+            "file": "llms.txt",
+            "line": 0,
+            "type": "MCP security contract",
+            "found": "missing",
+            "expected": "authenticated bridge guidance",
+            "content": "llms.txt is required",
+        }]
+
+    text = " ".join(path.read_text(encoding="utf-8").split())
+    required = (
+        "authenticated same-user loopback",
+        "`mcp_server.py` and `client.py` load the rotating local session handoff automatically",
+        "Unauthenticated, browser-originated, and remote-host requests are rejected",
+        "Arbitrary remote Python is unavailable",
+        "`mcp_start`, `mcp_stop`, and `mcp_restart` are local-only",
+        "Epic's official MCP and Toolbelt can coexist",
+        "Quirk #36",
+        "run `tb.register()` once before `mcp_start`",
+    )
+    findings: list[dict] = []
+    for phrase in required:
+        if phrase not in text:
+            findings.append({
+                "file": "llms.txt",
+                "line": 0,
+                "type": "MCP security contract",
+                "found": f"missing {phrase!r}",
+                "expected": "current authenticated local-only guidance",
+                "content": phrase,
+            })
+
+    forbidden = (
+        (r"\bexecute arbitrary Python\b", "execute arbitrary Python"),
+        (
+            r"\bUEFN_TOOLBELT_MCP_ALLOW_EXECUTE_PYTHON\b",
+            "UEFN_TOOLBELT_MCP_ALLOW_EXECUTE_PYTHON",
+        ),
+        (r"\bany MCP client auto-connects\b", "any MCP client auto-connects"),
+        (
+            r"\bbrowser-originated requests?\s+(?:are|is)\s+"
+            r"(?:accepted|allowed|permitted)\b",
+            "browser-originated requests accepted",
+        ),
+        (
+            r"\bunauthenticated requests?\s+(?:are|is)\s+"
+            r"(?:accepted|allowed|permitted)\b",
+            "unauthenticated requests accepted",
+        ),
+        (
+            r"\barbitrary remote Python\s+(?:is|remains|can be)\s+"
+            r"(?:available|enabled|allowed|permitted|supported)\b",
+            "arbitrary remote Python available",
+        ),
+        (
+            r"\b`?mcp_(?:start|stop|restart)`?\s+(?:may|can)\s+be\s+"
+            r"(?:called|invoked|run)\s+remotely\b",
+            "remote listener lifecycle control",
+        ),
+        (
+            r"\b(?:the\s+)?custom bridge\s+(?:is|remains)\s+reachable\s+"
+            r"from\s+remote hosts\b|\bremote hosts\s+(?:may|can)\s+reach\s+"
+            r"(?:the\s+)?custom bridge\b",
+            "custom bridge reachable from remote hosts",
+        ),
+    )
+    for pattern, description in forbidden:
+        if re.search(pattern, text, re.IGNORECASE):
+            findings.append({
+                "file": "llms.txt",
+                "line": 0,
+                "type": "MCP security contract",
+                "found": description,
+                "expected": "no stale unauthenticated or arbitrary-execution guidance",
+                "content": description,
+            })
     return findings
 
 
@@ -784,6 +923,7 @@ def run() -> int:
     all_findings.extend(check_ui_coverage())
     all_findings.extend(check_game_path_defaults())
     all_findings.extend(check_work_order_contract())
+    all_findings.extend(check_mcp_security_contract())
 
     if not all_findings:
         print("[drift_check] PASS — No drift found. Codebase is consistent.\n")
