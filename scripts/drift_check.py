@@ -141,6 +141,9 @@ _ISSUED_NO_SESSION_AUTH = "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED"
 _ISSUED_SESSION_A_AUTH = (
     "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION"
 )
+_ISSUED_SESSION_A_ACCEPTED = (
+    "AUTHORIZATION: ISSUED — SESSION A ACCEPTED; NO SESSION AUTHORIZED"
+)
 _COMPLETED_NO_SESSION_AUTH = "AUTHORIZATION: COMPLETED — NO SESSION AUTHORIZED"
 _WO001_COMPLETION_COMMIT = "ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c"
 _WO001_COMPLETION_WORKFLOW = "32921154482"
@@ -156,6 +159,231 @@ _WO002_SESSION_A_BASE = "d87572e2a272c98f8dd634cfe17ff8a130446a7b"
 _WO002_SESSION_A_WORKFLOW = "32931353926"
 _WO002_SESSION_A_JOB = "98064090312"
 _WO002_SESSION_A_GATE = "WO-002 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
+_WO002_SESSION_A_ACCEPTED_BASE = "50b881716abea3b5838c2a971caac40ee4cd5d30"
+_WO002_SESSION_A_ACCEPTED_WORKFLOW = "32937631903"
+_WO002_SESSION_A_ACCEPTED_JOB = "98081919978"
+_WO002_SESSION_A_ACCEPTED_GATE = (
+    "WO-002 SESSION A ACCEPTED — SESSION B NOT AUTHORIZED"
+)
+_WO002_REQUIRED_JOB_TITLE = "Lint, types, tests"
+_WO002_ACCEPTED_RUN_URL = (
+    "https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/"
+    + _WO002_SESSION_A_ACCEPTED_WORKFLOW
+)
+_WO002_ACCEPTED_JOB_URL = (
+    _WO002_ACCEPTED_RUN_URL + "/job/" + _WO002_SESSION_A_ACCEPTED_JOB
+)
+# Exact acceptance-evidence fragments.
+#
+# A presence-only membership test cannot enforce this record. Each identifier
+# occurs two or three times per surface - visible label, run URL, job URL, and
+# in WORKORDER.md the separate `Base commit` marker - so one visible label or
+# URL can rot to a wrong value while another occurrence keeps `in` satisfied.
+# Every fragment below pins ONE occurrence in its own position and form, and
+# the narrative commit is anchored to its sentence so the `Base commit` bullet
+# can never stand in for it.
+_WO002_ACCEPTED_POINTER_EVIDENCE = (
+    ("acceptance narrative commit",
+     "pushed as `" + _WO002_SESSION_A_ACCEPTED_BASE + "`;"),
+    ("acceptance workflow label",
+     "[CI workflow `" + _WO002_SESSION_A_ACCEPTED_WORKFLOW + "`]"),
+    ("acceptance workflow URL", "(" + _WO002_ACCEPTED_RUN_URL + ")"),
+    ("acceptance required-job label",
+     "[`" + _WO002_SESSION_A_ACCEPTED_JOB + "` — "
+     + _WO002_REQUIRED_JOB_TITLE + "]"),
+    ("acceptance job URL", "(" + _WO002_ACCEPTED_JOB_URL + ")"),
+)
+_WO002_ACCEPTED_ISSUED_EVIDENCE = (
+    ("acceptance narrative commit",
+     "accepted and committed as `" + _WO002_SESSION_A_ACCEPTED_BASE + "`."),
+    ("acceptance workflow label",
+     "[`" + _WO002_SESSION_A_ACCEPTED_WORKFLOW + "`]"),
+    ("acceptance workflow URL", "(" + _WO002_ACCEPTED_RUN_URL + ")"),
+    ("acceptance required-job label",
+     "[`" + _WO002_SESSION_A_ACCEPTED_JOB + "` — "
+     + _WO002_REQUIRED_JOB_TITLE + "]"),
+    ("acceptance job URL", "(" + _WO002_ACCEPTED_JOB_URL + ")"),
+)
+
+# Canonical acceptance regions.
+#
+# Fragment-presence over a whole document is position-blind: corrupting the
+# real occurrence and appending a correct decoy elsewhere - even inside an
+# HTML comment - satisfies a containment test.
+#
+# Bounding the record by markers drawn from its own prose is not enough
+# either. Those markers travel with the content, so a transplant defeats them:
+# corrupt the genuine record together with its markers, paste a byte-correct
+# copy anywhere else, and a marker search selects the transplant as its one
+# valid region and passes.
+#
+# Each record is therefore located by the structure immediately around it,
+# never by anything inside it, and the block at that anchored position must
+# match exactly. A transplant then leaves the anchored position holding the
+# corrupted text.
+#
+# The anchors are references and headings, not prose: rewording a neighbouring
+# record cannot produce a WO-002 acceptance finding, and an unrelated heading
+# added elsewhere in the issued Work Order is none of this check's business.
+_WO001_COMPLETED_LINK = "](docs/work-orders/completed/WO-001-custom-mcp-security.md)"
+_WO002_ISSUED_LINK = "](docs/work-orders/issued/WO-002-epic-toolset-integration.md)"
+_WO002_BASIS_HEADING = "## Session A authorization basis"
+_WO002_RECORD_HEADING = "## Session A acceptance record"
+_WO002_FOLLOWING_HEADING = "## Problem and accepted evidence"
+_WO002_ACCEPTED_POINTER_BLOCK = (
+    "[`WO-002`](docs/work-orders/issued/WO-002-epic-toolset-"
+    "integration.md) is issued. Session A was independently accepted, "
+    "committed, and pushed as "
+    "`50b881716abea3b5838c2a971caac40ee4cd5d30`; [CI workflow "
+    "`32937631903`](https://github.com/undergroundrap/UEFN-"
+    "TOOLBELT/actions/runs/32937631903) completed successfully, "
+    "including required job [`98081919978` — Lint, types, "
+    "tests](https://github.com/undergroundrap/UEFN-"
+    "TOOLBELT/actions/runs/32937631903/job/98081919978). No session is "
+    "currently authorized. Session B remains unauthorized and requires "
+    "separate BDFL/owner authorization."
+)
+_WO002_ACCEPTED_ISSUED_BLOCK = (
+    "## Session A acceptance record Session A was independently "
+    "accepted and committed as "
+    "`50b881716abea3b5838c2a971caac40ee4cd5d30`. CI workflow "
+    "[`32937631903`](https://github.com/undergroundrap/UEFN-"
+    "TOOLBELT/actions/runs/32937631903) completed successfully, "
+    "including required job [`98081919978` — Lint, types, "
+    "tests](https://github.com/undergroundrap/UEFN-"
+    "TOOLBELT/actions/runs/32937631903/job/98081919978). Accepted live "
+    "`TOOL_TEST` evidence recorded 362 tools across 55 categories; the "
+    "internal list, describe, and run contracts passed; every external "
+    "official- MCP state remained `not_tested`; and the dashboard truth"
+    " model was verified. Independent review also confirmed that the "
+    "existing dashboard auto-start behavior required no Session A "
+    "correction. The listener was stopped locally, the handoff was "
+    "absent, and ports 8765–8770 were closed after verification. "
+    "Session A is accepted and complete. No session is currently "
+    "authorized. Session B remains unauthorized and requires separate "
+    "BDFL/owner authorization."
+)
+
+
+def _paragraphs(text: str) -> list[list[str]]:
+    """Blank-line delimited blocks, each as its list of lines."""
+    blocks: list[list[str]] = []
+    current: list[str] = []
+    for line in text.split("\n"):
+        if line.strip():
+            current.append(line)
+        elif current:
+            blocks.append(current)
+            current = []
+    if current:
+        blocks.append(current)
+    return blocks
+
+
+def _anchored_pointer_region(text: str) -> tuple[str | None, str | None]:
+    """The WO-002 acceptance paragraph, located by the paragraph before it.
+
+    The preceding paragraph is identified by the WO-001 completion reference
+    rather than by its wording, so WO-001 supplies position only: rewording it
+    cannot produce a WO-002 finding, while duplicating its reference to forge
+    an anchor fails closed.
+    """
+    for label, link in (
+        ("WO-001 completion link", _WO001_COMPLETED_LINK),
+        ("issued WO-002 link", _WO002_ISSUED_LINK),
+    ):
+        occurrences = text.count(link)
+        if occurrences != 1:
+            return None, (
+                label + " occurs " + str(occurrences) + "x, expected exactly 1"
+            )
+    blocks = _paragraphs(text)
+    anchors = [
+        index
+        for index, block in enumerate(blocks)
+        if _WO001_COMPLETED_LINK in "\n".join(block)
+    ]
+    if len(anchors) != 1:
+        return None, (
+            "WO-001 completion paragraph occurs " + str(len(anchors))
+            + "x, expected exactly 1"
+        )
+    following = anchors[0] + 1
+    if following >= len(blocks):
+        return None, "no paragraph follows the WO-001 completion paragraph"
+    region = "\n".join(blocks[following])
+    if _WO002_ISSUED_LINK not in region:
+        return None, (
+            "the paragraph after the WO-001 completion paragraph does not "
+            "carry the issued WO-002 link"
+        )
+    return " ".join(region.split()), None
+
+
+def _anchored_issued_region(text: str) -> tuple[str | None, str | None]:
+    """The acceptance section, located by its two neighbouring headings.
+
+    Only the local ordering basis -> record -> following is required. Headings
+    elsewhere in the Work Order are free to change, but the acceptance section
+    cannot be renamed, duplicated, reordered, or re-homed without failing.
+    """
+    lines = text.split("\n")
+    marks = [i for i, line in enumerate(lines) if line.startswith("## ")]
+    headings = [lines[i] for i in marks]
+    for heading in (
+        _WO002_BASIS_HEADING,
+        _WO002_RECORD_HEADING,
+        _WO002_FOLLOWING_HEADING,
+    ):
+        occurrences = headings.count(heading)
+        if occurrences != 1:
+            return None, (
+                "heading " + heading + " occurs " + str(occurrences)
+                + "x, expected exactly 1"
+            )
+    basis = headings.index(_WO002_BASIS_HEADING)
+    if basis + 2 >= len(headings):
+        return None, "no two headings follow " + _WO002_BASIS_HEADING
+    if headings[basis + 1] != _WO002_RECORD_HEADING:
+        return None, (
+            "the heading after " + _WO002_BASIS_HEADING + " is "
+            + headings[basis + 1] + ", expected " + _WO002_RECORD_HEADING
+        )
+    if headings[basis + 2] != _WO002_FOLLOWING_HEADING:
+        return None, (
+            "the heading after " + _WO002_RECORD_HEADING + " is "
+            + headings[basis + 2] + ", expected " + _WO002_FOLLOWING_HEADING
+        )
+    first = marks[basis + 1]
+    last = marks[basis + 2]
+    return " ".join("\n".join(lines[first:last]).split()), None
+
+
+def _acceptance_record_findings(text, locate, expected, fragments):
+    """Findings for one structurally anchored canonical acceptance record."""
+    found, reason = locate(text)
+    if reason is not None:
+        return [
+            ("canonical acceptance region: " + reason,
+             "exactly one structurally anchored canonical region")
+        ]
+    if found == expected:
+        return []
+    detail = []
+    for label, fragment in fragments:
+        occurrences = found.count(fragment)
+        if occurrences != 1:
+            detail.append((
+                label + " occurs " + str(occurrences)
+                + "x inside the canonical region",
+                "exactly one canonical occurrence: " + fragment))
+    if not detail:
+        detail.append((
+            "canonical acceptance block altered outside the pinned evidence",
+            "the canonical acceptance record, byte-identical after normalization"))
+    return detail
+
+
 _WO002_NEXT_GATE = (
     "NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone "
     "grants no implementation authority; Session B remains unauthorized."
@@ -163,6 +391,10 @@ _WO002_NEXT_GATE = (
 _WO002_SESSION_A_NEXT_GATE = (
     "NEXT GATE: fresh independent architect review of the complete uncommitted "
     "Session A implementation. Session B remains unauthorized."
+)
+_WO002_SESSION_A_ACCEPTED_NEXT_GATE = (
+    "NEXT GATE: explicit BDFL/owner authorization for Session B. Session A is "
+    "accepted and complete; no session is currently authorized."
 )
 _REMAINING_RELEASE_PROPOSALS = {
     "WO-003-official-mcp-doc-convergence.md",
@@ -798,38 +1030,99 @@ def check_work_order_contract() -> list[dict]:
                         issued_link)
 
             if session == "NONE":
-                expected_gate = (
-                    f"{issued_id} ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
+                session_a_accepted = issued[0].name == _WO002_NAME and (
+                    current_gate == _WO002_SESSION_A_ACCEPTED_GATE
+                    or auth_lines == [_ISSUED_SESSION_A_ACCEPTED]
+                    or "## Session A acceptance record" in issued_text
                 )
-                if auth_lines != [_ISSUED_NO_SESSION_AUTH]:
-                    add(issued[0].relative_to(root).as_posix(),
-                        "issued session authorization", repr(auth_lines),
-                        f"exactly {_ISSUED_NO_SESSION_AUTH}")
-                if current_gate != expected_gate:
-                    add("WORKORDER.md", "closed session gate", str(current_gate),
-                        expected_gate)
-
-                if _has_implicit_session_authorization(
-                    pointer, issued_text, expected_gate
-                ):
-                    add("WORKORDER.md", "implicit session authorization",
-                        "contradictory Session A permission", expected_gate)
-                if _has_other_session_authorization(pointer, issued_text, ""):
-                    add("WORKORDER.md", "later session authorization",
-                        "positive permission for a labeled session",
-                        "Session A, Session B, and later sessions remain unauthorized")
-
-                if issued[0].name == _WO002_NAME:
+                if session_a_accepted:
                     normalized_issued = " ".join(issued_text.split())
-                    if base != f"`{_WO002_ISSUANCE_BASE}`":
-                        add("WORKORDER.md", "issuance base commit", str(base),
-                            f"`{_WO002_ISSUANCE_BASE}`")
-                    if current_gate != _WO002_CLOSED_GATE:
-                        add("WORKORDER.md", "WO-002 closed gate",
-                            str(current_gate), _WO002_CLOSED_GATE)
-                    if _WO002_NEXT_GATE not in normalized_issued:
+                    if auth_lines != [_ISSUED_SESSION_A_ACCEPTED]:
+                        add(rel, "Session A accepted authorization",
+                            repr(auth_lines),
+                            f"exactly {_ISSUED_SESSION_A_ACCEPTED}")
+                    if base != f"`{_WO002_SESSION_A_ACCEPTED_BASE}`":
+                        add("WORKORDER.md", "Session A accepted base commit",
+                            str(base), f"`{_WO002_SESSION_A_ACCEPTED_BASE}`")
+                    if current_gate != _WO002_SESSION_A_ACCEPTED_GATE:
+                        add("WORKORDER.md", "Session A accepted gate",
+                            str(current_gate), _WO002_SESSION_A_ACCEPTED_GATE)
+                    for evidence, kind in (
+                        (_WO002_SESSION_A_ACCEPTED_BASE,
+                         "Session A accepted commit"),
+                        (_WO002_SESSION_A_ACCEPTED_WORKFLOW,
+                         "Session A accepted workflow"),
+                        (_WO002_SESSION_A_ACCEPTED_JOB,
+                         "Session A accepted job"),
+                    ):
+                        if evidence not in pointer or evidence not in issued_text:
+                            add(rel, kind, "missing from pointer or issued record",
+                                evidence)
+                    for found_detail, want in _acceptance_record_findings(
+                        pointer, _anchored_pointer_region,
+                        _WO002_ACCEPTED_POINTER_BLOCK,
+                        _WO002_ACCEPTED_POINTER_EVIDENCE,
+                    ):
+                        add("WORKORDER.md",
+                            "Session A acceptance record (WORKORDER.md)",
+                            found_detail, want)
+                    for found_detail, want in _acceptance_record_findings(
+                        issued_text, _anchored_issued_region,
+                        _WO002_ACCEPTED_ISSUED_BLOCK,
+                        _WO002_ACCEPTED_ISSUED_EVIDENCE,
+                    ):
+                        add(rel,
+                            "Session A acceptance record (issued WO-002)",
+                            found_detail, want)
+                    if "## Session A acceptance record" not in issued_text:
+                        add(rel, "Session A acceptance record", "missing",
+                            "bounded accepted commit, CI, and live evidence")
+                    if _WO002_SESSION_A_ACCEPTED_NEXT_GATE not in normalized_issued:
                         add(rel, "WO-002 next gate", "missing or changed",
-                            _WO002_NEXT_GATE)
+                            _WO002_SESSION_A_ACCEPTED_NEXT_GATE)
+                    if (
+                        "Session A is accepted and complete. No session is currently authorized"
+                        not in normalized_issued
+                    ):
+                        add(rel, "Session A accepted statement", "missing",
+                            "Session A complete with no current session authority")
+                    if _has_other_session_authorization(pointer, issued_text, ""):
+                        add("WORKORDER.md", "session authorization reopening",
+                            "positive permission for Session A, Session B, or later",
+                            "Session A accepted; no session authorized")
+                else:
+                    expected_gate = (
+                        f"{issued_id} ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
+                    )
+                    if auth_lines != [_ISSUED_NO_SESSION_AUTH]:
+                        add(issued[0].relative_to(root).as_posix(),
+                            "issued session authorization", repr(auth_lines),
+                            f"exactly {_ISSUED_NO_SESSION_AUTH}")
+                    if current_gate != expected_gate:
+                        add("WORKORDER.md", "closed session gate", str(current_gate),
+                            expected_gate)
+
+                    if _has_implicit_session_authorization(
+                        pointer, issued_text, expected_gate
+                    ):
+                        add("WORKORDER.md", "implicit session authorization",
+                            "contradictory Session A permission", expected_gate)
+                    if _has_other_session_authorization(pointer, issued_text, ""):
+                        add("WORKORDER.md", "later session authorization",
+                            "positive permission for a labeled session",
+                            "Session A, Session B, and later sessions remain unauthorized")
+
+                    if issued[0].name == _WO002_NAME:
+                        normalized_issued = " ".join(issued_text.split())
+                        if base != f"`{_WO002_ISSUANCE_BASE}`":
+                            add("WORKORDER.md", "issuance base commit", str(base),
+                                f"`{_WO002_ISSUANCE_BASE}`")
+                        if current_gate != _WO002_CLOSED_GATE:
+                            add("WORKORDER.md", "WO-002 closed gate",
+                                str(current_gate), _WO002_CLOSED_GATE)
+                        if _WO002_NEXT_GATE not in normalized_issued:
+                            add(rel, "WO-002 next gate", "missing or changed",
+                                _WO002_NEXT_GATE)
             elif session == "A":
                 expected_gate = (
                     f"{issued_id} SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"

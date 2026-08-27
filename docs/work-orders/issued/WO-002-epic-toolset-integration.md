@@ -2,7 +2,7 @@
 
 STATUS: ISSUED
 
-AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION
+AUTHORIZATION: ISSUED — SESSION A ACCEPTED; NO SESSION AUTHORIZED
 
 OWNER: Ocean Bennett
 
@@ -24,7 +24,26 @@ The issued Work Order was committed as
 `d87572e2a272c98f8dd634cfe17ff8a130446a7b`; successful CI workflow
 `32931353926` included successful required job `98064090312` (`Lint, types,
 tests`). Under the sole current gate in root `WORKORDER.md`, Session A is
-authorized for implementation. Session B remains unauthorized.
+authorized for implementation at this recorded historical stage. Session B
+remains unauthorized.
+
+## Session A acceptance record
+
+Session A was independently accepted and committed as
+`50b881716abea3b5838c2a971caac40ee4cd5d30`. CI workflow
+[`32937631903`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32937631903)
+completed successfully, including required job
+[`98081919978` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32937631903/job/98081919978).
+
+Accepted live `TOOL_TEST` evidence recorded 362 tools across 55 categories;
+the internal list, describe, and run contracts passed; every external official-
+MCP state remained `not_tested`; and the dashboard truth model was verified.
+Independent review also confirmed that the existing dashboard auto-start
+behavior required no Session A correction. The listener was stopped locally,
+the handoff was absent, and ports 8765–8770 were closed after verification.
+
+Session A is accepted and complete. No session is currently authorized.
+Session B remains unauthorized and requires separate BDFL/owner authorization.
 
 ## Problem and accepted evidence
 
@@ -110,8 +129,8 @@ the same truth model.
 
 ## Session A — internal contract and truth correction
 
-Session A is authorized for implementation under the current root
-`WORKORDER.md` gate. This authorization does not extend to Session B.
+Session A is accepted and complete. No session is currently authorized;
+Session B requires separate BDFL/owner authorization.
 
 ### Scope
 
@@ -272,5 +291,5 @@ tag, GitHub Release, repository metadata, or social publication.
 - The frozen WO-001–WO-007 release train and repository version 2.4.1 remain
   unchanged.
 
-NEXT GATE: fresh independent architect review of the complete uncommitted
-Session A implementation. Session B remains unauthorized.
+NEXT GATE: explicit BDFL/owner authorization for Session B. Session A is
+accepted and complete; no session is currently authorized.

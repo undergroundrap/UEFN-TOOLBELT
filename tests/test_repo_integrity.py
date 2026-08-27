@@ -217,12 +217,12 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert len(completed) == 1
     assert completed[0].name == "WO-001-custom-mcp-security.md"
     assert current == "WO-002"
-    assert session == "A"
+    assert session == "NONE"
     assert base_lines == [
-        "- Base commit: `d87572e2a272c98f8dd634cfe17ff8a130446a7b`"
+        "- Base commit: `50b881716abea3b5838c2a971caac40ee4cd5d30`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-002 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
+        "- Current gate: WO-002 SESSION A ACCEPTED — SESSION B NOT AUTHORIZED"
     ]
     assert "- Release train: WO-001 through WO-007" in pointer
     assert (
@@ -245,7 +245,7 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "STATUS: ISSUED"
     ]
     assert [line for line in issued_lines if line.startswith("AUTHORIZATION:")] == [
-        "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION"
+        "AUTHORIZATION: ISSUED — SESSION A ACCEPTED; NO SESSION AUTHORIZED"
     ]
     for evidence in (
         "098b38c669dd330cd059ea18dea52cc4e7eaefe2",
@@ -256,13 +256,21 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "98064090312",
     ):
         assert evidence in issued_text
+    for evidence in (
+        "50b881716abea3b5838c2a971caac40ee4cd5d30",
+        "32937631903",
+        "98081919978",
+    ):
+        assert evidence in issued_text
+        assert evidence in pointer
+    assert "## Session A acceptance record" in issued_text
     assert "## Session A — internal contract and truth correction" in issued_text
     assert "## Session B — external official-MCP proof" in issued_text
     assert "## Proposed Session A" not in issued_text
     assert "## Proposed Session B" not in issued_text
     assert (
-        "NEXT GATE: fresh independent architect review of the complete uncommitted\n"
-        "Session A implementation. Session B remains unauthorized."
+        "NEXT GATE: explicit BDFL/owner authorization for Session B. Session A is\n"
+        "accepted and complete; no session is currently authorized."
         in issued_text
     )
 
@@ -304,8 +312,8 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "Work Order WO-001" in security_normalized
 
 
-def _make_wo002_session_a_case(repo_root, tmp_path, name):
-    """Copy the current authorized WO-002 Session A state for mutations."""
+def _make_wo002_session_a_accepted_case(repo_root, tmp_path, name):
+    """Copy the current accepted WO-002 Session A state for mutations."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
@@ -316,29 +324,194 @@ def _make_wo002_session_a_case(repo_root, tmp_path, name):
     return case
 
 
+def _replace_once(text, old, new, where):
+    """Replace exactly one occurrence, or fail loudly.
+
+    ``str.replace`` with an absent needle returns the input unchanged and says
+    nothing. A historical reconstruction whose anchor has drifted therefore
+    rebuilds the *current* state, and every probe built on it passes vacuously
+    - the exact failure mode this file exists to reject. A duplicated anchor is
+    equally unsafe: a count-limited replace edits one and leaves the other.
+    """
+    occurrences = text.count(old)
+    assert occurrences == 1, (
+        where + ": expected exactly 1 occurrence to replace, found "
+        + str(occurrences) + " - this reconstruction is no longer anchored to "
+        "the recorded historical state: " + repr(old[:90])
+    )
+    return text.replace(old, new, 1)
+
+
+def _require_unique(text, headings, where):
+    """Every boundary the reconstruction depends on must occur exactly once.
+
+    Counted as exact lines. A non-greedy span between two headings reports one
+    match even when a duplicate boundary is swallowed *inside* that match, so
+    regex match counts cannot see a duplicated anchor. Newline-framed substring
+    counting cannot see one either, because a duplicate at the start of the
+    file has no preceding newline and one at EOF has no trailing newline.
+    """
+    lines = text.splitlines()
+    for heading in headings:
+        occurrences = lines.count(heading)
+        assert occurrences == 1, (
+            where + ": boundary " + repr(heading) + " occurs "
+            + str(occurrences) + "x, expected exactly 1 - this reconstruction "
+            "is no longer anchored to the recorded historical state"
+        )
+
+
+def _sub_once(pattern, repl, text, where, flags=0):
+    """``re.subn`` that must match exactly once - see _replace_once."""
+    result, count = re.subn(pattern, repl, text, flags=flags)
+    assert count == 1, (
+        where + ": expected exactly 1 regex match, found " + str(count)
+        + " - this reconstruction is no longer anchored: " + pattern
+    )
+    return result
+
+
+def _assert_reconstructed(where, text, required, forbidden):
+    """A reconstruction must land on the intended state, not merely run.
+
+    Anchored replacement proves each edit fired. It does not prove the edits
+    together describe the historical stage the probe claims to test, so the
+    end state is asserted directly.
+    """
+    for needle in required:
+        assert needle in text, (
+            where + ": reconstruction never reached the intended historical "
+            "state - missing " + repr(needle)
+        )
+    for needle in forbidden:
+        assert needle not in text, (
+            where + ": reconstruction still carries current-state text "
+            + repr(needle)
+        )
+
+
+def _make_wo002_session_a_case(repo_root, tmp_path, name):
+    """Reconstruct the preserved authorized Session A state for historical probes."""
+    case = _make_wo002_session_a_accepted_case(repo_root, tmp_path, name)
+    pointer = case / "WORKORDER.md"
+    accepted_pointer_record = (
+        "is issued. Session A was independently accepted, committed, and pushed as\n"
+        "`50b881716abea3b5838c2a971caac40ee4cd5d30`; [CI workflow\n"
+        "`32937631903`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32937631903)\n"
+        "completed successfully, including required job\n"
+        "[`98081919978` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32937631903/job/98081919978).\n"
+        "No session is currently authorized. Session B remains unauthorized and requires\n"
+        "separate BDFL/owner authorization."
+    )
+    text = pointer.read_text(encoding="utf-8")
+    for _old, _new in (
+        (
+            "- Authorized session: NONE",
+            "- Authorized session: A",
+        ),
+        (
+            "- Base commit: `50b881716abea3b5838c2a971caac40ee4cd5d30`",
+            "- Base commit: `d87572e2a272c98f8dd634cfe17ff8a130446a7b`",
+        ),
+        (
+            "- Current gate: WO-002 SESSION A ACCEPTED — SESSION B NOT AUTHORIZED",
+            "- Current gate: WO-002 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY",
+        ),
+        (
+            accepted_pointer_record,
+            "is issued. Session A is authorized for implementation under this root gate;\n"
+            "Session B remains unauthorized.",
+        ),
+    ):
+        text = _replace_once(text, _old, _new, "WO-002 authorized Session A pointer")
+    pointer.write_text(text, encoding="utf-8")
+    issued = (
+        case / "docs" / "work-orders" / "issued"
+        / "WO-002-epic-toolset-integration.md"
+    )
+    text = issued.read_text(encoding="utf-8")
+    _require_unique(
+        text,
+        ("## Session A acceptance record",
+         "## Problem and accepted evidence"),
+        "WO-002 authorized Session A acceptance-record excision",
+    )
+    text = _sub_once(
+        r"\n## Session A acceptance record\n.*?(?=\n## Problem and accepted evidence\n)",
+        "",
+        text,
+        "WO-002 authorized Session A acceptance-record excision",
+        flags=re.DOTALL,
+    )
+    for _old, _new in (
+        (
+            "AUTHORIZATION: ISSUED — SESSION A ACCEPTED; NO SESSION AUTHORIZED",
+            "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION",
+        ),
+        (
+            "authorized for implementation at this recorded historical stage. Session B\n"
+            "remains unauthorized.",
+            "authorized for implementation. Session B remains unauthorized.",
+        ),
+        (
+            "Session A is accepted and complete. No session is currently authorized;\n"
+            "Session B requires separate BDFL/owner authorization.",
+            "Session A is authorized for implementation under the current root\n"
+            "`WORKORDER.md` gate. This authorization does not extend to Session B.",
+        ),
+        (
+            "NEXT GATE: explicit BDFL/owner authorization for Session B. Session A is\n"
+            "accepted and complete; no session is currently authorized.",
+            "NEXT GATE: fresh independent architect review of the complete uncommitted\n"
+            "Session A implementation. Session B remains unauthorized.",
+        ),
+    ):
+        text = _replace_once(text, _old, _new, "WO-002 authorized Session A issued document")
+    issued.write_text(text, encoding="utf-8")
+    _assert_reconstructed(
+        "WO-002 authorized Session A pointer",
+        pointer.read_text(encoding="utf-8"),
+        ("- Authorized session: A",
+         "- Current gate: WO-002 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"),
+        ("- Authorized session: NONE",
+         "SESSION A ACCEPTED"),
+    )
+    _assert_reconstructed(
+        "WO-002 authorized Session A issued document",
+        text,
+        ("AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION",),
+        ("## Session A acceptance record",
+         "SESSION A ACCEPTED"),
+    )
+    return case
+
 def _make_wo002_issuance_case(repo_root, tmp_path, name):
     """Reconstruct the preserved closed issuance state for historical probes."""
     case = _make_wo002_session_a_case(repo_root, tmp_path, name)
     pointer = case / "WORKORDER.md"
-    pointer.write_text(
-        pointer.read_text(encoding="utf-8")
-        .replace("- Authorized session: A", "- Authorized session: NONE")
-        .replace(
+    text = pointer.read_text(encoding="utf-8")
+    for _old, _new in (
+        (
+            "- Authorized session: A",
+            "- Authorized session: NONE",
+        ),
+        (
             "- Base commit: `d87572e2a272c98f8dd634cfe17ff8a130446a7b`",
             "- Base commit: `098b38c669dd330cd059ea18dea52cc4e7eaefe2`",
-        )
-        .replace(
+        ),
+        (
             "- Current gate: WO-002 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY",
             "- Current gate: WO-002 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED",
-        )
-        .replace(
+        ),
+        (
             "is issued. Session A is authorized for implementation under this root gate;\n"
             "Session B remains unauthorized.",
             "is issued, but issuance grants no implementation authority. Session A and\n"
             "Session B remain unauthorized.",
         ),
-        encoding="utf-8",
-    )
+    ):
+        text = _replace_once(text, _old, _new, "WO-002 closed issuance pointer")
+    pointer.write_text(text, encoding="utf-8")
     issued = (
         case / "docs" / "work-orders" / "issued"
         / "WO-002-epic-toolset-integration.md"
@@ -352,25 +525,44 @@ def _make_wo002_issuance_case(repo_root, tmp_path, name):
         "tests`). Under the sole current gate in root `WORKORDER.md`, Session A is\n"
         "authorized for implementation. Session B remains unauthorized.\n"
     )
-    text = (
-        text.replace(
+    for _old, _new in (
+        (
             "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION",
             "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED",
-        )
-        .replace(authorization_basis, "")
-        .replace(
+        ),
+        (
+            authorization_basis,
+            "",
+        ),
+        (
             "Session A is authorized for implementation under the current root\n"
             "`WORKORDER.md` gate. This authorization does not extend to Session B.",
             "Session A is not authorized.",
-        )
-        .replace(
+        ),
+        (
             "NEXT GATE: fresh independent architect review of the complete uncommitted\n"
             "Session A implementation. Session B remains unauthorized.",
             "NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone\n"
             "grants no implementation authority; Session B remains unauthorized.",
-        )
-    )
+        ),
+    ):
+        text = _replace_once(text, _old, _new, "WO-002 closed issuance issued document")
     issued.write_text(text, encoding="utf-8")
+    _assert_reconstructed(
+        "WO-002 closed issuance pointer",
+        pointer.read_text(encoding="utf-8"),
+        ("- Authorized session: NONE",
+         "- Current gate: WO-002 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"),
+        ("- Authorized session: A",
+         "SESSION A ACCEPTED"),
+    )
+    _assert_reconstructed(
+        "WO-002 closed issuance issued document",
+        text,
+        ("AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED",),
+        ("## Session A authorization basis",
+         "## Session A acceptance record"),
+    )
     return case
 
 
@@ -676,6 +868,710 @@ def test_wo002_session_a_authorization_contract_is_exact(
         encoding="utf-8",
     )
     assert "later session authorization" in finding_types(later)
+
+
+def test_wo002_session_a_acceptance_contract_is_exact(
+    repo_root, tmp_path, monkeypatch
+):
+    """Accepted Session A closes implementation while preserving exact evidence."""
+    spec = importlib.util.spec_from_file_location(
+        "wo002_session_a_accepted_drift", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+
+    def finding_types(case):
+        monkeypatch.setattr(drift_check, "ROOT", str(case))
+        return {finding["type"] for finding in drift_check.check_work_order_contract()}
+
+    control = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "session-a-accepted-control"
+    )
+    assert finding_types(control) == set()
+
+    pointer_mutations = (
+        (
+            "authorized-session",
+            "- Authorized session: NONE",
+            "- Authorized session: A",
+            "issued session authorization",
+        ),
+        (
+            "accepted-gate",
+            "WO-002 SESSION A ACCEPTED — SESSION B NOT AUTHORIZED",
+            "WO-002 SESSION A ACCEPTED — SESSION B MAY BEGIN",
+            "Session A accepted gate",
+        ),
+        (
+            "stale-pointer",
+            "- Current issued Work Order: WO-002",
+            "- Current issued Work Order: WO-003",
+            "current issued work order mismatch",
+        ),
+        (
+            "stale-base",
+            "- Base commit: `50b881716abea3b5838c2a971caac40ee4cd5d30`",
+            "- Base commit: `60b881716abea3b5838c2a971caac40ee4cd5d30`",
+            "Session A accepted base commit",
+        ),
+        (
+            "expanded-train",
+            "- Release train: WO-001 through WO-007",
+            "- Release train: WO-001 through WO-008",
+            "release train",
+        ),
+    )
+    for name, old, new, expected in pointer_mutations:
+        case = _make_wo002_session_a_accepted_case(
+            repo_root, tmp_path, f"session-a-accepted-{name}"
+        )
+        pointer = case / "WORKORDER.md"
+        pointer.write_text(
+            pointer.read_text(encoding="utf-8").replace(old, new),
+            encoding="utf-8",
+        )
+        assert expected in finding_types(case)
+
+    issued_path = (
+        "docs/work-orders/issued/WO-002-epic-toolset-integration.md"
+    )
+    marker = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "session-a-accepted-marker"
+    )
+    issued = marker / issued_path
+    issued.write_text(
+        issued.read_text(encoding="utf-8").replace(
+            "AUTHORIZATION: ISSUED — SESSION A ACCEPTED; NO SESSION AUTHORIZED",
+            "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION",
+        ),
+        encoding="utf-8",
+    )
+    assert "Session A accepted authorization" in finding_types(marker)
+
+    evidence_cases = (
+        (
+            "commit",
+            "50b881716abea3b5838c2a971caac40ee4cd5d30",
+            "Session A accepted commit",
+        ),
+        ("workflow", "32937631903", "Session A accepted workflow"),
+        ("job", "98081919978", "Session A accepted job"),
+    )
+    for name, evidence, expected in evidence_cases:
+        case = _make_wo002_session_a_accepted_case(
+            repo_root, tmp_path, f"session-a-accepted-{name}"
+        )
+        issued = case / issued_path
+        issued.write_text(
+            issued.read_text(encoding="utf-8").replace(evidence, "REMOVED"),
+            encoding="utf-8",
+        )
+        assert expected in finding_types(case)
+
+    reopened = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "session-a-reopened"
+    )
+    issued = reopened / issued_path
+    issued.write_text(
+        issued.read_text(encoding="utf-8")
+        + "\nSession A is currently authorized for implementation.\n",
+        encoding="utf-8",
+    )
+    assert "session authorization reopening" in finding_types(reopened)
+
+    release = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "session-a-accepted-release"
+    )
+    pointer = release / "WORKORDER.md"
+    pointer.write_text(
+        pointer.read_text(encoding="utf-8")
+        + "\nThe next tag and GitHub Release are authorized.\n",
+        encoding="utf-8",
+    )
+    assert "release authorization" in finding_types(release)
+
+
+@pytest.mark.parametrize("permission", (
+    "Session B is authorized.",
+    "Session B is ready to begin.",
+    "Session B is permitted to proceed.",
+    "Session B is able to begin.",
+))
+def test_wo002_session_a_acceptance_rejects_session_b_activation(
+    repo_root, tmp_path, monkeypatch, permission
+):
+    """Accepted Session A does not implicitly activate Session B."""
+    spec = importlib.util.spec_from_file_location(
+        "wo002_session_b_closed_drift", repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    drift_check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(drift_check)
+    case = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "session-b-closed"
+    )
+    issued = (
+        case / "docs" / "work-orders" / "issued"
+        / "WO-002-epic-toolset-integration.md"
+    )
+    issued.write_text(
+        issued.read_text(encoding="utf-8") + f"\n{permission}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    finding_types = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert "session authorization reopening" in finding_types
+
+
+_ACCEPTED_COMMIT = "50b881716abea3b5838c2a971caac40ee4cd5d30"
+_ACCEPTED_WORKFLOW = "32937631903"
+_ACCEPTED_JOB = "98081919978"
+_ISSUED_REL = "docs/work-orders/issued/WO-002-epic-toolset-integration.md"
+_NL = chr(10)
+_WRONG_COMMIT = "60b881716abea3b5838c2a971caac40ee4cd5d30"
+_WRONG_WORKFLOW = "42937631903"
+_WRONG_JOB = "98081919979"
+_JOB_SUFFIX = "` — Lint, types, tests]"
+_POINTER_FINDING = "Session A acceptance record (WORKORDER.md)"
+_ISSUED_FINDING = "Session A acceptance record (issued WO-002)"
+
+# Each case alters exactly ONE occurrence. `surviving` names an identifier that
+# is still correct elsewhere in the same file afterwards - that is precisely the
+# state a presence-only membership test accepted.
+_ACCEPTANCE_OCCURRENCE_MUTATIONS = (
+    ("pointer-narrative-commit", "WORKORDER.md",
+     "pushed as" + _NL + "`" + _ACCEPTED_COMMIT + "`;",
+     "pushed as" + _NL + "`" + _WRONG_COMMIT + "`;",
+     _ACCEPTED_COMMIT, _POINTER_FINDING),
+    ("pointer-workflow-label", "WORKORDER.md",
+     "[CI workflow" + _NL + "`" + _ACCEPTED_WORKFLOW + "`]",
+     "[CI workflow" + _NL + "`" + _WRONG_WORKFLOW + "`]",
+     _ACCEPTED_WORKFLOW, _POINTER_FINDING),
+    ("pointer-workflow-url", "WORKORDER.md",
+     "runs/" + _ACCEPTED_WORKFLOW + ")", "runs/" + _WRONG_WORKFLOW + ")",
+     _ACCEPTED_WORKFLOW, _POINTER_FINDING),
+    ("pointer-job-label", "WORKORDER.md",
+     "[`" + _ACCEPTED_JOB + _JOB_SUFFIX, "[`" + _WRONG_JOB + _JOB_SUFFIX,
+     _ACCEPTED_JOB, _POINTER_FINDING),
+    ("pointer-job-url", "WORKORDER.md",
+     "/job/" + _ACCEPTED_JOB + ")", "/job/" + _WRONG_JOB + ")",
+     _ACCEPTED_JOB, _POINTER_FINDING),
+    ("issued-acceptance-commit", _ISSUED_REL,
+     "accepted and committed as" + _NL + "`" + _ACCEPTED_COMMIT + "`.",
+     "accepted and committed as" + _NL + "`" + _WRONG_COMMIT + "`.",
+     None, _ISSUED_FINDING),
+    ("issued-workflow-label", _ISSUED_REL,
+     "[`" + _ACCEPTED_WORKFLOW + "`](", "[`" + _WRONG_WORKFLOW + "`](",
+     _ACCEPTED_WORKFLOW, _ISSUED_FINDING),
+    ("issued-workflow-url", _ISSUED_REL,
+     "runs/" + _ACCEPTED_WORKFLOW + ")", "runs/" + _WRONG_WORKFLOW + ")",
+     _ACCEPTED_WORKFLOW, _ISSUED_FINDING),
+    ("issued-job-label", _ISSUED_REL,
+     "[`" + _ACCEPTED_JOB + _JOB_SUFFIX, "[`" + _WRONG_JOB + _JOB_SUFFIX,
+     _ACCEPTED_JOB, _ISSUED_FINDING),
+    ("issued-job-url", _ISSUED_REL,
+     "/job/" + _ACCEPTED_JOB + ")", "/job/" + _WRONG_JOB + ")",
+     _ACCEPTED_JOB, _ISSUED_FINDING),
+)
+
+
+def _load_drift_check(repo_root, label):
+    spec = importlib.util.spec_from_file_location(
+        label, repo_root / "scripts" / "drift_check.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize(
+    "name,rel,old,new,surviving,expected", _ACCEPTANCE_OCCURRENCE_MUTATIONS
+)
+def test_wo002_acceptance_evidence_is_enforced_per_occurrence(
+    repo_root, tmp_path, monkeypatch, name, rel, old, new, surviving, expected
+):
+    """Every visible label, URL, and narrative value is pinned individually.
+
+    Membership testing cannot enforce this record. Each identifier occurs two
+    or three times per surface - visible label, run URL, job URL, and in
+    WORKORDER.md the separate Base commit marker - so one occurrence could
+    diverge while another kept the containment test satisfied. The root Base
+    commit marker in particular must not stand in for the acceptance-record
+    commit.
+    """
+    drift_check = _load_drift_check(repo_root, "wo002_occurrence_" + name)
+    case = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "acceptance-occurrence-" + name
+    )
+    target = case / rel
+    text = target.read_text(encoding="utf-8")
+    assert old in text, (
+        "mutation needle absent - this case no longer alters " + name
+        + " and would pass vacuously: " + repr(old)
+    )
+    mutated = text.replace(old, new, 1)
+    if surviving is not None:
+        assert surviving in mutated, (
+            "mutation removed every occurrence, so it no longer reproduces the "
+            "state presence-only enforcement accepted"
+        )
+    target.write_text(mutated, encoding="utf-8")
+
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    finding_types = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert expected in finding_types
+
+
+def test_wo002_acceptance_evidence_control_is_clean(repo_root, tmp_path, monkeypatch):
+    """The unchanged canonical acceptance state produces no findings."""
+    drift_check = _load_drift_check(repo_root, "wo002_occurrence_control")
+    case = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "acceptance-occurrence-control"
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    assert drift_check.check_work_order_contract() == []
+
+
+# --- Structurally anchored acceptance records -------------------------------
+#
+# Presence-only enforcement asks whether a correct fragment occurs *somewhere*
+# in the document. That is defeated by a decoy: corrupt the genuine occurrence,
+# then reinstate a correct copy elsewhere - even inside an HTML comment.
+#
+# Bounding the record by markers taken from its own prose is also not enough.
+# Those markers travel with the content, so a transplant defeats them: corrupt
+# the genuine record together with its markers, paste a byte-correct copy
+# anywhere else, and a marker search selects the transplant and passes.
+#
+# The record is therefore located by neighbouring structure that is not part of
+# it, and the block at that anchored position must match. These probes hold
+# both lines: decoys and transplants.
+
+_WO001_LINK = "](docs/work-orders/completed/WO-001-custom-mcp-security.md)"
+_ISSUED_LINK = "](docs/work-orders/issued/WO-002-epic-toolset-integration.md)"
+_ACCEPTANCE_HEADING = "## Session A acceptance record"
+_FOLLOWING_HEADING = "## Problem and accepted evidence"
+_ACCEPTANCE_SURFACES = {
+    "pointer": ("WORKORDER.md", _POINTER_FINDING),
+    "issued": (_ISSUED_REL, _ISSUED_FINDING),
+}
+
+
+def _record_text(text, surface):
+    """The canonical record, located exactly as the checker locates it.
+
+    Deliberately a second, independent implementation: a probe that reused the
+    checker's own locator could not tell a correct anchor from a broken one.
+    """
+    if surface == "pointer":
+        chunks = text.split(_NL + _NL)
+        anchors = [i for i, chunk in enumerate(chunks) if _WO001_LINK in chunk]
+        assert len(anchors) == 1, "probe cannot find a unique WO-001 paragraph"
+        record = chunks[anchors[0] + 1]
+        assert _ISSUED_LINK in record, "probe located the wrong paragraph"
+    else:
+        lines = text.split(_NL)
+        marks = [i for i, line in enumerate(lines) if line.startswith("## ")]
+        headings = [lines[i] for i in marks]
+        first = marks[headings.index(_ACCEPTANCE_HEADING)]
+        last = marks[headings.index(_FOLLOWING_HEADING)]
+        assert first < last, "probe headings are out of order"
+        record = _NL.join(lines[first:last]).rstrip(_NL)
+    assert text.count(record) == 1, "the canonical record is not unique"
+    return record
+
+
+def _decoy_of(record, surface):
+    """A correct copy that restores every pinned fragment.
+
+    The structural anchor is stripped so the region stays unambiguously
+    located: this probe must be caught by comparing the anchored block, not by
+    tripping an anchor-uniqueness check.
+    """
+    body = " ".join(record.split())
+    body = body.replace(_ISSUED_LINK, "](issued-work-order)")
+    body = body.replace(" ".join(_ACCEPTANCE_HEADING.split()), "")
+    return "<!-- " + " ".join(body.split()) + " -->"
+
+
+def _decoyed(text, surface, placement):
+    """Corrupt the genuine record, then reinstate a correct copy as a decoy."""
+    record = _record_text(text, surface)
+    corrupted = record.replace(_ACCEPTED_WORKFLOW, _WRONG_WORKFLOW)
+    assert corrupted != record, (
+        "this probe no longer corrupts the canonical record and would pass "
+        "vacuously"
+    )
+    decoy = _decoy_of(record, surface)
+    if placement == "outside":
+        return text.replace(record, corrupted, 1) + _NL + _NL + decoy + _NL
+    head, _, tail = corrupted.partition(_NL)
+    return text.replace(record, head + _NL + decoy + _NL + tail, 1)
+
+
+def _transplanted(text, surface, variant):
+    """Corrupt the genuine record *and its markers*; paste a true copy elsewhere.
+
+    This is the attack that marker-bounded enforcement cannot see: after the
+    mutation exactly one correctly ordered marker pair remains in the file, and
+    the block between those markers is byte-correct - it is simply no longer
+    where the record belongs.
+    """
+    record = _record_text(text, surface)
+    if surface == "pointer":
+        junk = (
+            record.replace("Session A was independently accepted",
+                           "Session A was quietly waved through")
+            .replace("separate BDFL/owner authorization.",
+                     "no further authorization is needed.")
+            .replace(_ACCEPTED_WORKFLOW, _WRONG_WORKFLOW)
+        )
+        if variant == "unanchored":
+            junk = junk.replace(_ISSUED_LINK, "](issued-work-order)")
+        return text.replace(record, junk, 1) + _NL + _NL + record + _NL
+    junk = (
+        record.replace(_ACCEPTANCE_HEADING, "## Session A acceptance note")
+        .replace(_ACCEPTED_WORKFLOW, _WRONG_WORKFLOW)
+    )
+    mutated = text.replace(record, junk, 1)
+    if variant == "anchored":
+        # Paste the true record ahead of the next heading, so a marker search
+        # still finds one correctly ordered pair around byte-correct text.
+        return mutated.replace(
+            _FOLLOWING_HEADING, record + _NL + _NL + _FOLLOWING_HEADING, 1
+        )
+    # Or drop the heading altogether and re-home the record after the section
+    # it belongs before, which no marker pair can distinguish from the truth.
+    mutated = mutated.replace(
+        "## Session A acceptance note", "Session A acceptance note", 1
+    )
+    return mutated.replace(
+        _FOLLOWING_HEADING, _FOLLOWING_HEADING + _NL + _NL + record, 1
+    )
+
+
+def _damaged_anchor(text, surface, damage):
+    """Make the anchoring structure ambiguous rather than the record wrong."""
+    if damage == "displace_record":
+        chunks = text.split(_NL + _NL)
+        anchors = [i for i, chunk in enumerate(chunks) if _WO001_LINK in chunk]
+        assert len(anchors) == 1
+        chunks.insert(anchors[0] + 1, "An unrelated note about the release train.")
+        return (_NL + _NL).join(chunks)
+    if damage == "duplicate_wo001_link":
+        return text + _NL + _NL + "See also [WO-001](" + _WO001_LINK[2:] + _NL
+    if damage == "duplicate_issued_link":
+        return text + _NL + _NL + "See also [WO-002](" + _ISSUED_LINK[2:] + _NL
+    if damage == "duplicate_heading":
+        return text + _NL + _ACCEPTANCE_HEADING + _NL
+    if damage == "reorder_headings":
+        lines = text.split(_NL)
+        marks = [i for i, line in enumerate(lines) if line.startswith("## ")]
+        headings = [lines[i] for i in marks]
+        first = marks[headings.index(_ACCEPTANCE_HEADING)]
+        last = marks[headings.index(_FOLLOWING_HEADING)]
+        lines[first], lines[last] = lines[last], lines[first]
+        return _NL.join(lines)
+    raise AssertionError("unknown anchor damage: " + damage)
+
+
+def _pinned_fragments(drift_check, surface):
+    """The evidence tuples the checker pins for one surface."""
+    return (
+        drift_check._WO002_ACCEPTED_POINTER_EVIDENCE
+        if surface == "pointer"
+        else drift_check._WO002_ACCEPTED_ISSUED_EVIDENCE
+    )
+
+
+def _acceptance_findings(drift_check, monkeypatch, case, finding_type):
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return [
+        finding
+        for finding in drift_check.check_work_order_contract()
+        if finding["type"] == finding_type
+    ]
+
+
+@pytest.mark.parametrize("placement", ("outside", "inside"))
+@pytest.mark.parametrize("surface", ("pointer", "issued"))
+def test_wo002_acceptance_record_rejects_correct_decoys(
+    repo_root, tmp_path, monkeypatch, surface, placement
+):
+    """A correct copy elsewhere does not repair a corrupted record."""
+    rel, finding_type = _ACCEPTANCE_SURFACES[surface]
+    drift_check = _load_drift_check(
+        repo_root, "wo002_decoy_" + surface + "_" + placement
+    )
+    case = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "acceptance-decoy-" + surface + "-" + placement
+    )
+    target = case / rel
+    mutated = _decoyed(target.read_text(encoding="utf-8"), surface, placement)
+    target.write_text(mutated, encoding="utf-8")
+
+    normalized = " ".join(mutated.split())
+    for label, fragment in _pinned_fragments(drift_check, surface):
+        assert fragment in normalized, (
+            "the decoy no longer restores " + label + ", so this probe does "
+            "not reproduce the state presence-only enforcement accepted"
+        )
+    assert _WRONG_WORKFLOW in mutated, "the genuine occurrence was not corrupted"
+    assert _acceptance_findings(drift_check, monkeypatch, case, finding_type), (
+        surface + " " + placement
+        + " decoy was accepted - the canonical record is not bounded"
+    )
+
+
+@pytest.mark.parametrize("variant", ("anchored", "unanchored"))
+@pytest.mark.parametrize("surface", ("pointer", "issued"))
+def test_wo002_acceptance_record_rejects_transplants(
+    repo_root, tmp_path, monkeypatch, surface, variant
+):
+    """Moving the true record elsewhere does not satisfy the anchored position.
+
+    Marker-bounded enforcement passes this: the surviving marker pair is
+    unique and correctly ordered, and the text between it is byte-correct. Only
+    an anchor outside the protected record notices that the position where the
+    acceptance record belongs now holds corrupted text.
+    """
+    rel, finding_type = _ACCEPTANCE_SURFACES[surface]
+    drift_check = _load_drift_check(
+        repo_root, "wo002_transplant_" + surface + "_" + variant
+    )
+    case = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "acceptance-transplant-" + surface + "-" + variant
+    )
+    target = case / rel
+    original = target.read_text(encoding="utf-8")
+    record = _record_text(original, surface)
+    mutated = _transplanted(original, surface, variant)
+    target.write_text(mutated, encoding="utf-8")
+
+    assert record in mutated, (
+        "the transplanted copy is missing, so this probe no longer reproduces "
+        "the attack marker-bounded enforcement accepted"
+    )
+    assert _WRONG_WORKFLOW in mutated, "the genuine record was not corrupted"
+    assert _acceptance_findings(drift_check, monkeypatch, case, finding_type), (
+        surface + " " + variant + " transplant was accepted - the record is "
+        "still located by markers that travel with it"
+    )
+
+
+@pytest.mark.parametrize(("surface", "damage"), (
+    ("pointer", "displace_record"),
+    ("pointer", "duplicate_wo001_link"),
+    ("pointer", "duplicate_issued_link"),
+    ("issued", "duplicate_heading"),
+    ("issued", "reorder_headings"),
+))
+def test_wo002_acceptance_record_requires_unambiguous_anchors(
+    repo_root, tmp_path, monkeypatch, surface, damage
+):
+    """An ambiguous anchor is a failure, never a licence to skip the check."""
+    rel, finding_type = _ACCEPTANCE_SURFACES[surface]
+    drift_check = _load_drift_check(
+        repo_root, "wo002_anchor_" + surface + "_" + damage
+    )
+    case = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "acceptance-anchor-" + surface + "-" + damage
+    )
+    target = case / rel
+    original = target.read_text(encoding="utf-8")
+    target.write_text(_damaged_anchor(original, surface, damage), encoding="utf-8")
+
+    findings = _acceptance_findings(drift_check, monkeypatch, case, finding_type)
+    assert findings, surface + " " + damage + " left the record unenforced"
+    assert any("canonical acceptance region" in f["found"] for f in findings), (
+        "anchor damage must be reported as a region failure, not guessed past"
+    )
+
+
+def test_wo002_acceptance_record_control_is_clean(repo_root, tmp_path, monkeypatch):
+    """The unmutated tree produces no acceptance-record finding."""
+    drift_check = _load_drift_check(repo_root, "wo002_region_control")
+    case = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "acceptance-region-control"
+    )
+    for finding_type in (_POINTER_FINDING, _ISSUED_FINDING):
+        assert not _acceptance_findings(
+            drift_check, monkeypatch, case, finding_type
+        ), finding_type + " fires on the unmodified repository"
+
+
+def test_wo002_acceptance_record_ignores_unrelated_wo001_rewording(
+    repo_root, tmp_path, monkeypatch
+):
+    """WO-001 supplies position, never pinned wording.
+
+    The anchor is WO-001's completion *reference*, so rewording the sentence
+    around it must not surface as a WO-002 acceptance-evidence finding.
+    """
+    drift_check = _load_drift_check(repo_root, "wo002_wo001_rewording")
+    case = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "acceptance-wo001-rewording"
+    )
+    pointer = case / "WORKORDER.md"
+    text = pointer.read_text(encoding="utf-8")
+    assert "is completed as" in text, "this control's own anchor has drifted"
+    pointer.write_text(
+        text.replace("is completed as", "was completed as", 1), encoding="utf-8"
+    )
+
+    for finding_type in (_POINTER_FINDING, _ISSUED_FINDING):
+        assert not _acceptance_findings(
+            drift_check, monkeypatch, case, finding_type
+        ), "a WO-001-only rewording produced " + finding_type
+
+
+def test_wo002_acceptance_record_ignores_unrelated_issued_heading(
+    repo_root, tmp_path, monkeypatch
+):
+    """Only the acceptance section's own boundaries are frozen.
+
+    An unrelated future heading elsewhere in the issued Work Order is none of
+    this check's business, so adding one must stay silent.
+    """
+    drift_check = _load_drift_check(repo_root, "wo002_unrelated_heading")
+    case = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "acceptance-unrelated-heading"
+    )
+    issued = case / _ISSUED_REL
+    issued.write_text(
+        issued.read_text(encoding="utf-8") + _NL
+        + "## Later operational notes" + _NL + _NL
+        + "Added by some unrelated future Work Order edit." + _NL,
+        encoding="utf-8",
+    )
+
+    for finding_type in (_POINTER_FINDING, _ISSUED_FINDING):
+        assert not _acceptance_findings(
+            drift_check, monkeypatch, case, finding_type
+        ), "an unrelated heading produced " + finding_type
+
+
+@pytest.mark.parametrize("heading", (_ACCEPTANCE_HEADING, _FOLLOWING_HEADING))
+@pytest.mark.parametrize(
+    "damage", ("duplicate_middle", "duplicate_start", "duplicate_eof", "remove")
+)
+def test_wo002_historical_reconstruction_requires_unique_boundaries(
+    repo_root, tmp_path, damage, heading
+):
+    """A duplicated boundary heading is invisible to the excision regex.
+
+    The span between the two headings is non-greedy, so a second copy of either
+    heading inside that span is swallowed and still reports one match. Framing
+    the count with newlines does not fix it either: a duplicate at the start of
+    the file has no preceding newline, and one at EOF has no trailing newline.
+    The boundaries are counted as exact lines instead.
+    """
+    tag = "acceptance" if heading == _ACCEPTANCE_HEADING else "following"
+    drifted = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "boundary-" + damage + "-" + tag
+    )
+    issued = drifted / _ISSUED_REL
+    text = issued.read_text(encoding="utf-8")
+    assert text.splitlines().count(heading) == 1, "this probe's anchor has drifted"
+
+    if damage == "duplicate_middle":
+        mutated = text.replace(
+            _NL + heading + _NL, _NL + heading + _NL + _NL + heading + _NL, 1
+        )
+    elif damage == "duplicate_start":
+        mutated = heading + _NL + text
+    elif damage == "duplicate_eof":
+        mutated = text.rstrip(_NL) + _NL + heading
+    else:
+        mutated = text.replace(_NL + heading + _NL, _NL + heading + " note" + _NL, 1)
+
+    if damage == "remove":
+        assert heading not in mutated.splitlines(), "the boundary was not removed"
+    else:
+        assert mutated.splitlines().count(heading) == 2, "the probe added no duplicate"
+    if damage in ("duplicate_start", "duplicate_eof"):
+        # Non-vacuous: newline-framed counting still reports a single boundary,
+        # which is exactly the blindness this probe exists to reject.
+        assert mutated.count(_NL + heading + _NL) == 1, (
+            "this probe no longer reproduces the file-boundary blind spot"
+        )
+    issued.write_text(mutated, encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="no longer anchored"):
+        _make_wo002_session_a_case(
+            drifted, tmp_path, "boundary-case-" + damage + "-" + tag
+        )
+
+
+def test_wo002_historical_reconstruction_requires_pointer_anchor(
+    repo_root, tmp_path
+):
+    """A drifted pointer anchor must fail loudly, not rebuild today's state."""
+    drifted = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "drifted-pointer-anchor"
+    )
+    pointer = drifted / "WORKORDER.md"
+    text = pointer.read_text(encoding="utf-8")
+    anchor = "- Authorized session: NONE"
+    assert anchor in text, "this probe's own anchor has drifted"
+    pointer.write_text(
+        text.replace(anchor, "- Authorized session: none", 1), encoding="utf-8"
+    )
+
+    with pytest.raises(AssertionError, match="no longer anchored"):
+        _make_wo002_session_a_case(drifted, tmp_path, "drifted-pointer-case")
+
+
+def test_wo002_historical_reconstruction_requires_issued_anchor(
+    repo_root, tmp_path
+):
+    """Likewise for the acceptance-record excision the issued probe depends on."""
+    drifted = _make_wo002_session_a_accepted_case(
+        repo_root, tmp_path, "drifted-issued-anchor"
+    )
+    issued = drifted / _ISSUED_REL
+    text = issued.read_text(encoding="utf-8")
+    anchor = "## Session A acceptance record"
+    assert anchor in text, "this probe's own anchor has drifted"
+    issued.write_text(
+        text.replace(anchor, "## Session A acceptance note", 1), encoding="utf-8"
+    )
+
+    with pytest.raises(AssertionError, match="no longer anchored"):
+        _make_wo002_session_a_case(drifted, tmp_path, "drifted-issued-case")
+
+
+def test_wo002_historical_reconstructions_reach_their_intended_states(
+    repo_root, tmp_path
+):
+    """Both reconstructions still describe the stage their probes claim.
+
+    Anchored replacement proves each edit fired; this proves the edits together
+    land on the authorized-Session-A and closed-issuance states rather than on
+    some third thing, and that neither still carries the accepted record.
+    """
+    authorized = _make_wo002_session_a_case(repo_root, tmp_path, "state-authorized")
+    issuance = _make_wo002_issuance_case(repo_root, tmp_path, "state-issuance")
+    for case, gate in (
+        (authorized, "WO-002 SESSION A AUTHORIZED"),
+        (issuance, "WO-002 ISSUED"),
+    ):
+        pointer = (case / "WORKORDER.md").read_text(encoding="utf-8")
+        issued = (case / _ISSUED_REL).read_text(encoding="utf-8")
+        assert gate in pointer, case.name + ": pointer gate is not " + gate
+        assert "## Session A acceptance record" not in issued, (
+            case.name + ": the accepted record survived a historical "
+            "reconstruction, so the probe is testing today's state"
+        )
+        assert _ACCEPTED_COMMIT not in issued, (
+            case.name + ": the accepted base commit survived reconstruction"
+        )
 
 
 def _make_completed_work_order_case(repo_root, tmp_path, name):
