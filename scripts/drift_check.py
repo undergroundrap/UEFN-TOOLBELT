@@ -239,9 +239,8 @@ _WO002_ACCEPTED_POINTER_BLOCK = (
     "TOOLBELT/actions/runs/32937631903) completed successfully, "
     "including required job [`98081919978` — Lint, types, "
     "tests](https://github.com/undergroundrap/UEFN-"
-    "TOOLBELT/actions/runs/32937631903/job/98081919978). No session is "
-    "currently authorized. Session B remains unauthorized and requires "
-    "separate BDFL/owner authorization."
+    "TOOLBELT/actions/runs/32937631903/job/98081919978). Session A is "
+    "accepted and complete."
 )
 _WO002_ACCEPTED_ISSUED_BLOCK = (
     "## Session A acceptance record Session A was independently "
@@ -259,9 +258,7 @@ _WO002_ACCEPTED_ISSUED_BLOCK = (
     "existing dashboard auto-start behavior required no Session A "
     "correction. The listener was stopped locally, the handoff was "
     "absent, and ports 8765–8770 were closed after verification. "
-    "Session A is accepted and complete. No session is currently "
-    "authorized. Session B remains unauthorized and requires separate "
-    "BDFL/owner authorization."
+    "Session A is accepted and complete."
 )
 
 
@@ -388,6 +385,23 @@ _WO002_NEXT_GATE = (
     "NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone "
     "grants no implementation authority; Session B remains unauthorized."
 )
+_ISSUED_SESSION_B_AUTH = (
+    "AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR EXTERNAL PROOF"
+)
+_WO002_SESSION_B_BASE = "d1a2c810126ba6c9e14891da1b25cb198c1d45c7"
+_WO002_SESSION_B_WORKFLOW = "33047743360"
+_WO002_SESSION_B_JOB = "98435618996"
+_WO002_SESSION_B_GATE = (
+    "WO-002 SESSION B AUTHORIZED — EXECUTE EXTERNAL PROOF ONLY"
+)
+_WO002_SESSION_B_NEXT_GATE = (
+    "NEXT GATE: fresh independent architect review of the complete uncommitted "
+    "Session B evidence. Session B is proof-only; WO-003 remains unauthorized."
+)
+_WO002_SESSION_B_PROOF_ONLY = (
+    "Under the sole current gate in root `WORKORDER.md`, Session B is authorized "
+    "for external proof only."
+)
 _WO002_SESSION_A_NEXT_GATE = (
     "NEXT GATE: fresh independent architect review of the complete uncommitted "
     "Session A implementation. Session B remains unauthorized."
@@ -408,6 +422,42 @@ _CLOSED_RELEASE_GATE = (
     "NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL "
     "INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST"
 )
+
+
+def _accepted_record_findings(
+    pointer: str, issued_text: str, rel: str
+) -> list[tuple[str, str, str, str]]:
+    """Session A's accepted record stays enforced in every later session.
+
+    Authorizing Session B must not silence Session A's evidence, so the same
+    anchored comparison runs from both branches rather than being duplicated.
+    """
+    out: list[tuple[str, str, str, str]] = []
+    for evidence, kind in (
+        (_WO002_SESSION_A_ACCEPTED_BASE, "Session A accepted commit"),
+        (_WO002_SESSION_A_ACCEPTED_WORKFLOW, "Session A accepted workflow"),
+        (_WO002_SESSION_A_ACCEPTED_JOB, "Session A accepted job"),
+    ):
+        if evidence not in pointer or evidence not in issued_text:
+            out.append((rel, kind, "missing from pointer or issued record",
+                        evidence))
+    for found_detail, want in _acceptance_record_findings(
+        pointer, _anchored_pointer_region,
+        _WO002_ACCEPTED_POINTER_BLOCK, _WO002_ACCEPTED_POINTER_EVIDENCE,
+    ):
+        out.append(("WORKORDER.md",
+                    "Session A acceptance record (WORKORDER.md)",
+                    found_detail, want))
+    for found_detail, want in _acceptance_record_findings(
+        issued_text, _anchored_issued_region,
+        _WO002_ACCEPTED_ISSUED_BLOCK, _WO002_ACCEPTED_ISSUED_EVIDENCE,
+    ):
+        out.append((rel, "Session A acceptance record (issued WO-002)",
+                    found_detail, want))
+    if "## Session A acceptance record" not in issued_text:
+        out.append((rel, "Session A acceptance record", "missing",
+                    "bounded accepted commit, CI, and live evidence"))
+    return out
 
 
 def _has_implicit_session_authorization(
@@ -534,9 +584,11 @@ def _has_other_session_authorization(
     return False
 
 
-def _has_next_work_order_authorization(pointer: str, completed_text: str) -> bool:
-    """Reject positive WO-002 authority while it remains the next proposal."""
-    authority_text = pointer + "\n" + completed_text
+def _has_next_work_order_authorization(
+    pointer: str, other_text: str, work_order: str = "WO-002"
+) -> bool:
+    """Reject positive authority for a Work Order that is not issued."""
+    authority_text = pointer + "\n" + other_text
     statements = re.split(
         r"[\r\n]+|[.!?;]|\b(?:but|however|nevertheless|nonetheless|yet)\b",
         authority_text,
@@ -555,7 +607,8 @@ def _has_next_work_order_authorization(pointer: str, completed_text: str) -> boo
         re.IGNORECASE,
     )
     for statement in statements:
-        if not re.search(r"\bWO-002\b", statement, re.IGNORECASE):
+        if not re.search(rf"\b{re.escape(work_order)}\b", statement,
+                         re.IGNORECASE):
             continue
         residual = negative.sub("", statement)
         if positive.search(residual):
@@ -1047,36 +1100,10 @@ def check_work_order_contract() -> list[dict]:
                     if current_gate != _WO002_SESSION_A_ACCEPTED_GATE:
                         add("WORKORDER.md", "Session A accepted gate",
                             str(current_gate), _WO002_SESSION_A_ACCEPTED_GATE)
-                    for evidence, kind in (
-                        (_WO002_SESSION_A_ACCEPTED_BASE,
-                         "Session A accepted commit"),
-                        (_WO002_SESSION_A_ACCEPTED_WORKFLOW,
-                         "Session A accepted workflow"),
-                        (_WO002_SESSION_A_ACCEPTED_JOB,
-                         "Session A accepted job"),
+                    for _f, _k, _found, _want in _accepted_record_findings(
+                        pointer, issued_text, rel
                     ):
-                        if evidence not in pointer or evidence not in issued_text:
-                            add(rel, kind, "missing from pointer or issued record",
-                                evidence)
-                    for found_detail, want in _acceptance_record_findings(
-                        pointer, _anchored_pointer_region,
-                        _WO002_ACCEPTED_POINTER_BLOCK,
-                        _WO002_ACCEPTED_POINTER_EVIDENCE,
-                    ):
-                        add("WORKORDER.md",
-                            "Session A acceptance record (WORKORDER.md)",
-                            found_detail, want)
-                    for found_detail, want in _acceptance_record_findings(
-                        issued_text, _anchored_issued_region,
-                        _WO002_ACCEPTED_ISSUED_BLOCK,
-                        _WO002_ACCEPTED_ISSUED_EVIDENCE,
-                    ):
-                        add(rel,
-                            "Session A acceptance record (issued WO-002)",
-                            found_detail, want)
-                    if "## Session A acceptance record" not in issued_text:
-                        add(rel, "Session A acceptance record", "missing",
-                            "bounded accepted commit, CI, and live evidence")
+                        add(_f, _k, _found, _want)
                     if _WO002_SESSION_A_ACCEPTED_NEXT_GATE not in normalized_issued:
                         add(rel, "WO-002 next gate", "missing or changed",
                             _WO002_SESSION_A_ACCEPTED_NEXT_GATE)
@@ -1160,9 +1187,60 @@ def check_work_order_contract() -> list[dict]:
                     if "Session A is authorized for implementation under the current root" not in normalized_issued:
                         add(rel, "Session A authorization statement", "missing",
                             "authorized only under root WORKORDER.md")
+            elif session == "B":
+                expected_gate = (
+                    f"{issued_id} SESSION B AUTHORIZED "
+                    f"{chr(8212)} EXECUTE EXTERNAL PROOF ONLY"
+                )
+                if auth_lines != [_ISSUED_SESSION_B_AUTH]:
+                    add(issued[0].relative_to(root).as_posix(),
+                        "issued session authorization", repr(auth_lines),
+                        f"exactly {_ISSUED_SESSION_B_AUTH}")
+                if current_gate != expected_gate:
+                    add("WORKORDER.md", "authorized session gate",
+                        str(current_gate), expected_gate)
+                if _has_other_session_authorization(pointer, issued_text, session):
+                    add("WORKORDER.md", "later session authorization",
+                        "positive permission for a non-current session",
+                        "only Session B authorized")
+                if issued[0].name == _WO002_NAME:
+                    normalized_issued = " ".join(issued_text.split())
+                    if base != f"`{_WO002_SESSION_B_BASE}`":
+                        add("WORKORDER.md", "Session B base commit", str(base),
+                            f"`{_WO002_SESSION_B_BASE}`")
+                    if current_gate != _WO002_SESSION_B_GATE:
+                        add("WORKORDER.md", "WO-002 Session B gate",
+                            str(current_gate), _WO002_SESSION_B_GATE)
+                    for evidence, kind in (
+                        (_WO002_SESSION_B_BASE,
+                         "Session B authorization commit"),
+                        (_WO002_SESSION_B_WORKFLOW,
+                         "Session B authorization workflow"),
+                        (_WO002_SESSION_B_JOB, "Session B authorization job"),
+                    ):
+                        if issued_text.count(evidence) != 1:
+                            add(rel, kind, str(issued_text.count(evidence)),
+                                f"exactly one {evidence}")
+                    if _WO002_SESSION_B_NEXT_GATE not in normalized_issued:
+                        add(rel, "WO-002 next gate", "missing or changed",
+                            _WO002_SESSION_B_NEXT_GATE)
+                    if _WO002_SESSION_B_PROOF_ONLY not in normalized_issued:
+                        add(rel, "Session B proof-only statement", "missing",
+                            _WO002_SESSION_B_PROOF_ONLY)
+                    if _has_next_work_order_authorization(
+                        pointer, issued_text, "WO-003"
+                    ):
+                        add("WORKORDER.md", "next work order authorization",
+                            "implicit WO-003 permission",
+                            "WO-003 remains proposed and not authorized")
+                    # Session A's accepted evidence outlives its own session.
+                    for _f, _k, _found, _want in _accepted_record_findings(
+                        pointer, issued_text, rel
+                    ):
+                        add(_f, _k, _found, _want)
             else:
                 add("WORKORDER.md", "authorized session gate", str(session),
-                    "NONE or the specifically authorized session A")
+                    "NONE or the specifically authorized session A or B")
 
     return findings
 

@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "sanitized": true,
+  "work_order": "WO-002",
+  "session": "Session B",
+  "title": "WO-002 Session B external official-MCP proof",
+  "baseline_commit": "d1a2c810126ba6c9e14891da1b25cb198c1d45c7",
+  "captured_utc": "2026-08-27T23:51:02Z",
+  "sanitization_note": "User home paths replaced with <user-home>. No email, credentials, authorization tokens, MCP session identifiers, or machine-specific transient secrets are recorded.",
+  "initial_state": {
+    "uefn_release": "42.00",
+    "unreal_release": "6.0",
+    "project": "TOOL_TEST",
+    "official_mcp_toolsets_beta_enabled": "not_recorded",
+    "official_mcp_toolsets_beta_note": "The owner did not confirm the Project Settings value. Corroborating observations only: the official loopback MCP server was listening, and the editor logged tool search enabled with 3 meta-tools and 29 discoverable toolsets. Recorded as not_recorded rather than inferred.",
+    "toolbelt_startup_before_recovery": {
+      "version": "2.4.1",
+      "registered_tools": 1,
+      "startup_ran": false,
+      "state": "suppressed"
+    },
+    "quirk_36": "observed",
+    "quirk_36_recovery": {
+      "command": "import UEFN_Toolbelt as tb; tb.register()",
+      "startup_ran_after": true,
+      "registered_tools_after": 362,
+      "registered_categories_after": 55,
+      "state": "passed"
+    },
+    "custom_bridge_stopped": "passed",
+    "custom_bridge_handoff_absent": "passed",
+    "custom_bridge_ports_8765_8770_closed": "passed",
+    "official_toolsets_before_recovery": {
+      "exact_name_present": false,
+      "top_level_tools": [
+        "list_toolsets",
+        "describe_toolset",
+        "call_tool"
+      ],
+      "note": "Baseline listing captured before Quirk #36 recovery. Labelled initial state, not acceptance evidence."
+    },
+    "hashes": {
+      "accepted_runtime_files": 94,
+      "accepted_runtime_tree_sha256": "9726bf0dcbc317011fe92cec102bd8a2a9216c8b83893839c25e63a372cdc81c",
+      "epic_toolset_py_sha256": "27d9480fdfe62ea829a65d0f2a6726527222139cdafee5666943eb5a553adeb4",
+      "epic_mcp_tools_py_sha256": "610c9b317f8d4a4ca30ab0986b9675de4c50c043fbd62af74876429f65beca62",
+      "deployed_matches_accepted": true,
+      "deployed_extra_files": [
+        "UEFN_Toolbelt/core.py"
+      ],
+      "deployed_extra_files_note": "Pre-existing orphan deleted from the repository in 1d8c711 and never pruned from the deployed project. A package directory shadows a same-named module, so it is inert. Not a Session B change and not repaired here.",
+      "deployed_build_stamp": "d87572e+dirty deployed 2026-08-26T01:37:18",
+      "deployed_build_stamp_note": "Stale deploy-time metadata naming the Session A authorized base. File hashes are authoritative and match the accepted runtime."
+    }
+  },
+  "protocol": {
+    "requested": "2025-03-26",
+    "negotiated": "2025-11-25",
+    "endpoint": "http://127.0.0.1:8000/mcp official UEFN loopback",
+    "transport": "streamable-http json-rpc"
+  },
+  "external_official_mcp": {
+    "externally_listable": "failed",
+    "externally_describable": "failed",
+    "externally_callable": "failed",
+    "independent_determination_note": "Each state is determined only by its own probe. No result for one state was used to satisfy another.",
+    "architectural_reason": "Epic's installed valkyrie_toolset registration source states the creator surface is decided by UE::ValkyrieToolset::ToolsetPolicy alone. In-process ToolsetRegistry acceptance, logged as Registering Toolset UEFN_Toolbelt.epic_toolset.UEFNToolbeltToolset, therefore does not grant external exposure. Read-only observation; no Epic installation or policy was modified."
+  },
+  "official_probes": [
+    {
+      "probe": "list_toolsets()",
+      "first_observed_utc": "2026-08-27T23:51:02Z",
+      "sanitized_request_envelope": {
+        "jsonrpc": "2.0",
+        "id": 10,
+        "method": "tools/call",
+        "params": {
+          "name": "list_toolsets",
+          "arguments": {}
+        }
+      },
+      "sanitized_response_envelope": {
+        "jsonrpc": "2.0",
+        "id": 10,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "- EditorToolset.EditorAppToolset: Tools for querying and modifying Unreal Editor state: console variables, asset imaging,\nactor and asset selection, scene outliner folder selection, viewport camera, content browser\nnavigation, content browser collections, and Play-In-Editor session control.\n- EditorToolset.LogsToolset: Provides tools for reading the Unreal Engine output log and controlling\nlog category verbosity.\n- GameplayTagsToolset.GameplayTagsToolset: Provides tools for reading and managing gameplay tags in INI tag source files via the project's GameplayTagsManager.\n- MVVMToolset.MVVMToolset: Toolset for authoring ModelViewViewModel (MVVM) data on UMG Widget Blueprints.\n\nThe Model-View-ViewModel pattern decouples a UMG widget's presentation (the View)\nfrom the data and logic that drives it (the ViewModel). Bindings wire individual\nwidget properties to ViewModel properties so the UI reflects state changes\nautomatically, optionally routing values through conversion functions when the\nsource and destination types differ, and event bindings forward widget events\n(multicast delegates) onto the ViewModel.\n\nThis toolset exposes an API to configure WidgetBlueprint's MVVM data:\n  - Author ViewModel Blueprints derived from UMVVMViewModelBase and add\n    typed properties to them.\n  - Discover ViewModels on disk, attach them to a WidgetBlueprint, and list\n    the ones currently registered on a widget.\n  - Create, list, and remove property-to-property view bindings between\n    widgets, ViewModels, and the WidgetBlueprint itself, optionally selecting\n    a conversion function when types don't match.\n  - Create event bindings from widget multicast delegates to ViewModel\n    handlers, and enumerate the events available to bind.\n  - Repair MVVM state on a WidgetBlueprint by regenerating its binding graphs\n    to match the stored binding data.\n- NiagaraToolsets.NiagaraToolset_Info: Niagara Toolset for general Niagara information and guidance.\n\nProvides:\n- Enum value lookups\n- General usage information\n\nCall these functions when you need context about Niagara types.\n- NiagaraToolsets.NiagaraToolset_Component: Niagara Toolset for Niagara Component operations.\n\nUse this toolset when working with:\n- Niagara Components on actors\n- Runtime Niagara system manipulation\n- User variable overrides on component instances\n- FX-related operations in levels or blueprints\n\nThis is the primary toolset for runtime Niagara operations.\n- NiagaraToolsets.NiagaraToolset_System: Niagara Toolset for Niagara System operations.\n\nProvides comprehensive access to Niagara System editing, including:\n- System, emitter, and module creation and modification\n- Schema discovery for understanding structure\n- Topology and Summary inspection for viewing current configuration\n- Data access for reading and writing properties\n- Dependency rollups via GetSystemDependencies\n- Dynamic-input chain traversal via GetDynamicInputChain\n\nThis is the primary toolset for working with Niagara Systems in the editor.\n- NiagaraToolsets.NiagaraToolset_Assets: Niagara Toolset for asset-registry-backed discovery and metadata editing of UNiagaraScript assets.\nRead paths use the asset registry only. Write paths load the script and refresh registry tags.\n- PhysicsToolsets.PhysicsAssetToolset: Provides tools for creating and managing Physics Assets.\n- VerseFieldsToolset.VerseFieldsToolset: Authors Verse fields on a Widget Blueprint and binds widget properties to them via MVVM. Covers\nlisting, adding, editing, removing, and duplicating fields, plus creating the view binding that\ndrives a widget property from a field's value.\n- WidgetAnimationToolset.WidgetAnimationToolset: UMG Widget Animation toolset for AI-driven authoring of UWidgetAnimation assets.\n\nUWidgetAnimation extends UMovieSceneSequence, so every SequencerTools /\nSequencerKeyframingTools / SequencerConditionTools method that accepts a\nUMovieSceneSequence, MovieSceneTrack, MovieSceneSection, or MovieSceneChannel\nworks on widget animations unmodified. Use this toolset for the UMG-specific\nlifecycle and binding work; use the existing Sequencer toolsets for tracks,\nsections, and keyframes.\n- UMGToolSet.UMGToolSet: UMG widget toolset for AI-driven widget creation and tree manipulation.\n\nIMPORTANT WORKFLOW - for every widget and slot returned by this toolset:\n  1. Call ObjectTools.list_properties(widget) to discover exact property names.\n  2. Call ObjectTools.get_properties(widget, [...]) with those exact names.\n  3. Call ObjectTools.set_properties(widget, {...}) with those exact names.\nProperty names vary per widget class and CANNOT be guessed - list_properties is required.\nSkipping step 1 causes set_properties to silently fail or set wrong properties.\n\nReturns UObject pointers - ToolsetRegistry serializes them as {\"refPath\": \"...\"} automatically.\nPass returned Widget, Slot, and Parent pointers directly to ObjectTools or back to this toolset.\n- ValkyrieToolset.ValkyriePythonToolset: Valkyrie Python Toolset\n- ValkyrieToolset.VerseToolset: Verse Toolset\n- ValkyrieToolset.SessionToolset: Session Toolset\n- ValkyrieToolset.DeviceToolset: Device Toolset\n- ValkyrieToolset.EntityToolset: Entity Toolset\n- editor_toolset.toolsets.actor.ActorTools: Provides tools for inspecting and modifying actors, including\n    their transforms, labels, parent-child relationships, and components.\n- editor_toolset.toolsets.asset.AssetTools: Generic, type-agnostic operations on project assets: finding and loading them, managing the\n    asset and folder lifecycle, inspecting class, tags, metadata, and dependencies, and reading and\n    writing text files on disk.\n- editor_toolset.toolsets.curve_table.CurveTableTools: Provides tools for creating and editing CurveTable assets.\n- editor_toolset.toolsets.data_table.DataTableTools: Provides tools for creating and editing DataTable assets.\n- editor_toolset.toolsets.material.MaterialTools: Provides tools for creating and editing Material and MaterialFunction assets.\n- editor_toolset.toolsets.material_instance.MaterialInstanceTools: Provides tools for creating and modifying MaterialInstanceConstant assets.\n- editor_toolset.toolsets.object.ObjectTools: Provides tools for inspecting and modifying the properties of\n    Unreal Objects and Unreal Classes, including those in Blueprints.\n    Also use this toolset to discover available classes and subclasses.\n- editor_toolset.toolsets.primitive.PrimitiveTools: Provides tools for adding primitive geometry components to actors.\n- editor_toolset.toolsets.scene.SceneTools: Provides tools for working with the currently loaded level, including\n    loading levels, placing and removing actors, controlling the level camera,\n    organizing actors in the outliner, looking up an OFPA actor's asset path,\n    and managing the world's data layers.\n- editor_toolset.toolsets.skeletal_mesh.SkeletalMeshTools: Provides tools for inspecting and modifying skeletal mesh assets, including\n    the mesh/materials, bone hierarchies, and sockets.\n- editor_toolset.toolsets.static_mesh.StaticMeshTools: Provides tools for inspecting and modifying static mesh assets.\n- editor_toolset.toolsets.texture.TextureTools: Provides tools for importing, inspecting, reading, and exporting Texture2D assets.\n"
+            }
+          ]
+        }
+      },
+      "decoded_conclusion": "exact toolset name UEFN_Toolbelt absent from the completed result",
+      "is_error_envelope": false,
+      "response_excerpt": "- EditorToolset.EditorAppToolset: Tools for querying and modifying Unreal Editor state: console variables, asset imaging,\nactor and asset selection, scene outliner folder selection, viewport camera, content browser\nnavigation, content browser collections, and Play-In-Editor session control.\n- EditorToolset.LogsToolset: Provides tools for reading the Unreal Engine output log and controlling\nlog cat"
+    },
+    {
+      "probe": "describe_toolset(UEFN_Toolbelt)",
+      "first_observed_utc": "2026-08-27T23:51:03Z",
+      "sanitized_request_envelope": {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "method": "tools/call",
+        "params": {
+          "name": "describe_toolset",
+          "arguments": {
+            "toolset_name": "UEFN_Toolbelt"
+          }
+        }
+      },
+      "sanitized_response_envelope": {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "Toolset 'UEFN_Toolbelt' not found. Available toolsets: EditorToolset.EditorAppToolset, EditorToolset.LogsToolset, GameplayTagsToolset.GameplayTagsToolset, MVVMToolset.MVVMToolset, NiagaraToolsets.NiagaraToolset_Info, NiagaraToolsets.NiagaraToolset_Component, NiagaraToolsets.NiagaraToolset_System, NiagaraToolsets.NiagaraToolset_Assets, PhysicsToolsets.PhysicsAssetToolset, VerseFieldsToolset.VerseFieldsToolset, WidgetAnimationToolset.WidgetAnimationToolset, UMGToolSet.UMGToolSet, ValkyrieToolset.ValkyriePythonToolset, ValkyrieToolset.VerseToolset, ValkyrieToolset.SessionToolset, ValkyrieToolset.DeviceToolset, ValkyrieToolset.EntityToolset, editor_toolset.toolsets.actor.ActorTools, editor_toolset.toolsets.asset.AssetTools, editor_toolset.toolsets.curve_table.CurveTableTools, editor_toolset.toolsets.data_table.DataTableTools, editor_toolset.toolsets.material.MaterialTools, editor_toolset.toolsets.material_instance.MaterialInstanceTools, editor_toolset.toolsets.object.ObjectTools, editor_toolset.toolsets.primitive.PrimitiveTools, editor_toolset.toolsets.scene.SceneTools, editor_toolset.toolsets.skeletal_mesh.SkeletalMeshTools, editor_toolset.toolsets.static_mesh.StaticMeshTools, editor_toolset.toolsets.texture.TextureTools"
+            }
+          ],
+          "isError": true
+        }
+      },
+      "decoded_conclusion": "official server reports the toolset is not found",
+      "is_error_envelope": true,
+      "response_excerpt": "Toolset 'UEFN_Toolbelt' not found. Available toolsets: EditorToolset.EditorAppToolset, EditorToolset.LogsToolset, GameplayTagsToolset.GameplayTagsToolset, MVVMToolset.MVVMToolset, NiagaraToolsets.NiagaraToolset_Info, NiagaraToolsets.NiagaraToolset_Component, NiagaraToolsets.NiagaraToolset_System, NiagaraToolsets.NiagaraToolset_Assets, PhysicsToolsets.PhysicsAssetToolset, VerseFieldsToolset.VerseFi"
+    },
+    {
+      "probe": "call_tool(toolbelt_list_tools, category=MCP Bridge)",
+      "first_observed_utc": "2026-08-27T23:51:03Z",
+      "sanitized_request_envelope": {
+        "jsonrpc": "2.0",
+        "id": 12,
+        "method": "tools/call",
+        "params": {
+          "name": "call_tool",
+          "arguments": {
+            "tool_name": "toolbelt_list_tools",
+            "toolset_name": "UEFN_Toolbelt",
+            "arguments": {
+              "category": "MCP Bridge"
+            }
+          }
+        }
+      },
+      "sanitized_response_envelope": {
+        "jsonrpc": "2.0",
+        "id": 12,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "Toolset 'UEFN_Toolbelt' not found"
+            }
+          ],
+          "isError": true
+        }
+      },
+      "decoded_conclusion": "official server reports the toolset is not found",
+      "is_error_envelope": true,
+      "response_excerpt": "Toolset 'UEFN_Toolbelt' not found"
+    },
+    {
+      "probe": "call_tool(toolbelt_describe_tool, tool_name=epic_mcp_status)",
+      "first_observed_utc": "2026-08-27T23:51:03Z",
+      "sanitized_request_envelope": {
+        "jsonrpc": "2.0",
+        "id": 13,
+        "method": "tools/call",
+        "params": {
+          "name": "call_tool",
+          "arguments": {
+            "tool_name": "toolbelt_describe_tool",
+            "toolset_name": "UEFN_Toolbelt",
+            "arguments": {
+              "tool_name": "epic_mcp_status"
+            }
+          }
+        }
+      },
+      "sanitized_response_envelope": {
+        "jsonrpc": "2.0",
+        "id": 13,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "Toolset 'UEFN_Toolbelt' not found"
+            }
+          ],
+          "isError": true
+        }
+      },
+      "decoded_conclusion": "official server reports the toolset is not found",
+      "is_error_envelope": true,
+      "response_excerpt": "Toolset 'UEFN_Toolbelt' not found"
+    },
+    {
+      "probe": "call_tool(toolbelt_run_tool, tool_name=epic_mcp_status, empty json object arguments)",
+      "first_observed_utc": "2026-08-27T23:51:04Z",
+      "sanitized_request_envelope": {
+        "jsonrpc": "2.0",
+        "id": 14,
+        "method": "tools/call",
+        "params": {
+          "name": "call_tool",
+          "arguments": {
+            "tool_name": "toolbelt_run_tool",
+            "toolset_name": "UEFN_Toolbelt",
+            "arguments": {
+              "tool_name": "epic_mcp_status",
+              "arguments_json": "{}"
+            }
+          }
+        }
+      },
+      "sanitized_response_envelope": {
+        "jsonrpc": "2.0",
+        "id": 14,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "Toolset 'UEFN_Toolbelt' not found"
+            }
+          ],
+          "isError": true
+        }
+      },
+      "decoded_conclusion": "official server reports the toolset is not found",
+      "is_error_envelope": true,
+      "response_excerpt": "Toolset 'UEFN_Toolbelt' not found"
+    }
+  ],
+  "internal_toolbelt_contracts": {
+    "before_official_probes": {
+      "toolbelt_list_tools": "passed",
+      "toolbelt_describe_tool": "passed",
+      "toolbelt_run_tool": "passed",
+      "observed_utc": "2026-08-27T23:47:00Z",
+      "evidence": "Direct console calls returned the documented JSON payloads."
+    },
+    "during_official_probes": {
+      "toolbelt_list_tools": "passed",
+      "toolbelt_describe_tool": "passed",
+      "toolbelt_run_tool": "passed",
+      "observed_utc": "2026-08-27T23:52:00Z",
+      "evidence": "Two console observations landed inside the official liveness window 2026-08-27T23:51:49Z to 2026-08-27T23:54:14Z covering 45 official requests, all HTTP 200. The editor log interleaves LogModelContextProtocol running list_toolsets around the console calls."
+    },
+    "after_official_probes": {
+      "toolbelt_list_tools": "passed",
+      "toolbelt_describe_tool": "passed",
+      "toolbelt_run_tool": "passed",
+      "observed_utc": "2026-08-27T23:57:00Z",
+      "evidence": "Observed after the liveness window closed and the probe process was confirmed terminated. No LogModelContextProtocol lines surrounded the console call."
+    },
+    "correction_note": "One observation first labelled after actually occurred inside the liveness window because the probe loop had not terminated when the implementer believed it had. It is recorded as a second during sample, and a fresh after observation was taken."
+  },
+  "cleanup": {
+    "level_mutated_or_saved": "passed",
+    "level_mutated_or_saved_detail": "no umap modified during the session",
+    "fortnite_launched": "passed",
+    "fortnite_launched_detail": "no Fortnite client or launcher process observed",
+    "play_session_started": "passed",
+    "custom_bridge_started": "passed",
+    "custom_bridge_started_detail": "mcp_start, mcp_restart and the dashboard were never invoked",
+    "handoff_absent": "passed",
+    "ports_8765_8770_closed": "passed",
+    "temporary_probe_client_removed": "passed",
+    "temporary_probe_client_detail": "Disposable stdlib client lived outside the repository in the session scratchpad and was deleted after capture.",
+    "official_test_client_left_running": "passed",
+    "official_test_client_detail": "probe process terminated and verified static across two checks",
+    "urcignore_untouched": "passed",
+    "initial_official_server_state_restored": "passed",
+    "initial_official_server_state_detail": "No Epic installation, ToolsetPolicy, or official server state was modified at any point. Only read-only requests were issued."
+  }
+}

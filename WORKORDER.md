@@ -5,9 +5,9 @@ state. Detailed mandates live under `docs/work-orders/`; their presence alone
 never authorizes implementation.
 
 - Current issued Work Order: WO-002
-- Authorized session: NONE
-- Base commit: `50b881716abea3b5838c2a971caac40ee4cd5d30`
-- Current gate: WO-002 SESSION A ACCEPTED — SESSION B NOT AUTHORIZED
+- Authorized session: B
+- Base commit: `d1a2c810126ba6c9e14891da1b25cb198c1d45c7`
+- Current gate: WO-002 SESSION B AUTHORIZED — EXECUTE EXTERNAL PROOF ONLY
 - Release train: WO-001 through WO-007
 - Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST
 
@@ -22,8 +22,16 @@ is issued. Session A was independently accepted, committed, and pushed as
 `32937631903`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32937631903)
 completed successfully, including required job
 [`98081919978` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/32937631903/job/98081919978).
-No session is currently authorized. Session B remains unauthorized and requires
-separate BDFL/owner authorization.
+Session A is accepted and complete.
+
+Session B is authorized for external official-MCP proof only at
+`d1a2c810126ba6c9e14891da1b25cb198c1d45c7`, after [CI workflow
+`33047743360`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/33047743360)
+completed successfully, including required job
+[`98435618996` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/33047743360/job/98435618996).
+Session B grants no repair, advertising, commit, push, tag, GitHub Release,
+or publication authority. WO-003 and every later Work Order remain
+unauthorized.
 
 WO-001 through WO-007 form the frozen next release train. The release version
 remains undecided and the repository stays at version 2.4.1. No tag or GitHub

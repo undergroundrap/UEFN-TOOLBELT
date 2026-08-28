@@ -2,7 +2,7 @@
 
 STATUS: ISSUED
 
-AUTHORIZATION: ISSUED — SESSION A ACCEPTED; NO SESSION AUTHORIZED
+AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR EXTERNAL PROOF
 
 OWNER: Ocean Bennett
 
@@ -42,8 +42,7 @@ Independent review also confirmed that the existing dashboard auto-start
 behavior required no Session A correction. The listener was stopped locally,
 the handoff was absent, and ports 8765–8770 were closed after verification.
 
-Session A is accepted and complete. No session is currently authorized.
-Session B remains unauthorized and requires separate BDFL/owner authorization.
+Session A is accepted and complete.
 
 ## Problem and accepted evidence
 
@@ -129,8 +128,8 @@ the same truth model.
 
 ## Session A — internal contract and truth correction
 
-Session A is accepted and complete. No session is currently authorized;
-Session B requires separate BDFL/owner authorization.
+Session A is accepted and complete. Session B is authorized for external
+official-MCP proof only and grants no repair authority.
 
 ### Scope
 
@@ -213,7 +212,18 @@ gate for Session B. Session B remains unauthorized throughout Session A.
 
 ## Session B — external official-MCP proof
 
-Session B is not authorized.
+Session B is authorized for external official-MCP proof only.
+
+### Session B authorization basis
+
+The accepted Session A transition was committed as
+`d1a2c810126ba6c9e14891da1b25cb198c1d45c7`; successful CI workflow
+`33047743360` included successful required job `98435618996` (`Lint, types,
+tests`).
+Under the sole current gate in root `WORKORDER.md`, Session B is authorized
+for external proof only. It grants no repair, advertising, commit, push, tag,
+GitHub Release, repository-metadata, or publication authority. WO-003 and
+every later Work Order remain unauthorized.
 
 ### Scope
 
@@ -291,5 +301,5 @@ tag, GitHub Release, repository metadata, or social publication.
 - The frozen WO-001–WO-007 release train and repository version 2.4.1 remain
   unchanged.
 
-NEXT GATE: explicit BDFL/owner authorization for Session B. Session A is
-accepted and complete; no session is currently authorized.
+NEXT GATE: fresh independent architect review of the complete uncommitted
+Session B evidence. Session B is proof-only; WO-003 remains unauthorized.
