@@ -1,14 +1,32 @@
 # WO-003 — Official UEFN MCP Documentation Convergence
 
-STATUS: PROPOSED
+STATUS: ISSUED
 
-AUTHORIZATION: NOT AUTHORIZED
+AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED
 
 OWNER: Ocean Bennett
 
 PRIORITY: P1
 
 BASELINE: `e0b1063f5300404534c76789bdb6742f639425ba`
+
+ISSUANCE_COMMIT: `19350aa324bea4d88e494ee806801586a383d76e`
+
+ISSUANCE_CI_WORKFLOW: `33148089523`
+
+ISSUANCE_CI_JOB: `98773518991` — Lint, types, tests
+
+## Issuance basis
+
+The independently accepted revision of this mandate was committed as
+`19350aa324bea4d88e494ee806801586a383d76e`; successful CI workflow
+`33148089523` included successful required job `98773518991` (`Lint, types,
+tests`).
+
+Issuance alone grants no implementation authority. Session A and Session B
+both remain unauthorized until the owner authorizes a session in root
+`WORKORDER.md`. The planning baseline above is preserved unchanged; it
+records the state this mandate was planned against, not the issuance point.
 
 ## Planning basis
 
@@ -78,7 +96,7 @@ error this mandate exists to remove from the documentation.
   official surface as simply "working".
 - Epic's UEFN MCP documentation page describes Verse file read/write/compile,
   Scene Graph entity creation, Creative device catalog browsing and editable
-  property configuration, and play-session start/stop/inspect. It does not
+  property configuration, and play-session launch, termination, and inspection operations. It does not
   headline UMG on that page. Session A must not resolve this by silently
   picking one source; it must cite the source it relies on for each claim.
 - Epic documents server startup as an Editor Preferences setting under Model
@@ -190,7 +208,7 @@ complete all of the following before any commit:
   requires for every `install.py` change, and remove that target afterwards.
 
 Throughout, Session A must not mutate or save the `TOOL_TEST` level, launch
-Fortnite, start a play session, start the custom bridge, or perform any
+Fortnite, run a play session, activate the custom bridge, or perform any
 official-MCP probing.
 
 Why the drift scanner did not catch these: `__init__.py` and `launcher.py`
@@ -277,7 +295,7 @@ Required inversions to reject:
 - stale tool-count, category-count, or unavailable-entry values returning, including
   the two dashboard except-branch fallback literals, protected by an
   assignment-specific assertion rather than a broadened count pattern;
-- Session B or metadata application becoming implicitly authorized.
+- attempted activation of Session B or application of repository metadata without a separate owner gate;
 
 Explicitly not permitted: whole-paragraph pinning, positional Markdown parsing,
 a general natural-language authorization engine, a new governance ledger, or
@@ -285,7 +303,7 @@ freezing harmless prose and formatting.
 
 ## Session B — repository-description draft only
 
-Session B is a separately authorized drafting session. It may read the current
+Session B requires a separate owner gate. Its scope after that gate is drafting only: it may read the current
 GitHub repository description, prepare exactly one replacement description
 grounded in Session A's accepted wording, and leave that draft uncommitted for
 independent review.
@@ -322,12 +340,13 @@ authorization → implementation → independent implementation review → commi
 push → CI → Session B authorization → metadata application → tag → GitHub
 Release → social publication.
 
-This proposal does not issue itself and authorizes neither session. Live UEFN
+This Work Order is issued but authorizes neither session. Live UEFN
 verification is not required for the documentation-only rows. The exception is
 the runtime-text lock — eight runtime occurrences across `__init__.py`,
 `dashboard_pyside6.py` and `launcher.py`, plus the two `install.py` strings —
 which carries the deploy, full-restart, registration, visual-inspection, and
 end-to-end install verification set defined above.
 
-NEXT GATE: fresh independent pre-issuance architect review of this corrected
-proposed WO-003 mandate.
+NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone
+grants no implementation authority; Session A and Session B remain
+unauthorized.

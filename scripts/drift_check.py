@@ -80,7 +80,7 @@ SCAN_FILES = [
     "docs/work-orders/README.md",
     "docs/work-orders/completed/WO-001-custom-mcp-security.md",
     "docs/work-orders/completed/WO-002-epic-toolset-integration.md",
-    "docs/work-orders/proposed/WO-003-official-mcp-doc-convergence.md",
+    "docs/work-orders/issued/WO-003-official-mcp-doc-convergence.md",
     "docs/work-orders/proposed/WO-004-modal-observability.md",
     "docs/work-orders/proposed/WO-005-coverage-source-of-truth.md",
     "docs/work-orders/proposed/WO-006-official-vs-toolbelt-benchmark.md",
@@ -157,6 +157,14 @@ _WO002_EVIDENCE_PATH = (
 )
 _WO002_EVIDENCE_SHA256 = (
     "9DFBD500808113A122C65DA680AF8AD5409045DC1414AFEBEFB6B8771FE46CB0"
+)
+_WO003_NAME = "WO-003-official-mcp-doc-convergence.md"
+_WO003_PLANNING_BASELINE = "e0b1063f5300404534c76789bdb6742f639425ba"
+_WO003_ISSUANCE_COMMIT = "19350aa324bea4d88e494ee806801586a383d76e"
+_WO003_ISSUANCE_WORKFLOW = "33148089523"
+_WO003_ISSUANCE_JOB = "98773518991"
+_WO003_ISSUED_GATE = (
+    "WO-003 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
 )
 _WO002_COMPLETED_GATE = (
     "WO-002 COMPLETED — WO-003 PROPOSED AND NOT AUTHORIZED"
@@ -388,6 +396,80 @@ def _anchored_issued_region(text: str) -> tuple[str | None, str | None]:
     first = marks[basis + 1]
     last = marks[basis + 2]
     return " ".join("\n".join(lines[first:last]).split()), None
+
+
+_WO003_ISSUED_SEQUENCE = (
+    "BASELINE: `" + _WO003_PLANNING_BASELINE + "`",
+    "ISSUANCE_COMMIT: `" + _WO003_ISSUANCE_COMMIT + "`",
+    "ISSUANCE_CI_WORKFLOW: `" + _WO003_ISSUANCE_WORKFLOW + "`",
+    "ISSUANCE_CI_JOB: `" + _WO003_ISSUANCE_JOB + "` — Lint, types, tests",
+)
+# The pointer's field keys in canonical order. Values for the three issuance
+# fields are pinned exactly below; the other keys keep their own dedicated
+# checks, so only their key and position are asserted here.
+_WO003_POINTER_SEQUENCE = (
+    "- Current issued Work Order:",
+    "- Authorized session:",
+    "- Base commit:",
+    "- Current gate:",
+    "- Issuance commit: `" + _WO003_ISSUANCE_COMMIT + "`",
+    "- Issuance CI workflow: `" + _WO003_ISSUANCE_WORKFLOW + "`",
+    "- Issuance CI job: `" + _WO003_ISSUANCE_JOB + "` — Lint, types, tests",
+    "- Release train:",
+    "- Release gate:",
+)
+
+
+def _canonical_metadata(text: str, stop) -> list[str]:
+    """Non-blank lines of a document's canonical top block."""
+    out = []
+    for line in text.split("\n"):
+        if stop(line):
+            break
+        stripped = line.strip()
+        if stripped:
+            out.append(stripped)
+    return out
+
+
+def _wo003_field_findings(text, sequence, stop, where, exact, terminal):
+    """The canonical metadata as an exact contiguous slice.
+
+    Enumerating wrapper syntax was a blacklist: an unlisted wrapper such as
+    <details> still let a byte-correct field stand in for the declaration, and
+    an ordering-only check still permitted arbitrary lines between fields. The
+    slice must therefore *equal* the expected sequence with nothing between its
+    entries, so any inserted line - wrapper, note, or otherwise - breaks it
+    without the checker needing to know what that line means.
+    """
+    label = "WO-003 issuance field (" + where + ")"
+
+    def fits(line: str, expected: str) -> bool:
+        return line == expected if expected in exact else line.startswith(expected)
+
+    block = _canonical_metadata(text, stop)
+    heads = [i for i, line in enumerate(block) if fits(line, sequence[0])]
+    if len(heads) != 1:
+        return [(label,
+                 sequence[0] + " opens the canonical slice " + str(len(heads))
+                 + "x", "exactly one canonical metadata slice")]
+    start = heads[0]
+    actual = block[start:start + len(sequence)]
+    if len(actual) != len(sequence):
+        return [(label,
+                 "the canonical slice holds " + str(len(actual))
+                 + " lines", str(len(sequence)) + " canonical metadata lines")]
+    for index, (expected, line) in enumerate(zip(sequence, actual, strict=True)):
+        if not fits(line, expected):
+            return [(label,
+                     "canonical slice line " + str(index + 1) + " is " + line,
+                     expected)]
+    trailing = block[start + len(sequence):]
+    if terminal and trailing:
+        return [(label,
+                 "extra metadata after the canonical slice: " + trailing[0],
+                 "the canonical slice ends the metadata block")]
+    return []
 
 
 def _acceptance_record_findings(text, locate, expected, fragments):
@@ -954,9 +1036,14 @@ def check_work_order_contract() -> list[dict]:
     }
     wo002_placed = ((issued_dir / _WO002_NAME).exists()
                     or (completed_dir / _WO002_NAME).exists())
+    wo003_placed = ((issued_dir / _WO003_NAME).exists()
+                    or (completed_dir / _WO003_NAME).exists())
     expected_proposals = set(_REMAINING_RELEASE_PROPOSALS)
     if not wo002_placed:
         expected_proposals.add(_WO002_NAME)
+    if wo003_placed:
+        # An issued or completed Work Order is no longer a proposal.
+        expected_proposals.discard(_WO003_NAME)
     if proposal_names != expected_proposals:
         add("docs/work-orders/proposed", "release train proposal set",
             repr(sorted(proposal_names)),
@@ -1012,6 +1099,12 @@ def check_work_order_contract() -> list[dict]:
         add("docs/work-orders", "WO-002 state",
             repr([path.relative_to(root).as_posix() for path in wo002_paths]),
             expected_wo002_path.relative_to(root).as_posix())
+
+    wo003_paths = [path for path in state_paths if path.name == _WO003_NAME]
+    if wo003_placed and wo003_paths != [issued_dir / _WO003_NAME]:
+        add("docs/work-orders", "WO-003 state",
+            repr([path.relative_to(root).as_posix() for path in wo003_paths]),
+            (issued_dir / _WO003_NAME).relative_to(root).as_posix())
 
     # WO-002 completion is terminal. This checker carries the WO-002 completion
     # contract, so no rollback of the documents alone - however internally
@@ -1229,6 +1322,41 @@ def check_work_order_contract() -> list[dict]:
                     ):
                         add("WORKORDER.md", "implicit session authorization",
                             "contradictory Session A permission", expected_gate)
+                    if issued[0].name == _WO003_NAME:
+                        wo003_rel = issued[0].relative_to(root).as_posix()
+                        if base != f"`{_WO003_ISSUANCE_COMMIT}`":
+                            add("WORKORDER.md", "WO-003 issuance base commit",
+                                str(base), f"`{_WO003_ISSUANCE_COMMIT}`")
+                        if current_gate != _WO003_ISSUED_GATE:
+                            add("WORKORDER.md", "WO-003 issued gate",
+                                str(current_gate), _WO003_ISSUED_GATE)
+                        # The accepted planning baseline is pinned as its
+                        # BASELINE marker; the same hash also appears in the
+                        # planning prose, which is not a second declaration.
+                        baseline_marker = (
+                            f"BASELINE: `{_WO003_PLANNING_BASELINE}`"
+                        )
+                        if issued_text.count(baseline_marker) != 1:
+                            add(wo003_rel, "WO-003 planning baseline",
+                                str(issued_text.count(baseline_marker)),
+                                f"exactly one {baseline_marker}")
+                        for kind, found_detail, want in _wo003_field_findings(
+                            issued_text, _WO003_ISSUED_SEQUENCE,
+                            lambda line: line.startswith("## "),
+                            "issued record",
+                            exact=set(_WO003_ISSUED_SEQUENCE),
+                            terminal=True,
+                        ):
+                            add(wo003_rel, kind, found_detail, want)
+                        for kind, found_detail, want in _wo003_field_findings(
+                            pointer, _WO003_POINTER_SEQUENCE,
+                            lambda line: _WO001_COMPLETED_LINK in line,
+                            "WORKORDER.md",
+                            exact={item for item in _WO003_POINTER_SEQUENCE
+                                   if "Issuance" in item},
+                            terminal=True,
+                        ):
+                            add("WORKORDER.md", kind, found_detail, want)
                     if _has_other_session_authorization(pointer, issued_text, ""):
                         add("WORKORDER.md", "later session authorization",
                             "positive permission for a labeled session",

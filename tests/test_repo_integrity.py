@@ -136,7 +136,7 @@ def test_drift_check_covers_agent_context_surfaces(repo_root):
         "docs/work-orders/README.md",
         "docs/work-orders/completed/WO-001-custom-mcp-security.md",
         "docs/work-orders/completed/WO-002-epic-toolset-integration.md",
-        "docs/work-orders/proposed/WO-003-official-mcp-doc-convergence.md",
+        "docs/work-orders/issued/WO-003-official-mcp-doc-convergence.md",
         "docs/work-orders/proposed/WO-004-modal-observability.md",
         "docs/work-orders/proposed/WO-005-coverage-source-of-truth.md",
         "docs/work-orders/proposed/WO-006-official-vs-toolbelt-benchmark.md",
@@ -183,7 +183,6 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
 
     proposals = sorted((work_orders / "proposed").glob("WO-*.md"))
     expected_proposals = {
-        "WO-003-official-mcp-doc-convergence.md",
         "WO-004-modal-observability.md",
         "WO-005-coverage-source-of-truth.md",
         "WO-006-official-vs-toolbelt-benchmark.md",
@@ -212,20 +211,22 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
               if path.name.lower() != "readme.md"]
     completed = [path for path in (work_orders / "completed").glob("*.md")
                  if path.name.lower() != "readme.md"]
-    assert not issued
+    assert [path.name for path in issued] == [
+        "WO-003-official-mcp-doc-convergence.md"
+    ]
     assert {path.name for path in completed} == {
         "WO-001-custom-mcp-security.md",
         "WO-002-epic-toolset-integration.md",
     }
     assert len(completed) == 2
     assert (work_orders / "completed" / "WO-002-epic-toolset-integration.md").exists()
-    assert current == "NONE"
+    assert current == "WO-003"
     assert session == "NONE"
     assert base_lines == [
-        "- Base commit: `c031f20e33c716ecc9f9ce546a7419b865ed8641`"
+        "- Base commit: `19350aa324bea4d88e494ee806801586a383d76e`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-002 COMPLETED — WO-003 PROPOSED AND NOT AUTHORIZED"
+        "- Current gate: WO-003 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
     ]
     assert "- Release train: WO-001 through WO-007" in pointer
     assert (
@@ -323,14 +324,131 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "Work Order WO-001" in security_normalized
 
 
-def _make_wo002_completed_case(repo_root, tmp_path, name):
-    """Copy the current terminal WO-002 completed state."""
+def _make_wo003_issued_case(repo_root, tmp_path, name):
+    """Copy the current issued WO-003 state."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
     shutil.copytree(
         repo_root / "docs" / "work-orders",
         case / "docs" / "work-orders",
+    )
+    return case
+
+
+def _make_wo002_completed_case(repo_root, tmp_path, name):
+    """Reconstruct the terminal WO-002 state from the issued WO-003 state.
+
+    Issuing WO-003 moved the current state forward again, so the WO-002
+    completion every earlier fixture builds on is now itself a reconstruction.
+    """
+    case = _make_wo003_issued_case(repo_root, tmp_path, name)
+    issued = (case / "docs" / "work-orders" / "issued"
+              / "WO-003-official-mcp-doc-convergence.md")
+    proposed = (case / "docs" / "work-orders" / "proposed"
+                / "WO-003-official-mcp-doc-convergence.md")
+    assert issued.exists(), "WO-003 is not in issued/ to reconstruct from"
+    issued.replace(proposed)
+
+    text = proposed.read_text(encoding="utf-8")
+    for _old, _new in (
+        ("STATUS: ISSUED", "STATUS: PROPOSED"),
+        (
+            _NL + "ISSUANCE_COMMIT: `19350aa324bea4d88e494ee806801586a383d76e`"
+            + _NL + _NL + "ISSUANCE_CI_WORKFLOW: `33148089523`"
+            + _NL + _NL + "ISSUANCE_CI_JOB: `98773518991` " + _EM
+            + " Lint, types, tests" + _NL,
+            "",
+        ),
+        (
+            "AUTHORIZATION: ISSUED " + _EM + " SESSION NOT AUTHORIZED",
+            "AUTHORIZATION: NOT AUTHORIZED",
+        ),
+        (
+            "NEXT GATE: explicit BDFL/owner authorization for Session A."
+            " Issuance alone" + _NL
+            + "grants no implementation authority; Session A and Session B remain" + _NL
+            + "unauthorized.",
+            "NEXT GATE: fresh independent pre-issuance architect review of this"
+            " corrected" + _NL + "proposed WO-003 mandate.",
+        ),
+    ):
+        text = _replace_once(text, _old, _new, "WO-003 proposed reconstruction")
+    _require_unique(
+        text,
+        ("## Issuance basis", "## Planning basis"),
+        "WO-003 issuance-basis excision",
+    )
+    text = _sub_once(
+        _NL + "## Issuance basis" + _NL + ".*?(?=" + _NL + "## Planning basis" + _NL + ")",
+        "",
+        text,
+        "WO-003 issuance-basis excision",
+        flags=re.DOTALL,
+    )
+    proposed.write_text(text, encoding="utf-8")
+
+    pointer = case / "WORKORDER.md"
+    text = pointer.read_text(encoding="utf-8")
+    for _old, _new in (
+        ("- Current issued Work Order: WO-003", "- Current issued Work Order: NONE"),
+        (
+            "- Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`" + _NL
+            + "- Issuance CI workflow: `33148089523`" + _NL
+            + "- Issuance CI job: `98773518991` " + _EM + " Lint, types, tests"
+            + _NL,
+            "",
+        ),
+        (
+            "- Base commit: `19350aa324bea4d88e494ee806801586a383d76e`",
+            "- Base commit: `c031f20e33c716ecc9f9ce546a7419b865ed8641`",
+        ),
+        (
+            "- Current gate: WO-003 ISSUED " + _EM
+            + " SESSION A IMPLEMENTATION NOT AUTHORIZED",
+            "- Current gate: WO-002 COMPLETED " + _EM
+            + " WO-003 PROPOSED AND NOT AUTHORIZED",
+        ),
+        (
+            "negative result bounded by ToolsetPolicy. WO-002 is complete; no session" + _NL
+            + "is authorized.",
+            "negative result bounded by ToolsetPolicy. WO-002 is complete; no session" + _NL
+            + "is authorized. WO-003 remains proposed and unauthorized.",
+        ),
+    ):
+        text = _replace_once(text, _old, _new, "WO-002 completed pointer")
+    _require_unique(
+        text,
+        ("[`WO-003`](docs/work-orders/issued/"
+         "WO-003-official-mcp-doc-convergence.md)",
+         "WO-001 through WO-007 form the frozen next release train."
+         " The release version"),
+        "WO-003 pointer-paragraph excision",
+    )
+    text = _sub_once(
+        _NL + re.escape("[`WO-003`](docs/work-orders/issued/"
+                        "WO-003-official-mcp-doc-convergence.md)")
+        + ".*?(?=" + _NL + "WO-001 through WO-007 form the frozen next release train.)",
+        "",
+        text,
+        "WO-003 pointer-paragraph excision",
+        flags=re.DOTALL,
+    )
+    pointer.write_text(text, encoding="utf-8")
+
+    _assert_reconstructed(
+        "WO-002 completed pointer",
+        pointer.read_text(encoding="utf-8"),
+        ("- Current issued Work Order: NONE",
+         "- Current gate: WO-002 COMPLETED " + _EM
+         + " WO-003 PROPOSED AND NOT AUTHORIZED"),
+        ("- Current issued Work Order: WO-003", "WO-003 ISSUED"),
+    )
+    _assert_reconstructed(
+        "WO-003 proposed reconstruction",
+        proposed.read_text(encoding="utf-8"),
+        ("STATUS: PROPOSED", "AUTHORIZATION: NOT AUTHORIZED"),
+        ("STATUS: ISSUED", "## Issuance basis"),
     )
     return case
 
@@ -1709,7 +1827,7 @@ def test_wo002_historical_reconstruction_requires_unique_boundaries(
     The boundaries are counted as exact lines instead.
     """
     tag = "acceptance" if heading == _ACCEPTANCE_HEADING else "following"
-    drifted = _make_wo002_completed_case(
+    drifted = _make_wo003_issued_case(
         repo_root, tmp_path, "boundary-" + damage + "-" + tag
     )
     issued = drifted / _COMPLETED_REL
@@ -1749,7 +1867,7 @@ def test_wo002_historical_reconstruction_requires_pointer_anchor(
     repo_root, tmp_path
 ):
     """A drifted pointer anchor must fail loudly, not rebuild today's state."""
-    drifted = _make_wo002_completed_case(
+    drifted = _make_wo003_issued_case(
         repo_root, tmp_path, "drifted-pointer-anchor"
     )
     pointer = drifted / "WORKORDER.md"
@@ -1768,7 +1886,7 @@ def test_wo002_historical_reconstruction_requires_issued_anchor(
     repo_root, tmp_path
 ):
     """Likewise for the acceptance-record excision the issued probe depends on."""
-    drifted = _make_wo002_completed_case(
+    drifted = _make_wo003_issued_case(
         repo_root, tmp_path, "drifted-issued-anchor"
     )
     issued = drifted / _COMPLETED_REL
@@ -2970,7 +3088,6 @@ def test_wo002_completed_keeps_the_release_gate_closed(
 
 
 @pytest.mark.parametrize("proposal", (
-    "WO-003-official-mcp-doc-convergence.md",
     "WO-004-modal-observability.md",
     "WO-005-coverage-source-of-truth.md",
     "WO-006-official-vs-toolbelt-benchmark.md",
@@ -3199,3 +3316,461 @@ def test_present_targets_still_scan_normally(repo_root, tmp_path, monkeypatch) -
         "the repaired scan target is listed but not actually read"
     )
     assert _MISSING_TARGET not in {finding["type"] for finding in found}
+
+
+_WO003_REL = "docs/work-orders/issued/WO-003-official-mcp-doc-convergence.md"
+_WO003_PLANNING_BASELINE = "e0b1063f5300404534c76789bdb6742f639425ba"
+_WO003_ISSUANCE_COMMIT = "19350aa324bea4d88e494ee806801586a383d76e"
+_WO003_ISSUANCE_WORKFLOW = "33148089523"
+_WO003_ISSUANCE_JOB = "98773518991"
+_WO003_ISSUED_GATE = (
+    "- Current gate: WO-003 ISSUED " + _EM
+    + " SESSION A IMPLEMENTATION NOT AUTHORIZED"
+)
+_WO003_ISSUED_MARKER = "AUTHORIZATION: ISSUED " + _EM + " SESSION NOT AUTHORIZED"
+# The four semantic-preserving corrections applied at issuance. Each avoids a
+# false positive in the session scanner while keeping the accepted meaning.
+_WO003_CORRECTED_WORDING = (
+    "play-session launch, termination, and inspection operations",
+    "attempted activation of Session B or application of repository metadata",
+    "Session B requires a separate owner gate",
+    "run a play session, activate the custom bridge",
+)
+
+
+def _wo003_finding_types(repo_root, tmp_path, monkeypatch, name, mutate):
+    """Findings drift_check reports for a mutated issued WO-003 state."""
+    drift_check = _load_drift_check(repo_root, "wo003_" + name)
+    case = _make_wo003_issued_case(repo_root, tmp_path, "wo003-" + name)
+    mutate(case)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return {finding["type"] for finding in drift_check.check_work_order_contract()}
+
+
+def test_wo003_issued_state_is_clean(repo_root, tmp_path, monkeypatch) -> None:
+    """The corrected canonical issued document raises no finding at all.
+
+    Both session detectors produced false positives on the accepted mandate's
+    own prose before the four wording corrections. This pins that they stay
+    silent.
+    """
+    found = _wo003_finding_types(
+        repo_root, tmp_path, monkeypatch, "control", lambda case: None
+    )
+    assert found == set(), "the issued WO-003 state is not clean: " + repr(
+        sorted(found)
+    )
+    assert not (found & {"implicit session authorization",
+                         "later session authorization"})
+
+
+@pytest.mark.parametrize("phrase", _WO003_CORRECTED_WORDING)
+def test_wo003_corrected_wording_is_present(repo_root, phrase) -> None:
+    """The four corrections stay in place, carrying the accepted meaning."""
+    text = (repo_root / _WO003_REL).read_text(encoding="utf-8")
+    assert phrase in text, "issuance wording correction lost: " + phrase
+
+
+def test_wo003_retains_no_scanner_tripping_wording(repo_root) -> None:
+    """Non-vacuous: the exact strings that tripped the scanner are gone."""
+    text = (repo_root / _WO003_REL).read_text(encoding="utf-8")
+    for gone in (
+        "play-session start/stop/inspect",
+        "Session B or metadata application becoming implicitly authorized",
+        "Session B is a separately authorized drafting session",
+        "start a play session, start the custom bridge",
+    ):
+        assert gone not in text, "scanner-tripping wording returned: " + gone
+
+
+@pytest.mark.parametrize(("name", "rel", "old", "new", "expected"), (
+    ("pointer-work-order", "WORKORDER.md",
+     "- Current issued Work Order: WO-003",
+     "- Current issued Work Order: NONE",
+     "unpointed issued work order"),
+    ("pointer-session", "WORKORDER.md",
+     "- Authorized session: NONE", "- Authorized session: A",
+     "authorized session gate"),
+    ("base-commit", "WORKORDER.md",
+     "- Base commit: `" + _WO003_ISSUANCE_COMMIT + "`",
+     "- Base commit: `" + _WRONG_COMMIT + "`",
+     "WO-003 issuance base commit"),
+    ("gate", "WORKORDER.md", _WO003_ISSUED_GATE,
+     "- Current gate: WO-003 ISSUED " + _EM + " SESSION A MAY BEGIN",
+     "closed session gate"),
+    ("marker", _WO003_REL, _WO003_ISSUED_MARKER,
+     "AUTHORIZATION: ISSUED " + _EM + " SESSION A AUTHORIZED",
+     "issued session authorization"),
+    ("planning-baseline", _WO003_REL,
+     "BASELINE: `" + _WO003_PLANNING_BASELINE + "`",
+     "BASELINE: `" + _WRONG_COMMIT + "`",
+     "WO-003 planning baseline"),
+    ("release-train", "WORKORDER.md",
+     "- Release train: WO-001 through WO-007",
+     "- Release train: WO-001 through WO-008", "release train"),
+    ("release-gate", "WORKORDER.md",
+     "- Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED",
+     "- Release gate: TAG AND GITHUB RELEASE AUTHORIZED",
+     "release authorization"),
+))
+def test_wo003_issued_contract_is_exact(
+    repo_root, tmp_path, monkeypatch, name, rel, old, new, expected
+):
+    """Pointer, markers, baseline, issuance evidence and gates are each pinned."""
+    found = _wo003_finding_types(
+        repo_root, tmp_path, monkeypatch, name,
+        lambda case: _edit(case, rel, old, new),
+    )
+    assert expected in found, (
+        name + " was accepted; drift_check reported " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("activation", (
+    "Session A is authorized and may begin.",
+    "Session B is authorized to proceed.",
+    "Session C is cleared to start implementation.",
+))
+def test_wo003_issuance_rejects_session_activation(
+    repo_root, tmp_path, monkeypatch, activation
+):
+    """Issuance grants no implementation authority to any session."""
+    found = _wo003_finding_types(
+        repo_root, tmp_path, monkeypatch,
+        "activation-" + activation.split()[1],
+        lambda case: _edit(
+            case, "WORKORDER.md",
+            "- Release train: WO-001 through WO-007",
+            "- Release train: WO-001 through WO-007" + _NL + _NL + activation,
+        ),
+    )
+    assert found & {"implicit session authorization",
+                    "later session authorization",
+                    "next work order authorization"}, (
+        "session activation was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("destination", ("proposed", "completed", "superseded"))
+def test_wo003_cannot_be_duplicated_into_another_state(
+    repo_root, tmp_path, monkeypatch, destination
+):
+    """WO-003 lives in exactly one state directory."""
+    def duplicate(case):
+        issued = case / _WO003_REL
+        copy_dir = case / "docs" / "work-orders" / destination
+        copy_dir.mkdir(parents=True, exist_ok=True)
+        copy_target = copy_dir / "WO-003-official-mcp-doc-convergence.md"
+        copy_target.write_text(issued.read_text(encoding="utf-8"), encoding="utf-8")
+
+    found = _wo003_finding_types(
+        repo_root, tmp_path, monkeypatch, "dup-" + destination, duplicate
+    )
+    assert found & {"duplicate work order state", "WO-003 state",
+                    "release train proposal set"}, (
+        "a duplicate WO-003 under " + destination + " was accepted: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo003_issuance_preserves_wo002_terminal_lock(
+    repo_root, tmp_path, monkeypatch
+):
+    """Issuing WO-003 does not loosen WO-002's one-way completion."""
+    def reopen(case):
+        completed = (case / "docs" / "work-orders" / "completed"
+                     / "WO-002-epic-toolset-integration.md")
+        issued = (case / "docs" / "work-orders" / "issued"
+                  / "WO-002-epic-toolset-integration.md")
+        completed.replace(issued)
+
+    found = _wo003_finding_types(
+        repo_root, tmp_path, monkeypatch, "wo002-reopened", reopen
+    )
+    assert "completed WO-002 state" in found, (
+        "WO-002's terminal lock stopped firing after WO-003 issuance: "
+        + repr(sorted(found))
+    )
+
+
+_WO003_FIELD_MARKERS = (
+    ("commit", _WO003_REL,
+     "ISSUANCE_COMMIT: `" + _WO003_ISSUANCE_COMMIT + "`",
+     "ISSUANCE_COMMIT: `" + _WRONG_COMMIT + "`",
+     _WO003_ISSUANCE_COMMIT, "issued record"),
+    ("workflow", _WO003_REL,
+     "ISSUANCE_CI_WORKFLOW: `" + _WO003_ISSUANCE_WORKFLOW + "`",
+     "ISSUANCE_CI_WORKFLOW: `" + _WRONG_WORKFLOW + "`",
+     _WO003_ISSUANCE_WORKFLOW, "issued record"),
+    ("job", _WO003_REL,
+     "ISSUANCE_CI_JOB: `" + _WO003_ISSUANCE_JOB + "` " + _EM
+     + " Lint, types, tests",
+     "ISSUANCE_CI_JOB: `" + _WRONG_JOB + "` " + _EM + " Lint, types, tests",
+     _WO003_ISSUANCE_JOB, "issued record"),
+    ("pointer-commit", "WORKORDER.md",
+     "- Issuance commit: `" + _WO003_ISSUANCE_COMMIT + "`",
+     "- Issuance commit: `" + _WRONG_COMMIT + "`",
+     _WO003_ISSUANCE_COMMIT, "WORKORDER.md"),
+    ("pointer-workflow", "WORKORDER.md",
+     "- Issuance CI workflow: `" + _WO003_ISSUANCE_WORKFLOW + "`",
+     "- Issuance CI workflow: `" + _WRONG_WORKFLOW + "`",
+     _WO003_ISSUANCE_WORKFLOW, "WORKORDER.md"),
+    ("pointer-job", "WORKORDER.md",
+     "- Issuance CI job: `" + _WO003_ISSUANCE_JOB + "` " + _EM
+     + " Lint, types, tests",
+     "- Issuance CI job: `" + _WRONG_JOB + "` " + _EM + " Lint, types, tests",
+     _WO003_ISSUANCE_JOB, "WORKORDER.md"),
+)
+_WO003_FIELD_FINDING = "WO-003 issuance field ("
+
+
+def _wo003_field_types(repo_root, tmp_path, monkeypatch, name, mutate):
+    return _wo003_finding_types(repo_root, tmp_path, monkeypatch, name, mutate)
+
+
+@pytest.mark.parametrize(
+    ("kind", "rel", "marker", "corrupt", "bare", "where"), _WO003_FIELD_MARKERS
+)
+def test_wo003_issuance_field_rejects_a_bare_decoy(
+    repo_root, tmp_path, monkeypatch, kind, rel, marker, corrupt, bare, where
+):
+    """A correct identifier pasted elsewhere cannot repair a corrupted field."""
+    def mutate(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        assert text.count(marker) == 1, "probe anchor drifted: " + marker
+        target.write_text(
+            text.replace(marker, corrupt, 1) + _NL + "<!-- " + bare + " -->" + _NL,
+            encoding="utf-8",
+        )
+
+    found = _wo003_field_types(repo_root, tmp_path, monkeypatch,
+                               "bare-decoy-" + kind, mutate)
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        kind + " bare decoy was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "rel", "marker", "corrupt", "bare", "where"), _WO003_FIELD_MARKERS
+)
+def test_wo003_issuance_field_rejects_a_full_marker_decoy(
+    repo_root, tmp_path, monkeypatch, kind, rel, marker, corrupt, bare, where
+):
+    """Even a byte-correct marker outside the canonical block does not count.
+
+    This is the case every occurrence-counting design lost to: the field is
+    identified by position in the top block, not by appearing somewhere.
+    """
+    def mutate(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        assert text.count(marker) == 1, "probe anchor drifted: " + marker
+        target.write_text(
+            text.replace(marker, corrupt, 1) + _NL + marker + _NL,
+            encoding="utf-8",
+        )
+
+    found = _wo003_field_types(repo_root, tmp_path, monkeypatch,
+                               "marker-decoy-" + kind, mutate)
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        kind + " full-marker decoy was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "rel", "marker", "corrupt", "bare", "where"), _WO003_FIELD_MARKERS
+)
+def test_wo003_issuance_field_rejects_duplication(
+    repo_root, tmp_path, monkeypatch, kind, rel, marker, corrupt, bare, where
+):
+    """Two declarations of the same field are ambiguous, never acceptable."""
+    found = _wo003_field_types(
+        repo_root, tmp_path, monkeypatch, "dup-" + kind,
+        lambda case: _edit(case, rel, marker, marker + _NL + _NL + marker),
+    )
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        kind + " duplication was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "rel", "marker", "corrupt", "bare", "where"), _WO003_FIELD_MARKERS
+)
+def test_wo003_issuance_field_rejects_removal(
+    repo_root, tmp_path, monkeypatch, kind, rel, marker, corrupt, bare, where
+):
+    """A missing field fails loudly rather than passing as clean input."""
+    found = _wo003_field_types(
+        repo_root, tmp_path, monkeypatch, "gone-" + kind,
+        lambda case: _edit(case, rel, marker, "REMOVED_FIELD: none"),
+    )
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        kind + " removal was accepted: " + repr(sorted(found))
+    )
+
+
+def test_wo003_issuance_fields_are_clean_when_canonical(
+    repo_root, tmp_path, monkeypatch
+):
+    """Non-vacuous: the unchanged canonical state raises no issuance finding."""
+    found = _wo003_field_types(
+        repo_root, tmp_path, monkeypatch, "field-control", lambda case: None
+    )
+    assert not {item for item in found if item.startswith("WO-003 issuance")}, (
+        "the canonical issuance fields are not clean: " + repr(sorted(found))
+    )
+    assert found == set()
+
+
+# Structural intrusions, deliberately including a wrapper the checker has
+# never heard of and one that is not a wrapper at all. Slice equality rejects
+# each without knowing what any of them mean.
+_WO003_WRAPPERS = (
+    ("html-comment", "<!--", "-->"),
+    ("fenced-code", "```", "```"),
+    ("details", "<details>", "</details>"),
+    ("plain-lines", "NOTE: injected", "NOTE: trailing"),
+)
+_WO003_WRAPPED_TARGETS = (
+    ("issued-commit", _WO003_REL,
+     "ISSUANCE_COMMIT: `" + _WO003_ISSUANCE_COMMIT + "`",
+     "ISSUANCE_COMMIT: `" + _WRONG_COMMIT + "`", "issued record"),
+    ("issued-workflow", _WO003_REL,
+     "ISSUANCE_CI_WORKFLOW: `" + _WO003_ISSUANCE_WORKFLOW + "`",
+     "ISSUANCE_CI_WORKFLOW: `" + _WRONG_WORKFLOW + "`", "issued record"),
+    ("pointer-commit", "WORKORDER.md",
+     "- Issuance commit: `" + _WO003_ISSUANCE_COMMIT + "`",
+     "- Issuance commit: `" + _WRONG_COMMIT + "`", "WORKORDER.md"),
+    ("pointer-workflow", "WORKORDER.md",
+     "- Issuance CI workflow: `" + _WO003_ISSUANCE_WORKFLOW + "`",
+     "- Issuance CI workflow: `" + _WRONG_WORKFLOW + "`", "WORKORDER.md"),
+)
+
+
+@pytest.mark.parametrize(("wrapper", "opener", "closer"), _WO003_WRAPPERS)
+@pytest.mark.parametrize(
+    ("target", "rel", "marker", "corrupt", "where"), _WO003_WRAPPED_TARGETS
+)
+def test_wo003_wrapped_field_does_not_satisfy_the_canonical_block(
+    repo_root, tmp_path, monkeypatch,
+    target, rel, marker, corrupt, where, wrapper, opener, closer,
+):
+    """A wrapped copy inside the block is structure, not a declaration.
+
+    Membership matching accepted this: the line still began with the field key
+    and still sat inside the canonical block, so an HTML comment or fenced code
+    block holding a byte-correct field stood in for the real one.
+    """
+    def mutate(case):
+        target_path = case / rel
+        text = target_path.read_text(encoding="utf-8")
+        assert text.count(marker) == 1, "probe anchor drifted: " + marker
+        text = text.replace(
+            marker,
+            corrupt + _NL + _NL + opener + _NL + marker + _NL + closer, 1
+        )
+        target_path.write_text(text, encoding="utf-8")
+
+    found = _wo003_field_types(
+        repo_root, tmp_path, monkeypatch,
+        "wrapped-" + wrapper + "-" + target, mutate,
+    )
+    assert "WO-003 issuance field (" + where + ")" in found, (
+        target + " satisfied by a " + wrapper + " wrapper: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(("wrapper", "opener", "closer"), _WO003_WRAPPERS)
+@pytest.mark.parametrize(("rel", "where"), (
+    (_WO003_REL, "issued record"),
+    ("WORKORDER.md", "WORKORDER.md"),
+))
+def test_wo003_canonical_slice_rejects_an_intruding_line(
+    repo_root, tmp_path, monkeypatch, rel, where, wrapper, opener, closer
+):
+    """Any line between the canonical declarations breaks the slice.
+
+    This is why the check is slice equality rather than a wrapper blacklist:
+    the intruder does not have to be markup, and the checker does not have to
+    recognise it.
+    """
+    anchor = ("BASELINE: `" + _WO003_PLANNING_BASELINE + "`"
+              if rel == _WO003_REL else "- Authorized session: NONE")
+
+    found = _wo003_field_types(
+        repo_root, tmp_path, monkeypatch, "wrapper-only-" + wrapper + "-" + where,
+        lambda case: _edit(
+            case, rel, anchor,
+            anchor + _NL + _NL + opener + _NL + "noise" + _NL + closer,
+        ),
+    )
+    assert "WO-003 issuance field (" + where + ")" in found, (
+        wrapper + " inside the " + where + " canonical block was accepted: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo003_issued_metadata_order_is_enforced(
+    repo_root, tmp_path, monkeypatch
+):
+    """The declarations must appear in their canonical order, not merely exist."""
+    marker = "ISSUANCE_COMMIT: `" + _WO003_ISSUANCE_COMMIT + "`"
+
+    def reorder(case):
+        target = case / _WO003_REL
+        text = target.read_text(encoding="utf-8")
+        assert text.count(marker) == 1
+        text = text.replace(_NL + marker, "", 1)
+        text = text.replace(
+            "ISSUANCE_CI_JOB:", marker + _NL + _NL + "ISSUANCE_CI_JOB:", 1
+        )
+        target.write_text(text, encoding="utf-8")
+
+    found = _wo003_field_types(
+        repo_root, tmp_path, monkeypatch, "order", reorder
+    )
+    assert "WO-003 issuance field (issued record)" in found, (
+        "out-of-order canonical metadata was accepted: " + repr(sorted(found))
+    )
+
+
+_WO003_RELEASE_GATE_LINE = "- Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED"
+
+
+@pytest.mark.parametrize(("name", "intruder"), (
+    ("duplicate-issuance-commit",
+     "- Issuance commit: `" + _WO003_ISSUANCE_COMMIT + "`"),
+    ("duplicate-issuance-workflow",
+     "- Issuance CI workflow: `" + _WO003_ISSUANCE_WORKFLOW + "`"),
+    ("plain-line", "NOTE: injected"),
+))
+def test_wo003_pointer_slice_is_terminal(
+    repo_root, tmp_path, monkeypatch, name, intruder
+):
+    """Nothing may follow the canonical nine before the WO-001 record.
+
+    A non-terminal slice let a second byte-correct declaration sit after
+    `Release gate`, so the canonical block could hold two of the same field
+    while every positional check still passed.
+    """
+    def append_after_gate(case):
+        pointer = case / "WORKORDER.md"
+        text = pointer.read_text(encoding="utf-8")
+        assert text.count(_WO003_RELEASE_GATE_LINE) == 1, (
+            "probe anchor drifted: " + _WO003_RELEASE_GATE_LINE
+        )
+        head, _, tail = text.partition(_WO003_RELEASE_GATE_LINE)
+        line_end = tail.index(_NL)
+        pointer.write_text(
+            head + _WO003_RELEASE_GATE_LINE + tail[:line_end + 1]
+            + intruder + _NL + tail[line_end + 1:],
+            encoding="utf-8",
+        )
+
+    found = _wo003_field_types(
+        repo_root, tmp_path, monkeypatch, "terminal-" + name, append_after_gate
+    )
+    assert "WO-003 issuance field (WORKORDER.md)" in found, (
+        name + " after the canonical slice was accepted: " + repr(sorted(found))
+    )

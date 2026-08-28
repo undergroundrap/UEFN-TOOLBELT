@@ -4,10 +4,13 @@ This file is the repository's sole authority pointer for current Work Order
 state. Detailed mandates live under `docs/work-orders/`; their presence alone
 never authorizes implementation.
 
-- Current issued Work Order: NONE
+- Current issued Work Order: WO-003
 - Authorized session: NONE
-- Base commit: `c031f20e33c716ecc9f9ce546a7419b865ed8641`
-- Current gate: WO-002 COMPLETED — WO-003 PROPOSED AND NOT AUTHORIZED
+- Base commit: `19350aa324bea4d88e494ee806801586a383d76e`
+- Current gate: WO-003 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED
+- Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`
+- Issuance CI workflow: `33148089523`
+- Issuance CI job: `98773518991` — Lint, types, tests
 - Release train: WO-001 through WO-007
 - Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST
 
@@ -31,7 +34,14 @@ completed successfully, including required job
 [`98726805137` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/33133090929/job/98726805137).
 External official-MCP exposure failed and was accepted as a terminal
 negative result bounded by ToolsetPolicy. WO-002 is complete; no session
-is authorized. WO-003 remains proposed and unauthorized.
+is authorized.
+
+[`WO-003`](docs/work-orders/issued/WO-003-official-mcp-doc-convergence.md)
+is issued, but issuance grants no implementation authority. Session A and
+Session B remain unauthorized. Its accepted planning baseline is
+`e0b1063f5300404534c76789bdb6742f639425ba`; the accepted revision was
+committed as `19350aa324bea4d88e494ee806801586a383d76e` after CI
+workflow `33148089523` and required job `98773518991` passed.
 
 WO-001 through WO-007 form the frozen next release train. The release version
 remains undecided and the repository stays at version 2.4.1. No tag or GitHub
