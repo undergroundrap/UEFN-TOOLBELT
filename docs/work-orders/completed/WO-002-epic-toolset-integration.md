@@ -1,8 +1,8 @@
 # WO-002 — Epic Toolset Integration Truth
 
-STATUS: ISSUED
+STATUS: COMPLETED
 
-AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR EXTERNAL PROOF
+AUTHORIZATION: COMPLETED — NO SESSION AUTHORIZED
 
 OWNER: Ocean Bennett
 
@@ -281,6 +281,30 @@ and unstaged for fresh independent architect review. A successful external proof
 does not itself authorize advertising, a commit, push, Work Order completion,
 tag, GitHub Release, repository metadata, or social publication.
 
+## Session B acceptance and completion record
+
+Session B was independently accepted and committed as
+`c031f20e33c716ecc9f9ce546a7419b865ed8641`; successful CI workflow
+`33133090929` included successful required job `98726805137` (`Lint, types,
+tests`). The sanitized evidence artifact is
+`docs/audits/evidence/2026-08-27-wo002-session-b-official-mcp.json`
+with SHA-256
+`9DFBD500808113A122C65DA680AF8AD5409045DC1414AFEBEFB6B8771FE46CB0`.
+
+Terminal truth: Toolbelt's internal list, describe, and run contracts
+passed before, during, and after the official probe sequence.
+`externally_listable`, `externally_describable`, and
+`externally_callable` all failed. The exact `UEFN_Toolbelt` toolset name
+was absent from the official `list_toolsets()` result, and the official
+describe probe and all three `call_tool` probes returned
+toolset-not-found. This is an accepted negative result bounded by
+`UE::ValkyrieToolset::ToolsetPolicy`, not a repaired or externally exposed
+integration.
+
+The delayed probe-client correction and the final cleanup evidence are
+recorded in the evidence artifact without expansion here. WO-003 remains
+proposed and unauthorized.
+
 ## Exclusions and deferred work
 
 - No custom-bridge security redesign or weakening of WO-001.
@@ -301,5 +325,7 @@ tag, GitHub Release, repository metadata, or social publication.
 - The frozen WO-001–WO-007 release train and repository version 2.4.1 remain
   unchanged.
 
-NEXT GATE: fresh independent architect review of the complete uncommitted
-Session B evidence. Session B is proof-only; WO-003 remains unauthorized.
+NEXT GATE: separate owner authorization for a fresh independent WO-003
+pre-issuance review, after this completion transition is accepted,
+committed, pushed, and green. Completion of WO-002 does not issue or
+authorize WO-003, which remains proposed and unauthorized.

@@ -149,6 +149,18 @@ _WO001_COMPLETION_COMMIT = "ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c"
 _WO001_COMPLETION_WORKFLOW = "32921154482"
 _WO001_COMPLETION_JOB = "98034843256"
 _WO001_COMPLETED_GATE = "WO-001 COMPLETED — WO-002 PROPOSED AND NOT AUTHORIZED"
+_WO002_COMPLETION_COMMIT = "c031f20e33c716ecc9f9ce546a7419b865ed8641"
+_WO002_COMPLETION_WORKFLOW = "33133090929"
+_WO002_COMPLETION_JOB = "98726805137"
+_WO002_EVIDENCE_PATH = (
+    "docs/audits/evidence/2026-08-27-wo002-session-b-official-mcp.json"
+)
+_WO002_EVIDENCE_SHA256 = (
+    "9DFBD500808113A122C65DA680AF8AD5409045DC1414AFEBEFB6B8771FE46CB0"
+)
+_WO002_COMPLETED_GATE = (
+    "WO-002 COMPLETED — WO-003 PROPOSED AND NOT AUTHORIZED"
+)
 _WO002_NAME = "WO-002-epic-toolset-integration.md"
 _WO002_ISSUANCE_BASE = "098b38c669dd330cd059ea18dea52cc4e7eaefe2"
 _WO002_BASELINE_MARKER = f"BASELINE: `{_WO002_ISSUANCE_BASE}`"
@@ -226,14 +238,25 @@ _WO002_ACCEPTED_ISSUED_EVIDENCE = (
 # record cannot produce a WO-002 acceptance finding, and an unrelated heading
 # added elsewhere in the issued Work Order is none of this check's business.
 _WO001_COMPLETED_LINK = "](docs/work-orders/completed/WO-001-custom-mcp-security.md)"
-_WO002_ISSUED_LINK = "](docs/work-orders/issued/WO-002-epic-toolset-integration.md)"
+_WO002_COMPLETED_LINK = (
+    "](docs/work-orders/completed/WO-002-epic-toolset-integration.md)"
+)
+_WO002_LINK_ANY = re.compile(
+    r"\]\(docs/work-orders/(?:issued|completed)/"
+    r"WO-002-epic-toolset-integration\.md\)"
+)
+
+
+def _normalize_wo002_link(text: str) -> str:
+    """Collapse the WO-002 reference so its state directory is not pinned."""
+    return _WO002_LINK_ANY.sub("](WO-002)", text)
 _WO002_BASIS_HEADING = "## Session A authorization basis"
 _WO002_RECORD_HEADING = "## Session A acceptance record"
 _WO002_FOLLOWING_HEADING = "## Problem and accepted evidence"
 _WO002_ACCEPTED_POINTER_BLOCK = (
-    "[`WO-002`](docs/work-orders/issued/WO-002-epic-toolset-"
-    "integration.md) is issued. Session A was independently accepted, "
-    "committed, and pushed as "
+    "[`WO-002`](docs/work-orders/completed/WO-002-epic-toolset-"
+    "integration.md) is completed. Session A was independently "
+    "accepted, committed, and pushed as "
     "`50b881716abea3b5838c2a971caac40ee4cd5d30`; [CI workflow "
     "`32937631903`](https://github.com/undergroundrap/UEFN-"
     "TOOLBELT/actions/runs/32937631903) completed successfully, "
@@ -241,6 +264,15 @@ _WO002_ACCEPTED_POINTER_BLOCK = (
     "tests](https://github.com/undergroundrap/UEFN-"
     "TOOLBELT/actions/runs/32937631903/job/98081919978). Session A is "
     "accepted and complete."
+)
+_WO002_TERMINAL_EXTERNAL = (
+    "`externally_listable`, `externally_describable`, and "
+    "`externally_callable` all failed."
+)
+_WO002_NEGATIVE_RESULT = (
+    "This is an accepted negative result bounded by "
+    "`UE::ValkyrieToolset::ToolsetPolicy`, not a repaired or externally"
+    " exposed integration."
 )
 _WO002_ACCEPTED_ISSUED_BLOCK = (
     "## Session A acceptance record Session A was independently "
@@ -285,15 +317,17 @@ def _anchored_pointer_region(text: str) -> tuple[str | None, str | None]:
     cannot produce a WO-002 finding, while duplicating its reference to forge
     an anchor fails closed.
     """
-    for label, link in (
-        ("WO-001 completion link", _WO001_COMPLETED_LINK),
-        ("issued WO-002 link", _WO002_ISSUED_LINK),
-    ):
-        occurrences = text.count(link)
-        if occurrences != 1:
-            return None, (
-                label + " occurs " + str(occurrences) + "x, expected exactly 1"
-            )
+    occurrences = text.count(_WO001_COMPLETED_LINK)
+    if occurrences != 1:
+        return None, (
+            "WO-001 completion link occurs " + str(occurrences)
+            + "x, expected exactly 1"
+        )
+    occurrences = len(_WO002_LINK_ANY.findall(text))
+    if occurrences != 1:
+        return None, (
+            "WO-002 link occurs " + str(occurrences) + "x, expected exactly 1"
+        )
     blocks = _paragraphs(text)
     anchors = [
         index
@@ -309,10 +343,10 @@ def _anchored_pointer_region(text: str) -> tuple[str | None, str | None]:
     if following >= len(blocks):
         return None, "no paragraph follows the WO-001 completion paragraph"
     region = "\n".join(blocks[following])
-    if _WO002_ISSUED_LINK not in region:
+    if not _WO002_LINK_ANY.search(region):
         return None, (
             "the paragraph after the WO-001 completion paragraph does not "
-            "carry the issued WO-002 link"
+            "carry the WO-002 link"
         )
     return " ".join(region.split()), None
 
@@ -364,6 +398,8 @@ def _acceptance_record_findings(text, locate, expected, fragments):
             ("canonical acceptance region: " + reason,
              "exactly one structurally anchored canonical region")
         ]
+    found = _normalize_wo002_link(found)
+    expected = _normalize_wo002_link(expected)
     if found == expected:
         return []
     detail = []
@@ -916,8 +952,10 @@ def check_work_order_contract() -> list[dict]:
     current_is_wo002 = current in {
         "WO-002", _WO002_NAME, _WO002_NAME.removesuffix(".md")
     }
+    wo002_placed = ((issued_dir / _WO002_NAME).exists()
+                    or (completed_dir / _WO002_NAME).exists())
     expected_proposals = set(_REMAINING_RELEASE_PROPOSALS)
-    if not current_is_wo002:
+    if not wo002_placed:
         expected_proposals.add(_WO002_NAME)
     if proposal_names != expected_proposals:
         add("docs/work-orders/proposed", "release train proposal set",
@@ -963,13 +1001,27 @@ def check_work_order_contract() -> list[dict]:
         add("docs/work-orders", "duplicate work order state",
             ", ".join(duplicate_names), "a Work Order in exactly one state directory")
 
+    wo002_paths = [path for path in state_paths if path.name == _WO002_NAME]
     if current_is_wo002:
-        wo002_paths = [path for path in state_paths if path.name == _WO002_NAME]
         expected_wo002_path = issued_dir / _WO002_NAME
-        if wo002_paths != [expected_wo002_path]:
-            add("docs/work-orders", "WO-002 state",
-                repr([path.relative_to(root).as_posix() for path in wo002_paths]),
-                expected_wo002_path.relative_to(root).as_posix())
+    elif (completed_dir / _WO002_NAME).exists():
+        expected_wo002_path = completed_dir / _WO002_NAME
+    else:
+        expected_wo002_path = None
+    if expected_wo002_path is not None and wo002_paths != [expected_wo002_path]:
+        add("docs/work-orders", "WO-002 state",
+            repr([path.relative_to(root).as_posix() for path in wo002_paths]),
+            expected_wo002_path.relative_to(root).as_posix())
+
+    # WO-002 completion is terminal. This checker carries the WO-002 completion
+    # contract, so no rollback of the documents alone - however internally
+    # coherent - can put the Work Order back into an implementable state.
+    # Reopening it would have to edit this file too, which is a visible act.
+    terminal_wo002_path = completed_dir / _WO002_NAME
+    if wo002_paths != [terminal_wo002_path]:
+        add("docs/work-orders", "completed WO-002 state",
+            repr([path.relative_to(root).as_posix() for path in wo002_paths]),
+            terminal_wo002_path.relative_to(root).as_posix())
 
     issued_metadata: dict[str, tuple[list[str], list[str], str]] = {}
     for path in issued:
@@ -1020,6 +1072,10 @@ def check_work_order_contract() -> list[dict]:
             if evidence not in wo001_completed_text:
                 add(rel, kind, "missing", evidence)
 
+    wo002_completed_text = ""
+    if _WO002_NAME in completed_metadata:
+        wo002_completed_text = completed_metadata[_WO002_NAME][2]
+
     if current == "NONE":
         if session != "NONE":
             add("WORKORDER.md", "authorization without issued work order",
@@ -1027,16 +1083,48 @@ def check_work_order_contract() -> list[dict]:
         if issued:
             add("docs/work-orders/issued", "unpointed issued work order",
                 issued[0].name, "empty while current pointer is NONE")
-        if _has_next_work_order_authorization(pointer, wo001_completed_text):
+        # Whichever Work Order closed last owns the pointer's base and gate.
+        if wo002_completed_text:
+            next_order, basis_text = "WO-003", wo002_completed_text
+            expected_base = _WO002_COMPLETION_COMMIT
+            expected_closed_gate = _WO002_COMPLETED_GATE
+        else:
+            next_order, basis_text = "WO-002", wo001_completed_text
+            expected_base = _WO001_COMPLETION_COMMIT
+            expected_closed_gate = _WO001_COMPLETED_GATE
+        if _has_next_work_order_authorization(pointer, basis_text, next_order):
             add("WORKORDER.md", "next work order authorization",
-                "implicit WO-002 permission",
-                "WO-002 remains proposed and not authorized")
-        if base != f"`{_WO001_COMPLETION_COMMIT}`":
+                f"implicit {next_order} permission",
+                f"{next_order} remains proposed and not authorized")
+        if base != f"`{expected_base}`":
             add("WORKORDER.md", "completion base commit", str(base),
-                f"`{_WO001_COMPLETION_COMMIT}`")
-        if current_gate != _WO001_COMPLETED_GATE:
+                f"`{expected_base}`")
+        if current_gate != expected_closed_gate:
             add("WORKORDER.md", "completed work order gate", str(current_gate),
-                _WO001_COMPLETED_GATE)
+                expected_closed_gate)
+        if wo002_completed_text:
+            rel = (completed_dir / _WO002_NAME).relative_to(root).as_posix()
+            for evidence, kind in (
+                (_WO002_COMPLETION_COMMIT, "WO-002 completion commit"),
+                (_WO002_COMPLETION_WORKFLOW, "WO-002 completion workflow"),
+                (_WO002_COMPLETION_JOB, "WO-002 completion job"),
+                (_WO002_EVIDENCE_PATH, "WO-002 evidence artifact"),
+                (_WO002_EVIDENCE_SHA256, "WO-002 evidence digest"),
+            ):
+                if evidence not in wo002_completed_text:
+                    add(rel, kind, "missing", evidence)
+            normalized_wo002 = " ".join(wo002_completed_text.split())
+            for wording, kind in (
+                (_WO002_TERMINAL_EXTERNAL, "WO-002 terminal external result"),
+                (_WO002_NEGATIVE_RESULT, "WO-002 accepted negative result"),
+            ):
+                if wording not in normalized_wo002:
+                    add(rel, kind, "missing or changed", wording)
+            # Session A's accepted record outlives the Work Order that carried it.
+            for _f, _k, _found, _want in _accepted_record_findings(
+                pointer, wo002_completed_text, rel
+            ):
+                add(_f, _k, _found, _want)
     elif current is not None:
         if len(issued) != 1:
             add("docs/work-orders/issued", "current issued work order",
@@ -1100,10 +1188,17 @@ def check_work_order_contract() -> list[dict]:
                     if current_gate != _WO002_SESSION_A_ACCEPTED_GATE:
                         add("WORKORDER.md", "Session A accepted gate",
                             str(current_gate), _WO002_SESSION_A_ACCEPTED_GATE)
-                    for _f, _k, _found, _want in _accepted_record_findings(
-                        pointer, issued_text, rel
+                    for evidence, kind in (
+                        (_WO002_SESSION_A_ACCEPTED_BASE,
+                         "Session A accepted commit"),
+                        (_WO002_SESSION_A_ACCEPTED_WORKFLOW,
+                         "Session A accepted workflow"),
+                        (_WO002_SESSION_A_ACCEPTED_JOB,
+                         "Session A accepted job"),
                     ):
-                        add(_f, _k, _found, _want)
+                        if evidence not in pointer or evidence not in issued_text:
+                            add(rel, kind,
+                                "missing from pointer or issued record", evidence)
                     if _WO002_SESSION_A_ACCEPTED_NEXT_GATE not in normalized_issued:
                         add(rel, "WO-002 next gate", "missing or changed",
                             _WO002_SESSION_A_ACCEPTED_NEXT_GATE)
@@ -1233,11 +1328,6 @@ def check_work_order_contract() -> list[dict]:
                         add("WORKORDER.md", "next work order authorization",
                             "implicit WO-003 permission",
                             "WO-003 remains proposed and not authorized")
-                    # Session A's accepted evidence outlives its own session.
-                    for _f, _k, _found, _want in _accepted_record_findings(
-                        pointer, issued_text, rel
-                    ):
-                        add(_f, _k, _found, _want)
             else:
                 add("WORKORDER.md", "authorized session gate", str(session),
                     "NONE or the specifically authorized session A or B")
