@@ -135,7 +135,7 @@ def test_drift_check_covers_agent_context_surfaces(repo_root):
         "docs/audits/evidence/2026-08-24-official-mcp-signatures.json",
         "docs/work-orders/README.md",
         "docs/work-orders/completed/WO-001-custom-mcp-security.md",
-        "docs/work-orders/issued/WO-002-epic-toolset-integration.md",
+        "docs/work-orders/completed/WO-002-epic-toolset-integration.md",
         "docs/work-orders/proposed/WO-003-official-mcp-doc-convergence.md",
         "docs/work-orders/proposed/WO-004-modal-observability.md",
         "docs/work-orders/proposed/WO-005-coverage-source-of-truth.md",
@@ -3072,3 +3072,130 @@ def test_wo002_cannot_leave_completed(
     assert _TERMINAL_WO002_FINDING in found, (
         "moving WO-002 to " + destination + " was accepted: " + repr(sorted(found))
     )
+
+
+_MISSING_TARGET = "missing scan target"
+_COMPLETED_WO002_SCAN = (
+    "docs/work-orders/completed/WO-002-epic-toolset-integration.md"
+)
+_ISSUED_WO002_SCAN = "docs/work-orders/issued/WO-002-epic-toolset-integration.md"
+
+
+def _missing_scan_targets(drift_check):
+    """Every declared scan target the real scanner reports as absent."""
+    missing = []
+    for rel in drift_check.SCAN_FILES:
+        missing.extend(
+            finding
+            for finding in drift_check.scan_file(
+                rel, drift_check.VERSION, drift_check.TOOL_COUNT,
+                drift_check.CATEGORY_COUNT,
+            )
+            if finding["type"] == _MISSING_TARGET
+        )
+    return missing
+
+
+def _scan_target_case(repo_root, tmp_path, name, drift_check):
+    """A temporary tree holding exactly the declared scan targets."""
+    case = tmp_path / name
+    for rel in drift_check.SCAN_FILES:
+        source = repo_root / rel
+        assert source.exists(), "declared scan target is missing: " + rel
+        target = case / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+    return case
+
+
+def test_completed_wo002_is_the_declared_scan_target(repo_root) -> None:
+    """WO-002 is scanned where it now lives, not where it used to."""
+    drift_check = _load_drift_check(repo_root, "scan_target_identity")
+    assert _COMPLETED_WO002_SCAN in drift_check.SCAN_FILES
+    assert _ISSUED_WO002_SCAN not in drift_check.SCAN_FILES
+    assert (repo_root / _COMPLETED_WO002_SCAN).exists()
+    assert not (repo_root / _ISSUED_WO002_SCAN).exists()
+
+
+def test_every_declared_scan_target_exists(repo_root) -> None:
+    """The intact repository declares no target it does not ship."""
+    drift_check = _load_drift_check(repo_root, "scan_target_intact")
+    absent = [rel for rel in drift_check.SCAN_FILES
+              if not (repo_root / rel).exists()]
+    assert not absent, "declared but absent scan targets: " + repr(absent)
+    assert not _missing_scan_targets(drift_check)
+
+
+@pytest.mark.parametrize("victim", (
+    _COMPLETED_WO002_SCAN,
+    "CLAUDE.md",
+))
+def test_deleting_a_declared_scan_target_is_reported(
+    repo_root, tmp_path, monkeypatch, victim
+) -> None:
+    """A declared target that vanishes is drift, never clean input."""
+    drift_check = _load_drift_check(repo_root, "scan_target_del_" + victim[:8])
+    case = _scan_target_case(
+        repo_root, tmp_path, "scan-del-" + victim.replace("/", "-"), drift_check
+    )
+    (case / victim).unlink()
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+
+    missing = _missing_scan_targets(drift_check)
+    assert [finding["file"] for finding in missing] == [victim], (
+        "deleting " + victim + " produced " + repr(missing)
+    )
+    assert missing[0]["type"] == _MISSING_TARGET
+    assert victim in missing[0]["expected"], (
+        "the finding must name the missing repository-relative path"
+    )
+
+
+def test_a_missing_target_cannot_be_hidden_by_equivalent_text(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The check is keyed on the declared path, not on text existing somewhere.
+
+    Copying the vanished document's exact content to another location must not
+    satisfy the target - otherwise a scan set could be silently emptied while
+    every string it pinned still appeared somewhere in the tree.
+    """
+    drift_check = _load_drift_check(repo_root, "scan_target_decoy")
+    case = _scan_target_case(repo_root, tmp_path, "scan-decoy", drift_check)
+    victim = case / _COMPLETED_WO002_SCAN
+    content = victim.read_text(encoding="utf-8")
+    victim.unlink()
+    decoy = case / "docs" / "work-orders" / "completed" / "WO-002-copy.md"
+    decoy.write_text(content, encoding="utf-8")
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+
+    missing = _missing_scan_targets(drift_check)
+    assert [finding["file"] for finding in missing] == [_COMPLETED_WO002_SCAN], (
+        "an equivalent-text decoy satisfied the declared target: " + repr(missing)
+    )
+
+
+def test_present_targets_still_scan_normally(repo_root, tmp_path, monkeypatch) -> None:
+    """Non-vacuous: existing files keep being read, not just counted.
+
+    A stale tool count planted inside the completed WO-002 document must be
+    caught, which proves the repaired target is genuinely scanned rather than
+    merely listed.
+    """
+    drift_check = _load_drift_check(repo_root, "scan_target_reads")
+    case = _scan_target_case(repo_root, tmp_path, "scan-reads", drift_check)
+    target = case / _COMPLETED_WO002_SCAN
+    target.write_text(
+        target.read_text(encoding="utf-8") + _NL + "This ships 361 tools." + _NL,
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+
+    found = drift_check.scan_file(
+        _COMPLETED_WO002_SCAN, drift_check.VERSION, drift_check.TOOL_COUNT,
+        drift_check.CATEGORY_COUNT,
+    )
+    assert "tool count" in {finding["type"] for finding in found}, (
+        "the repaired scan target is listed but not actually read"
+    )
+    assert _MISSING_TARGET not in {finding["type"] for finding in found}

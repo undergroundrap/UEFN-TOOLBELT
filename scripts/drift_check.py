@@ -79,7 +79,7 @@ SCAN_FILES = [
     "docs/audits/evidence/2026-08-24-official-mcp-signatures.json",
     "docs/work-orders/README.md",
     "docs/work-orders/completed/WO-001-custom-mcp-security.md",
-    "docs/work-orders/issued/WO-002-epic-toolset-integration.md",
+    "docs/work-orders/completed/WO-002-epic-toolset-integration.md",
     "docs/work-orders/proposed/WO-003-official-mcp-doc-convergence.md",
     "docs/work-orders/proposed/WO-004-modal-observability.md",
     "docs/work-orders/proposed/WO-005-coverage-source-of-truth.md",
@@ -1553,7 +1553,19 @@ def _should_skip_line(line: str) -> bool:
 def scan_file(rel_path: str, version: str, tool_count: int, category_count: int = 0) -> list[dict]:
     abs_path = os.path.join(ROOT, rel_path)
     if not os.path.exists(abs_path):
-        return []
+        # A declared target that vanished is drift, not clean input.
+        # Returning [] here let a stale SCAN_FILES entry sit unnoticed after
+        # WO-002 moved out of issued/. That document stayed scanned via the
+        # work-order walk in run(), so nothing lost coverage - but the
+        # declaration itself was wrong and no check could say so.
+        return [{
+            "file":     rel_path,
+            "line":     0,
+            "type":     "missing scan target",
+            "found":    "absent",
+            "expected": "a committed file at " + rel_path,
+            "content":  rel_path,
+        }]
 
     findings = []
     exempt_file = rel_path in _EXCEPTIONS
