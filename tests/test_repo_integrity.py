@@ -281,7 +281,11 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         in issued_text
     )
 
-    completed_text = completed[0].read_text(encoding="utf-8")
+    # Addressed by filename, never by enumeration order: Path.glob is
+    # filesystem-ordered, so completed[0] was WO-001 on Windows and WO-002
+    # on Linux once a second Work Order was completed.
+    wo001 = work_orders / "completed" / "WO-001-custom-mcp-security.md"
+    completed_text = wo001.read_text(encoding="utf-8")
     completed_lines = completed_text.splitlines()
     completed_status = [
         line for line in completed_lines if line.startswith("STATUS:")
