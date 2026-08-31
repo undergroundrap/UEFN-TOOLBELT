@@ -221,15 +221,15 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert len(completed) == 2
     assert (work_orders / "completed" / "WO-002-epic-toolset-integration.md").exists()
     assert current == "WO-003"
-    assert session == "A"
+    assert session == "NONE"
     assert base_lines == [
-        "- Base commit: `52d89295614a4ce686094736d87f7e6c907e12a0`"
+        "- Base commit: `d23add58e02ddc855573cf9be7a2542776d25e7e`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-003 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
+        "- Current gate: WO-003 SESSION A ACCEPTED — SESSION B NOT AUTHORIZED"
     ]
-    # Session A is authorized; Session B still is not, and the issuance
-    # record that carried WO-003 into this state is still declared.
+    # Session A is accepted with no current session authority. The issuance
+    # and authorization records that carried WO-003 here remain declared.
     for line in (
         "- Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`",
         "- Issuance CI workflow: `33148089523`",
@@ -238,11 +238,16 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         " `52d89295614a4ce686094736d87f7e6c907e12a0`",
         "- Session A authorization CI workflow: `33200547479`",
         "- Session A authorization CI job: `98948639416` — Lint, types, tests",
+        "- Session A acceptance commit:"
+        " `d23add58e02ddc855573cf9be7a2542776d25e7e`",
+        "- Session A acceptance CI workflow: `33344006899`",
+        "- Session A acceptance CI job: `99344607213` — Lint, types, tests",
     ):
         assert line in pointer, line
     assert (
-        "Session B is not authorized and requires a separate owner gate."
-    ) in pointer
+        "Session B remains unauthorized and requires separate owner authorization."
+        in " ".join(pointer.split())
+    )
     assert "- Release train: WO-001 through WO-007" in pointer
     assert (
         "- Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE "
@@ -254,6 +259,25 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "docs/work-orders/proposed/WO-001-custom-mcp-security.md" not in pointer
     assert "docs/work-orders/completed/WO-002-epic-toolset-integration.md" in pointer
     assert "docs/work-orders/proposed/WO-002-epic-toolset-integration.md" not in pointer
+
+    wo003 = work_orders / "issued" / "WO-003-official-mcp-doc-convergence.md"
+    wo003_text = wo003.read_text(encoding="utf-8")
+    wo003_lines = wo003_text.splitlines()
+    assert [line for line in wo003_lines if line.startswith("STATUS:")] == [
+        "STATUS: ISSUED"
+    ]
+    assert [line for line in wo003_lines if line.startswith("AUTHORIZATION:")] == [
+        "AUTHORIZATION: ISSUED — SESSION A ACCEPTED; NO SESSION AUTHORIZED"
+    ]
+    for evidence in (
+        "SESSION_A_ACCEPTANCE_COMMIT:"
+        " `d23add58e02ddc855573cf9be7a2542776d25e7e`",
+        "SESSION_A_ACCEPTANCE_CI_WORKFLOW: `33344006899`",
+        "SESSION_A_ACCEPTANCE_CI_JOB: `99344607213` — Lint, types, tests",
+        "## Session A acceptance record",
+        "Session A is accepted and complete. No session is currently authorized.",
+    ):
+        assert evidence in wo003_text
 
     wo002 = (work_orders / "completed"
              / "WO-002-epic-toolset-integration.md")
@@ -339,14 +363,140 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "Work Order WO-001" in security_normalized
 
 
-def _make_wo003_session_a_case(repo_root, tmp_path, name):
-    """Copy the current authorized WO-003 Session A state."""
+def _make_wo003_accepted_case(repo_root, tmp_path, name):
+    """Copy the current accepted WO-003 Session A state."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
     shutil.copytree(
         repo_root / "docs" / "work-orders",
         case / "docs" / "work-orders",
+    )
+    return case
+
+
+def _make_wo003_session_a_case(repo_root, tmp_path, name):
+    """Reconstruct the preserved authorized WO-003 Session A state."""
+    case = _make_wo003_accepted_case(repo_root, tmp_path, name)
+    issued = case / _WO003_REL
+    text = issued.read_text(encoding="utf-8")
+    for old, new in (
+        (
+            "AUTHORIZATION: ISSUED " + _EM
+            + " SESSION A ACCEPTED; NO SESSION AUTHORIZED",
+            "AUTHORIZATION: ISSUED " + _EM
+            + " SESSION A AUTHORIZED FOR IMPLEMENTATION",
+        ),
+        (
+            _NL + "SESSION_A_ACCEPTANCE_COMMIT: `"
+            + _WO003_SESSION_A_ACCEPTED_BASE + "`" + _NL
+            + _NL + "SESSION_A_ACCEPTANCE_CI_WORKFLOW: `"
+            + _WO003_SESSION_A_ACCEPTED_WORKFLOW + "`" + _NL
+            + _NL + "SESSION_A_ACCEPTANCE_CI_JOB: `"
+            + _WO003_SESSION_A_ACCEPTED_JOB + "` " + _EM
+            + " Lint, types, tests" + _NL,
+            "",
+        ),
+        (
+            "This Work Order remains issued. Session A is accepted and complete,"
+            + " and no" + _NL
+            + "session is currently authorized. Session B remains unauthorized"
+            + " and requires" + _NL
+            + "separate owner authorization.",
+            "This Work Order is issued and Session A is authorized under root"
+            + _NL + "`WORKORDER.md`. Session B is not authorized and requires a"
+            + " separate owner gate.",
+        ),
+        (
+            "NEXT GATE: fresh independent architect review of the complete"
+            + " uncommitted" + _NL
+            + "Session A acceptance transition. Session B remains unauthorized.",
+            "NEXT GATE: fresh independent architect review of the complete"
+            + " uncommitted" + _NL
+            + "Session A implementation. Session B remains unauthorized.",
+        ),
+    ):
+        text = _replace_once(text, old, new, "WO-003 authorized reconstruction")
+    _require_unique(
+        text,
+        ("## Session A acceptance record", "## Planning basis"),
+        "WO-003 acceptance-record excision",
+    )
+    text = _sub_once(
+        _NL + "## Session A acceptance record" + _NL + ".*?(?="
+        + _NL + "## Planning basis" + _NL + ")",
+        "",
+        text,
+        "WO-003 acceptance-record excision",
+        flags=re.DOTALL,
+    )
+    issued.write_text(text, encoding="utf-8")
+
+    pointer = case / "WORKORDER.md"
+    text = pointer.read_text(encoding="utf-8")
+    for old, new in (
+        ("- Authorized session: NONE", "- Authorized session: A"),
+        (
+            "- Base commit: `" + _WO003_SESSION_A_ACCEPTED_BASE + "`",
+            "- Base commit: `" + _WO003_SESSION_A_BASE + "`",
+        ),
+        (
+            "- Current gate: WO-003 SESSION A ACCEPTED " + _EM
+            + " SESSION B NOT AUTHORIZED",
+            "- Current gate: WO-003 SESSION A AUTHORIZED " + _EM
+            + " IMPLEMENT SESSION A ONLY",
+        ),
+        (
+            "- Session A acceptance commit: `"
+            + _WO003_SESSION_A_ACCEPTED_BASE + "`" + _NL
+            + "- Session A acceptance CI workflow: `"
+            + _WO003_SESSION_A_ACCEPTED_WORKFLOW + "`" + _NL
+            + "- Session A acceptance CI job: `"
+            + _WO003_SESSION_A_ACCEPTED_JOB + "` " + _EM
+            + " Lint, types, tests" + _NL,
+            "",
+        ),
+        (
+            "Session A was independently accepted, committed, and pushed as"
+            + _NL + "`" + _WO003_SESSION_A_ACCEPTED_BASE
+            + "`; successful CI workflow" + _NL
+            + "`" + _WO003_SESSION_A_ACCEPTED_WORKFLOW
+            + "` included successful required job `"
+            + _WO003_SESSION_A_ACCEPTED_JOB + "` (`Lint, types," + _NL
+            + "tests`). Accepted live `TOOL_TEST` evidence recorded a deploy"
+            + " and full UEFN" + _NL
+            + "restart, 362 tools across 55 categories, corrected dashboard"
+            + " About ordering," + _NL
+            + "matching source and deployed runtime hashes, no Fortnite or"
+            + " play session and no" + _NL
+            + "level mutation, then a stopped listener, closed UEFN, absent"
+            + " handoff, and closed" + _NL
+            + "ports 8765" + chr(8211)
+            + "8770. Session A is accepted and complete;"
+            + " no session is currently" + _NL
+            + "authorized. Session B remains unauthorized and requires separate"
+            + " owner" + _NL + "authorization.",
+            "Session A is authorized for implementation under this pointer alone,"
+            + " on the" + _NL + "basis of commit `" + _WO003_SESSION_A_BASE
+            + "`, successful CI" + _NL + "workflow `"
+            + _WO003_SESSION_A_WORKFLOW + "`, and successful required job `"
+            + _WO003_SESSION_A_JOB + "`" + _NL
+            + "(`Lint, types, tests`). Session B is not authorized and requires"
+            + " a separate owner gate.",
+        ),
+    ):
+        text = _replace_once(text, old, new, "WO-003 authorized pointer")
+    pointer.write_text(text, encoding="utf-8")
+
+    _assert_reconstructed(
+        "WO-003 authorized pointer", pointer.read_text(encoding="utf-8"),
+        ("- Authorized session: A", _WO003_SESSION_A_GATE),
+        ("- Session A acceptance commit:", "SESSION A ACCEPTED"),
+    )
+    _assert_reconstructed(
+        "WO-003 authorized reconstruction", issued.read_text(encoding="utf-8"),
+        (_WO003_SESSION_A_MARKER, "## Session A authorization basis"),
+        ("SESSION_A_ACCEPTANCE_COMMIT:", "## Session A acceptance record"),
     )
     return case
 
@@ -1521,16 +1671,20 @@ _ACCEPTED_WORKFLOW = "32937631903"
 _ACCEPTED_JOB = "98081919978"
 _ISSUED_REL = "docs/work-orders/issued/WO-002-epic-toolset-integration.md"
 _TERMINAL_WO002_FINDING = "completed WO-002 state"
+_TERMINAL_WO003_FINDING = "accepted WO-003 Session A state"
 
 
 def _without_terminal_lock(finding_types):
-    """Set aside the terminal WO-002 lock for historical reconstructions.
+    """Set aside one-way state locks for historical reconstructions.
 
     WO-002 completion is one-way, so every pre-completion state a fixture
     rebuilds necessarily trips it. Their narrower legacy contracts are still
     asserted in full; only this one expected finding is subtracted.
     """
-    return set(finding_types) - {_TERMINAL_WO002_FINDING}
+    return set(finding_types) - {
+        _TERMINAL_WO002_FINDING,
+        _TERMINAL_WO003_FINDING,
+    }
 
 
 _RECONSTRUCTION_FAILURE = (
@@ -1645,7 +1799,10 @@ def test_wo002_acceptance_evidence_control_is_clean(repo_root, tmp_path, monkeyp
         repo_root, tmp_path, "acceptance-occurrence-control"
     )
     monkeypatch.setattr(drift_check, "ROOT", str(case))
-    assert drift_check.check_work_order_contract() == []
+    found = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert found == {_TERMINAL_WO003_FINDING}
 
 
 # --- Structurally anchored acceptance records -------------------------------
@@ -2987,7 +3144,9 @@ def _completed_finding_types(repo_root, tmp_path, monkeypatch, name, mutate):
     case = _make_wo002_completed_case(repo_root, tmp_path, "completed-" + name)
     mutate(case)
     monkeypatch.setattr(drift_check, "ROOT", str(case))
-    return {finding["type"] for finding in drift_check.check_work_order_contract()}
+    return {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    } - {_TERMINAL_WO003_FINDING}
 
 
 def _session_b_finding_types(repo_root, tmp_path, monkeypatch, name, mutate):
@@ -3087,8 +3246,8 @@ def test_wo002_session_b_control_is_clean(repo_root, tmp_path, monkeypatch):
     assert _without_terminal_lock(found) == set(), (
         "the authorized Session B state is not clean: " + repr(sorted(found))
     )
-    assert found == {_TERMINAL_WO002_FINDING}, (
-        "the reconstructed Session B state must still trip the terminal lock: "
+    assert found == {_TERMINAL_WO002_FINDING, _TERMINAL_WO003_FINDING}, (
+        "the reconstructed Session B state must still trip both later locks: "
         + repr(sorted(found))
     )
 
@@ -3484,6 +3643,9 @@ _WO003_ISSUANCE_JOB = "98773518991"
 _WO003_SESSION_A_BASE = "52d89295614a4ce686094736d87f7e6c907e12a0"
 _WO003_SESSION_A_WORKFLOW = "33200547479"
 _WO003_SESSION_A_JOB = "98948639416"
+_WO003_SESSION_A_ACCEPTED_BASE = "d23add58e02ddc855573cf9be7a2542776d25e7e"
+_WO003_SESSION_A_ACCEPTED_WORKFLOW = "33344006899"
+_WO003_SESSION_A_ACCEPTED_JOB = "99344607213"
 _WO003_ISSUED_GATE = (
     "- Current gate: WO-003 ISSUED " + _EM
     + " SESSION A IMPLEMENTATION NOT AUTHORIZED"
@@ -3505,7 +3667,9 @@ def _wo003_finding_types(repo_root, tmp_path, monkeypatch, name, mutate):
     case = _make_wo003_issued_case(repo_root, tmp_path, "wo003-" + name)
     mutate(case)
     monkeypatch.setattr(drift_check, "ROOT", str(case))
-    return {finding["type"] for finding in drift_check.check_work_order_contract()}
+    return {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    } - {_TERMINAL_WO003_FINDING}
 
 
 def test_wo003_issued_state_is_clean(repo_root, tmp_path, monkeypatch) -> None:
@@ -3964,7 +4128,9 @@ def _wo003_session_a_types(repo_root, tmp_path, monkeypatch, name, mutate):
     case = _make_wo003_session_a_case(repo_root, tmp_path, "wo003-a-" + name)
     mutate(case)
     monkeypatch.setattr(drift_check, "ROOT", str(case))
-    return {finding["type"] for finding in drift_check.check_work_order_contract()}
+    return {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    } - {_TERMINAL_WO003_FINDING}
 
 
 def test_wo003_session_a_state_is_clean(repo_root, tmp_path, monkeypatch) -> None:
@@ -4355,6 +4521,265 @@ def test_wo003_issued_reconstruction_reaches_the_closed_state(
     )
     assert found == set(), (
         "the reconstructed issued state is not clean: " + repr(sorted(found))
+    )
+
+
+# ── WO-003 Session A acceptance ───────────────────────────────────────────────
+
+_WO003_SESSION_A_ACCEPTED_GATE = (
+    "- Current gate: WO-003 SESSION A ACCEPTED " + _EM
+    + " SESSION B NOT AUTHORIZED"
+)
+_WO003_SESSION_A_ACCEPTED_MARKER = (
+    "AUTHORIZATION: ISSUED " + _EM
+    + " SESSION A ACCEPTED; NO SESSION AUTHORIZED"
+)
+_WO003_SESSION_A_ACCEPTED_NEXT_GATE = (
+    "NEXT GATE: fresh independent architect review of the complete uncommitted"
+    + _NL + "Session A acceptance transition. Session B remains unauthorized."
+)
+_WO003_SESSION_A_ACCEPTED_STATEMENT = (
+    "Session A is accepted and complete. No session is currently authorized. "
+    "Session B remains unauthorized and requires separate owner authorization."
+)
+
+
+def _wo003_accepted_types(repo_root, tmp_path, monkeypatch, name, mutate):
+    """Findings drift_check reports for a mutated accepted Session A state."""
+    drift_check = _load_drift_check(repo_root, "wo003_accepted_" + name)
+    case = _make_wo003_accepted_case(
+        repo_root, tmp_path, "wo003-accepted-" + name
+    )
+    mutate(case)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return {finding["type"] for finding in drift_check.check_work_order_contract()}
+
+
+def test_wo003_session_a_accepted_state_is_clean(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Non-vacuous: the canonical accepted state raises no finding."""
+    found = _wo003_accepted_types(
+        repo_root, tmp_path, monkeypatch, "control", lambda case: None
+    )
+    assert found == set(), (
+        "the accepted WO-003 Session A state is not clean: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(("name", "rel", "old", "new", "expected"), (
+    ("session-field", "WORKORDER.md",
+     "- Authorized session: NONE", "- Authorized session: A",
+     _TERMINAL_WO003_FINDING),
+    ("gate", "WORKORDER.md", _WO003_SESSION_A_ACCEPTED_GATE,
+     "- Current gate: WO-003 SESSION A ACCEPTED " + _EM + " SESSION B MAY BEGIN",
+     "WO-003 Session A accepted gate"),
+    ("base-commit", "WORKORDER.md",
+     "- Base commit: `" + _WO003_SESSION_A_ACCEPTED_BASE + "`",
+     "- Base commit: `" + _WRONG_COMMIT + "`",
+     "WO-003 Session A accepted base commit"),
+    ("authorization-marker", _WO003_REL, _WO003_SESSION_A_ACCEPTED_MARKER,
+     "AUTHORIZATION: ISSUED " + _EM + " SESSION A AUTHORIZED FOR IMPLEMENTATION",
+     "WO-003 Session A accepted authorization"),
+    ("next-gate", _WO003_REL, _WO003_SESSION_A_ACCEPTED_NEXT_GATE,
+     "NEXT GATE: none.", "WO-003 next gate"),
+    ("accepted-statement", _WO003_REL,
+     "Session A is accepted and complete.",
+     "Session A acceptance statement removed.",
+     "WO-003 Session A accepted statement"),
+    ("planning-baseline", _WO003_REL,
+     "BASELINE: `" + _WO003_PLANNING_BASELINE + "`",
+     "BASELINE: `" + _WRONG_COMMIT + "`", "WO-003 planning baseline"),
+))
+def test_wo003_session_a_accepted_contract_is_exact(
+    repo_root, tmp_path, monkeypatch, name, rel, old, new, expected
+):
+    """Accepted gate, marker, next gate, statement, and baseline are pinned."""
+    found = _wo003_accepted_types(
+        repo_root, tmp_path, monkeypatch, name,
+        lambda case: _edit(case, rel, old, new),
+    )
+    assert expected in found, (
+        name + " was accepted; drift_check reported " + repr(sorted(found))
+    )
+
+
+_WO003_ACCEPTANCE_MARKERS = (
+    ("accepted-commit", _WO003_REL,
+     "SESSION_A_ACCEPTANCE_COMMIT: `" + _WO003_SESSION_A_ACCEPTED_BASE + "`",
+     "SESSION_A_ACCEPTANCE_COMMIT: `" + _WRONG_COMMIT + "`",
+     "issued record"),
+    ("accepted-workflow", _WO003_REL,
+     "SESSION_A_ACCEPTANCE_CI_WORKFLOW: `"
+     + _WO003_SESSION_A_ACCEPTED_WORKFLOW + "`",
+     "SESSION_A_ACCEPTANCE_CI_WORKFLOW: `" + _WRONG_WORKFLOW + "`",
+     "issued record"),
+    ("accepted-job", _WO003_REL,
+     "SESSION_A_ACCEPTANCE_CI_JOB: `" + _WO003_SESSION_A_ACCEPTED_JOB + "` "
+     + _EM + " Lint, types, tests",
+     "SESSION_A_ACCEPTANCE_CI_JOB: `" + _WRONG_JOB + "` " + _EM
+     + " Lint, types, tests", "issued record"),
+    ("accepted-pointer-commit", "WORKORDER.md",
+     "- Session A acceptance commit: `" + _WO003_SESSION_A_ACCEPTED_BASE + "`",
+     "- Session A acceptance commit: `" + _WRONG_COMMIT + "`",
+     "WORKORDER.md"),
+    ("accepted-pointer-workflow", "WORKORDER.md",
+     "- Session A acceptance CI workflow: `"
+     + _WO003_SESSION_A_ACCEPTED_WORKFLOW + "`",
+     "- Session A acceptance CI workflow: `" + _WRONG_WORKFLOW + "`",
+     "WORKORDER.md"),
+    ("accepted-pointer-job", "WORKORDER.md",
+     "- Session A acceptance CI job: `" + _WO003_SESSION_A_ACCEPTED_JOB + "` "
+     + _EM + " Lint, types, tests",
+     "- Session A acceptance CI job: `" + _WRONG_JOB + "` " + _EM
+     + " Lint, types, tests", "WORKORDER.md"),
+)
+
+
+@pytest.mark.parametrize(
+    ("kind", "rel", "marker", "corrupt", "where"),
+    _WO003_ACCEPTANCE_MARKERS,
+)
+@pytest.mark.parametrize(
+    "damage", ("wrong", "duplicate", "removed", "transplant", "wrapped", "extra")
+)
+def test_wo003_acceptance_fields_are_structural(
+    repo_root, tmp_path, monkeypatch, kind, rel, marker, corrupt, where, damage
+):
+    """Acceptance declarations are exact canonical fields, never decoy text."""
+    def mutate(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        assert text.count(marker) == 1, "probe anchor drifted: " + marker
+        if damage == "wrong":
+            replacement = corrupt
+        elif damage == "duplicate":
+            replacement = marker + _NL + _NL + marker
+        elif damage == "removed":
+            replacement = ("REMOVED_FIELD: none" if rel == _WO003_REL
+                           else "- Removed field: none")
+        elif damage == "transplant":
+            target.write_text(
+                text.replace(marker, corrupt, 1) + _NL + marker + _NL,
+                encoding="utf-8",
+            )
+            return
+        elif damage == "wrapped":
+            replacement = corrupt + _NL + _NL + "<!--" + _NL + marker + _NL + "-->"
+        else:
+            replacement = marker + _NL + "NOTE: injected"
+        target.write_text(text.replace(marker, replacement, 1), encoding="utf-8")
+
+    found = _wo003_accepted_types(
+        repo_root, tmp_path, monkeypatch, damage + "-" + kind, mutate
+    )
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        damage + " acceptance field " + kind + " was accepted: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo003_acceptance_record_rejects_a_presence_decoy(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """A correct live-evidence phrase outside the record cannot repair it."""
+    marker = (
+        "362 tools across 55 categories; corrected dashboard About ordering; "
+        "matching" + _NL + "source and deployed runtime hashes"
+    )
+    corrupt = (
+        "361 tools across 54 categories; corrected dashboard About ordering; "
+        "matching" + _NL + "source and deployed runtime hashes"
+    )
+
+    def transplant(case):
+        target = case / _WO003_REL
+        text = target.read_text(encoding="utf-8")
+        assert text.count(marker) == 1, "probe anchor drifted: " + marker
+        target.write_text(
+            text.replace(marker, corrupt, 1)
+            + _NL + "<!-- " + marker + " -->" + _NL,
+            encoding="utf-8",
+        )
+
+    found = _wo003_accepted_types(
+        repo_root, tmp_path, monkeypatch, "record-transplant", transplant
+    )
+    assert "WO-003 Session A acceptance record" in found, (
+        "an out-of-record evidence decoy repaired the acceptance record: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("intruder", (
+    "<!-- acceptance record decoy -->",
+    "```text",
+    "NOTE: injected",
+))
+def test_wo003_acceptance_record_rejects_wrappers_and_extra_lines(
+    repo_root, tmp_path, monkeypatch, intruder
+) -> None:
+    """The bounded record is exact; no wrapper vocabulary is needed."""
+    heading = "## Session A acceptance record"
+    found = _wo003_accepted_types(
+        repo_root, tmp_path, monkeypatch,
+        "record-intruder-"
+        + intruder.split()[0].replace("<", "x").replace(":", ""),
+        lambda case: _edit(case, _WO003_REL, heading,
+                           heading + _NL + _NL + intruder),
+    )
+    assert "WO-003 Session A acceptance record" in found, (
+        "an acceptance-record intruder was accepted: " + repr(sorted(found))
+    )
+
+
+def test_wo003_session_a_acceptance_cannot_roll_back(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """A coherent document rollback to authorized Session A still fails."""
+    drift_check = _load_drift_check(repo_root, "wo003_acceptance_rollback")
+    case = _make_wo003_session_a_case(
+        repo_root, tmp_path, "wo003-acceptance-rollback"
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    found = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert found == {_TERMINAL_WO003_FINDING}, (
+        "the authorized historical reconstruction is incomplete or reopened "
+        "without the terminal finding: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("session", ("A", "B", "C"))
+def test_wo003_accepted_state_rejects_session_reactivation(
+    repo_root, tmp_path, monkeypatch, session
+) -> None:
+    """No labeled session can self-reactivate after Session A acceptance."""
+    statement = "Session " + session + " is authorized and may begin."
+    found = _wo003_accepted_types(
+        repo_root, tmp_path, monkeypatch, "later-" + session,
+        lambda case: _append(case, "WORKORDER.md", statement),
+    )
+    assert "session authorization reopening" in found, (
+        statement + " was accepted: " + repr(sorted(found))
+    )
+
+
+def test_wo003_accepted_state_preserves_release_gate(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Accepting Session A never opens tag or Release authority."""
+    found = _wo003_accepted_types(
+        repo_root, tmp_path, monkeypatch, "release",
+        lambda case: _append(
+            case, "WORKORDER.md",
+            "A tag and GitHub Release are authorized for this session.",
+        ),
+    )
+    assert "release authorization" in found, (
+        "the accepted state opened publication authority: " + repr(sorted(found))
     )
 
 

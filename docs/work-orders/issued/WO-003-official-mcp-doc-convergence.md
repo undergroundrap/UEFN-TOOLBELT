@@ -2,7 +2,7 @@
 
 STATUS: ISSUED
 
-AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION
+AUTHORIZATION: ISSUED — SESSION A ACCEPTED; NO SESSION AUTHORIZED
 
 OWNER: Ocean Bennett
 
@@ -21,6 +21,12 @@ SESSION_A_AUTHORIZATION_COMMIT: `52d89295614a4ce686094736d87f7e6c907e12a0`
 SESSION_A_AUTHORIZATION_CI_WORKFLOW: `33200547479`
 
 SESSION_A_AUTHORIZATION_CI_JOB: `98948639416` — Lint, types, tests
+
+SESSION_A_ACCEPTANCE_COMMIT: `d23add58e02ddc855573cf9be7a2542776d25e7e`
+
+SESSION_A_ACCEPTANCE_CI_WORKFLOW: `33344006899`
+
+SESSION_A_ACCEPTANCE_CI_JOB: `99344607213` — Lint, types, tests
 
 ## Issuance basis
 
@@ -46,6 +52,23 @@ Session A is authorized for implementation under the current root
 
 The accepted mandate below is unchanged. Session A implements exactly the
 scope it defines. Session B is not authorized and requires a separate owner gate.
+
+## Session A acceptance record
+
+Session A was independently accepted and committed as
+`d23add58e02ddc855573cf9be7a2542776d25e7e`. CI workflow
+[`33344006899`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/33344006899)
+completed successfully, including required job
+[`99344607213` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/33344006899/job/99344607213).
+
+Accepted live `TOOL_TEST` evidence recorded a deploy and full UEFN restart;
+362 tools across 55 categories; corrected dashboard About ordering; matching
+source and deployed runtime hashes; no Fortnite session, play session, or level
+mutation; then a stopped listener, closed UEFN, absent handoff, and closed ports
+8765–8770.
+
+Session A is accepted and complete. No session is currently authorized. Session
+B remains unauthorized and requires separate owner authorization.
 
 ## Planning basis
 
@@ -384,8 +407,9 @@ authorization → implementation → independent implementation review → commi
 push → CI → Session B authorization → metadata application → tag → GitHub
 Release → social publication.
 
-This Work Order is issued and Session A is authorized under root
-`WORKORDER.md`. Session B is not authorized and requires a separate owner gate.
+This Work Order remains issued. Session A is accepted and complete, and no
+session is currently authorized. Session B remains unauthorized and requires
+separate owner authorization.
 
 Live UEFN verification is not required for the documentation-only rows. The
 exception is the runtime-text lock — nine runtime occurrences across
@@ -395,4 +419,4 @@ registration, visual-inspection, and end-to-end install verification set defined
 above.
 
 NEXT GATE: fresh independent architect review of the complete uncommitted
-Session A implementation. Session B remains unauthorized.
+Session A acceptance transition. Session B remains unauthorized.

@@ -178,12 +178,26 @@ _WO003_SESSION_A_JOB = "98948639416"
 _WO003_SESSION_A_GATE = (
     "WO-003 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
 )
+_WO003_SESSION_A_ACCEPTED_BASE = "d23add58e02ddc855573cf9be7a2542776d25e7e"
+_WO003_SESSION_A_ACCEPTED_WORKFLOW = "33344006899"
+_WO003_SESSION_A_ACCEPTED_JOB = "99344607213"
+_WO003_SESSION_A_ACCEPTED_GATE = (
+    "WO-003 SESSION A ACCEPTED — SESSION B NOT AUTHORIZED"
+)
 _WO003_SESSION_A_NEXT_GATE = (
     "NEXT GATE: fresh independent architect review of the complete uncommitted "
     "Session A implementation. Session B remains unauthorized."
 )
 _WO003_SESSION_A_STATEMENT = (
     "Session A is authorized for implementation under the current root"
+)
+_WO003_SESSION_A_ACCEPTED_NEXT_GATE = (
+    "NEXT GATE: fresh independent architect review of the complete uncommitted "
+    "Session A acceptance transition. Session B remains unauthorized."
+)
+_WO003_SESSION_A_ACCEPTED_STATEMENT = (
+    "Session A is accepted and complete. No session is currently authorized. "
+    "Session B remains unauthorized and requires separate owner authorization."
 )
 # Session B drafting is a separate owner gate that has not been given. The
 # checker carries that fact, so activating Session B in the pointer alone
@@ -460,6 +474,26 @@ _WO003_SESSION_A_POINTER_SEQUENCE = _WO003_POINTER_SEQUENCE[:7] + (
     "- Session A authorization CI job: `" + _WO003_SESSION_A_JOB
     + "` — Lint, types, tests",
 ) + _WO003_POINTER_SEQUENCE[7:]
+_WO003_SESSION_A_ACCEPTED_ISSUED_SEQUENCE = (
+    _WO003_SESSION_A_ISSUED_SEQUENCE + (
+        "SESSION_A_ACCEPTANCE_COMMIT: `"
+        + _WO003_SESSION_A_ACCEPTED_BASE + "`",
+        "SESSION_A_ACCEPTANCE_CI_WORKFLOW: `"
+        + _WO003_SESSION_A_ACCEPTED_WORKFLOW + "`",
+        "SESSION_A_ACCEPTANCE_CI_JOB: `"
+        + _WO003_SESSION_A_ACCEPTED_JOB + "` — Lint, types, tests",
+    )
+)
+_WO003_SESSION_A_ACCEPTED_POINTER_SEQUENCE = (
+    _WO003_SESSION_A_POINTER_SEQUENCE[:-2] + (
+        "- Session A acceptance commit: `"
+        + _WO003_SESSION_A_ACCEPTED_BASE + "`",
+        "- Session A acceptance CI workflow: `"
+        + _WO003_SESSION_A_ACCEPTED_WORKFLOW + "`",
+        "- Session A acceptance CI job: `"
+        + _WO003_SESSION_A_ACCEPTED_JOB + "` — Lint, types, tests",
+    ) + _WO003_SESSION_A_POINTER_SEQUENCE[-2:]
+)
 
 
 def _canonical_metadata(text: str, stop) -> list[str]:
@@ -529,7 +563,14 @@ def _wo003_record_findings(
     out = []
     issued_sequence: tuple[str, ...]
     pointer_sequence: tuple[str, ...]
-    if session == "A":
+    if session == "ACCEPTED":
+        expected_base = _WO003_SESSION_A_ACCEPTED_BASE
+        expected_gate = _WO003_SESSION_A_ACCEPTED_GATE
+        issued_sequence = _WO003_SESSION_A_ACCEPTED_ISSUED_SEQUENCE
+        pointer_sequence = _WO003_SESSION_A_ACCEPTED_POINTER_SEQUENCE
+        base_kind = "WO-003 Session A accepted base commit"
+        gate_kind = "WO-003 Session A accepted gate"
+    elif session == "A":
         expected_base = _WO003_SESSION_A_BASE
         expected_gate = _WO003_SESSION_A_GATE
         issued_sequence = _WO003_SESSION_A_ISSUED_SEQUENCE
@@ -577,6 +618,63 @@ def _wo003_record_findings(
     ):
         out.append(("WORKORDER.md", kind, found_detail, want))
     return out
+
+
+_WO003_AUTHORIZATION_HEADING = "## Session A authorization basis"
+_WO003_ACCEPTANCE_HEADING = "## Session A acceptance record"
+_WO003_PLANNING_HEADING = "## Planning basis"
+_WO003_ACCEPTED_RUN_URL = (
+    "https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/"
+    + _WO003_SESSION_A_ACCEPTED_WORKFLOW
+)
+_WO003_ACCEPTED_JOB_URL = (
+    _WO003_ACCEPTED_RUN_URL + "/job/" + _WO003_SESSION_A_ACCEPTED_JOB
+)
+_WO003_ACCEPTANCE_RECORD = (
+    "## Session A acceptance record Session A was independently accepted and "
+    "committed as `" + _WO003_SESSION_A_ACCEPTED_BASE + "`. CI workflow "
+    "[`" + _WO003_SESSION_A_ACCEPTED_WORKFLOW + "`]("
+    + _WO003_ACCEPTED_RUN_URL + ") completed successfully, including required "
+    "job [`" + _WO003_SESSION_A_ACCEPTED_JOB + "` — Lint, types, tests]("
+    + _WO003_ACCEPTED_JOB_URL + "). Accepted live `TOOL_TEST` evidence recorded "
+    "a deploy and full UEFN restart; 362 tools across 55 categories; corrected "
+    "dashboard About ordering; matching source and deployed runtime hashes; no "
+    "Fortnite session, play session, or level mutation; then a stopped listener, "
+    "closed UEFN, absent handoff, and closed ports 8765–8770. "
+    + _WO003_SESSION_A_ACCEPTED_STATEMENT
+)
+
+
+def _wo003_acceptance_record_findings(text):
+    """Check only the structurally located Session A acceptance evidence."""
+    lines = text.split("\n")
+    marks = [i for i, line in enumerate(lines) if line.startswith("## ")]
+    headings = [lines[index] for index in marks]
+    required = (
+        _WO003_AUTHORIZATION_HEADING,
+        _WO003_ACCEPTANCE_HEADING,
+        _WO003_PLANNING_HEADING,
+    )
+    for heading in required:
+        occurrences = headings.count(heading)
+        if occurrences != 1:
+            return [("WO-003 Session A acceptance record",
+                     heading + " occurs " + str(occurrences) + "x",
+                     "exactly one " + heading)]
+    authorization = headings.index(_WO003_AUTHORIZATION_HEADING)
+    if (authorization + 2 >= len(headings)
+            or headings[authorization:authorization + 3] != list(required)):
+        return [("WO-003 Session A acceptance record",
+                 "acceptance headings are not consecutive and ordered",
+                 "authorization basis, acceptance record, then planning basis")]
+    first = marks[authorization + 1]
+    last = marks[authorization + 2]
+    region = " ".join("\n".join(lines[first:last]).split())
+    if region != _WO003_ACCEPTANCE_RECORD:
+        return [("WO-003 Session A acceptance record",
+                 "the bounded acceptance record changed",
+                 "the exact accepted commit, CI, and live evidence record")]
+    return []
 
 
 def _acceptance_record_findings(text, locate, expected, fragments):
@@ -1238,6 +1336,24 @@ def check_work_order_contract() -> list[dict]:
             add(rel, "issued authorization", repr(auth_lines),
                 "exactly one AUTHORIZATION: ISSUED marker")
 
+    # Session A acceptance is one-way until the owner explicitly opens Session
+    # B and updates this checker. A coherent document-only rollback to the
+    # implementable Session A state must therefore still fail.
+    accepted_wo003_path = issued_dir / _WO003_NAME
+    accepted_wo003_auth = (
+        issued_metadata.get(_WO003_NAME, ([], [], ""))[1]
+    )
+    if not (
+        wo003_paths == [accepted_wo003_path]
+        and session == "NONE"
+        and base == "`" + _WO003_SESSION_A_ACCEPTED_BASE + "`"
+        and current_gate == _WO003_SESSION_A_ACCEPTED_GATE
+        and accepted_wo003_auth == [_ISSUED_SESSION_A_ACCEPTED]
+    ):
+        add("docs/work-orders", "accepted WO-003 Session A state",
+            "the accepted state was removed or reopened",
+            "WO-003 issued with Session A accepted and no session authorized")
+
     completed_metadata: dict[str, tuple[list[str], list[str], str]] = {}
     for path in completed:
         text = path.read_text(encoding="utf-8")
@@ -1371,12 +1487,18 @@ def check_work_order_contract() -> list[dict]:
                         issued_link)
 
             if session == "NONE":
-                session_a_accepted = issued[0].name == _WO002_NAME and (
+                wo002_session_a_accepted = issued[0].name == _WO002_NAME and (
                     current_gate == _WO002_SESSION_A_ACCEPTED_GATE
                     or auth_lines == [_ISSUED_SESSION_A_ACCEPTED]
                     or "## Session A acceptance record" in issued_text
                 )
-                if session_a_accepted:
+                wo003_session_a_accepted = issued[0].name == _WO003_NAME and (
+                    current_gate == _WO003_SESSION_A_ACCEPTED_GATE
+                    or auth_lines == [_ISSUED_SESSION_A_ACCEPTED]
+                    or _WO003_ACCEPTANCE_HEADING in issued_text
+                )
+                if wo002_session_a_accepted:
+                    rel = issued[0].relative_to(root).as_posix()
                     normalized_issued = " ".join(issued_text.split())
                     if auth_lines != [_ISSUED_SESSION_A_ACCEPTED]:
                         add(rel, "Session A accepted authorization",
@@ -1409,6 +1531,37 @@ def check_work_order_contract() -> list[dict]:
                         add(rel, "Session A accepted statement", "missing",
                             "Session A complete with no current session authority")
                     if _has_other_session_authorization(pointer, issued_text, ""):
+                        add("WORKORDER.md", "session authorization reopening",
+                            "positive permission for Session A, Session B, or later",
+                            "Session A accepted; no session authorized")
+                elif wo003_session_a_accepted:
+                    rel = issued[0].relative_to(root).as_posix()
+                    normalized_issued = " ".join(issued_text.split())
+                    if auth_lines != [_ISSUED_SESSION_A_ACCEPTED]:
+                        add(rel, "WO-003 Session A accepted authorization",
+                            repr(auth_lines),
+                            f"exactly {_ISSUED_SESSION_A_ACCEPTED}")
+                    for _f, _k, _found, _want in _wo003_record_findings(
+                        pointer, issued_text, rel, base, current_gate,
+                        "ACCEPTED",
+                    ):
+                        add(_f, _k, _found, _want)
+                    for _k, _found, _want in _wo003_acceptance_record_findings(
+                        issued_text
+                    ):
+                        add(rel, _k, _found, _want)
+                    if _WO003_SESSION_A_ACCEPTED_NEXT_GATE not in normalized_issued:
+                        add(rel, "WO-003 next gate", "missing or changed",
+                            _WO003_SESSION_A_ACCEPTED_NEXT_GATE)
+                    if _WO003_SESSION_A_ACCEPTED_STATEMENT not in normalized_issued:
+                        add(rel, "WO-003 Session A accepted statement", "missing",
+                            _WO003_SESSION_A_ACCEPTED_STATEMENT)
+                    # The root pointer is the sole current authority surface.
+                    # Scan it for any reopened labeled session; the issued
+                    # document's accepted metadata and bounded record are
+                    # enforced structurally above, without treating the
+                    # preserved technical mandate as live authorization prose.
+                    if _has_other_session_authorization(pointer, "", ""):
                         add("WORKORDER.md", "session authorization reopening",
                             "positive permission for Session A, Session B, or later",
                             "Session A accepted; no session authorized")
