@@ -20,7 +20,8 @@ Install PySide6 (one-time, outside UEFN):
 
 Launch:
   import UEFN_Toolbelt as tb; tb.launch_qt()
-  — or — Toolbelt menu → Open Dashboard (Qt)
+  The `Toolbelt ▾` top-bar menu registers but never renders on UEFN 42.00
+  (Epic sandboxes ToolMenus for third-party Python), so launch_qt() is the entry point.
 
 If PySide6 is not installed, launch_qt() falls back to tb.launch() (text mode).
 
@@ -2949,14 +2950,14 @@ def _tab_about(_R=None) -> QScrollArea:
         _tool_count = str(len(_tb.registry.list_tools()))
         _cat_count  = str(len({t.get("category","") for t in _tb.registry.list_tools() if t.get("category")}))
     except Exception:
-        _tool_count = "355"
-        _cat_count  = "54"
+        _tool_count = "362"
+        _cat_count  = "55"
     stats = [
         (_tool_count, "registered tools"),
         (_cat_count,  "categories"),
         ("6",         "smoke-test layers"),
-        ("0",         "network calls — fully offline"),
         ("1",         "Ctrl+Z to undo anything"),
+        ("*",         "network use, incl. Plugin Hub and updater"),
     ]
     for num, label in stats:
         row = QLabel(f"  {num:>4}   {label}")

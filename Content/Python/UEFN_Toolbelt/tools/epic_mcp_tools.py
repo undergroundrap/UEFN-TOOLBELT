@@ -24,8 +24,10 @@ from ..registry import register_tool
 def run_epic_mcp_status(**kwargs) -> dict:
     """
     Show the local registration attempt, positive-only in-process confirmation,
-    internal meta-tool contract evidence, and separately unproven external
-    official-MCP states.
+    internal meta-tool contract evidence, and the separate external official-MCP
+    state. WO-002 recorded that external result as `failed`, bounded by
+    `UE::ValkyrieToolset::ToolsetPolicy`. In-process registration success never
+    proves external exposure.
 
     Returns:
         dict: Stable truth schema containing ``registration_attempt``,

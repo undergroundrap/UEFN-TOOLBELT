@@ -10,9 +10,9 @@ UEFN Toolbelt is a **Python automation framework** that runs inside the Unreal E
 
 | Surface | Entry point | Who uses it |
 |---|---|---|
-| Editor menu | `Toolbelt ▾` (top bar) | Humans — quick single-click runs |
-| PySide6 dashboard | `tb.launch_qt()` | Humans — tabbed GUI, search, params |
-| MCP HTTP bridge | `tb.run("mcp_start")` | AI agents — any MCP client controls UEFN |
+| Editor menu | `Toolbelt ▾` (top bar) | **Unavailable on this build** — registers but never renders; Epic sandboxes `ToolMenus` for third-party Python |
+| PySide6 dashboard | `tb.launch_qt()` | Humans — tabbed GUI, search, params. The entry point |
+| Toolbelt custom bridge | `tb.run("mcp_start")` | AI agents — an authenticated, same-user loopback HTTP listener. Toolbelt's own surface, not Epic's official UEFN MCP server |
 | Python client | `client.py` | External scripts, Go tools, curl |
 
 Everything routes through a single **`ToolRegistry`** singleton. There is one place where tools are registered, one place where they execute, and one structured return contract (`{"status": "ok"/"error", ...}`).
@@ -27,7 +27,7 @@ UEFN-TOOLBELT/
 ├── Content/Python/UEFN_Toolbelt/    ← The Python package (deployed into any UEFN project)
 │   ├── __init__.py                  ← Package root: __version__, register(), run(), config
 │   ├── registry.py                  ← @register_tool decorator + ToolRegistry singleton
-│   ├── menu.py                      ← Builds the "Toolbelt ▾" top-bar menu via Slate
+│   ├── menu.py                      ← Registers the "Toolbelt ▾" top-bar menu; it never renders on 42.00
 │   ├── schema_utils.py              ← Reference schema query helpers
 │   ├── dashboard_pyside6.py         ← 26-tab PySide6 dashboard (the primary UI)
 │   ├── core/                        ← Shared utilities, no tool registrations here

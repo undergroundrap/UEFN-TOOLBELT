@@ -1,7 +1,12 @@
 # UEFN Toolbelt — Roadmap
 
 > This is a living document. Items move between phases as priorities shift.
-> Current version: **v2.4.1** · Current phase: **21**
+> Current version: **v2.4.1** · Last completed phase: **21**
+>
+> Work Order track: WO-001 (custom bridge security) and WO-002 (Epic Toolset
+> integration truth) are completed; WO-003 through WO-007 form the frozen next
+> release train. This roadmap grants no implementation authority — root
+> [`WORKORDER.md`](WORKORDER.md) is the sole current gate.
 
 ---
 
@@ -39,7 +44,7 @@
 - Auto-check `min_toolbelt_version` against installed version before install
 
 ### Phase 23 — Background Job Queue
-- Long-running tools (`memory_scan`, `ref_full_report`, `lod_auto_generate_folder`) run in background thread with progress indicator in dashboard
+- Long-running tools (`memory_scan`, `ref_full_report`, `lod_auto_generate_folder`) do their non-`unreal` work on a worker thread with a progress indicator in the dashboard. Every `unreal.*` call stays on the editor main thread — see Quirk #2 and the main-thread rule in `CLAUDE.md`
 - Job history panel — see what ran, how long it took, re-run from history
 
 ### Phase 24 — Verse Intelligence

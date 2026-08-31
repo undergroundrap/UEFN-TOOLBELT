@@ -36,8 +36,8 @@
 Automate the tedious, script the impossible, and bridge the gap between Python and Verse.
 UEFN Toolbelt is a master utility designed to leverage the **2026 UEFN Python 3.11 Update**,
 allowing creators to manipulate actors, manage assets, and generate boilerplate Verse code
-through a high-level, developer-friendly interface — all from a single persistent menu entry
-in the UEFN editor bar. **362 registered tools** across 55 categories, complete AI-agent
+through a high-level, developer-friendly interface — all from the PySide6 dashboard
+(`tb.launch_qt()`). **362 registered tools** across 55 categories, complete AI-agent
 readiness (100% structured dict returns), and a unified theme system so every window in the
 platform looks and feels identical.
 
@@ -139,7 +139,7 @@ Place the device in your level, drag your real actors into the `@editable` slots
 ## 🤖 AI-Accelerated Development (One-Click Sync + Tool Manifest)
 Toolbelt is built to be driven by a coding agent — Claude Code, Codex, or Cursor. To give your agent **perfect information** about your project's unique Verse devices and custom props:
 
-1.  **Open Dashboard**: Run `tb.launch_qt()` or use the `Toolbelt` menu.
+1.  **Open Dashboard**: Run `tb.launch_qt()`.
 2.  **One-Click Sync**: Click the **"Sync Level Schema to AI"** button in **Quick Actions**.
 3.  **Instant Content**: The 1.6MB schema is automatically copied to your `docs/` folder. Your AI now knows every hidden property in your specific level.
 4.  **Export Tool Manifest**: Run `tb.run("plugin_export_manifest")` to write `Saved/UEFN_Toolbelt/tool_manifest.json` — a machine-readable index of all 362 tools with their parameter signatures, types, defaults, and categories. An AI agent can load this file and immediately know what every tool does and how to call it, without reading source code.
@@ -198,8 +198,10 @@ editor logs across boots with the flag on and off — see `docs/UEFN_QUIRKS.md` 
 import UEFN_Toolbelt as tb; tb.register()
 ```
 
-That fully recovers — all 362 tools, the dashboard, and the menu. Epic's MCP
-continues to work either way; only Toolbelt's auto-start is affected.
+That recovers all 362 tools and the dashboard (`tb.launch_qt()`). It does not
+make a top-bar menu appear: menu entries register on 42.00 and still never
+render. Epic's MCP continues to work either way; only Toolbelt's auto-start is
+affected.
 
 `tb.smoke_test()` detects this and names it, so you are never left guessing.
 
@@ -220,9 +222,9 @@ explicit startup-script entry. It needs an Epic-side fix.
 | Practice | How it's enforced here |
 |---|---|
 | **Audited code** | Every line in this repo is open-source and reviewable |
-| **No network calls** | Zero outbound HTTP/socket connections anywhere in the codebase |
-| **No file writes outside project** | All output goes to `Saved/UEFN_Toolbelt/` inside your project |
-| **No eval/exec on external input** | No dynamic code execution from files, URLs, or user strings |
+| **Bounded network use** | Toolbelt is **not** universally offline. Several features reach the network, including the Plugin Hub (fetches `registry.json` and downloads plugins from GitHub), `import_image_from_url`, and `toolbelt_update` (runs `git pull` against this repository). Treat that as examples, not a complete inventory. Toolbelt's custom bridge is an authenticated, same-user loopback listener. See `SECURITY.md` |
+| **Bounded file writes** | Tool output defaults to `Saved/UEFN_Toolbelt/` inside your project. Tools that take an explicit export path write where you point them, including outside the project: `snapshot_export`, `datatable_export`, `curve_export`, and `stamp_export` |
+| **Bounded dynamic execution** | Toolbelt does not execute MCP, bridge, or URL input as code. Custom plugins in `Saved/UEFN_Toolbelt/Custom_Plugins/` *are* loaded and executed, behind a 50 KB size limit, an AST import scan, namespace protection, and a SHA-256 audit record — a review gate, not a sandbox |
 | **Undo-safe** | Every destructive operation is wrapped in `ScopedEditorTransaction` |
 
 ### How to verify before running any `.py` file (from this repo or anyone's)
@@ -320,7 +322,7 @@ UEFN Toolbelt isn't just a library — it's a **meta-framework**. While the stan
 Python API provides the *what*, Toolbelt provides the *how*. It follows a
 **Blueprint-to-Script philosophy**: taking complex manual editor tasks (mass material
 assignment, procedural arena generation, bulk Verse device editing) and reducing them to
-single-line Python commands callable from a top-menu dropdown.
+single-line Python commands callable from the dashboard or the Python console.
 
 The toolbelt is designed for three creator personas:
 
@@ -427,7 +429,7 @@ $$T_{\text{save}} = (T_{\text{manual}} \times N) - (T_{\text{script}} + T_{\text
 | **UI** | Editor Utility Widgets (UMG) | Dockable dashboard with tabs; buttons fire `Execute Python Command` nodes |
 | **Verse Bridge** | `verse_snippet_generator.py` | Generates `.verse` files from Python context (selected actors, level state) |
 | **Data** | JSON | Custom preset storage and import logs in `Saved/UEFN_Toolbelt/` |
-| **Menu** | `unreal.ToolMenus` | Permanent top-bar menu entry injected on editor startup |
+| **Menu** | `unreal.ToolMenus` | Entries register at startup but do not render on UEFN 42.00; open the dashboard with `tb.launch_qt()` |
 
 ---
 
@@ -1426,10 +1428,16 @@ Close and reopen your project. Watch the **Output Log**. You should see:
 
 ```
 [TOOLBELT] ✓ All tools registered.
-[TOOLBELT] ✓ Menu registered — look for 'Toolbelt' in the top menu bar.
+[TOOLBELT] Menu entries submitted, but MainFrame.MainTabMenu is not registered on this build
+          - UEFN sandboxes ToolMenus for third-party Python (40.20 onward, still true on
+          42.00), so no Toolbelt menu will appear in the top bar. Use the dashboard instead:
+          tb.launch_qt()
 ```
 
-A **Toolbelt** menu now appears in the top menu bar next to Help. No Blueprint setup, no manual script execution — it's automatic every time UEFN starts.
+On UEFN 42.00 **no Toolbelt menu appears in the top bar**. `menu.py` registers its entries
+and every call succeeds, but Epic sandboxes `ToolMenus` for third-party Python so nothing
+renders. Toolbelt checks `is_menu_registered` and says which happened instead of claiming
+success. Open the dashboard with `tb.launch_qt()`.
 
 ---
 
@@ -1465,7 +1473,7 @@ Expected output in the log:
 
 ### Step 6 — Open the dashboard
 
-After completing Step 2 (PySide6 installed), click **Toolbelt → Open Dashboard (PySide6)** in the top menu bar, or run:
+After completing Step 2 (PySide6 installed), run:
 
 ```python
 import UEFN_Toolbelt as tb; tb.launch_qt()
@@ -1712,7 +1720,8 @@ _add_entry(tb_sub, "Utilities", "MyTool",
            "import UEFN_Toolbelt as tb; tb.run('my_tool')")
 ```
 
-Your tool is now registered, searchable, undo-safe, and accessible from the top menu bar.
+Your tool is now registered, searchable, undo-safe, and reachable from the dashboard
+and `tb.run("my_tool")`.
 
 ---
 
@@ -1967,8 +1976,6 @@ The real dashboard. One `pip install PySide6` (or just run `deploy.bat`) and you
 import UEFN_Toolbelt as tb; tb.launch_qt()
 ```
 
-Or: **Toolbelt → Open Dashboard (PySide6)** from the top menu bar.
-
 ### Color reference (QSS applied automatically)
 
 | Element | Color |
@@ -1999,7 +2006,7 @@ needing a separate thread.
 The Blueprint approach still works and is documented for completeness.
 **Prefer the PySide6 dashboard** — it launches faster and requires no Blueprint setup.
 
-The top-menu Toolbelt entries work without this. Build the widget if you want
+`tb.launch_qt()` works without this. Build the widget if you want
 a visual panel with buttons, sliders, and live text input instead of the REPL.
 
 ### Create the Widget Blueprint
@@ -2213,7 +2220,10 @@ The UEFN Toolbelt includes a sophisticated integration test suite that validates
 
 ## 🏎️ Optimized Development Workflow (Hot Reload)
 
-You **never need to restart UEFN** when developing for the Toolbelt.
+Hot reload covers most tool edits, so most iterations need no restart. A **full UEFN
+restart is required** for `dashboard_pyside6.py` and other Qt-window changes, for
+`init_unreal.py` changes, and for any new module added to `tools/__init__.py`.
+See `docs/UEFN_QUIRKS.md` Quirks #26 and #27 and the test matrix in `CLAUDE.md`.
 
 1. **Edit** your Python code in your IDE.
 2. **Run** `deploy.bat` to sync files to your UEFN project.

@@ -48,8 +48,13 @@ non-destructive live integration evidence. See the
 ## Current trust model
 
 - **Repository code:** open for review, but still privileged editor code.
-- **Official Epic MCP:** a separate experimental Epic control plane bound to
-  loopback; follow Epic's current documentation and UEFN beta warnings.
+- **Official Epic MCP:** a separate Epic control plane bound to loopback. Epic's
+  42.00 ecosystem release notes state it is available and ships in 42.00; those
+  notes do not state that it left beta or experimental status, and locally
+  accepted evidence still places `UEFN MCP Toolsets` under Beta Access
+  (`docs/UEFN_QUIRKS.md`, Quirk #36). Available is not flawless: the accepted
+  audit recorded live gaps on that surface. Follow Epic's current documentation
+  and UEFN beta warnings.
 - **Toolbelt custom bridge:** authenticated same-user local clients only, with
   the experimental restrictions above.
 - **Custom plugins:** review source and provenance before loading. Static import

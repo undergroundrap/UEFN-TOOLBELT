@@ -37,7 +37,7 @@ __version__ = "2.4.1"
 __tool_count__ = 362
 
 # Total tool categories — update when adding a new category to any tool module.
-# Shown in the reload message: "355 tools registered across 54 categories."
+# Shown in the reload message: "362 tools registered across 55 categories."
 # Checked by scripts/drift_check.py to catch stale category counts across docs.
 __category_count__ = 55
 
@@ -64,7 +64,7 @@ def startup_ran() -> bool:
     paths are registered, so only their own start-up scripts are scanned.
 
     Nothing raises. Toolbelt simply never starts: the tool count is 1 instead of
-    361 and every tb.run() answers "Unknown tool", which reads as a Toolbelt bug
+    362 and every tb.run() answers "Unknown tool", which reads as a Toolbelt bug
     and is not one. This flag turns that silent failure into a diagnosable one.
     """
     return _STARTUP_RAN
@@ -161,7 +161,7 @@ def register_all_tools() -> None:
     # Offer the catalogue to Epic's official Unreal MCP, if this build has it.
     # No-ops with a log line when the Experimental ToolsetRegistry plugin or the
     # UEFN MCP beta flag is off, which is the common case — never a hard failure,
-    # and never allowed to take the 361 registered tools down with it.
+    # and never allowed to take the 362 registered tools down with it.
     try:
         from . import epic_toolset
         epic_toolset.register()

@@ -296,13 +296,15 @@ Full breakdown: [UEFN_QUIRKS.md — Quirk #19](UEFN_QUIRKS.md#19-the-v2-device-p
 
 | Limit | Reason | Workaround |
 |---|---|---|
-| Cannot trigger Verse compiler from Python | Epic has not exposed a `BuildVerseCode` Python API | Click **Verse → Build Verse Code** manually |
+| Cannot trigger Verse compiler from Python | Epic exposes no in-editor `BuildVerseCode` Python API. Epic's official UEFN MCP server does compile Verse, on its own surface | Click **Verse → Build Verse Code** manually, or use Epic's official UEFN MCP server |
 | Cannot set V2 device game-logic properties via Python | Stored as Verse `@editable`, not UPROPERTYs | Generate Verse code that sets them in `OnBegin` |
 | Cannot call runtime-only device methods (e.g. `timer_start(player)`) from editor | Requires a live player reference — editor session has none | Call from Verse at game runtime |
 | Cannot read Verse `@editable` property values set in the editor UI | Not exposed to Python layer | Read via `world_state_export` (base props only) |
 
-When Epic exposes a Python `BuildVerseCode` API, the loop becomes fully headless — no human
-clicks required at all.
+If Epic exposes an in-editor Python `BuildVerseCode` API, this loop becomes fully
+headless with no human clicks. Epic's official UEFN MCP server already compiles Verse
+on its own surface; that is a different control plane from Toolbelt's Python API and
+from Toolbelt's custom bridge.
 
 ---
 
@@ -376,8 +378,8 @@ TODAY (fully operational):
 
   ONE HUMAN ACTION: clicking Build Verse (once per iteration)
 
-NEXT (waiting for Epic):
-  system_build_verse     ← expose BuildVerseCode to Python → Phase 5 becomes headless
+NEXT (no in-editor Python API; Epic's official UEFN MCP server compiles Verse):
+  system_build_verse     ← an in-editor BuildVerseCode Python API would make Phase 5 headless
 
 FUTURE (zero human clicks):
   device_catalog_scan    → Claude designs the game from scratch

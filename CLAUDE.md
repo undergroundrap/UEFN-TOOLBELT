@@ -214,13 +214,23 @@ This keeps the tool count honest, the dashboard scannable, and the MCP manifest 
 ## What This Project Is
 
 **UEFN Toolbelt** is a comprehensive Python automation framework for Unreal Editor for Fortnite (UEFN 40.00+, March 2026).
-It covers ~97% of the UEFN Python API surface (the remaining 3% is locked by Epic — heightmap editing,
-Blueprint graph nodes, Verse compiler trigger, match control, session launch/stop, and V2 device game-logic properties have no Python API yet).
+It covers ~97% of the **legacy in-editor `unreal` Python API surface**. The remaining 3%
+has no in-editor Python API: heightmap editing, Blueprint graph nodes, match control, and
+V2 device game-logic properties. Verse compilation and play-session launch/stop have no
+in-editor Python API either, but **Epic's official UEFN MCP server provides both on its
+own surface** — per Epic's 42.00 ecosystem release notes and Epic's UEFN MCP
+documentation page. That is Epic's surface, not Toolbelt's Python API and not Toolbelt's
+custom bridge.
 It runs inside the editor and exposes 362 tools through:
-- A persistent top-menu entry (`Toolbelt ▾`) in the UEFN editor bar
-- A 26-tab PySide6 dark-themed dashboard (`tb.launch_qt()`)
-- An MCP HTTP bridge so Claude Code can control UEFN directly
+- A 26-tab PySide6 dark-themed dashboard (`tb.launch_qt()`) — the entry point
+- **Toolbelt's custom bridge** (`tb.run("mcp_start")`) — an authenticated,
+  same-user loopback HTTP listener, so an MCP client such as Claude Code can drive these
+  tools. This is Toolbelt's own surface. Toolbelt is **not** reachable through Epic's
+  official MCP server:
+  WO-002 recorded that external result as `failed`, bounded by `UE::ValkyrieToolset::ToolsetPolicy`
 - A Python client library (`client.py`) for non-MCP scripts
+- The `Toolbelt ▾` top-menu entry registers but never renders on UEFN 42.00 — Epic
+  sandboxes `ToolMenus` for third-party Python. Use `tb.launch_qt()`
 
 ## UI Consistency Rule (Enforced)
 
@@ -400,16 +410,18 @@ PHASE 5 — BUILD + FIX LOOP        ✅ (one human click per iteration)
   [User clicks Build Verse]
   verse_patch_errors               → errors + file content → Claude fixes → redeploy
   LOOP until build_status == "SUCCESS"
-  system_build_verse               → ⏳ waiting for Epic Python compiler API (headless)
+  system_build_verse               → ⏳ no in-editor Python compiler API; Epic's
+                                     official UEFN MCP server compiles Verse on its own surface
 
 PHASE 6 — VERIFY                  ✅
   world_state_export               → confirm level matches design intent
   snapshot_save                    → checkpoint before publishing
 
-KNOWN HARD LIMITS (Epic must unlock):
+KNOWN HARD LIMITS (no in-editor Python API):
   ✗ V2 device game-logic properties (duration, score, team index) — Verse @editable only
-  ✗ Verse compiler trigger from Python — subprocess approach unreliable in sandbox
-  ✗ Session launch/stop from Python — no API exposed
+  ✗ Heightmap editing, Blueprint graph nodes, match control — not exposed to Python
+  ~ Verse compilation — no in-editor Python API; available on Epic's official UEFN MCP server
+  ~ Play-session launch/stop — no in-editor Python API; available on Epic's official UEFN MCP server
 ```
 
 **Claude's quick-start execution script:**

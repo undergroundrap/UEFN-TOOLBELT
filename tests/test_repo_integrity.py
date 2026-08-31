@@ -221,13 +221,28 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert len(completed) == 2
     assert (work_orders / "completed" / "WO-002-epic-toolset-integration.md").exists()
     assert current == "WO-003"
-    assert session == "NONE"
+    assert session == "A"
     assert base_lines == [
-        "- Base commit: `19350aa324bea4d88e494ee806801586a383d76e`"
+        "- Base commit: `52d89295614a4ce686094736d87f7e6c907e12a0`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-003 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
+        "- Current gate: WO-003 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
     ]
+    # Session A is authorized; Session B still is not, and the issuance
+    # record that carried WO-003 into this state is still declared.
+    for line in (
+        "- Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`",
+        "- Issuance CI workflow: `33148089523`",
+        "- Issuance CI job: `98773518991` — Lint, types, tests",
+        "- Session A authorization commit:"
+        " `52d89295614a4ce686094736d87f7e6c907e12a0`",
+        "- Session A authorization CI workflow: `33200547479`",
+        "- Session A authorization CI job: `98948639416` — Lint, types, tests",
+    ):
+        assert line in pointer, line
+    assert (
+        "Session B is not authorized and requires a separate owner gate."
+    ) in pointer
     assert "- Release train: WO-001 through WO-007" in pointer
     assert (
         "- Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE "
@@ -324,14 +339,157 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "Work Order WO-001" in security_normalized
 
 
-def _make_wo003_issued_case(repo_root, tmp_path, name):
-    """Copy the current issued WO-003 state."""
+def _make_wo003_session_a_case(repo_root, tmp_path, name):
+    """Copy the current authorized WO-003 Session A state."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
     shutil.copytree(
         repo_root / "docs" / "work-orders",
         case / "docs" / "work-orders",
+    )
+    return case
+
+
+def _make_wo003_issued_case(repo_root, tmp_path, name):
+    """Reconstruct the closed-session issued WO-003 state.
+
+    Authorizing Session A moved the current state forward again, so the
+    issued state every earlier fixture builds on is now itself a
+    reconstruction.
+    """
+    case = _make_wo003_session_a_case(repo_root, tmp_path, name)
+    issued = case / _WO003_REL
+    assert issued.exists(), "WO-003 is not in issued/ to reconstruct from"
+
+    text = issued.read_text(encoding="utf-8")
+    for _old, _new in (
+        (
+            "AUTHORIZATION: ISSUED " + _EM
+            + " SESSION A AUTHORIZED FOR IMPLEMENTATION",
+            "AUTHORIZATION: ISSUED " + _EM + " SESSION NOT AUTHORIZED",
+        ),
+        (
+            _NL + "SESSION_A_AUTHORIZATION_COMMIT: `"
+            + _WO003_SESSION_A_BASE + "`" + _NL
+            + _NL + "SESSION_A_AUTHORIZATION_CI_WORKFLOW: `"
+            + _WO003_SESSION_A_WORKFLOW + "`" + _NL
+            + _NL + "SESSION_A_AUTHORIZATION_CI_JOB: `"
+            + _WO003_SESSION_A_JOB + "` " + _EM + " Lint, types, tests" + _NL,
+            "",
+        ),
+        (
+            "Issuance alone grants no implementation authority. A session becomes"
+            + _NL
+            + "implementable only when the owner names it in root `WORKORDER.md`; the"
+            + _NL
+            + "Session A authorization recorded below came from that pointer, not from"
+            + _NL
+            + "issuance. Session B is not authorized and requires a separate owner gate."
+            + _NL
+            + "The planning baseline above is preserved unchanged; it records the state"
+            + _NL + "this mandate was planned against, not the issuance point.",
+            "Issuance alone grants no implementation authority. Session A and Session B"
+            + _NL
+            + "both remain unauthorized until the owner authorizes a session in root"
+            + _NL
+            + "`WORKORDER.md`. The planning baseline above is preserved unchanged; it"
+            + _NL
+            + "records the state this mandate was planned against, not the issuance point.",
+        ),
+        (
+            "This Work Order is issued and Session A is authorized under root" + _NL
+            + "`WORKORDER.md`. Session B is not authorized and requires a separate"
+            + " owner gate.",
+            "This Work Order is issued but authorizes neither session.",
+        ),
+        (
+            "NEXT GATE: fresh independent architect review of the complete uncommitted"
+            + _NL
+            + "Session A implementation. Session B remains unauthorized.",
+            "NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone"
+            + _NL
+            + "grants no implementation authority; Session A and Session B remain" + _NL
+            + "unauthorized.",
+        ),
+    ):
+        text = _replace_once(text, _old, _new, "WO-003 issued reconstruction")
+    _require_unique(
+        text,
+        ("## Session A authorization basis", "## Planning basis"),
+        "WO-003 authorization-basis excision",
+    )
+    text = _sub_once(
+        _NL + "## Session A authorization basis" + _NL + ".*?(?="
+        + _NL + "## Planning basis" + _NL + ")",
+        "",
+        text,
+        "WO-003 authorization-basis excision",
+        flags=re.DOTALL,
+    )
+    issued.write_text(text, encoding="utf-8")
+
+    pointer = case / "WORKORDER.md"
+    text = pointer.read_text(encoding="utf-8")
+    for _old, _new in (
+        ("- Authorized session: A", "- Authorized session: NONE"),
+        (
+            "- Base commit: `" + _WO003_SESSION_A_BASE + "`",
+            "- Base commit: `" + _WO003_ISSUANCE_COMMIT + "`",
+        ),
+        (
+            "- Current gate: WO-003 SESSION A AUTHORIZED " + _EM
+            + " IMPLEMENT SESSION A ONLY",
+            "- Current gate: WO-003 ISSUED " + _EM
+            + " SESSION A IMPLEMENTATION NOT AUTHORIZED",
+        ),
+        (
+            "- Session A authorization commit: `" + _WO003_SESSION_A_BASE
+            + "`" + _NL
+            + "- Session A authorization CI workflow: `"
+            + _WO003_SESSION_A_WORKFLOW + "`" + _NL
+            + "- Session A authorization CI job: `" + _WO003_SESSION_A_JOB
+            + "` " + _EM + " Lint, types, tests" + _NL,
+            "",
+        ),
+        (
+            "is issued. Its accepted planning baseline is",
+            "is issued, but issuance grants no implementation authority."
+            + " Session A and" + _NL
+            + "Session B remain unauthorized. Its accepted planning baseline is",
+        ),
+        (
+            _NL
+            + "Session A is authorized for implementation under this pointer alone,"
+            + " on the" + _NL + "basis of commit `" + _WO003_SESSION_A_BASE
+            + "`, successful CI" + _NL + "workflow `"
+            + _WO003_SESSION_A_WORKFLOW + "`, and successful required job `"
+            + _WO003_SESSION_A_JOB + "`" + _NL
+            + "(`Lint, types, tests`). Session B is not authorized and requires"
+            + " a separate owner gate." + _NL,
+            "",
+        ),
+    ):
+        text = _replace_once(text, _old, _new, "WO-003 issued pointer")
+    pointer.write_text(text, encoding="utf-8")
+
+    _assert_reconstructed(
+        "WO-003 issued pointer",
+        pointer.read_text(encoding="utf-8"),
+        ("- Authorized session: NONE",
+         "- Current gate: WO-003 ISSUED " + _EM
+         + " SESSION A IMPLEMENTATION NOT AUTHORIZED"),
+        ("- Authorized session: A", "SESSION A AUTHORIZED",
+         "- Session A authorization commit:"),
+    )
+    _assert_reconstructed(
+        "WO-003 issued reconstruction",
+        issued.read_text(encoding="utf-8"),
+        ("AUTHORIZATION: ISSUED " + _EM + " SESSION NOT AUTHORIZED",
+         "ISSUANCE_COMMIT: `" + _WO003_ISSUANCE_COMMIT + "`"),
+        ("## Session A authorization basis",
+         "SESSION_A_AUTHORIZATION_COMMIT:",
+         "SESSION A AUTHORIZED FOR IMPLEMENTATION"),
     )
     return case
 
@@ -3323,6 +3481,9 @@ _WO003_PLANNING_BASELINE = "e0b1063f5300404534c76789bdb6742f639425ba"
 _WO003_ISSUANCE_COMMIT = "19350aa324bea4d88e494ee806801586a383d76e"
 _WO003_ISSUANCE_WORKFLOW = "33148089523"
 _WO003_ISSUANCE_JOB = "98773518991"
+_WO003_SESSION_A_BASE = "52d89295614a4ce686094736d87f7e6c907e12a0"
+_WO003_SESSION_A_WORKFLOW = "33200547479"
+_WO003_SESSION_A_JOB = "98948639416"
 _WO003_ISSUED_GATE = (
     "- Current gate: WO-003 ISSUED " + _EM
     + " SESSION A IMPLEMENTATION NOT AUTHORIZED"
@@ -3773,4 +3934,1476 @@ def test_wo003_pointer_slice_is_terminal(
     )
     assert "WO-003 issuance field (WORKORDER.md)" in found, (
         name + " after the canonical slice was accepted: " + repr(sorted(found))
+    )
+
+
+# ── WO-003 Session A authorization ────────────────────────────────────────────
+#
+# Authorizing a session moves the canonical block forward. The risk is not that
+# the new declarations go unchecked - it is that the *old* ones quietly stop
+# being checked because the enforcement lived inside the closed-session branch.
+# Every probe below therefore runs against the authorized state, and the
+# issuance-record family exists specifically to catch that silence.
+
+_WO003_SESSION_A_GATE = (
+    "- Current gate: WO-003 SESSION A AUTHORIZED " + _EM
+    + " IMPLEMENT SESSION A ONLY"
+)
+_WO003_SESSION_A_MARKER = (
+    "AUTHORIZATION: ISSUED " + _EM + " SESSION A AUTHORIZED FOR IMPLEMENTATION"
+)
+_WO003_SESSION_A_NEXT_GATE = (
+    "NEXT GATE: fresh independent architect review of the complete uncommitted"
+    + _NL + "Session A implementation. Session B remains unauthorized."
+)
+
+
+def _wo003_session_a_types(repo_root, tmp_path, monkeypatch, name, mutate):
+    """Findings drift_check reports for a mutated authorized Session A state."""
+    drift_check = _load_drift_check(repo_root, "wo003_a_" + name)
+    case = _make_wo003_session_a_case(repo_root, tmp_path, "wo003-a-" + name)
+    mutate(case)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return {finding["type"] for finding in drift_check.check_work_order_contract()}
+
+
+def test_wo003_session_a_state_is_clean(repo_root, tmp_path, monkeypatch) -> None:
+    """Non-vacuous: the live authorized state raises no finding at all."""
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, "control", lambda case: None
+    )
+    assert found == set(), (
+        "the authorized WO-003 Session A state is not clean: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(("name", "rel", "old", "new", "expected"), (
+    ("session-field", "WORKORDER.md",
+     "- Authorized session: A", "- Authorized session: NONE",
+     "WO-003 issued gate"),
+    ("gate", "WORKORDER.md", _WO003_SESSION_A_GATE,
+     "- Current gate: WO-003 SESSION A AUTHORIZED " + _EM + " DO ANYTHING",
+     "authorized session gate"),
+    ("base-commit", "WORKORDER.md",
+     "- Base commit: `" + _WO003_SESSION_A_BASE + "`",
+     "- Base commit: `" + _WRONG_COMMIT + "`",
+     "WO-003 Session A base commit"),
+    ("authorization-marker", _WO003_REL, _WO003_SESSION_A_MARKER,
+     "AUTHORIZATION: ISSUED " + _EM + " SESSION A MAY DO ANYTHING",
+     "issued session authorization"),
+    ("next-gate", _WO003_REL, _WO003_SESSION_A_NEXT_GATE,
+     "NEXT GATE: none.", "WO-003 next gate"),
+    ("authorization-statement", _WO003_REL,
+     "Session A is authorized for implementation under the current root",
+     "Session A is authorized for implementation by this document",
+     "WO-003 Session A authorization statement"),
+    ("planning-baseline", _WO003_REL,
+     "BASELINE: `" + _WO003_PLANNING_BASELINE + "`",
+     "BASELINE: `" + _WRONG_COMMIT + "`",
+     "WO-003 planning baseline"),
+))
+def test_wo003_session_a_contract_is_exact(
+    repo_root, tmp_path, monkeypatch, name, rel, old, new, expected
+):
+    """Gate, base, marker, next gate, statement and baseline are each pinned."""
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, name,
+        lambda case: _edit(case, rel, old, new),
+    )
+    assert expected in found, (
+        name + " was accepted; drift_check reported " + repr(sorted(found))
+    )
+
+
+# The declarations added by the authorization, and the issuance declarations
+# that must keep being checked alongside them.
+_WO003_SESSION_A_MARKERS = (
+    ("a-commit", _WO003_REL,
+     "SESSION_A_AUTHORIZATION_COMMIT: `" + _WO003_SESSION_A_BASE + "`",
+     "SESSION_A_AUTHORIZATION_COMMIT: `" + _WRONG_COMMIT + "`",
+     _WO003_SESSION_A_BASE, "issued record"),
+    ("a-workflow", _WO003_REL,
+     "SESSION_A_AUTHORIZATION_CI_WORKFLOW: `" + _WO003_SESSION_A_WORKFLOW + "`",
+     "SESSION_A_AUTHORIZATION_CI_WORKFLOW: `" + _WRONG_WORKFLOW + "`",
+     _WO003_SESSION_A_WORKFLOW, "issued record"),
+    ("a-job", _WO003_REL,
+     "SESSION_A_AUTHORIZATION_CI_JOB: `" + _WO003_SESSION_A_JOB + "` " + _EM
+     + " Lint, types, tests",
+     "SESSION_A_AUTHORIZATION_CI_JOB: `" + _WRONG_JOB + "` " + _EM
+     + " Lint, types, tests",
+     _WO003_SESSION_A_JOB, "issued record"),
+    ("a-pointer-commit", "WORKORDER.md",
+     "- Session A authorization commit: `" + _WO003_SESSION_A_BASE + "`",
+     "- Session A authorization commit: `" + _WRONG_COMMIT + "`",
+     _WO003_SESSION_A_BASE, "WORKORDER.md"),
+    ("a-pointer-workflow", "WORKORDER.md",
+     "- Session A authorization CI workflow: `" + _WO003_SESSION_A_WORKFLOW + "`",
+     "- Session A authorization CI workflow: `" + _WRONG_WORKFLOW + "`",
+     _WO003_SESSION_A_WORKFLOW, "WORKORDER.md"),
+    ("a-pointer-job", "WORKORDER.md",
+     "- Session A authorization CI job: `" + _WO003_SESSION_A_JOB + "` " + _EM
+     + " Lint, types, tests",
+     "- Session A authorization CI job: `" + _WRONG_JOB + "` " + _EM
+     + " Lint, types, tests",
+     _WO003_SESSION_A_JOB, "WORKORDER.md"),
+)
+
+_WO003_AUTHORIZED_ISSUANCE_MARKERS = (
+    ("i-commit", _WO003_REL,
+     "ISSUANCE_COMMIT: `" + _WO003_ISSUANCE_COMMIT + "`",
+     "ISSUANCE_COMMIT: `" + _WRONG_COMMIT + "`",
+     _WO003_ISSUANCE_COMMIT, "issued record"),
+    ("i-workflow", _WO003_REL,
+     "ISSUANCE_CI_WORKFLOW: `" + _WO003_ISSUANCE_WORKFLOW + "`",
+     "ISSUANCE_CI_WORKFLOW: `" + _WRONG_WORKFLOW + "`",
+     _WO003_ISSUANCE_WORKFLOW, "issued record"),
+    ("i-job", _WO003_REL,
+     "ISSUANCE_CI_JOB: `" + _WO003_ISSUANCE_JOB + "` " + _EM
+     + " Lint, types, tests",
+     "ISSUANCE_CI_JOB: `" + _WRONG_JOB + "` " + _EM + " Lint, types, tests",
+     _WO003_ISSUANCE_JOB, "issued record"),
+    ("i-pointer-commit", "WORKORDER.md",
+     "- Issuance commit: `" + _WO003_ISSUANCE_COMMIT + "`",
+     "- Issuance commit: `" + _WRONG_COMMIT + "`",
+     _WO003_ISSUANCE_COMMIT, "WORKORDER.md"),
+    ("i-pointer-workflow", "WORKORDER.md",
+     "- Issuance CI workflow: `" + _WO003_ISSUANCE_WORKFLOW + "`",
+     "- Issuance CI workflow: `" + _WRONG_WORKFLOW + "`",
+     _WO003_ISSUANCE_WORKFLOW, "WORKORDER.md"),
+    ("i-pointer-job", "WORKORDER.md",
+     "- Issuance CI job: `" + _WO003_ISSUANCE_JOB + "` " + _EM
+     + " Lint, types, tests",
+     "- Issuance CI job: `" + _WRONG_JOB + "` " + _EM + " Lint, types, tests",
+     _WO003_ISSUANCE_JOB, "WORKORDER.md"),
+)
+
+_WO003_AUTHORIZED_MARKERS = (
+    _WO003_SESSION_A_MARKERS + _WO003_AUTHORIZED_ISSUANCE_MARKERS
+)
+
+
+@pytest.mark.parametrize(
+    ("kind", "rel", "marker", "corrupt", "bare", "where"),
+    _WO003_AUTHORIZED_MARKERS,
+)
+def test_wo003_authorized_field_rejects_a_bare_decoy(
+    repo_root, tmp_path, monkeypatch, kind, rel, marker, corrupt, bare, where
+):
+    """A correct identifier pasted elsewhere cannot repair a corrupted field."""
+    def mutate(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        assert text.count(marker) == 1, "probe anchor drifted: " + marker
+        target.write_text(
+            text.replace(marker, corrupt, 1) + _NL + "<!-- " + bare + " -->" + _NL,
+            encoding="utf-8",
+        )
+
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, "bare-decoy-" + kind, mutate
+    )
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        kind + " bare decoy was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "rel", "marker", "corrupt", "bare", "where"),
+    _WO003_AUTHORIZED_MARKERS,
+)
+def test_wo003_authorized_field_rejects_a_full_marker_decoy(
+    repo_root, tmp_path, monkeypatch, kind, rel, marker, corrupt, bare, where
+):
+    """Even a byte-correct marker outside the canonical slice does not count."""
+    def mutate(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        assert text.count(marker) == 1, "probe anchor drifted: " + marker
+        target.write_text(
+            text.replace(marker, corrupt, 1) + _NL + marker + _NL,
+            encoding="utf-8",
+        )
+
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, "marker-decoy-" + kind, mutate
+    )
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        kind + " full-marker decoy was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "rel", "marker", "corrupt", "bare", "where"),
+    _WO003_AUTHORIZED_MARKERS,
+)
+def test_wo003_authorized_field_rejects_duplication(
+    repo_root, tmp_path, monkeypatch, kind, rel, marker, corrupt, bare, where
+):
+    """Two declarations of the same field are ambiguous, never acceptable."""
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, "dup-" + kind,
+        lambda case: _edit(case, rel, marker, marker + _NL + _NL + marker),
+    )
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        kind + " duplication was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "rel", "marker", "corrupt", "bare", "where"),
+    _WO003_AUTHORIZED_MARKERS,
+)
+def test_wo003_authorized_field_rejects_removal(
+    repo_root, tmp_path, monkeypatch, kind, rel, marker, corrupt, bare, where
+):
+    """A missing field fails loudly rather than passing as clean input.
+
+    The issuance half of this family is the point: authorizing Session A must
+    not let the record that issued WO-003 be dropped unnoticed.
+    """
+    replacement = ("REMOVED_FIELD: none" if rel == _WO003_REL
+                   else "- Removed field: none")
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, "gone-" + kind,
+        lambda case: _edit(case, rel, marker, replacement),
+    )
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        kind + " removal was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(("rel", "anchor", "where"), (
+    (_WO003_REL,
+     "SESSION_A_AUTHORIZATION_CI_JOB: `" + _WO003_SESSION_A_JOB + "` " + _EM
+     + " Lint, types, tests",
+     "issued record"),
+    ("WORKORDER.md",
+     "- Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED",
+     "WORKORDER.md"),
+))
+def test_wo003_authorized_slice_is_terminal(
+    repo_root, tmp_path, monkeypatch, rel, anchor, where
+):
+    """Nothing may follow the canonical slice in the authorized state either."""
+    def append_after(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        assert text.count(anchor) == 1, "probe anchor drifted: " + anchor
+        head, _, tail = text.partition(anchor)
+        line_end = tail.index(_NL)
+        target.write_text(
+            head + anchor + tail[:line_end + 1] + "NOTE: injected" + _NL
+            + tail[line_end + 1:],
+            encoding="utf-8",
+        )
+
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, "terminal-" + where, append_after
+    )
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        "a line after the canonical slice was accepted in " + where + ": "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(("rel", "first", "second"), (
+    (_WO003_REL,
+     "ISSUANCE_CI_WORKFLOW: `" + _WO003_ISSUANCE_WORKFLOW + "`",
+     "SESSION_A_AUTHORIZATION_COMMIT: `" + _WO003_SESSION_A_BASE + "`"),
+    ("WORKORDER.md",
+     "- Issuance CI workflow: `" + _WO003_ISSUANCE_WORKFLOW + "`",
+     "- Session A authorization commit: `" + _WO003_SESSION_A_BASE + "`"),
+))
+def test_wo003_authorized_metadata_order_is_enforced(
+    repo_root, tmp_path, monkeypatch, rel, first, second
+):
+    """The declarations must appear in canonical order, not merely exist."""
+    def swap(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        for line in (first, second):
+            assert text.count(line) == 1, "probe anchor drifted: " + line
+        text = text.replace(first, "\x00", 1).replace(second, first, 1)
+        target.write_text(text.replace("\x00", second, 1), encoding="utf-8")
+
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, "order-" + rel.replace("/", "-"), swap
+    )
+    assert _WO003_FIELD_FINDING in " ".join(sorted(found)), (
+        "out-of-order canonical metadata was accepted: " + repr(sorted(found))
+    )
+
+
+def test_wo003_session_b_activation_is_rejected(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Session B drafting needs its own owner gate, which has not been given.
+
+    A coherent pointer-plus-document flip to Session B is exactly the move this
+    lock exists to stop: the checker carries the fact, so reopening WO-003's
+    Session B has to edit drift_check.py too, which is a visible act.
+    """
+    def activate(case):
+        _edit(case, "WORKORDER.md",
+              "- Authorized session: A", "- Authorized session: B")
+        _edit(case, "WORKORDER.md", _WO003_SESSION_A_GATE,
+              "- Current gate: WO-003 SESSION B AUTHORIZED " + _EM
+              + " EXECUTE EXTERNAL PROOF ONLY")
+        _edit(case, _WO003_REL, _WO003_SESSION_A_MARKER,
+              "AUTHORIZATION: ISSUED " + _EM
+              + " SESSION B AUTHORIZED FOR EXTERNAL PROOF")
+
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, "session-b", activate
+    )
+    assert "WO-003 Session B activation" in found, (
+        "WO-003 Session B was activated without a separate owner gate: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("session", ("C", "AB", "ANY"))
+def test_wo003_later_session_labels_are_rejected(
+    repo_root, tmp_path, monkeypatch, session
+) -> None:
+    """Only NONE, A, and B are recognised session values."""
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, "session-" + session,
+        lambda case: _edit(case, "WORKORDER.md",
+                           "- Authorized session: A",
+                           "- Authorized session: " + session),
+    )
+    assert "authorized session gate" in found, (
+        "session " + session + " was accepted: " + repr(sorted(found))
+    )
+
+
+def test_wo003_session_a_preserves_wo002_terminal_lock(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Authorizing Session A does not loosen WO-002's one-way completion."""
+    def reopen(case):
+        completed = (case / "docs" / "work-orders" / "completed"
+                     / "WO-002-epic-toolset-integration.md")
+        issued = (case / "docs" / "work-orders" / "issued"
+                  / "WO-002-epic-toolset-integration.md")
+        completed.replace(issued)
+
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, "wo002-reopened", reopen
+    )
+    assert "completed WO-002 state" in found, (
+        "WO-002's terminal lock stopped firing under Session A: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo003_session_a_preserves_the_release_gate(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """An implementation session never opens the tag or Release gate."""
+    found = _wo003_session_a_types(
+        repo_root, tmp_path, monkeypatch, "release-gate",
+        lambda case: _edit(
+            case, "WORKORDER.md",
+            "- Release train: WO-001 through WO-007",
+            "- Release train: WO-001 through WO-007" + _NL + _NL
+            + "A tag and GitHub Release are authorized for this session.",
+        ),
+    )
+    assert "release authorization" in found, (
+        "an opened release gate was accepted under Session A: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(("rel", "anchor", "damaged"), (
+    ("WORKORDER.md", "- Authorized session: A", "- Authorized session: a"),
+    (_WO003_REL, "## Session A authorization basis",
+     "## Session A authorization note"),
+    (_WO003_REL,
+     "SESSION_A_AUTHORIZATION_COMMIT: `" + _WO003_SESSION_A_BASE + "`",
+     "SESSION_A_AUTH_COMMIT: `" + _WO003_SESSION_A_BASE + "`"),
+))
+def test_wo003_issued_reconstruction_requires_its_anchors(
+    repo_root, tmp_path, rel, anchor, damaged
+):
+    """A drifted anchor must fail loudly, not rebuild today's state.
+
+    Every earlier fixture is now rooted in this reconstruction, so a silent
+    no-op here would make the whole historical chain pass vacuously.
+    """
+    drifted = _make_wo003_session_a_case(
+        repo_root, tmp_path, "drifted-" + anchor[:20].replace(" ", "-").replace("/", "-")
+    )
+    target = drifted / rel
+    text = target.read_text(encoding="utf-8")
+    assert text.count(anchor) == 1, "this probe's own anchor has drifted"
+    target.write_text(text.replace(anchor, damaged, 1), encoding="utf-8")
+
+    with pytest.raises(AssertionError, match=_RECONSTRUCTION_FAILURE):
+        _make_wo003_issued_case(drifted, tmp_path, "drifted-issued-case")
+
+
+def test_wo003_issued_reconstruction_reaches_the_closed_state(
+    repo_root, tmp_path, monkeypatch
+):
+    """The reconstruction lands on the closed-session state and is clean there."""
+    found = _wo003_finding_types(
+        repo_root, tmp_path, monkeypatch, "reconstruction-control",
+        lambda case: None,
+    )
+    assert found == set(), (
+        "the reconstructed issued state is not clean: " + repr(sorted(found))
+    )
+
+
+# ── WO-003 surface truth contract ─────────────────────────────────────────────
+#
+# Session A separated four surfaces the documentation had been running together.
+# Every probe here reintroduces a sentence the repository *actually carried*
+# before the correction, so each one reproduces a real regression rather than an
+# imagined shape. The control cases prove the checks are not vacuously green.
+
+_SURFACE_COPY_PATHS = (
+    "README.md", "CLAUDE.md", "AGENTS.md", "llms.txt", "ARCHITECTURE.md",
+    "SECURITY.md", "TOOL_STATUS.md", "ROADMAP.md", "install.py", "launcher.py",
+    "docs/PIPELINE.md", "docs/AI_AUTONOMY.md", "docs/uefn_python_capabilities.md",
+    "docs/plugin_dev_guide.md", "docs/UEFN_QUIRKS.md",
+    ".claude/mcp_reference.md", ".claude/tool_tables.md",
+    "Content/Python/UEFN_Toolbelt/dashboard_pyside6.py",
+    "Content/Python/UEFN_Toolbelt/tools/epic_mcp_tools.py",
+)
+_DASHBOARD_REL = "Content/Python/UEFN_Toolbelt/dashboard_pyside6.py"
+_DASHBOARD_LIVE_READ = (
+    '        _cat_count  = str(len({t.get("category","") for t in '
+    '_tb.registry.list_tools() if t.get("category")}))'
+)
+_DASHBOARD_FALLBACK = (
+    "    except Exception:" + _NL
+    + '        _tool_count = "362"' + _NL
+    + '        _cat_count  = "55"'
+)
+
+
+def _make_surface_case(repo_root, tmp_path, name):
+    """Copy just the paths the surface-truth checks read."""
+    case = tmp_path / name
+    for rel in _SURFACE_COPY_PATHS:
+        target = case / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(repo_root / rel, target)
+    return case
+
+
+def _surface_types(repo_root, tmp_path, monkeypatch, name, mutate):
+    """Findings the production surface checks report for a mutated copy."""
+    drift_check = _load_drift_check(repo_root, "surface_" + name)
+    case = _make_surface_case(repo_root, tmp_path, "surface-" + name)
+    mutate(case)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return {
+        finding["type"]
+        for finding in (drift_check.check_surface_truth_contract()
+                        + drift_check.check_dashboard_fallbacks())
+    }
+
+
+def _append(case, rel, text):
+    target = case / rel
+    target.write_text(
+        target.read_text(encoding="utf-8") + _NL + text + _NL, encoding="utf-8"
+    )
+
+
+def test_surface_truth_contract_is_clean_on_the_corrected_tree(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Non-vacuous: the corrected repository raises no surface finding."""
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "control", lambda case: None
+    )
+    assert found == set(), "the corrected tree is not clean: " + repr(sorted(found))
+
+
+# Each entry is a claim WO-003 removed, paired with a path that carried it.
+_RETIRED_CLAIM_PROBES = (
+    ("epic-locked-claude", "CLAUDE.md",
+     "KNOWN HARD LIMITS (Epic must unlock):"),
+    ("epic-locked-llms", "llms.txt",
+     "The remaining 3% is locked by Epic."),
+    ("menu-startup-injection-readme", "README.md",
+     "Permanent top-bar menu entry injected on editor startup"),
+    ("compiler-unavailable", "docs/PIPELINE.md",
+     "| 5 | `system_build_verse` | Waiting for Epic Python compiler API |"),
+    ("offline-readme", "README.md",
+     "| **No network calls** | Zero outbound HTTP/socket connections |"),
+    ("offline-dashboard", _DASHBOARD_REL,
+     '# ("0", "network calls ' + _EM + ' fully offline"),'),
+    ("menu-renders-readme", "README.md",
+     "A **Toolbelt** menu appears in the top menu bar next to Help."),
+    ("menu-renders-install", "install.py",
+     '# The "Toolbelt" menu appears in the top menu bar automatically'),
+    ("restart-absolute-readme", "README.md",
+     "You **never need to restart UEFN** when developing for the Toolbelt."),
+    ("restart-absolute-plugin", "docs/plugin_dev_guide.md",
+     "You don't even need to restart!"),
+    ("network-count-readme", "README.md",
+     "Two features reach the network: the Plugin Hub and URL import."),
+    ("network-count-dashboard", _DASHBOARD_REL,
+     '# ("2", "network features — Plugin Hub, URL import"),'),
+)
+
+
+@pytest.mark.parametrize(("name", "rel", "claim"), _RETIRED_CLAIM_PROBES)
+def test_surface_truth_contract_rejects_a_retired_claim(
+    repo_root, tmp_path, monkeypatch, name, rel, claim
+):
+    """A claim WO-003 removed cannot come back to a corrected document."""
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, name,
+        lambda case: _append(case, rel, claim),
+    )
+    assert "retired claim" in found, (
+        name + " was accepted back into " + rel + ": " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("rel", (
+    "CLAUDE.md", ".claude/tool_tables.md", ".claude/mcp_reference.md",
+))
+@pytest.mark.parametrize(("kind", "old", "new"), (
+    ("softened", "`failed`", "`unproven`"),
+    ("inverted", "`failed`", "`passed`"),
+    ("unbounded", "`UE::ValkyrieToolset::ToolsetPolicy`", "Epic's server"),
+))
+def test_accepted_external_result_cannot_be_softened(
+    repo_root, tmp_path, monkeypatch, rel, kind, old, new
+):
+    """WO-002's accepted `failed` result stays stated, with its bound.
+
+    Both halves have to sit on one line: `failed` alone could be about anything,
+    and naming ToolsetPolicy without the result does not say what happened.
+    """
+    def mutate(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        assert old in text, "probe anchor drifted in " + rel + ": " + old
+        target.write_text(text.replace(old, new), encoding="utf-8")
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch,
+        "external-" + kind + "-" + rel.replace("/", "-").replace(".", ""),
+        mutate,
+    )
+    assert "accepted external result" in found, (
+        rel + " accepted a " + kind + " external result: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(("name", "fragment"), (
+    ("quirk36-recovery-import", "import UEFN_Toolbelt as tb;"),
+    ("quirk36-recovery-call", "tb.register()"),
+    ("quirk36-flag", "UEFN MCP Toolsets"),
+    ("quirk42-prepare", "prepare_launch.bat"),
+    ("quirk42-restore", "restore_after_launch.bat"),
+    ("quirk42-zero-py", "zero `.py` files anywhere"),
+    ("quirk42-validator", "ContainsPythonData"),
+))
+def test_preserved_quirks_cannot_lose_their_evidence(
+    repo_root, tmp_path, monkeypatch, name, fragment
+):
+    """Quirk #36 recovery and Quirk #42 launch safety survive intact.
+
+    The section body is what is checked, not the whole file: a heading kept
+    while its recovery step is deleted is exactly the loss this rejects.
+    """
+    def strip(case):
+        target = case / "docs/UEFN_QUIRKS.md"
+        text = target.read_text(encoding="utf-8")
+        assert fragment in text, "probe anchor drifted: " + fragment
+        target.write_text(text.replace(fragment, "REMOVED"), encoding="utf-8")
+
+    found = _surface_types(repo_root, tmp_path, monkeypatch, name, strip)
+    assert "preserved quirk" in found, (
+        fragment + " could be deleted from its quirk: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("heading", ("## Quirk #36 " + _EM, "## Quirk #42 " + _EM))
+def test_preserved_quirks_reject_a_duplicated_heading(
+    repo_root, tmp_path, monkeypatch, heading
+):
+    """Two sections under one heading make the evidence ambiguous."""
+    def duplicate(case):
+        target = case / "docs/UEFN_QUIRKS.md"
+        text = target.read_text(encoding="utf-8")
+        lines = text.split(_NL)
+        matches = [line for line in lines if line.startswith(heading)]
+        assert len(matches) == 1, "probe anchor drifted: " + heading
+        target.write_text(
+            text + _NL + matches[0] + _NL + _NL + "nothing here" + _NL,
+            encoding="utf-8",
+        )
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch,
+        "dup-" + heading.split("#")[2].strip(), duplicate
+    )
+    assert "preserved quirk" in found, (
+        "a duplicated " + heading + " section was accepted: " + repr(sorted(found))
+    )
+
+
+def test_dashboard_fallbacks_are_clean_when_current(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Non-vacuous: the corrected except branch raises nothing."""
+    drift_check = _load_drift_check(repo_root, "dash_control")
+    case = _make_surface_case(repo_root, tmp_path, "dash-control")
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    assert drift_check.check_dashboard_fallbacks() == []
+
+
+@pytest.mark.parametrize(("name", "old", "new"), (
+    ("stale-tool-count", '_tool_count = "362"', '_tool_count = "355"'),
+    ("stale-category-count", '_cat_count  = "55"', '_cat_count  = "54"'),
+))
+def test_dashboard_fallbacks_reject_stale_literals(
+    repo_root, tmp_path, monkeypatch, name, old, new
+):
+    """The two bare literals the count regexes cannot see are pinned by position.
+
+    Both went stale unnoticed for exactly this reason: they are assignments, not
+    prose, so no count pattern could ever match them.
+    """
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, name,
+        lambda case: _edit(case, _DASHBOARD_REL, old, new),
+    )
+    assert "dashboard fallback counts" in found, (
+        name + " was accepted: " + repr(sorted(found))
+    )
+
+
+def test_dashboard_fallback_decoy_elsewhere_does_not_satisfy_the_check(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """A byte-correct copy elsewhere cannot stand in for the rendered branch."""
+    def mutate(case):
+        target = case / _DASHBOARD_REL
+        text = target.read_text(encoding="utf-8")
+        assert text.count(_DASHBOARD_FALLBACK) == 1, "probe anchor drifted"
+        text = text.replace(
+            _DASHBOARD_FALLBACK,
+            "    except Exception:" + _NL
+            + '        _tool_count = "355"' + _NL
+            + '        _cat_count  = "54"',
+            1,
+        )
+        target.write_text(
+            text + _NL + "# " + _DASHBOARD_FALLBACK.replace(_NL, _NL + "# ") + _NL,
+            encoding="utf-8",
+        )
+
+    found = _surface_types(repo_root, tmp_path, monkeypatch, "dash-decoy", mutate)
+    assert "dashboard fallback counts" in found, (
+        "a fallback decoy elsewhere in the module was accepted: "
+        + repr(sorted(found))
+    )
+
+
+def test_dashboard_fallback_requires_a_single_anchor(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """A duplicated live registry read makes the anchored position ambiguous."""
+    def duplicate(case):
+        target = case / _DASHBOARD_REL
+        text = target.read_text(encoding="utf-8")
+        assert text.count(_DASHBOARD_LIVE_READ) == 1, "probe anchor drifted"
+        target.write_text(
+            text + _NL + _DASHBOARD_LIVE_READ + _NL, encoding="utf-8"
+        )
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "dash-two-anchors", duplicate
+    )
+    assert "dashboard fallback counts" in found, (
+        "two live registry reads were accepted: " + repr(sorted(found))
+    )
+
+
+def test_dashboard_fallback_branch_cannot_be_dropped(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Deleting the fallback entirely fails loudly rather than passing."""
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "dash-dropped",
+        lambda case: _edit(
+            case, _DASHBOARD_REL, _DASHBOARD_FALLBACK,
+            "    except Exception:" + _NL + '        _tool_count = "362"'
+            + _NL + '        _unrelated = "55"',
+        ),
+    )
+    assert "dashboard fallback counts" in found, (
+        "a dropped category fallback was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("rel", (
+    "Content/Python/UEFN_Toolbelt/__init__.py", "launcher.py",
+))
+def test_runtime_count_paths_are_declared_scan_targets(repo_root, rel) -> None:
+    """The two paths whose stale counts nothing could see are now declared.
+
+    They were corrected under the runtime-text lock; declaring them is what
+    stops the same drift returning silently.
+    """
+    drift_check = _load_drift_check(repo_root, "scan_decl_" + rel.split("/")[-1])
+    assert rel in drift_check.SCAN_FILES, rel + " is not a declared scan target"
+
+
+@pytest.mark.parametrize(("rel", "stale"), (
+    ("Content/Python/UEFN_Toolbelt/__init__.py",
+     "# Reload message: 355 tools registered"),
+    ("launcher.py", "  3. Registers all 355 tools"),
+))
+def test_declared_runtime_paths_catch_stale_counts(
+    repo_root, tmp_path, monkeypatch, rel, stale
+):
+    """Declaring them is only worth something if the scan actually fires."""
+    drift_check = _load_drift_check(repo_root, "scan_fire_" + rel.split("/")[-1])
+    case = tmp_path / ("scan-fire-" + rel.split("/")[-1])
+    target = case / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        (repo_root / rel).read_text(encoding="utf-8") + _NL + stale + _NL,
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    findings = drift_check.scan_file(
+        rel, drift_check.VERSION, drift_check.TOOL_COUNT,
+        drift_check.CATEGORY_COUNT,
+    )
+    assert any(finding["type"] == "tool count" for finding in findings), (
+        rel + " did not report the stale count: " + repr(findings)
+    )
+
+
+# ── WO-003 Amendment 1 ────────────────────────────────────────────────────────
+#
+# Two contradictions Session A disclosed rather than fixing on its own, admitted
+# by owner ruling: the runtime docstring that still softened WO-002's accepted
+# external result to "unproven", and README's absolute project-only file-write
+# guarantee. The probes below reproduce both regressions, and the last one
+# proves the runtime correction was text and nothing else.
+
+_EPIC_MCP_TOOLS_REL = "Content/Python/UEFN_Toolbelt/tools/epic_mcp_tools.py"
+_FILE_WRITE_ABSOLUTES = (
+    "No file writes outside project",
+    "All output goes to `Saved/UEFN_Toolbelt/` inside your project",
+)
+
+
+@pytest.mark.parametrize(("name", "rel", "restored"), (
+    ("runtime-docstring", _EPIC_MCP_TOOLS_REL,
+     "# separately unproven external official-MCP states"),
+    ("tool-table", ".claude/tool_tables.md",
+     "External exposure remains unproven."),
+    ("agent-context", "CLAUDE.md",
+     "External exposure through Epic's official MCP is unproven."),
+))
+def test_unproven_cannot_replace_the_accepted_failed_result(
+    repo_root, tmp_path, monkeypatch, name, rel, restored
+):
+    """`unproven` is the softening WO-002's accepted `failed` result replaced.
+
+    The runtime docstring carried it for a whole Work Order after the external
+    probe returned `failed`, which is why it is pinned in the runtime too and
+    not only in the documents.
+    """
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "unproven-" + name,
+        lambda case: _append(case, rel, restored),
+    )
+    assert "retired claim" in found, (
+        name + " reintroduced `unproven` unchallenged: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(("kind", "old", "new"), (
+    ("softened", "`failed`", "`unproven`"),
+    ("inverted", "`failed`", "`passed`"),
+    ("unbounded", "`UE::ValkyrieToolset::ToolsetPolicy`", "Epic's own policy"),
+))
+def test_runtime_docstring_states_the_accepted_external_result(
+    repo_root, tmp_path, monkeypatch, kind, old, new
+):
+    """The runtime's own description of the external result stays accepted.
+
+    One sentence has to carry both halves: `failed` alone could be about
+    anything, and naming ToolsetPolicy without the result does not say what
+    happened.
+    """
+    def mutate(case):
+        target = case / _EPIC_MCP_TOOLS_REL
+        text = target.read_text(encoding="utf-8")
+        assert old in text, "probe anchor drifted: " + old
+        target.write_text(text.replace(old, new), encoding="utf-8")
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "runtime-external-" + kind, mutate
+    )
+    assert "accepted external result" in found, (
+        "the runtime accepted a " + kind + " external result: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("absolute", _FILE_WRITE_ABSOLUTES)
+def test_readme_cannot_restore_the_project_only_file_write_guarantee(
+    repo_root, tmp_path, monkeypatch, absolute
+):
+    """Four export tools write wherever the operator points them.
+
+    `snapshot_export`, `datatable_export`, `curve_export`, and `stamp_export`
+    each take an explicit path, so the absolute guarantee was false as written.
+    """
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch,
+        "file-write-" + str(_FILE_WRITE_ABSOLUTES.index(absolute)),
+        lambda case: _append(case, "README.md", "| **Safety** | " + absolute + " |"),
+    )
+    assert "retired claim" in found, (
+        "README restored the absolute file-write guarantee: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("tool", (
+    "snapshot_export", "datatable_export", "curve_export", "stamp_export",
+))
+def test_named_export_tools_still_take_an_explicit_path(repo_root, tool) -> None:
+    """Non-vacuous: the evidence behind the corrected row is still true.
+
+    If these tools ever stop accepting an operator-chosen path, the bounded
+    wording becomes the wrong answer and this fails rather than going stale.
+    """
+    sources = list((repo_root / "Content" / "Python" / "UEFN_Toolbelt"
+                    / "tools").glob("*.py"))
+    definitions = []
+    for path in sources:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            # Registered name, not function name: several tools are defined
+            # as run_<name> and only the decorator carries the tool name.
+            registered = {
+                keyword.value.value
+                for decorator in node.decorator_list
+                if isinstance(decorator, ast.Call)
+                for keyword in decorator.keywords
+                if keyword.arg == "name"
+                and isinstance(keyword.value, ast.Constant)
+            }
+            if tool in registered:
+                definitions.append(node)
+    assert len(definitions) == 1, (
+        tool + " is defined " + str(len(definitions)) + "x"
+    )
+    names = {arg.arg for arg in definitions[0].args.args}
+    assert names & {"export_path", "output_path", "destination"}, (
+        tool + " no longer takes an explicit export path: " + repr(sorted(names))
+    )
+
+
+def test_epic_mcp_tools_correction_is_text_only(repo_root) -> None:
+    """Amendment 1's runtime edit changed a docstring and nothing else.
+
+    Every tool in this module is a thin delegation to `epic_toolset`, which is
+    what makes the correction provably text-only: with docstrings stripped, each
+    body is a single return of that delegated call. Adding logic here would
+    break this, which is the behaviour change the runtime-text lock forbids.
+    """
+    module = ast.parse(
+        (repo_root / _EPIC_MCP_TOOLS_REL).read_text(encoding="utf-8")
+    )
+    functions = [node for node in module.body
+                 if isinstance(node, ast.FunctionDef)]
+    assert functions, "no tool functions found in " + _EPIC_MCP_TOOLS_REL
+    for function in functions:
+        body = [node for node in function.body
+                if not (isinstance(node, ast.Expr)
+                        and isinstance(node.value, ast.Constant)
+                        and isinstance(node.value.value, str))]
+        assert len(body) == 1, (
+            function.name + " is no longer a thin wrapper: "
+            + str(len(body)) + " statements besides its docstring"
+        )
+        statement = body[0]
+        assert isinstance(statement, ast.Return), (
+            function.name + " does not return directly"
+        )
+        assert isinstance(statement.value, ast.Call), (
+            function.name + " no longer returns a delegated call"
+        )
+        target = statement.value.func
+        assert isinstance(target, ast.Attribute), (
+            function.name + " does not delegate to an attribute"
+        )
+        assert isinstance(target.value, ast.Name), (
+            function.name + " does not delegate to a module"
+        )
+        assert target.value.id == "epic_toolset", (
+            function.name + " delegates to " + target.value.id
+            + ", not epic_toolset"
+        )
+
+
+def test_epic_mcp_tools_is_a_declared_runtime_occurrence(repo_root) -> None:
+    """The ninth occurrence is enforced, not merely corrected."""
+    drift_check = _load_drift_check(repo_root, "amendment_decl")
+    assert _EPIC_MCP_TOOLS_REL in drift_check._SURFACE_PATHS
+    assert _EPIC_MCP_TOOLS_REL in {
+        rel for rel, _anchor, _clause in drift_check._EXTERNAL_RESULT_SITES
+    }
+
+
+@pytest.mark.parametrize(("marker", "count"), (
+    ("nine runtime occurrences", 2),
+    ("#### Amendment 1 " + _EM + " two disclosed contradictions", 1),
+    # Named in full twice: the admitted inventory row, and the ninth
+    # bullet of the runtime-text lock.
+    (_EPIC_MCP_TOOLS_REL, 2),
+))
+def test_mandate_records_the_amendment(repo_root, marker, count) -> None:
+    """The mandate itself carries the amendment that authorized these two rows.
+
+    Without this the corrections would look like unilateral scope growth, which
+    is exactly what Session A stopped to avoid.
+    """
+    text = (repo_root / _WO003_REL).read_text(encoding="utf-8")
+    assert text.count(marker) == count, (
+        repr(marker) + " occurs " + str(text.count(marker)) + "x, expected "
+        + str(count)
+    )
+    assert "eight runtime occurrences" not in text
+
+
+# ── Independent-review P1 regressions ─────────────────────────────────────────
+#
+# Two evidence checks were position-blind, and independent review proved it with
+# temporary-copy probes that returned zero findings. Both bypasses are
+# reproduced permanently below. The distinction they turn on: a *required*
+# statement must be made by the document at the place it makes the claim, while
+# a *retired* claim counts wherever it appears, comments included.
+
+# (name, path, stable semantic key, block anchor used only to plant a probe,
+#  the real claim, its corrupted form, the complete keyed material clause)
+_EXTERNAL_RESULT_SITES = (
+    ("claude-md", "CLAUDE.md",
+     "WO-002 recorded that external result as", "official MCP server:",
+     "external result as `failed`, bounded by",
+     "external result as `passed`, bounded by",
+     "WO-002 recorded that external result as `failed`, bounded by "
+     "`UE::ValkyrieToolset::ToolsetPolicy`"),
+    ("tool-tables", ".claude/tool_tables.md",
+     "External exposure through Epic's official MCP server",
+     "| `epic_mcp_register` |",
+     "official MCP server `failed` on UEFN 42.00",
+     "official MCP server `passed` on UEFN 42.00",
+     "External exposure through Epic's official MCP server `failed` on "
+     "UEFN 42.00, bounded by `UE::ValkyrieToolset::ToolsetPolicy`"),
+    ("mcp-reference", ".claude/mcp_reference.md",
+     "WO-002 recorded the external result as", "## Toolbelt custom bridge",
+     "result as `failed`, bounded by",
+     "result as `passed`, bounded by",
+     "WO-002 recorded the external result as `failed`, bounded by "
+     "`UE::ValkyrieToolset::ToolsetPolicy`"),
+    ("runtime", _EPIC_MCP_TOOLS_REL,
+     "WO-002 recorded that external result as", "def run_epic_mcp_status",
+     "external result as `failed`, bounded by",
+     "external result as `passed`, bounded by",
+     "WO-002 recorded that external result as `failed`, bounded by "
+     "`UE::ValkyrieToolset::ToolsetPolicy`"),
+)
+_EXTERNAL_SITE_ANCHORS = (
+    ("claude-md", "CLAUDE.md",
+     "Toolbelt is **not** reachable through Epic's official MCP server:"),
+    ("tool-tables", ".claude/tool_tables.md",
+     "| `epic_mcp_register` | — | Attempt in-process Toolset Registry "
+     "submission."),
+    ("mcp-reference", ".claude/mcp_reference.md",
+     "Toolbelt is not reachable through that server —"),
+    ("runtime", _EPIC_MCP_TOOLS_REL, "def run_epic_mcp_status"),
+)
+_ACCEPTED_SENTENCE = (
+    "External exposure was `failed`, bounded by"
+    " `UE::ValkyrieToolset::ToolsetPolicy`."
+)
+
+
+def _corrupt(case, rel, marker, corrupt):
+    target = case / rel
+    text = target.read_text(encoding="utf-8")
+    assert text.count(marker) == 1, "probe anchor drifted in " + rel + ": " + marker
+    target.write_text(text.replace(marker, corrupt, 1), encoding="utf-8")
+
+
+def _plant_after(case, rel, anchor, planted):
+    """Insert a line immediately after the anchor line, inside its block."""
+    target = case / rel
+    lines = target.read_text(encoding="utf-8").split(_NL)
+    hits = [i for i, line in enumerate(lines) if line.strip().startswith(anchor)]
+    assert len(hits) == 1, "probe anchor drifted in " + rel + ": " + anchor
+    lines.insert(hits[0] + 1, planted)
+    target.write_text(_NL.join(lines), encoding="utf-8")
+
+
+def _replace_folded_once(text, phrase, replacement):
+    """Replace one phrase independent of its current whitespace wrapping."""
+    pattern = re.compile(r"\s+".join(re.escape(part) for part in phrase.split()))
+    hits = list(pattern.finditer(text))
+    assert len(hits) == 1, "folded probe phrase occurs " + str(len(hits)) + "x"
+    hit = hits[0]
+    return text[:hit.start()] + replacement + text[hit.end():]
+
+
+@pytest.mark.parametrize(
+    ("name", "rel", "claim_key", "anchor", "marker", "corrupt", "clause"),
+    _EXTERNAL_RESULT_SITES,
+)
+def test_accepted_external_result_rejects_a_transplant(
+    repo_root, tmp_path, monkeypatch, name, rel, claim_key, anchor, marker,
+    corrupt, clause
+):
+    """A correct sentence elsewhere cannot repair a corrupted claim site.
+
+    Independent review reproduced exactly this and got zero findings: the real
+    row was flipped to `passed` and a valid sentence appended at the end of the
+    file, which a whole-file search accepted.
+    """
+    def mutate(case):
+        _corrupt(case, rel, marker, corrupt)
+        target = case / rel
+        suffix = ("# " if rel.endswith(".py") else "") + _ACCEPTED_SENTENCE
+        target.write_text(
+            target.read_text(encoding="utf-8") + _NL + suffix + _NL,
+            encoding="utf-8",
+        )
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "transplant-" + name, mutate
+    )
+    assert "accepted external result" in found, (
+        name + " accepted a transplanted result: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "rel", "claim_key", "anchor", "marker", "corrupt", "clause"),
+    _EXTERNAL_RESULT_SITES,
+)
+def test_accepted_external_result_rejects_a_full_keyed_clause_transplant(
+    repo_root, tmp_path, monkeypatch, name, rel, claim_key, anchor, marker,
+    corrupt, clause
+):
+    """The whole correct clause elsewhere cannot replace the claim-site clause.
+
+    This removes the semantic key together with the result and bound, then
+    plants the byte-correct keyed clause elsewhere. The former whole-file
+    semantic-key check saw one key and one correct clause and therefore passed.
+    """
+    def mutate(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        text = _replace_folded_once(
+            text, clause, "External official-MCP evidence is unavailable."
+        )
+        planted = (
+            '_EXTERNAL_RESULT_TRANSPLANT = """' + clause + '"""'
+            if rel.endswith(".py") else clause
+        )
+        text += _NL + planted + _NL
+        target.write_text(text, encoding="utf-8")
+
+        # Discriminate from the replaced position-blind implementation: its
+        # exact conditions are both satisfied by this transplanted copy.
+        prose = " ".join(text.split())
+        assert prose.count(claim_key) == 1
+        assert clause in prose
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch,
+        "full-keyed-transplant-" + name, mutate,
+    )
+    assert "accepted external result" in found, (
+        name + " accepted a full keyed-clause transplant: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "rel", "site_anchor"), _EXTERNAL_SITE_ANCHORS
+)
+@pytest.mark.parametrize("damage", ("missing", "duplicate"))
+def test_accepted_external_result_requires_one_semantic_anchor(
+    repo_root, tmp_path, monkeypatch, name, rel, site_anchor, damage
+):
+    """The path-specific claim identity must be present exactly once."""
+    def mutate(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        if damage == "missing":
+            if name == "runtime":
+                assert text.count(site_anchor) == 1
+                text = text.replace(
+                    site_anchor, "def removed_epic_mcp_status", 1
+                )
+            else:
+                text = _replace_folded_once(
+                    text, site_anchor, "REMOVED CLAIM-SITE ANCHOR"
+                )
+        elif name == "runtime":
+            text += (
+                _NL + _NL + "def run_epic_mcp_status(**kwargs):"
+                + _NL + "    return {}" + _NL
+            )
+        else:
+            text += _NL + site_anchor + _NL
+        target.write_text(text, encoding="utf-8")
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch,
+        "semantic-anchor-" + damage + "-" + name, mutate,
+    )
+    assert "accepted external result" in found, (
+        name + " accepted a " + damage + " semantic anchor: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "rel", "claim_key", "anchor", "marker", "corrupt", "clause"),
+    _EXTERNAL_RESULT_SITES,
+)
+def test_accepted_external_result_rejects_a_commented_decoy(
+    repo_root, tmp_path, monkeypatch, name, rel, claim_key, anchor, marker,
+    corrupt, clause
+):
+    """Commentary inside the claim block is not the document making the claim."""
+    def mutate(case):
+        _corrupt(case, rel, marker, corrupt)
+        decoy = ("    # " + _ACCEPTED_SENTENCE if rel.endswith(".py")
+                 else "<!-- " + _ACCEPTED_SENTENCE + " -->")
+        _plant_after(case, rel, anchor, decoy)
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "commented-" + name, mutate
+    )
+    assert "accepted external result" in found, (
+        name + " accepted a commented decoy: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "rel", "claim_key", "anchor", "marker", "corrupt", "clause"),
+    _EXTERNAL_RESULT_SITES,
+)
+def test_accepted_external_result_requires_a_unique_claim_site(
+    repo_root, tmp_path, monkeypatch, name, rel, claim_key, anchor, marker,
+    corrupt, clause
+):
+    """Two active copies of the semantic claim make its identity ambiguous."""
+    def duplicate(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        normalized = " ".join(text.split())
+        assert normalized.count(claim_key) == 1, "probe key drifted in " + rel
+        target.write_text(
+            text + _NL + clause + _NL, encoding="utf-8"
+        )
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "two-sites-" + name, duplicate
+    )
+    assert "accepted external result" in found, (
+        name + " accepted two claim sites: " + repr(sorted(found))
+    )
+
+
+_FENCED_DECOY_SITES = tuple(
+    site for site in _EXTERNAL_RESULT_SITES
+    if site[0] in {"claude-md", "mcp-reference"}
+)
+
+
+@pytest.mark.parametrize(
+    ("name", "rel", "claim_key", "anchor", "marker", "corrupt", "clause"),
+    _EXTERNAL_RESULT_SITES,
+)
+def test_accepted_external_result_rejects_a_visible_in_block_decoy(
+    repo_root, tmp_path, monkeypatch, name, rel, claim_key, anchor, marker,
+    corrupt, clause
+):
+    """A nearby correct sentence cannot repair the keyed material clause.
+
+    Each insertion sits inside the exact block the prior implementation chose,
+    carries `failed` plus ToolsetPolicy, and leaves the real keyed claim saying
+    `passed`.  That old window-membership rule accepted every one.
+    """
+    def mutate(case):
+        _corrupt(case, rel, marker, corrupt)
+        target = case / rel
+        lines = target.read_text(encoding="utf-8").split(_NL)
+        hits = [i for i, line in enumerate(lines)
+                if line.strip().startswith(anchor)]
+        assert len(hits) == 1, "probe anchor drifted in " + rel
+        index = hits[0]
+        if name == "tool-tables":
+            assert lines[index].rstrip().endswith("|"), "table row drifted"
+            lines[index] = lines[index].rstrip()[:-1] + _ACCEPTED_SENTENCE + " |"
+        elif name == "runtime":
+            lines.insert(index + 1, '    """' + _ACCEPTED_SENTENCE + '"""')
+        else:
+            lines.insert(index + 1, _ACCEPTED_SENTENCE)
+        target.write_text(_NL.join(lines), encoding="utf-8")
+        raw = (case / rel).read_text(encoding="utf-8")
+        assert corrupt in raw and _ACCEPTED_SENTENCE in raw, (
+            "probe no longer reproduces the in-block decoy"
+        )
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch,
+        "in-block-visible-" + name, mutate,
+    )
+    assert "accepted external result" in found, (
+        name + " accepted an in-block visible decoy: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "rel", "claim_key", "anchor", "marker", "corrupt", "clause"),
+    _FENCED_DECOY_SITES,
+)
+def test_accepted_external_result_rejects_a_fenced_in_block_decoy(
+    repo_root, tmp_path, monkeypatch, name, rel, claim_key, anchor, marker,
+    corrupt, clause
+):
+    """A fenced example inside the old block is not accepted evidence."""
+    def mutate(case):
+        _corrupt(case, rel, marker, corrupt)
+        planted = "```text" + _NL + _ACCEPTED_SENTENCE + _NL + "```"
+        _plant_after(case, rel, anchor, planted)
+        raw = (case / rel).read_text(encoding="utf-8")
+        assert corrupt in raw and planted in raw, "fenced probe drifted"
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch,
+        "in-block-fenced-" + name, mutate,
+    )
+    assert "accepted external result" in found, (
+        name + " accepted an in-block fenced decoy: "
+        + repr(sorted(found))
+    )
+
+
+def test_external_result_identity_tolerates_claude_line_reflow(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Claim identity is semantic, not the current Markdown line wrapping."""
+    old = (
+        "Toolbelt is **not** reachable through Epic's" + _NL
+        + "  official MCP server:"
+    )
+    new = "Toolbelt is **not** reachable through Epic's official MCP server:"
+
+    def reflow(case):
+        target = case / "CLAUDE.md"
+        text = target.read_text(encoding="utf-8")
+        assert text.count(old) == 1, "CLAUDE reflow probe anchor drifted"
+        target.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "claude-reflow", reflow
+    )
+    assert found == set(), (
+        "harmless CLAUDE line reflow changed the truth verdict: "
+        + repr(sorted(found))
+    )
+
+
+_QUIRK_RECOVERY = (
+    "**Workaround.** Turn the flag off, or run `import UEFN_Toolbelt as tb;"
+    + _NL + "tb.register()` once per session."
+)
+_QUIRK_WORKFLOW_FRAGMENTS = ("prepare_launch.bat", "restore_after_launch.bat")
+
+
+def test_quirk36_recovery_rejects_a_commented_decoy(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The disclosed bypass: delete the real command, comment out a copy.
+
+    Section-wide membership accepted this, because the fragment was still
+    somewhere inside Quirk #36. The recovery command has to be in the Workaround
+    itself, and a commented copy is not the document telling anyone what to run.
+    """
+    def mutate(case):
+        target = case / "docs/UEFN_QUIRKS.md"
+        text = target.read_text(encoding="utf-8")
+        assert text.count(_QUIRK_RECOVERY) == 1, "probe anchor drifted"
+        target.write_text(
+            text.replace(
+                _QUIRK_RECOVERY,
+                "**Workaround.** Turn the flag off." + _NL
+                + "<!-- import UEFN_Toolbelt as tb; tb.register() -->",
+                1,
+            ),
+            encoding="utf-8",
+        )
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "quirk36-commented", mutate
+    )
+    assert "preserved quirk" in found, (
+        "a commented recovery command was accepted: " + repr(sorted(found))
+    )
+
+
+def test_quirk36_recovery_rejects_a_transplant(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Moving the command out of the Workaround is losing it, not keeping it."""
+    def mutate(case):
+        target = case / "docs/UEFN_QUIRKS.md"
+        text = target.read_text(encoding="utf-8")
+        assert text.count(_QUIRK_RECOVERY) == 1, "probe anchor drifted"
+        anchor = "**Detection.**"
+        assert text.count(anchor) == 1, "probe anchor drifted: " + anchor
+        text = text.replace(
+            _QUIRK_RECOVERY, "**Workaround.** Turn the flag off.", 1
+        )
+        target.write_text(
+            text.replace(
+                anchor,
+                "Formerly: `import UEFN_Toolbelt as tb; tb.register()`." + _NL
+                + _NL + anchor,
+                1,
+            ),
+            encoding="utf-8",
+        )
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "quirk36-transplant", mutate
+    )
+    assert "preserved quirk" in found, (
+        "the recovery command was accepted outside its Workaround: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(("name", "replacement"), (
+    (
+        "commented-fence",
+        "**Workaround.** Turn the flag off." + _NL + _NL
+        + "```python" + _NL
+        + "# import UEFN_Toolbelt as tb;" + _NL
+        + "# tb.register()" + _NL
+        + "```",
+    ),
+    (
+        "details-wrapper",
+        "**Workaround.** Turn the flag off." + _NL
+        + "<details>" + _NL
+        + "<summary>Former recovery</summary>" + _NL
+        + "`import UEFN_Toolbelt as tb; tb.register()`" + _NL
+        + "</details>",
+    ),
+))
+def test_quirk36_recovery_rejects_wrapped_copies(
+    repo_root, tmp_path, monkeypatch, name, replacement
+) -> None:
+    """Commented examples and disclosure wrappers are not the Workaround."""
+    def mutate(case):
+        target = case / "docs/UEFN_QUIRKS.md"
+        text = target.read_text(encoding="utf-8")
+        assert text.count(_QUIRK_RECOVERY) == 1, "probe anchor drifted"
+        mutated = text.replace(_QUIRK_RECOVERY, replacement, 1)
+        assert "import UEFN_Toolbelt as tb;" in mutated
+        assert "tb.register()" in mutated
+        target.write_text(mutated, encoding="utf-8")
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "quirk36-" + name, mutate
+    )
+    assert "preserved quirk" in found, (
+        name + " copy satisfied the Quirk #36 recovery: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("fragment", _QUIRK_WORKFLOW_FRAGMENTS)
+def test_quirk42_workflow_rejects_a_commented_decoy(
+    repo_root, tmp_path, monkeypatch, fragment
+):
+    """Quirk #42's helpers must stay in the verified workflow, uncommented."""
+    def mutate(case):
+        target = case / "docs/UEFN_QUIRKS.md"
+        text = target.read_text(encoding="utf-8")
+        assert text.count(fragment) >= 1, "probe anchor drifted: " + fragment
+        target.write_text(
+            text.replace(fragment, "REMOVED")
+            + _NL + "<!-- " + fragment + " -->" + _NL,
+            encoding="utf-8",
+        )
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "quirk42-commented-" + fragment, mutate
+    )
+    assert "preserved quirk" in found, (
+        fragment + " survived only as a comment: " + repr(sorted(found))
+    )
+
+
+def test_quirk_evidence_requires_a_unique_sub_anchor(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Two Workaround blocks in one quirk make the recovery step ambiguous."""
+    def duplicate(case):
+        target = case / "docs/UEFN_QUIRKS.md"
+        text = target.read_text(encoding="utf-8")
+        anchor = "**Workaround.**"
+        assert text.count(anchor) == 1, "probe anchor drifted: " + anchor
+        marker = "**Not fixable from Toolbelt.**"
+        assert text.count(marker) == 1, "probe anchor drifted: " + marker
+        target.write_text(
+            text.replace(marker, anchor + " Something else." + _NL + _NL + marker, 1),
+            encoding="utf-8",
+        )
+
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "quirk-two-workarounds", duplicate
+    )
+    assert "preserved quirk" in found, (
+        "two Workaround blocks were accepted: " + repr(sorted(found))
+    )
+
+
+def test_retired_claims_still_count_inside_commentary(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Required evidence ignores comments; forbidden claims do not.
+
+    The asymmetry is deliberate. A commented copy cannot *make* a statement, but
+    a retired claim sitting in a comment is still the repository carrying it.
+    """
+    found = _surface_types(
+        repo_root, tmp_path, monkeypatch, "retired-in-comment",
+        lambda case: _append(case, "README.md",
+                             "<!-- You **never need to restart UEFN**. -->"),
+    )
+    assert "retired claim" in found, (
+        "a retired claim hid inside a comment: " + repr(sorted(found))
     )

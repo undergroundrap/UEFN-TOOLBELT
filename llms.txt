@@ -1,16 +1,21 @@
 # UEFN Toolbelt
 
 > Python automation framework for Unreal Editor for Fortnite (UEFN).
-> v2.4.1 exposes 362 tools across 55 categories through a PySide6 dashboard,
-> an editor top-menu integration, and an MCP HTTP bridge.
-> Any MCP-compatible AI can control UEFN through the configured authenticated,
-> same-user local bridge.
+> v2.4.1 exposes 362 tools across 55 categories through a PySide6 dashboard
+> (`tb.launch_qt()`) and Toolbelt's own custom bridge. The `Toolbelt ▾` top-bar
+> menu registers but never renders on UEFN 42.00, so the dashboard is the entry point.
+> An MCP-compatible AI can drive those tools through Toolbelt's custom bridge: a
+> local HTTP listener that authenticates same-user clients. That is Toolbelt's own
+> surface, not Epic's official UEFN MCP server.
 
 ## What this is
 
 UEFN Toolbelt is an open-source (AGPL-3.0) tool suite for UEFN 40.00+ (March 2026).
-It covers ~97% of the UEFN Python API surface. The remaining 3% is locked by Epic
-(heightmap editing, Blueprint graph nodes, Verse compiler trigger, match control, session launch/stop, V2 device game-logic properties).
+It covers ~97% of the legacy in-editor `unreal` Python API surface. The remaining 3% has
+no in-editor Python API: heightmap editing, Blueprint graph nodes, match control, and V2
+device game-logic properties. Verse compilation and play-session launch/stop have no
+in-editor Python API either, but Epic's official UEFN MCP server provides both on its own
+surface (Epic's 42.00 ecosystem release notes; Epic's UEFN MCP documentation page).
 
 Tools are registered with `@register_tool` and called via `tb.run("tool_name", **kwargs)`.
 Every tool returns `{"status": "ok"/"error", ...data}` — zero None returns, zero log parsing needed.

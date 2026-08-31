@@ -17,9 +17,11 @@ Add to pre-commit workflow:
 from __future__ import annotations
 
 import ast
+import io
 import os
 import re
 import sys
+import tokenize
 
 # ── Repo root ──────────────────────────────────────────────────────────────────
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -86,6 +88,10 @@ SCAN_FILES = [
     "docs/work-orders/proposed/WO-006-official-vs-toolbelt-benchmark.md",
     "docs/work-orders/proposed/WO-007-public-mcp-explainer.md",
     "Content/Python/UEFN_Toolbelt/dashboard_pyside6.py",
+    # Both carried stale counts that no check could see, because neither was
+    # a declared target. WO-003 corrected the counts and declared the paths.
+    "Content/Python/UEFN_Toolbelt/__init__.py",
+    "launcher.py",
     "tests/smoke_test.py",
     # Agent context files. These carry tool counts and per-tool tables that go
     # stale exactly like the docs do — three counts had already drifted before
@@ -165,6 +171,25 @@ _WO003_ISSUANCE_WORKFLOW = "33148089523"
 _WO003_ISSUANCE_JOB = "98773518991"
 _WO003_ISSUED_GATE = (
     "WO-003 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED"
+)
+_WO003_SESSION_A_BASE = "52d89295614a4ce686094736d87f7e6c907e12a0"
+_WO003_SESSION_A_WORKFLOW = "33200547479"
+_WO003_SESSION_A_JOB = "98948639416"
+_WO003_SESSION_A_GATE = (
+    "WO-003 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
+)
+_WO003_SESSION_A_NEXT_GATE = (
+    "NEXT GATE: fresh independent architect review of the complete uncommitted "
+    "Session A implementation. Session B remains unauthorized."
+)
+_WO003_SESSION_A_STATEMENT = (
+    "Session A is authorized for implementation under the current root"
+)
+# Session B drafting is a separate owner gate that has not been given. The
+# checker carries that fact, so activating Session B in the pointer alone
+# cannot open it - reopening has to edit this file too, which is visible.
+_WO003_SESSION_B_UNAUTHORIZED = (
+    "WO-003 Session B remains unauthorized and requires a separate owner gate"
 )
 _WO002_COMPLETED_GATE = (
     "WO-002 COMPLETED — WO-003 PROPOSED AND NOT AUTHORIZED"
@@ -418,6 +443,23 @@ _WO003_POINTER_SEQUENCE = (
     "- Release train:",
     "- Release gate:",
 )
+# Authorizing Session A adds three declarations to each canonical block.
+# The slice stays exact and terminal in the new state, so the issuance
+# record cannot be dropped, reordered, or padded on the way through.
+_WO003_SESSION_A_ISSUED_SEQUENCE = _WO003_ISSUED_SEQUENCE + (
+    "SESSION_A_AUTHORIZATION_COMMIT: `" + _WO003_SESSION_A_BASE + "`",
+    "SESSION_A_AUTHORIZATION_CI_WORKFLOW: `"
+    + _WO003_SESSION_A_WORKFLOW + "`",
+    "SESSION_A_AUTHORIZATION_CI_JOB: `" + _WO003_SESSION_A_JOB
+    + "` — Lint, types, tests",
+)
+_WO003_SESSION_A_POINTER_SEQUENCE = _WO003_POINTER_SEQUENCE[:7] + (
+    "- Session A authorization commit: `" + _WO003_SESSION_A_BASE + "`",
+    "- Session A authorization CI workflow: `"
+    + _WO003_SESSION_A_WORKFLOW + "`",
+    "- Session A authorization CI job: `" + _WO003_SESSION_A_JOB
+    + "` — Lint, types, tests",
+) + _WO003_POINTER_SEQUENCE[7:]
 
 
 def _canonical_metadata(text: str, stop) -> list[str]:
@@ -470,6 +512,71 @@ def _wo003_field_findings(text, sequence, stop, where, exact, terminal):
                  "extra metadata after the canonical slice: " + trailing[0],
                  "the canonical slice ends the metadata block")]
     return []
+
+
+def _wo003_record_findings(
+    pointer, issued_text, wo003_rel, base, current_gate, session
+):
+    """WO-003 issuance evidence survives the Session A transition.
+
+    Authorizing a session must not silence the record that issued it, so
+    the same exact-slice comparison runs from every session branch rather
+    than living inside the closed-session one. The authorized state adds
+    three declarations to each canonical block; the slice stays exact and
+    terminal, so the issuance fields cannot be dropped, reordered, or
+    padded on the way through.
+    """
+    out = []
+    issued_sequence: tuple[str, ...]
+    pointer_sequence: tuple[str, ...]
+    if session == "A":
+        expected_base = _WO003_SESSION_A_BASE
+        expected_gate = _WO003_SESSION_A_GATE
+        issued_sequence = _WO003_SESSION_A_ISSUED_SEQUENCE
+        pointer_sequence = _WO003_SESSION_A_POINTER_SEQUENCE
+        base_kind = "WO-003 Session A base commit"
+        gate_kind = "WO-003 Session A gate"
+    else:
+        expected_base = _WO003_ISSUANCE_COMMIT
+        expected_gate = _WO003_ISSUED_GATE
+        issued_sequence = _WO003_ISSUED_SEQUENCE
+        pointer_sequence = _WO003_POINTER_SEQUENCE
+        base_kind = "WO-003 issuance base commit"
+        gate_kind = "WO-003 issued gate"
+    if base != "`" + expected_base + "`":
+        out.append(("WORKORDER.md", base_kind, str(base),
+                    "`" + expected_base + "`"))
+    if current_gate != expected_gate:
+        out.append(("WORKORDER.md", gate_kind, str(current_gate),
+                    expected_gate))
+    # The accepted planning baseline is pinned as its BASELINE marker; the
+    # same hash also appears in the planning prose, which is not a second
+    # declaration.
+    marker = "BASELINE: `" + _WO003_PLANNING_BASELINE + "`"
+    if issued_text.count(marker) != 1:
+        out.append((wo003_rel, "WO-003 planning baseline",
+                    str(issued_text.count(marker)),
+                    "exactly one " + marker))
+    # Only the pinned declarations carry a backticked value. The pointer's
+    # remaining keys keep their own dedicated checks, so position and key
+    # are all this comparison asserts for them.
+    for kind, found_detail, want in _wo003_field_findings(
+        issued_text, issued_sequence,
+        lambda line: line.startswith("## "),
+        "issued record",
+        exact={item for item in issued_sequence if "`" in item},
+        terminal=True,
+    ):
+        out.append((wo003_rel, kind, found_detail, want))
+    for kind, found_detail, want in _wo003_field_findings(
+        pointer, pointer_sequence,
+        lambda line: _WO001_COMPLETED_LINK in line,
+        "WORKORDER.md",
+        exact={item for item in pointer_sequence if "`" in item},
+        terminal=True,
+    ):
+        out.append(("WORKORDER.md", kind, found_detail, want))
+    return out
 
 
 def _acceptance_record_findings(text, locate, expected, fragments):
@@ -1323,40 +1430,12 @@ def check_work_order_contract() -> list[dict]:
                         add("WORKORDER.md", "implicit session authorization",
                             "contradictory Session A permission", expected_gate)
                     if issued[0].name == _WO003_NAME:
-                        wo003_rel = issued[0].relative_to(root).as_posix()
-                        if base != f"`{_WO003_ISSUANCE_COMMIT}`":
-                            add("WORKORDER.md", "WO-003 issuance base commit",
-                                str(base), f"`{_WO003_ISSUANCE_COMMIT}`")
-                        if current_gate != _WO003_ISSUED_GATE:
-                            add("WORKORDER.md", "WO-003 issued gate",
-                                str(current_gate), _WO003_ISSUED_GATE)
-                        # The accepted planning baseline is pinned as its
-                        # BASELINE marker; the same hash also appears in the
-                        # planning prose, which is not a second declaration.
-                        baseline_marker = (
-                            f"BASELINE: `{_WO003_PLANNING_BASELINE}`"
-                        )
-                        if issued_text.count(baseline_marker) != 1:
-                            add(wo003_rel, "WO-003 planning baseline",
-                                str(issued_text.count(baseline_marker)),
-                                f"exactly one {baseline_marker}")
-                        for kind, found_detail, want in _wo003_field_findings(
-                            issued_text, _WO003_ISSUED_SEQUENCE,
-                            lambda line: line.startswith("## "),
-                            "issued record",
-                            exact=set(_WO003_ISSUED_SEQUENCE),
-                            terminal=True,
+                        for _f, _k, _found, _want in _wo003_record_findings(
+                            pointer, issued_text,
+                            issued[0].relative_to(root).as_posix(),
+                            base, current_gate, session,
                         ):
-                            add(wo003_rel, kind, found_detail, want)
-                        for kind, found_detail, want in _wo003_field_findings(
-                            pointer, _WO003_POINTER_SEQUENCE,
-                            lambda line: _WO001_COMPLETED_LINK in line,
-                            "WORKORDER.md",
-                            exact={item for item in _WO003_POINTER_SEQUENCE
-                                   if "Issuance" in item},
-                            terminal=True,
-                        ):
-                            add("WORKORDER.md", kind, found_detail, want)
+                            add(_f, _k, _found, _want)
                     if _has_other_session_authorization(pointer, issued_text, ""):
                         add("WORKORDER.md", "later session authorization",
                             "positive permission for a labeled session",
@@ -1388,6 +1467,33 @@ def check_work_order_contract() -> list[dict]:
                     add("WORKORDER.md", "later session authorization",
                         "positive permission for a non-current session",
                         "only Session A authorized")
+                if issued[0].name == _WO003_NAME:
+                    wo003_rel = issued[0].relative_to(root).as_posix()
+                    for _f, _k, _found, _want in _wo003_record_findings(
+                        pointer, issued_text, wo003_rel, base, current_gate,
+                        session,
+                    ):
+                        add(_f, _k, _found, _want)
+                    normalized_wo003 = " ".join(issued_text.split())
+                    for evidence, kind in (
+                        (_WO003_SESSION_A_BASE,
+                         "WO-003 Session A authorization commit"),
+                        (_WO003_SESSION_A_WORKFLOW,
+                         "WO-003 Session A authorization workflow"),
+                        (_WO003_SESSION_A_JOB,
+                         "WO-003 Session A authorization job"),
+                    ):
+                        if evidence not in pointer or evidence not in issued_text:
+                            add(wo003_rel, kind,
+                                "missing from pointer or issued record",
+                                evidence)
+                    if _WO003_SESSION_A_NEXT_GATE not in normalized_wo003:
+                        add(wo003_rel, "WO-003 next gate",
+                            "missing or changed", _WO003_SESSION_A_NEXT_GATE)
+                    if _WO003_SESSION_A_STATEMENT not in normalized_wo003:
+                        add(wo003_rel, "WO-003 Session A authorization statement",
+                            "missing",
+                            "authorized only under root WORKORDER.md")
                 if issued[0].name == _WO002_NAME:
                     normalized_issued = " ".join(issued_text.split())
                     if base != f"`{_WO002_SESSION_A_BASE}`":
@@ -1426,6 +1532,10 @@ def check_work_order_contract() -> list[dict]:
                     add("WORKORDER.md", "later session authorization",
                         "positive permission for a non-current session",
                         "only Session B authorized")
+                if issued[0].name == _WO003_NAME:
+                    add("WORKORDER.md", "WO-003 Session B activation",
+                        "Session B authorized in the pointer alone",
+                        _WO003_SESSION_B_UNAUTHORIZED)
                 if issued[0].name == _WO002_NAME:
                     normalized_issued = " ".join(issued_text.split())
                     if base != f"`{_WO002_SESSION_B_BASE}`":
@@ -1548,6 +1658,440 @@ def check_mcp_security_contract() -> list[dict]:
     return findings
 
 
+# ── Surface truth contract ───────────────────────────────────────────────────
+#
+# WO-003 separated four surfaces that the documentation had been running
+# together: Epic's built-in official MCP toolsets, Toolbelt's internal
+# in-process registry, Toolbelt's custom bridge, and Toolbelt's external
+# exposure through Epic's official MCP (which failed). Each assertion below
+# protects one named fact from that separation. None of them freezes prose:
+# they reject the specific inversion that was true before the correction.
+
+_DASHBOARD_REL = "Content/Python/UEFN_Toolbelt/dashboard_pyside6.py"
+# The ninth runtime occurrence, admitted by Amendment 1. Its docstring is the
+# only place the runtime itself describes the external official-MCP result.
+_EPIC_MCP_TOOLS_REL = "Content/Python/UEFN_Toolbelt/tools/epic_mcp_tools.py"
+
+# The dashboard reads the live registry and falls back to two bare quoted
+# literals when that read raises. The count patterns cannot match them - they
+# are assignments, not prose - so both went stale unnoticed. This pins that one
+# except branch by position rather than broadening the count regexes, which is
+# a scanner redesign and belongs to WO-005.
+_DASHBOARD_LIVE_READ = (
+    '_cat_count = str(len({t.get("category","") for t in '
+    '_tb.registry.list_tools() if t.get("category")}))'
+)
+
+
+def _normalized_lines(text: str) -> list[str]:
+    """Each line with its whitespace runs collapsed, for exact comparison."""
+    return [" ".join(line.split()) for line in text.split("\n")]
+
+
+def check_dashboard_fallbacks() -> list[dict]:
+    """The dashboard's except-branch counts must match the runtime registry."""
+    from pathlib import Path
+
+    path = Path(ROOT) / _DASHBOARD_REL
+    if not path.exists():
+        return [{
+            "file": _DASHBOARD_REL, "line": 0,
+            "type": "dashboard fallback counts", "found": "missing",
+            "expected": "the dashboard module", "content": _DASHBOARD_REL,
+        }]
+    lines = _normalized_lines(path.read_text(encoding="utf-8"))
+    anchors = [i for i, line in enumerate(lines)
+               if line == _DASHBOARD_LIVE_READ]
+    if len(anchors) != 1:
+        return [{
+            "file": _DASHBOARD_REL, "line": 0,
+            "type": "dashboard fallback counts",
+            "found": "the live registry read occurs "
+                     + str(len(anchors)) + "x",
+            "expected": "exactly one live registry read to anchor the fallback",
+            "content": _DASHBOARD_LIVE_READ,
+        }]
+    # The fallback is identified by sitting immediately after the live read,
+    # never by appearing somewhere in the file: a byte-correct copy elsewhere
+    # must not stand in for the branch the dashboard actually renders from.
+    expected = [
+        "except Exception:",
+        '_tool_count = "' + str(TOOL_COUNT) + '"',
+        '_cat_count = "' + str(CATEGORY_COUNT) + '"',
+    ]
+    start = anchors[0] + 1
+    actual = [line for line in lines[start:start + 8] if line][:len(expected)]
+    findings: list[dict] = []
+    # actual is deliberately allowed to be short: a truncated fallback branch
+    # is reported by the length check below rather than raising here.
+    for index, (want, got) in enumerate(zip(expected, actual, strict=False)):
+        if want != got:
+            findings.append({
+                "file": _DASHBOARD_REL, "line": start + index + 1,
+                "type": "dashboard fallback counts", "found": got,
+                "expected": want, "content": got,
+            })
+    if len(actual) != len(expected):
+        findings.append({
+            "file": _DASHBOARD_REL, "line": start + 1,
+            "type": "dashboard fallback counts",
+            "found": "the fallback branch holds " + str(len(actual)) + " lines",
+            "expected": str(len(expected)) + " fallback lines",
+            "content": _DASHBOARD_LIVE_READ,
+        })
+    return findings
+
+
+# Stale claims WO-003 removed. Each one is a sentence the repository actually
+# carried, not a shape it might one day carry, so each probe reproduces a real
+# regression rather than an imagined one.
+_RETIRED_CLAIMS = (
+    # The legacy Python limit stated as a whole-product limit.
+    ("Epic must unlock", "official capability described as Epic-locked"),
+    ("is locked by Epic", "official capability described as Epic-locked"),
+    ("Permanent top-bar menu entry injected on editor startup",
+     "top-bar menu described as rendering"),
+    ("Waiting for Epic Python compiler API",
+     "Verse compilation described as unavailable"),
+    # The custom bridge described as universally offline.
+    ("fully offline", "Toolbelt described as universally offline"),
+    ("Zero outbound HTTP", "Toolbelt described as universally offline"),
+    # The top-bar menu described as a working entry point.
+    ("appears in the top menu bar", "top-bar menu described as rendering"),
+    ("from the top menu bar", "top-bar menu described as rendering"),
+    ("in the top menu bar, or", "top-bar menu described as rendering"),
+    # The accepted external result softened back to "unproven". Amendment 1
+    # admitted the runtime docstring that still carried it.
+    ("unproven", "accepted external result softened to unproven"),
+    # The absolute project-only file-write guarantee. Four export tools take an
+    # explicit path and write wherever the operator points them.
+    ("No file writes outside project",
+     "file writes described as project-only"),
+    ("All output goes to `Saved/UEFN_Toolbelt/` inside your project",
+     "file writes described as project-only"),
+    # The network counts this Work Order itself got wrong before review:
+    # the dashboard's own `toolbelt_update` runs `git pull`, so any total
+    # stated so far has been an undercount.
+    ("Two features reach the network",
+     "network use stated as an exact count"),
+    ("network features — Plugin Hub, URL import",
+     "network use stated as an exact count"),
+    # The restart absolute, in both directions.
+    ("You **never need to restart UEFN**", "restart stated as an absolute"),
+    ("You don't even need to restart!", "restart stated as an absolute"),
+)
+
+# Paths WO-003 corrected. The contributor guideline in README's plugin section
+# says "No network calls" about a *plugin author's* tool, which is advice, not
+# a claim about Toolbelt - so the phrases above are the ones pinned, not that.
+_SURFACE_PATHS = (
+    "README.md",
+    "CLAUDE.md",
+    "AGENTS.md",
+    "llms.txt",
+    "ARCHITECTURE.md",
+    "SECURITY.md",
+    "TOOL_STATUS.md",
+    "ROADMAP.md",
+    "docs/PIPELINE.md",
+    "docs/AI_AUTONOMY.md",
+    "docs/uefn_python_capabilities.md",
+    "docs/plugin_dev_guide.md",
+    ".claude/mcp_reference.md",
+    ".claude/tool_tables.md",
+    _DASHBOARD_REL,
+    "launcher.py",
+    "install.py",
+    _EPIC_MCP_TOOLS_REL,
+)
+
+# The accepted WO-002 external result, bound to a stable semantic identity
+# outside the protected clause. Markdown sites require the exact clause
+# immediately after their path-specific anchor after whitespace folding; the
+# Python site requires it in the named function's actual docstring. A complete
+# keyed clause transplanted elsewhere therefore cannot repair the claim site,
+# while harmless line wrapping remains irrelevant.
+#
+# (path, stable claim-site anchor, exact material clause after whitespace folding)
+_EXTERNAL_RESULT_SITES: tuple[tuple[str, str, str], ...] = (
+    (
+        "CLAUDE.md",
+        "Toolbelt is **not** reachable through Epic's official MCP server:",
+        "WO-002 recorded that external result as `failed`, bounded by "
+        "`UE::ValkyrieToolset::ToolsetPolicy`",
+    ),
+    (
+        ".claude/tool_tables.md",
+        "| `epic_mcp_register` | — | Attempt in-process Toolset Registry "
+        "submission.",
+        "External exposure through Epic's official MCP server `failed` on "
+        "UEFN 42.00, bounded by `UE::ValkyrieToolset::ToolsetPolicy`",
+    ),
+    (
+        ".claude/mcp_reference.md",
+        "Toolbelt is not reachable through that server —",
+        "WO-002 recorded the external result as `failed`, bounded by "
+        "`UE::ValkyrieToolset::ToolsetPolicy`",
+    ),
+    (
+        _EPIC_MCP_TOOLS_REL,
+        "run_epic_mcp_status",
+        "WO-002 recorded that external result as `failed`, bounded by "
+        "`UE::ValkyrieToolset::ToolsetPolicy`",
+    ),
+)
+
+_QUIRK36_RECOVERY = (
+    "**Workaround.** Turn the flag off, or run "
+    "`import UEFN_Toolbelt as tb; tb.register()` once per session."
+)
+
+# Quirk evidence, bound to the step that makes it useful rather than to the
+# section as a whole. Section-wide membership was defeated by planting
+# `<!-- tb.register() -->` inside Quirk #36 while deleting the real recovery
+# command from its Workaround: the fragment was still 'in the section'.
+#
+# (section heading, sub-anchor or None, stop prefixes, fragments)
+_QUIRK_EVIDENCE: tuple[
+    tuple[str, str | None, tuple[str, ...] | None, tuple[str, ...]], ...
+] = (
+    ("## Quirk #36 " + "—", None, None, ("UEFN MCP Toolsets",)),
+    ("## Quirk #42 " + "—", "### Verified workflow", ("## ", "---"),
+     ("prepare_launch.bat", "restore_after_launch.bat")),
+    ("## Quirk #42 " + "—", None, None,
+     ("zero `.py` files anywhere", "ContainsPythonData")),
+)
+
+
+def _strip_python_comments(text: str) -> str:
+    """Blank out `#` comments in place, keeping every line number intact."""
+    lines = text.split("\n")
+    try:
+        tokens = list(
+            tokenize.generate_tokens(io.StringIO(text).readline)
+        )
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return text
+    for token in tokens:
+        if token.type != tokenize.COMMENT:
+            continue
+        row = token.start[0] - 1
+        lines[row] = lines[row][:token.start[1]]
+    return "\n".join(lines)
+
+
+def _strip_markdown_fences(text: str) -> str:
+    """Blank fenced blocks while preserving line positions.
+
+    A fenced example can illustrate old or invalid text, but it is not the
+    surrounding document making the accepted claim.  This intentionally knows
+    only fence delimiters; it does not parse headings, paragraphs, or prose.
+    """
+    lines = text.split("\n")
+    index = 0
+    while index < len(lines):
+        opening = re.match(r"^\s*(`{3,}|~{3,})", lines[index])
+        if opening is None:
+            index += 1
+            continue
+        marker = opening.group(1)
+        closing_pattern = re.compile(
+            r"^\s*" + re.escape(marker[0]) + "{" + str(len(marker))
+            + r",}\s*$"
+        )
+        closing = next(
+            (candidate for candidate in range(index + 1, len(lines))
+             if closing_pattern.match(lines[candidate])),
+            None,
+        )
+        # An unclosed delimiter is malformed prose, not a license to hide the
+        # rest of the document from required-evidence checks.
+        if closing is None:
+            index += 1
+            continue
+        for fenced_line in range(index, closing + 1):
+            lines[fenced_line] = ""
+        index = closing + 1
+    return "\n".join(lines)
+
+
+def _without_commentary(
+    text: str, is_python: bool, *, strip_fences: bool = False
+) -> str:
+    """Drop commentary that could carry a planted copy of required evidence.
+
+    A fragment inside an HTML or Python comment is not the document making
+    the statement; it is a decoy that satisfied a substring search while the
+    real statement was deleted. Comment spans are replaced by their own
+    newlines so line positions - which the anchors depend on - do not move.
+    """
+    cleaned = re.sub(
+        r"<!--.*?-->",
+        lambda match: "\n" * match.group(0).count("\n"),
+        text,
+        flags=re.DOTALL,
+    )
+    if is_python:
+        return _strip_python_comments(cleaned)
+    return _strip_markdown_fences(cleaned) if strip_fences else cleaned
+
+
+def _anchored_window(lines, anchor, stops):
+    """The block opened by a unique anchor line, or why it is unusable."""
+    starts = [i for i, line in enumerate(lines)
+              if line.strip().startswith(anchor)]
+    if len(starts) != 1:
+        return None, anchor + " opens " + str(len(starts)) + " blocks"
+    start = starts[0]
+    if stops is None:
+        return lines[start], None
+    for index in range(start + 1, len(lines)):
+        if lines[index].startswith(stops):
+            return "\n".join(lines[start:index]), None
+    return "\n".join(lines[start:]), None
+
+
+def _quirk_section(text: str, heading: str) -> str | None:
+    """The body of one quirk section, or None when it is absent or doubled."""
+    window, reason = _anchored_window(text.split("\n"), heading, ("## ",))
+    return None if reason else window
+
+
+def check_surface_truth_contract() -> list[dict]:
+    """Keep the four MCP surfaces distinct across the corrected documents."""
+    from pathlib import Path
+
+    root = Path(ROOT)
+    findings: list[dict] = []
+
+    def add(rel, kind, found, expected, content):
+        findings.append({
+            "file": rel, "line": 0, "type": kind,
+            "found": found, "expected": expected, "content": content,
+        })
+
+    for rel in _SURFACE_PATHS:
+        path = root / rel
+        if not path.exists():
+            add(rel, "surface truth target", "absent",
+                "a committed file at " + rel, rel)
+            continue
+        text = path.read_text(encoding="utf-8")
+        for claim, kind in _RETIRED_CLAIMS:
+            if claim in text:
+                add(rel, "retired claim", kind,
+                    "the corrected WO-003 wording", claim)
+
+    for rel, site_anchor, expected_clause in _EXTERNAL_RESULT_SITES:
+        path = root / rel
+        if not path.exists():
+            continue
+        is_python = rel.endswith(".py")
+        source = path.read_text(encoding="utf-8")
+        if is_python:
+            active_python = _without_commentary(source, True)
+            active_prose = " ".join(active_python.split())
+            clause_count = active_prose.count(expected_clause)
+            try:
+                tree = ast.parse(source)
+            except SyntaxError as exc:
+                add(rel, "accepted external result", "invalid Python source",
+                    "one function named " + site_anchor
+                    + " with the accepted result in its docstring",
+                    str(exc))
+                continue
+            functions = [
+                node for node in ast.walk(tree)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == site_anchor
+            ]
+            docstring = (
+                "" if len(functions) != 1
+                else ast.get_docstring(functions[0], clean=True) or ""
+            )
+            normalized_docstring = " ".join(docstring.split())
+            if (len(functions) != 1
+                    or expected_clause not in normalized_docstring
+                    or clause_count != 1):
+                add(rel, "accepted external result",
+                    "the function anchor occurs " + str(len(functions))
+                    + "x, the clause occurs " + str(clause_count)
+                    + "x, or its docstring lacks the accepted result and bound",
+                    "one function named " + site_anchor
+                    + " whose docstring contains: " + expected_clause,
+                    site_anchor)
+            continue
+
+        active_source = _without_commentary(
+            source, False, strip_fences=True
+        )
+        prose = " ".join(active_source.split())
+        anchor_count = prose.count(site_anchor)
+        anchored_claim = site_anchor + " " + expected_clause
+        anchored_count = prose.count(anchored_claim)
+        clause_count = prose.count(expected_clause)
+        if (anchor_count != 1 or anchored_count != 1
+                or clause_count != 1):
+            add(rel, "accepted external result",
+                "the semantic anchor occurs " + str(anchor_count)
+                + "x, carries the exact claim " + str(anchored_count)
+                + "x, and the clause occurs " + str(clause_count) + "x",
+                "one active anchored claim: " + anchored_claim,
+                site_anchor)
+
+    quirks_rel = "docs/UEFN_QUIRKS.md"
+    quirks_path = root / quirks_rel
+    if not quirks_path.exists():
+        add(quirks_rel, "preserved quirk", "absent",
+            "a committed file at " + quirks_rel, quirks_rel)
+    else:
+        quirks_source = quirks_path.read_text(encoding="utf-8")
+        quirks = _without_commentary(quirks_source, False)
+        quirks_without_fences = _without_commentary(
+            quirks_source, False, strip_fences=True
+        )
+        quirk36 = _quirk_section(
+            quirks_without_fences, "## Quirk #36 " + "—"
+        )
+        if quirk36 is not None:
+            recovery, reason = _anchored_window(
+                quirk36.split("\n"), "**Workaround.**",
+                ("**", "---", "## "),
+            )
+            normalized_recovery = (
+                "" if recovery is None else " ".join(recovery.split())
+            )
+            if reason or normalized_recovery != _QUIRK36_RECOVERY:
+                add(quirks_rel, "preserved quirk",
+                    reason or "the Workaround is missing or wrapped",
+                    _QUIRK36_RECOVERY, "Quirk #36 / **Workaround.**")
+        for heading, sub_anchor, stops, fragments in _QUIRK_EVIDENCE:
+            section = _quirk_section(quirks, heading)
+            if section is None:
+                add(quirks_rel, "preserved quirk",
+                    "no single section headed " + heading,
+                    "exactly one " + heading + " section", heading)
+                continue
+            where = heading
+            if sub_anchor is not None:
+                window, reason = _anchored_window(
+                    section.split("\n"), sub_anchor, stops
+                )
+                if reason:
+                    add(quirks_rel, "preserved quirk", reason,
+                        "exactly one " + sub_anchor + " block inside "
+                        + heading, sub_anchor)
+                    continue
+                section, where = window, heading + " / " + sub_anchor
+            for fragment in fragments:
+                if fragment not in section:
+                    add(quirks_rel, "preserved quirk",
+                        "missing from " + where + ": " + fragment,
+                        "the accepted quirk evidence, intact", fragment)
+
+    return findings
+
+
 # ── Patterns ──────────────────────────────────────────────────────────────────
 
 # Version patterns — flag any version string that doesn't match VERSION
@@ -1596,6 +2140,8 @@ _SKIP_LINE_FRAGMENTS = [
     "KirChuvakov",
     "Kirch's original",  # "Kirch's original 22 tools" — historical attribution
     "prior art",
+    "was removed in v",  # launcher.py names the release a helper was removed
+                         # in. Bumping it would make the sentence false.
     "commits before v",  # "commits before v2.3.7 use the older unscoped form"
                          # — a statement about history. Bumping it would make
                          # it false; that is a wrong answer, not a fixed one.
@@ -1778,6 +2324,8 @@ def run() -> int:
     all_findings.extend(check_game_path_defaults())
     all_findings.extend(check_work_order_contract())
     all_findings.extend(check_mcp_security_contract())
+    all_findings.extend(check_dashboard_fallbacks())
+    all_findings.extend(check_surface_truth_contract())
 
     if not all_findings:
         print("[drift_check] PASS — No drift found. Codebase is consistent.\n")

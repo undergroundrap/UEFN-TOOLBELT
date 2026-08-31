@@ -279,8 +279,8 @@ result = tb.run("verse_patch_errors")
 ```python
 # TODAY: user clicks Build Verse (one human action per iteration)
 
-# FUTURE (when Epic exposes Python API):
-tb.run("system_build_verse")   # triggers compiler from Python
+# FUTURE (if Epic exposes an in-editor Python API):
+tb.run("system_build_verse")   # would trigger the compiler from Python
 result = tb.run("verse_patch_errors")
 # → fully headless loop, zero human clicks
 ```
@@ -393,7 +393,7 @@ Launch Session, Push Changes, or island submission.
 | 4 | `verse_write_file` | ✅ | Path fix confirmed |
 | 5 | `[Build Verse click]` | ⚠️ | 1 human action per iteration |
 | 5 | `verse_patch_errors` | ✅ | Full error + file content return |
-| 5 | `system_build_verse` | ⏳ | Waiting for Epic Python compiler API |
+| 5 | `system_build_verse` | ⏳ | No in-editor Python compiler API. Epic's official UEFN MCP server compiles Verse on its own surface |
 | 6 | `world_state_export` | ✅ | Re-run for verification |
 | 6 | `snapshot_save` | ✅ | — |
 
@@ -406,10 +406,15 @@ Launch Session, Push Changes, and publishing are separate editor-driven actions
 after the automation pipeline; the host helpers only make their staged project
 validation-safe.
 
-Epic's UEFN Python sandbox does not expose a `BuildVerseCode()` function. The Verse
-compiler is invoked exclusively through the editor UI (Verse menu → Build Verse Code)
-or through the desktop `UnrealEditor-Cmd.exe` with `-run=VerseBuilder`, which requires
-a separate process outside the sandboxed Python environment.
+Epic's UEFN Python sandbox does not expose a `BuildVerseCode()` function. From Python,
+the Verse compiler is reachable only through the editor UI (Verse menu → Build Verse
+Code) or the desktop `UnrealEditor-Cmd.exe` with `-run=VerseBuilder`, which requires a
+separate process outside the sandboxed Python environment.
+
+This is a limit of the in-editor Python surface, not of UEFN 42.00. Epic's official
+UEFN MCP server writes and compiles Verse on its own surface (Epic's 42.00 ecosystem
+release notes and Epic's UEFN MCP documentation page). Reaching it means using that
+server, not Toolbelt's Python API and not Toolbelt's custom bridge.
 
 `system_build_verse` attempts the subprocess approach but this is not reliable inside
 the UEFN sandbox. `verse_patch_errors` is designed to work regardless — it reads whatever

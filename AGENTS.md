@@ -5,8 +5,10 @@
 ## What this repo is
 
 Python automation framework for Unreal Editor for Fortnite (UEFN).
-362 tools, 55 categories, MCP HTTP bridge, PySide6 dashboard.
-Any MCP-compatible AI connects via `.mcp.json` (pre-configured).
+362 tools, 55 categories, PySide6 dashboard, and Toolbelt's own custom bridge.
+An MCP-compatible AI connects to that bridge via `.mcp.json` (pre-configured).
+The bridge is Toolbelt's own authenticated, same-user loopback HTTP listener — not
+Epic's official UEFN MCP server, which Toolbelt is not reachable through.
 
 ## Non-negotiable rules
 

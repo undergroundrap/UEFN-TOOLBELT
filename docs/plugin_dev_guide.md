@@ -81,7 +81,7 @@ def run(**kwargs) -> dict:
     return {"status": "ok", "renamed": count}
 ```
 
-4. Switch back to UEFN. You don't even need to restart! Just close the Dashboard and re-open it via `Toolbelt ▾ -> Open Dashboard`. 
+4. Switch back to UEFN. A custom plugin reload needs no restart: close the Dashboard and re-open it with `tb.launch_qt()`. This covers the plugin-reload case only — dashboard, Qt-window, `init_unreal.py`, and new-module changes still need a full UEFN restart (Quirks #26 and #27).
 5. You will see a brand new **"My Custom Tools"** tab containing a clickable button for your tool.
 
 ---

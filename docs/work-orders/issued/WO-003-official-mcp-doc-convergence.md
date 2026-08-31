@@ -2,7 +2,7 @@
 
 STATUS: ISSUED
 
-AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED
+AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR IMPLEMENTATION
 
 OWNER: Ocean Bennett
 
@@ -16,6 +16,12 @@ ISSUANCE_CI_WORKFLOW: `33148089523`
 
 ISSUANCE_CI_JOB: `98773518991` — Lint, types, tests
 
+SESSION_A_AUTHORIZATION_COMMIT: `52d89295614a4ce686094736d87f7e6c907e12a0`
+
+SESSION_A_AUTHORIZATION_CI_WORKFLOW: `33200547479`
+
+SESSION_A_AUTHORIZATION_CI_JOB: `98948639416` — Lint, types, tests
+
 ## Issuance basis
 
 The independently accepted revision of this mandate was committed as
@@ -23,10 +29,23 @@ The independently accepted revision of this mandate was committed as
 `33148089523` included successful required job `98773518991` (`Lint, types,
 tests`).
 
-Issuance alone grants no implementation authority. Session A and Session B
-both remain unauthorized until the owner authorizes a session in root
-`WORKORDER.md`. The planning baseline above is preserved unchanged; it
-records the state this mandate was planned against, not the issuance point.
+Issuance alone grants no implementation authority. A session becomes
+implementable only when the owner names it in root `WORKORDER.md`; the
+Session A authorization recorded below came from that pointer, not from
+issuance. Session B is not authorized and requires a separate owner gate.
+The planning baseline above is preserved unchanged; it records the state
+this mandate was planned against, not the issuance point.
+
+## Session A authorization basis
+
+Session A is authorized for implementation under the current root
+`WORKORDER.md` gate alone. The recorded basis is commit
+`52d89295614a4ce686094736d87f7e6c907e12a0`, successful CI workflow
+`33200547479`, and successful required job `98948639416`
+(`Lint, types, tests`).
+
+The accepted mandate below is unchanged. Session A implements exactly the
+scope it defines. Session B is not authorized and requires a separate owner gate.
 
 ## Planning basis
 
@@ -157,10 +176,32 @@ open-ended.
 | `Content/Python/UEFN_Toolbelt/__init__.py` (40, 67, 164) | Three stale count references: a reload-message comment reading `355` and `54`, and two `361` references in one comment and one docstring | Runtime registry is authoritative at 362 tools across 55 categories | Correct all three, under the runtime-text lock below | — |
 | `Content/Python/UEFN_Toolbelt/dashboard_pyside6.py` (~23, ~2952, ~2953, ~2958) | Docstring recommending "Toolbelt menu → Open Dashboard (Qt)"; except-branch fallback literals `355` and `54` shown when the live registry read fails; and the stats row rendering `("0", "network calls — fully offline")` | Live editor log; runtime registry; `SECURITY.md` (~57–59); Plugin Hub and URL-import features make outbound requests | Correct all four, under the runtime-text lock below | — |
 | `launcher.py` (~18) | Docstring step reading "Registers all `355`" tool entries | Runtime registry is authoritative at 362 tools | Correct the count, under the runtime-text lock below | — |
+| `Content/Python/UEFN_Toolbelt/tools/epic_mcp_tools.py` (27) | `run_epic_mcp_status` docstring describing "separately unproven external official-MCP states" | WO-002 accepted the external result as `failed`, bounded by `UE::ValkyrieToolset::ToolsetPolicy` | Describe the accepted external official-MCP result as `failed`, bounded by `ToolsetPolicy`. Docstring only, under the runtime-text lock below | — |
+| `README.md` (~224) | Safety table claiming "No file writes outside project — All output goes to `Saved/UEFN_Toolbelt/` inside your project" | `snapshot_export` (`level_snapshot.py:518`), `datatable_export` (`datatable_tools.py:171`), `curve_export` (`curve_tools.py:168`), and `stamp_export` (`prefab_stamp.py:409`) each accept an explicit export path and write to it | Replace the absolute guarantee with bounded truth: defaults commonly use `Saved/UEFN_Toolbelt/`, and explicit export parameters write to operator-selected OS paths | — |
+
+#### Amendment 1 — two disclosed contradictions
+
+Session A source inspection disclosed two directly contradictory claims that the
+original inventory did not dispose of, and stopped rather than expanding scope on
+its own. The owner ruled on both and admitted exactly these two rows, which are
+the last two entries in the table above. The inventory is closed again at that
+ruling.
+
+`epic_mcp_tools.py` is a runtime path, so its correction is the **ninth** occurrence
+under the runtime-text lock below and carries the same live verification set.
+It is a docstring-only correction: no registration, MCP, or status-schema behaviour
+changes.
+
+The already-corrected eighth `README.md` menu occurrence (approximately line 1715)
+needed no amendment. The existing README menu row requires **every** occurrence to
+be corrected, and that occurrence is on the named path.
+
+`Content/Python/UEFN_Toolbelt/list_untested.py` and the `.urcignore` `TOOL_TEST`
+experiment stay deferred and outside this amendment.
 
 ### Runtime-text lock
 
-Session A touches exactly eight runtime occurrences plus the two `install.py`
+Session A touches exactly nine runtime occurrences plus the two `install.py`
 menu strings, and nothing else. All are text or fallback literals; none is
 logic:
 
@@ -178,6 +219,9 @@ logic:
 - `Content/Python/UEFN_Toolbelt/dashboard_pyside6.py` line 2958 — the
   user-visible statistic label `"network calls — fully offline"`.
 - `launcher.py` line 18 — docstring step carrying a stale `355` count.
+- `Content/Python/UEFN_Toolbelt/tools/epic_mcp_tools.py` line 27 — the
+  `run_epic_mcp_status` docstring softening WO-002's accepted external result
+  to "unproven". Admitted by Amendment 1 above.
 
 Every corrected count becomes 362 tools and 55 categories, matching the
 authoritative runtime registry. The two dashboard fallbacks are replaced
@@ -189,12 +233,12 @@ would leave the shipped UI asserting "fully offline" while WO-003 corrects the
 identical claim in `README.md`, producing exactly the surface disagreement this
 mandate exists to remove.
 
-Permitted: text and fallback-literal edits to those eight occurrences, and the
+Permitted: text and fallback-literal edits to those nine occurrences, and the
 two `install.py` menu strings. Prohibited: any dashboard behaviour, layout,
 widget, signal, theme, or statistic-computation change; any change to
 registration logic, the `__tool_count__` / `__category_count__` constants, or
-any signature; any edit to a ninth runtime occurrence without a mandate
-amendment.
+any signature; any edit to a tenth runtime occurrence without a further
+mandate amendment.
 
 Because repository policy treats these paths as live-sensitive, Session A must
 complete all of the following before any commit:
@@ -340,13 +384,15 @@ authorization → implementation → independent implementation review → commi
 push → CI → Session B authorization → metadata application → tag → GitHub
 Release → social publication.
 
-This Work Order is issued but authorizes neither session. Live UEFN
-verification is not required for the documentation-only rows. The exception is
-the runtime-text lock — eight runtime occurrences across `__init__.py`,
-`dashboard_pyside6.py` and `launcher.py`, plus the two `install.py` strings —
-which carries the deploy, full-restart, registration, visual-inspection, and
-end-to-end install verification set defined above.
+This Work Order is issued and Session A is authorized under root
+`WORKORDER.md`. Session B is not authorized and requires a separate owner gate.
 
-NEXT GATE: explicit BDFL/owner authorization for Session A. Issuance alone
-grants no implementation authority; Session A and Session B remain
-unauthorized.
+Live UEFN verification is not required for the documentation-only rows. The
+exception is the runtime-text lock — nine runtime occurrences across
+`__init__.py`, `dashboard_pyside6.py`, `launcher.py` and `epic_mcp_tools.py`,
+plus the two `install.py` strings — which carries the deploy, full-restart,
+registration, visual-inspection, and end-to-end install verification set defined
+above.
+
+NEXT GATE: fresh independent architect review of the complete uncommitted
+Session A implementation. Session B remains unauthorized.

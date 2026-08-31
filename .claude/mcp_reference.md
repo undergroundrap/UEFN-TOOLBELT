@@ -1,6 +1,11 @@
 # UEFN Toolbelt — MCP Commands, Patterns & Key Files
 
-## MCP Bridge Commands (from Claude Code → UEFN)
+## Toolbelt custom bridge — commands (from Claude Code → UEFN)
+
+These commands belong to **Toolbelt's custom bridge**: Toolbelt's own authenticated,
+same-user loopback HTTP listener. This is not Epic's official UEFN MCP server, and
+Toolbelt is not reachable through that server — WO-002 recorded the external
+result as `failed`, bounded by `UE::ValkyrieToolset::ToolsetPolicy`.
 
 When the listener is running, Claude Code can call these directly:
 
@@ -43,8 +48,8 @@ When the listener is running, Claude Code can call these directly:
 ## External HTTP Client (no MCP required)
 
 `client.py` at the project root gives trusted same-user Python automation
-authenticated access to UEFN. It reads the rotating session handoff
-automatically:
+authenticated access to UEFN through **Toolbelt's custom bridge**. It reads the
+rotating session handoff automatically:
 
 ```python
 from client import ToolbeltClient

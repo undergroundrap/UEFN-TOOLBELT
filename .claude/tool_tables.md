@@ -832,7 +832,7 @@ Low-frequency tools — check these exist before re-implementing similar functio
 | `mcp_restart` | `port=0` | Restart and rotate the local session credential |
 | `mcp_status` | — | Print port, state, command count |
 | `epic_mcp_status` | — | Report separate in-process registry, internal-contract, and external official-MCP evidence states |
-| `epic_mcp_register` | — | Attempt in-process Toolset Registry submission; external exposure remains unproven |
+| `epic_mcp_register` | — | Attempt in-process Toolset Registry submission. External exposure through Epic's official MCP server `failed` on UEFN 42.00, bounded by `UE::ValkyrieToolset::ToolsetPolicy` (WO-002) |
 | `epic_mcp_unregister` | — | Request removal from the in-process registry without claiming external client state |
 
 ---

@@ -11,7 +11,7 @@ UEFN force-updates in lockstep with the live Fortnite build, so 42.00 is not
 optional for anyone. It runs **UE 6.0**, not UE 5.x, and removes 13 `unreal.*`
 symbols the Toolbelt used.
 
-**Twelve tools are non-functional on 42.00 and refuse cleanly** rather than raising
+**Thirteen tools are non-functional on 42.00 and refuse cleanly** rather than raising
 part-way through their work. They return
 `{"status": "error", "reason": "engine_api_unavailable", "missing_apis": [...]}`:
 
@@ -42,7 +42,19 @@ never auto-starts. See README "Known Issue" and UEFN_QUIRKS.md #36. Detected by
 
 This document outlines the current testing status of the toolbelt and categorizes which tools are verified by the automated smoke test, and which require manual verification.
 
-## 🟡 Automated Verification Status: **187 / 362 Tools (52% Coverage)**
+## 🟡 Automated Verification Status
+
+Five different measurements exist here and none substitutes for another. These are
+the accepted labels from the 2026-08-24 audit reconciliation:
+
+| Measurement | Result | What it means |
+|---|---:|---|
+| Runtime registry | 362 | Authoritative registered universe |
+| `list_untested` discovery | 356 | A discovery-scan result, never a registry count — it misses six registrations outside its direct scan |
+| Lexically referenced entries | 191 | The name appears in one of two scanned test files |
+| Curated `TOOL_STATUS` unique-entry claim | 187 | Manually maintained. **187 is not a registration count** |
+| Integration checks | 190 | 163 outcome-verified plus 27 execution-only |
+
 Integration suite has **116 test sections written**, all run live. The suite
 records 190 individual checks; **190/190 passed on UEFN 42.00** (publishing
 hardening build based on 112671c, 2026-08-23). Batches 9 and 10 below are now marked from that run rather than

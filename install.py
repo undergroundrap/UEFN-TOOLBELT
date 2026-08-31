@@ -12,7 +12,7 @@ What it does:
   3. Creates init_unreal.py if one doesn't exist, or patches it if one does
 
 After running:
-  Open UEFN. The Toolbelt menu appears automatically.
+  Open UEFN, then open the dashboard: import UEFN_Toolbelt as tb; tb.launch_qt()
   In the Python console: import UEFN_Toolbelt as tb; tb.smoke_test()
 """
 
@@ -294,7 +294,7 @@ def _print_next_steps(project_path: str):
 
 Next steps:
   1. Open your UEFN project
-  2. The "Toolbelt ▾" menu appears in the top menu bar automatically
+  2. Open the dashboard: import UEFN_Toolbelt as tb; tb.launch_qt()
   3. Verify in the Python console:
 
        import UEFN_Toolbelt as tb; tb.register_all_tools(); tb.run("toolbelt_smoke_test")

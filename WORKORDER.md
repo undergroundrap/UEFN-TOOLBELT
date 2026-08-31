@@ -5,12 +5,15 @@ state. Detailed mandates live under `docs/work-orders/`; their presence alone
 never authorizes implementation.
 
 - Current issued Work Order: WO-003
-- Authorized session: NONE
-- Base commit: `19350aa324bea4d88e494ee806801586a383d76e`
-- Current gate: WO-003 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED
+- Authorized session: A
+- Base commit: `52d89295614a4ce686094736d87f7e6c907e12a0`
+- Current gate: WO-003 SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY
 - Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`
 - Issuance CI workflow: `33148089523`
 - Issuance CI job: `98773518991` — Lint, types, tests
+- Session A authorization commit: `52d89295614a4ce686094736d87f7e6c907e12a0`
+- Session A authorization CI workflow: `33200547479`
+- Session A authorization CI job: `98948639416` — Lint, types, tests
 - Release train: WO-001 through WO-007
 - Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST
 
@@ -37,11 +40,15 @@ negative result bounded by ToolsetPolicy. WO-002 is complete; no session
 is authorized.
 
 [`WO-003`](docs/work-orders/issued/WO-003-official-mcp-doc-convergence.md)
-is issued, but issuance grants no implementation authority. Session A and
-Session B remain unauthorized. Its accepted planning baseline is
+is issued. Its accepted planning baseline is
 `e0b1063f5300404534c76789bdb6742f639425ba`; the accepted revision was
 committed as `19350aa324bea4d88e494ee806801586a383d76e` after CI
 workflow `33148089523` and required job `98773518991` passed.
+
+Session A is authorized for implementation under this pointer alone, on the
+basis of commit `52d89295614a4ce686094736d87f7e6c907e12a0`, successful CI
+workflow `33200547479`, and successful required job `98948639416`
+(`Lint, types, tests`). Session B is not authorized and requires a separate owner gate.
 
 WO-001 through WO-007 form the frozen next release train. The release version
 remains undecided and the repository stays at version 2.4.1. No tag or GitHub
