@@ -2,7 +2,7 @@
 
 STATUS: ISSUED
 
-AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR DRAFTING ONLY
+AUTHORIZATION: ISSUED — SESSION B ACCEPTED; NO SESSION AUTHORIZED
 
 OWNER: Ocean Bennett
 
@@ -33,6 +33,12 @@ SESSION_B_AUTHORIZATION_COMMIT: `2582be8c9168d72b46846334bbba44307d348ce6`
 SESSION_B_AUTHORIZATION_CI_WORKFLOW: `33351157691`
 
 SESSION_B_AUTHORIZATION_CI_JOB: `99364656646` — Lint, types, tests
+
+SESSION_B_ACCEPTANCE_COMMIT: `e23baa40c4b9358eb6b4448f460c054650ae64f0`
+
+SESSION_B_ACCEPTANCE_CI_WORKFLOW: `33476969423`
+
+SESSION_B_ACCEPTANCE_CI_JOB: `99758148278` — Lint, types, tests
 
 ## Issuance basis
 
@@ -95,6 +101,25 @@ Exactly one replacement description is proposed above. It is a DRAFT and has
 NOT BEEN APPLIED. This Work Order does not authorize repository metadata
 application. Applying an independently accepted description remains a separate
 owner-authorized external action after review, commit, push, and green CI.
+
+## Session B acceptance record
+
+Session B's repository-description draft was independently accepted. The
+accepted draft was committed and pushed as `e23baa40c4b9358eb6b4448f460c054650ae64f0`. CI
+workflow [`33476969423`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/33476969423)
+completed successfully, including required job
+[`99758148278` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/33476969423/job/99758148278).
+
+ACCEPTED_REPOSITORY_DESCRIPTION_NOT_APPLIED: `UEFN Toolbelt: 362 Python automation tools across 55 categories, with a PySide6 dashboard and an experimental, authenticated same-user loopback bridge for local AI control. Complements Epic's official UEFN MCP; Toolbelt is not exposed through Epic's MCP server.`
+
+ACCEPTED_DESCRIPTION_CHARACTER_COUNT: `261`
+
+The accepted description above is still a DRAFT and has NOT BEEN APPLIED.
+The live GitHub repository description is unchanged. No repository
+description, repository metadata, tag, Release, or social publication was
+changed, updated, applied, or published. Applying the exact accepted
+description remains a separate owner-authorized external action, and this
+Work Order does not authorize repository metadata application.
 
 ## Planning basis
 
@@ -435,9 +460,9 @@ push → CI → Session B authorization → metadata application → tag → Git
 Release → social publication.
 
 This Work Order remains issued. Session A is accepted and complete. Session B
-is authorized for repository-description drafting only. Metadata application,
-Session C or any later session, WO-004, tagging, Release creation, and social
-publication remain unauthorized.
+is accepted and complete. Repository-description application, Session C or any
+later session, WO-004, tagging, Release creation, and social publication
+remain unauthorized.
 
 Live UEFN verification is not required for the documentation-only rows. The
 exception is the runtime-text lock — nine runtime occurrences across
@@ -446,6 +471,6 @@ plus the two `install.py` strings — which carries the deploy, full-restart,
 registration, visual-inspection, and end-to-end install verification set defined
 above.
 
-NEXT GATE: fresh independent architect review of the complete uncommitted
-Session B repository-description draft. The draft is not applied, and metadata
-application remains unauthorized.
+NEXT GATE: separate BDFL/owner authorization to apply the exact accepted
+repository description. Metadata application remains unauthorized until that
+explicit gate.

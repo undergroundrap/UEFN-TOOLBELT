@@ -153,6 +153,9 @@ _ISSUED_SESSION_A_ACCEPTED = (
 _ISSUED_SESSION_B_DRAFT_AUTH = (
     "AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR DRAFTING ONLY"
 )
+_ISSUED_SESSION_B_ACCEPTED = (
+    "AUTHORIZATION: ISSUED — SESSION B ACCEPTED; NO SESSION AUTHORIZED"
+)
 _COMPLETED_NO_SESSION_AUTH = "AUTHORIZATION: COMPLETED — NO SESSION AUTHORIZED"
 _WO001_COMPLETION_COMMIT = "ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c"
 _WO001_COMPLETION_WORKFLOW = "32921154482"
@@ -226,6 +229,39 @@ _WO003_SESSION_B_POINTER_STATEMENT = (
     + "`, and successful required job `" + _WO003_SESSION_B_JOB
     + "` (`Lint, types, tests`). No repository metadata application, tag, "
     "Release, or social publication is authorized."
+)
+_WO003_SESSION_B_ACCEPTED_BASE = "e23baa40c4b9358eb6b4448f460c054650ae64f0"
+_WO003_SESSION_B_ACCEPTED_WORKFLOW = "33476969423"
+_WO003_SESSION_B_ACCEPTED_JOB = "99758148278"
+_WO003_SESSION_B_ACCEPTED_GATE = (
+    "WO-003 SESSION B ACCEPTED — REPOSITORY DESCRIPTION APPLICATION NOT "
+    "AUTHORIZED"
+)
+_WO003_SESSION_B_ACCEPTED_NEXT_GATE = (
+    "NEXT GATE: separate BDFL/owner authorization to apply the exact accepted "
+    "repository description. Metadata application remains unauthorized until "
+    "that explicit gate."
+)
+_WO003_SESSION_B_ACCEPTED_STATEMENT = (
+    "This Work Order remains issued. Session A is accepted and complete. "
+    "Session B is accepted and complete. Repository-description application, "
+    "Session C or any later session, WO-004, tagging, Release creation, and "
+    "social publication remain unauthorized."
+)
+# The pointer records the acceptance and, in the same breath, that nothing
+# external happened. It is pinned exactly and removed before the
+# external-action scan below, exactly as the drafting statement was.
+_WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT = (
+    "Session B's repository-description draft was independently accepted. The "
+    "accepted draft was committed and pushed as `"
+    + _WO003_SESSION_B_ACCEPTED_BASE + "`; successful CI workflow `"
+    + _WO003_SESSION_B_ACCEPTED_WORKFLOW
+    + "` included successful required job `"
+    + _WO003_SESSION_B_ACCEPTED_JOB + "` (`Lint, types, tests`). The live "
+    "GitHub repository description is unchanged. Applying the exact accepted "
+    "repository description remains a separate owner-authorized external "
+    "action. Metadata application, tags, Releases, and social publication all "
+    "remain unauthorized, as do Session C and WO-004."
 )
 _WO003_CURRENT_DESCRIPTION = (
     "The ultimate, ever-expanding Swiss Army Knife for the UEFN Python API "
@@ -547,6 +583,30 @@ _WO003_SESSION_B_POINTER_SEQUENCE = (
         + "` — Lint, types, tests",
     ) + _WO003_SESSION_A_ACCEPTED_POINTER_SEQUENCE[-2:]
 )
+# Accepting Session B adds three more declarations to each canonical
+# block. The slice stays exact and terminal, so neither the issuance nor
+# any earlier session record can be dropped, reordered, or padded on the
+# way through this transition either.
+_WO003_SESSION_B_ACCEPTED_ISSUED_SEQUENCE = (
+    _WO003_SESSION_B_ISSUED_SEQUENCE + (
+        "SESSION_B_ACCEPTANCE_COMMIT: `"
+        + _WO003_SESSION_B_ACCEPTED_BASE + "`",
+        "SESSION_B_ACCEPTANCE_CI_WORKFLOW: `"
+        + _WO003_SESSION_B_ACCEPTED_WORKFLOW + "`",
+        "SESSION_B_ACCEPTANCE_CI_JOB: `"
+        + _WO003_SESSION_B_ACCEPTED_JOB + "` — Lint, types, tests",
+    )
+)
+_WO003_SESSION_B_ACCEPTED_POINTER_SEQUENCE = (
+    _WO003_SESSION_B_POINTER_SEQUENCE[:-2] + (
+        "- Session B acceptance commit: `"
+        + _WO003_SESSION_B_ACCEPTED_BASE + "`",
+        "- Session B acceptance CI workflow: `"
+        + _WO003_SESSION_B_ACCEPTED_WORKFLOW + "`",
+        "- Session B acceptance CI job: `"
+        + _WO003_SESSION_B_ACCEPTED_JOB + "` — Lint, types, tests",
+    ) + _WO003_SESSION_B_POINTER_SEQUENCE[-2:]
+)
 
 
 def _canonical_metadata(text: str, stop) -> list[str]:
@@ -616,7 +676,14 @@ def _wo003_record_findings(
     out = []
     issued_sequence: tuple[str, ...]
     pointer_sequence: tuple[str, ...]
-    if session == "B":
+    if session == "B_ACCEPTED":
+        expected_base = _WO003_SESSION_B_ACCEPTED_BASE
+        expected_gate = _WO003_SESSION_B_ACCEPTED_GATE
+        issued_sequence = _WO003_SESSION_B_ACCEPTED_ISSUED_SEQUENCE
+        pointer_sequence = _WO003_SESSION_B_ACCEPTED_POINTER_SEQUENCE
+        base_kind = "WO-003 Session B accepted base commit"
+        gate_kind = "WO-003 Session B accepted gate"
+    elif session == "B":
         expected_base = _WO003_SESSION_B_BASE
         expected_gate = _WO003_SESSION_B_GATE
         issued_sequence = _WO003_SESSION_B_ISSUED_SEQUENCE
@@ -683,6 +750,7 @@ def _wo003_record_findings(
 _WO003_AUTHORIZATION_HEADING = "## Session A authorization basis"
 _WO003_ACCEPTANCE_HEADING = "## Session A acceptance record"
 _WO003_SESSION_B_HEADING = "## Session B authorization and draft record"
+_WO003_SESSION_B_ACCEPTANCE_HEADING = "## Session B acceptance record"
 _WO003_PLANNING_HEADING = "## Planning basis"
 _WO003_ACCEPTED_RUN_URL = (
     "https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/"
@@ -706,33 +774,49 @@ _WO003_ACCEPTANCE_RECORD = (
 )
 
 
+def _wo003_anchored_section(text, required):
+    """The middle section of three consecutive headings, or why not.
+
+    Returns ``(region, reason)``. The region is the whitespace-normalized
+    block at the anchored position; ``reason`` names the structural failure
+    when there is no such position. Locating a record by the structure
+    around it - never by anything inside it - is what makes a byte-correct
+    transplant elsewhere fail: the anchored position still holds the
+    corrupted text.
+    """
+    lines = text.split("\n")
+    marks = [i for i, line in enumerate(lines) if line.startswith("## ")]
+    headings = [lines[index] for index in marks]
+    for heading in required:
+        occurrences = headings.count(heading)
+        if occurrences != 1:
+            return None, (
+                heading + " occurs " + str(occurrences)
+                + "x, expected exactly 1"
+            )
+    first = headings.index(required[0])
+    if (first + 2 >= len(headings)
+            or headings[first:first + 3] != list(required)):
+        return None, (
+            "the headings " + ", ".join(required)
+            + " are not consecutive and ordered"
+        )
+    block = lines[marks[first + 1]:marks[first + 2]]
+    return " ".join("\n".join(block).split()), None
+
+
 def _wo003_acceptance_record_findings(
     text, following_heading=_WO003_PLANNING_HEADING
 ):
     """Check only the structurally located Session A acceptance evidence."""
-    lines = text.split("\n")
-    marks = [i for i, line in enumerate(lines) if line.startswith("## ")]
-    headings = [lines[index] for index in marks]
-    required = (
-        _WO003_AUTHORIZATION_HEADING,
-        _WO003_ACCEPTANCE_HEADING,
-        following_heading,
+    region, reason = _wo003_anchored_section(
+        text,
+        (_WO003_AUTHORIZATION_HEADING, _WO003_ACCEPTANCE_HEADING,
+         following_heading),
     )
-    for heading in required:
-        occurrences = headings.count(heading)
-        if occurrences != 1:
-            return [("WO-003 Session A acceptance record",
-                     heading + " occurs " + str(occurrences) + "x",
-                     "exactly one " + heading)]
-    authorization = headings.index(_WO003_AUTHORIZATION_HEADING)
-    if (authorization + 2 >= len(headings)
-            or headings[authorization:authorization + 3] != list(required)):
-        return [("WO-003 Session A acceptance record",
-                 "acceptance headings are not consecutive and ordered",
-                 "authorization basis, acceptance record, then planning basis")]
-    first = marks[authorization + 1]
-    last = marks[authorization + 2]
-    region = " ".join("\n".join(lines[first:last]).split())
+    if region is None:
+        return [("WO-003 Session A acceptance record", reason,
+                 "one structurally anchored Session A acceptance record")]
     if region != _WO003_ACCEPTANCE_RECORD:
         return [("WO-003 Session A acceptance record",
                  "the bounded acceptance record changed",
@@ -768,32 +852,18 @@ _WO003_SESSION_B_RECORD = (
 )
 
 
-def _wo003_session_b_record_findings(text):
+def _wo003_session_b_record_findings(
+    text, following_heading=_WO003_PLANNING_HEADING
+):
     """Validate only the structurally bounded Session B description record."""
-    lines = text.split("\n")
-    marks = [i for i, line in enumerate(lines) if line.startswith("## ")]
-    headings = [lines[index] for index in marks]
-    required = (
-        _WO003_ACCEPTANCE_HEADING,
-        _WO003_SESSION_B_HEADING,
-        _WO003_PLANNING_HEADING,
+    region, reason = _wo003_anchored_section(
+        text,
+        (_WO003_ACCEPTANCE_HEADING, _WO003_SESSION_B_HEADING,
+         following_heading),
     )
-    for heading in required:
-        occurrences = headings.count(heading)
-        if occurrences != 1:
-            return [("WO-003 Session B draft record",
-                     heading + " occurs " + str(occurrences) + "x",
-                     "exactly one " + heading)]
-    acceptance = headings.index(_WO003_ACCEPTANCE_HEADING)
-    if (acceptance + 2 >= len(headings)
-            or headings[acceptance:acceptance + 3] != list(required)):
-        return [("WO-003 Session B draft record",
-                 "Session B draft headings are not consecutive and ordered",
-                 "Session A acceptance, Session B draft, then planning basis")]
-    first = marks[acceptance + 1]
-    last = marks[acceptance + 2]
-    raw_region = "\n".join(lines[first:last])
-    region = " ".join(raw_region.split())
+    if region is None:
+        return [("WO-003 Session B draft record", reason,
+                 "one structurally anchored Session B draft record")]
     findings = []
     if region != _WO003_SESSION_B_RECORD:
         findings.append(("WO-003 Session B draft record",
@@ -842,6 +912,111 @@ def _wo003_session_b_record_findings(text):
             findings.append(("WO-003 Session B draft truth",
                              "stale claim " + stale,
                              "the accepted 362/55 and bounded-network truth"))
+    return findings
+
+
+_WO003_ACCEPTED_DESCRIPTION_PREFIX = (
+    "ACCEPTED_REPOSITORY_DESCRIPTION_NOT_APPLIED: `"
+)
+_WO003_SESSION_B_ACCEPTED_RUN_URL = (
+    "https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/"
+    + _WO003_SESSION_B_ACCEPTED_WORKFLOW
+)
+_WO003_SESSION_B_ACCEPTED_JOB_URL = (
+    _WO003_SESSION_B_ACCEPTED_RUN_URL + "/job/"
+    + _WO003_SESSION_B_ACCEPTED_JOB
+)
+_WO003_SESSION_B_ACCEPTANCE_RECORD = (
+    "## Session B acceptance record Session B's repository-description draft "
+    "was independently accepted. The accepted draft was committed and pushed "
+    "as `" + _WO003_SESSION_B_ACCEPTED_BASE + "`. CI workflow "
+    "[`" + _WO003_SESSION_B_ACCEPTED_WORKFLOW + "`]("
+    + _WO003_SESSION_B_ACCEPTED_RUN_URL + ") completed successfully, "
+    "including required job [`" + _WO003_SESSION_B_ACCEPTED_JOB
+    + "` — Lint, types, tests](" + _WO003_SESSION_B_ACCEPTED_JOB_URL
+    + "). " + _WO003_ACCEPTED_DESCRIPTION_PREFIX + _WO003_DESCRIPTION_DRAFT
+    + "` ACCEPTED_DESCRIPTION_CHARACTER_COUNT: `"
+    + str(_WO003_DESCRIPTION_DRAFT_LENGTH) + "` The accepted description "
+    "above is still a DRAFT and has NOT BEEN APPLIED. The live GitHub "
+    "repository description is unchanged. No repository description, "
+    "repository metadata, tag, Release, or social publication was changed, "
+    "updated, applied, or published. Applying the exact accepted description "
+    "remains a separate owner-authorized external action, and this Work Order "
+    "does not authorize repository metadata application."
+)
+# One pinned occurrence each, in its own position and form. Containment
+# alone cannot enforce these: each identifier appears twice per record -
+# visible label and URL - so one can rot while the other keeps `in` true.
+_WO003_SESSION_B_ACCEPTANCE_EVIDENCE = (
+    ("acceptance narrative commit",
+     "pushed as `" + _WO003_SESSION_B_ACCEPTED_BASE + "`."),
+    ("acceptance workflow label",
+     "[`" + _WO003_SESSION_B_ACCEPTED_WORKFLOW + "`]"),
+    ("acceptance workflow URL",
+     "(" + _WO003_SESSION_B_ACCEPTED_RUN_URL + ")"),
+    ("acceptance required-job label",
+     "[`" + _WO003_SESSION_B_ACCEPTED_JOB + "` — Lint, types, tests]"),
+    ("acceptance job URL",
+     "(" + _WO003_SESSION_B_ACCEPTED_JOB_URL + ")"),
+    ("accepted description",
+     _WO003_ACCEPTED_DESCRIPTION_PREFIX + _WO003_DESCRIPTION_DRAFT + "`"),
+    ("not-applied status",
+     "still a DRAFT and has NOT BEEN APPLIED"),
+    ("live description unchanged",
+     "The live GitHub repository description is unchanged."),
+)
+
+
+def _locate_wo003_session_b_acceptance(text):
+    """The Session B acceptance record, located by its two neighbours."""
+    return _wo003_anchored_section(
+        text,
+        (_WO003_SESSION_B_HEADING, _WO003_SESSION_B_ACCEPTANCE_HEADING,
+         _WO003_PLANNING_HEADING),
+    )
+
+
+def _wo003_session_b_acceptance_findings(text):
+    """The accepted draft, its evidence, and its not-applied status.
+
+    The bounded record carries the accepted description a second time, so
+    the exact text and its 261-character count are re-derived here rather
+    than trusted to the byte comparison alone: a coordinated edit to both
+    the record and this constant would still have to change the recomputed
+    length to pass.
+    """
+    findings = []
+    for found_detail, want in _acceptance_record_findings(
+        text, _locate_wo003_session_b_acceptance,
+        _WO003_SESSION_B_ACCEPTANCE_RECORD,
+        _WO003_SESSION_B_ACCEPTANCE_EVIDENCE,
+    ):
+        findings.append(("WO-003 Session B acceptance record",
+                         found_detail, want))
+    accepted = [
+        line.strip() for line in text.split("\n")
+        if line.strip().startswith(_WO003_ACCEPTED_DESCRIPTION_PREFIX)
+    ]
+    if len(accepted) != 1:
+        findings.append(("WO-003 Session B accepted description count",
+                         str(len(accepted)),
+                         "exactly one accepted description declaration"))
+        return findings
+    value = accepted[0][len(_WO003_ACCEPTED_DESCRIPTION_PREFIX):]
+    if not value.endswith("`"):
+        findings.append(("WO-003 Session B accepted description",
+                         accepted[0],
+                         "a backtick-delimited accepted description"))
+        return findings
+    value = value[:-1]
+    if value != _WO003_DESCRIPTION_DRAFT:
+        findings.append(("WO-003 Session B accepted description",
+                         "the accepted description changed",
+                         "the exact accepted draft, unchanged"))
+    if len(value) != _WO003_DESCRIPTION_DRAFT_LENGTH:
+        findings.append(
+            ("WO-003 Session B accepted description character count",
+             str(len(value)), str(_WO003_DESCRIPTION_DRAFT_LENGTH)))
     return findings
 
 
@@ -1123,11 +1298,15 @@ def _has_release_authorization(pointer: str) -> bool:
     # Session B's current drafting-only record repeats the same closed release
     # boundary. It is optional in historical fixtures, exact when present, and
     # removed before the positive-permission scan.
-    session_b_occurrences = text.count(_WO003_SESSION_B_POINTER_STATEMENT)
-    if session_b_occurrences > 1:
-        return True
-    if session_b_occurrences == 1:
-        text = text.replace(_WO003_SESSION_B_POINTER_STATEMENT, "", 1)
+    for statement in (
+        _WO003_SESSION_B_POINTER_STATEMENT,
+        _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT,
+    ):
+        occurrences = text.count(statement)
+        if occurrences > 1:
+            return True
+        if occurrences == 1:
+            text = text.replace(statement, "", 1)
     release_target = r"(?:tag|github\s+release|release\s+session)"
     positive = r"(?:authorized|permitted|approved|cleared|granted|ready)"
     return bool(re.search(
@@ -1138,18 +1317,19 @@ def _has_release_authorization(pointer: str) -> bool:
     ))
 
 
-def _has_session_b_external_action_authorization(pointer: str) -> bool:
-    """Reject applying the draft or publishing it while Session B is bounded.
+def _has_session_b_external_action_authorization(
+    pointer: str, allowed_contexts: tuple[str, ...]
+) -> bool:
+    """Reject applying the draft or publishing it, drafted or accepted.
 
-    The exact drafting-only statement is removed first. The remaining check is
-    intentionally limited to description/metadata application and social
-    publication; it is not another general authorization-language parser.
+    The caller supplies the exact statements the current gate is allowed to
+    make - the drafting-only pair before acceptance, the accepted-and-not-
+    applied pair after it - and each is removed once before the scan. The
+    remaining check is intentionally limited to description/metadata
+    application and social publication; it is not another general
+    authorization-language parser.
     """
     text = " ".join(pointer.split())
-    allowed_contexts = (
-        _WO003_SESSION_B_GATE,
-        _WO003_SESSION_B_POINTER_STATEMENT,
-    )
     for context in allowed_contexts:
         if text.count(context) != 1:
             return True
@@ -1546,23 +1726,25 @@ def check_work_order_contract() -> list[dict]:
             add(rel, "issued authorization", repr(auth_lines),
                 "exactly one AUTHORIZATION: ISSUED marker")
 
-    # Session B's drafting-only authorization is one-way until the owner
-    # explicitly closes it. A coherent document-only rollback to Session A's
-    # accepted state must therefore still fail.
-    session_b_wo003_path = issued_dir / _WO003_NAME
-    session_b_wo003_auth = (
+    # Session B's acceptance is one-way until the owner explicitly moves
+    # the gate on. A coherent document-only rollback - to the drafting-only
+    # state, to Session A's acceptance, or anywhere earlier - must therefore
+    # still fail. Rolling back would have to edit this file too, which is a
+    # visible act.
+    accepted_b_wo003_path = issued_dir / _WO003_NAME
+    accepted_b_wo003_auth = (
         issued_metadata.get(_WO003_NAME, ([], [], ""))[1]
     )
     if not (
-        wo003_paths == [session_b_wo003_path]
-        and session == "B"
-        and base == "`" + _WO003_SESSION_B_BASE + "`"
-        and current_gate == _WO003_SESSION_B_GATE
-        and session_b_wo003_auth == [_ISSUED_SESSION_B_DRAFT_AUTH]
+        wo003_paths == [accepted_b_wo003_path]
+        and session == "NONE"
+        and base == "`" + _WO003_SESSION_B_ACCEPTED_BASE + "`"
+        and current_gate == _WO003_SESSION_B_ACCEPTED_GATE
+        and accepted_b_wo003_auth == [_ISSUED_SESSION_B_ACCEPTED]
     ):
-        add("docs/work-orders", "authorized WO-003 Session B drafting state",
-            "the drafting-only state was removed or changed",
-            "WO-003 issued with Session B authorized for drafting only")
+        add("docs/work-orders", "accepted WO-003 Session B state",
+            "the accepted Session B state was removed or changed",
+            "WO-003 issued with Session B accepted and no session authorized")
 
     completed_metadata: dict[str, tuple[list[str], list[str], str]] = {}
     for path in completed:
@@ -1707,6 +1889,14 @@ def check_work_order_contract() -> list[dict]:
                     or auth_lines == [_ISSUED_SESSION_A_ACCEPTED]
                     or _WO003_ACCEPTANCE_HEADING in issued_text
                 )
+                wo003_session_b_accepted = (
+                    issued[0].name == _WO003_NAME and (
+                        current_gate == _WO003_SESSION_B_ACCEPTED_GATE
+                        or auth_lines == [_ISSUED_SESSION_B_ACCEPTED]
+                        or _WO003_SESSION_B_ACCEPTANCE_HEADING
+                        in issued_text
+                    )
+                )
                 if wo002_session_a_accepted:
                     rel = issued[0].relative_to(root).as_posix()
                     normalized_issued = " ".join(issued_text.split())
@@ -1744,6 +1934,78 @@ def check_work_order_contract() -> list[dict]:
                         add("WORKORDER.md", "session authorization reopening",
                             "positive permission for Session A, Session B, or later",
                             "Session A accepted; no session authorized")
+                elif wo003_session_b_accepted:
+                    rel = issued[0].relative_to(root).as_posix()
+                    normalized_issued = " ".join(issued_text.split())
+                    if auth_lines != [_ISSUED_SESSION_B_ACCEPTED]:
+                        add(rel, "WO-003 Session B accepted authorization",
+                            repr(auth_lines),
+                            f"exactly {_ISSUED_SESSION_B_ACCEPTED}")
+                    for _f, _k, _found, _want in _wo003_record_findings(
+                        pointer, issued_text, rel, base, current_gate,
+                        "B_ACCEPTED",
+                    ):
+                        add(_f, _k, _found, _want)
+                    # Every earlier bounded record stays enforced: the
+                    # Session A acceptance evidence, the exact accepted
+                    # draft, and now the acceptance of that draft.
+                    for _k, _found, _want in (
+                        _wo003_acceptance_record_findings(
+                            issued_text, _WO003_SESSION_B_HEADING)
+                    ):
+                        add(rel, _k, _found, _want)
+                    for _k, _found, _want in (
+                        _wo003_session_b_record_findings(
+                            issued_text,
+                            _WO003_SESSION_B_ACCEPTANCE_HEADING)
+                    ):
+                        add(rel, _k, _found, _want)
+                    for _k, _found, _want in (
+                        _wo003_session_b_acceptance_findings(issued_text)
+                    ):
+                        add(rel, _k, _found, _want)
+                    for required, kind in (
+                        (_WO003_SESSION_B_ACCEPTED_NEXT_GATE,
+                         "WO-003 next gate"),
+                        (_WO003_SESSION_B_ACCEPTED_STATEMENT,
+                         "WO-003 Session B accepted statement"),
+                    ):
+                        if normalized_issued.count(required) != 1:
+                            add(rel, kind,
+                                str(normalized_issued.count(required)),
+                                "exactly one " + required)
+                    normalized_pointer = " ".join(pointer.split())
+                    if normalized_pointer.count(
+                        _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT
+                    ) != 1:
+                        add("WORKORDER.md",
+                            "WO-003 Session B accepted pointer statement",
+                            str(normalized_pointer.count(
+                                _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT
+                            )),
+                            "exactly one accepted, not-applied statement")
+                    # Acceptance is not application. The pointer may not
+                    # open metadata application or publication, reopen a
+                    # labeled session, or reach WO-004.
+                    if _has_session_b_external_action_authorization(
+                        pointer,
+                        (_WO003_SESSION_B_ACCEPTED_GATE,
+                         _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT),
+                    ):
+                        add("WORKORDER.md",
+                            "WO-003 Session B external-action boundary",
+                            "metadata application or social publication opened",
+                            "accepted draft only; no metadata or publication action")
+                    if _has_other_session_authorization(pointer, "", ""):
+                        add("WORKORDER.md", "session authorization reopening",
+                            "positive permission for Session A, Session B, or later",
+                            "Session B accepted; no session authorized")
+                    if _has_next_work_order_authorization(
+                        pointer, "", "WO-004"
+                    ):
+                        add("WORKORDER.md", "next work order authorization",
+                            "implicit WO-004 permission",
+                            "WO-004 remains proposed and not authorized")
                 elif wo003_session_a_accepted:
                     rel = issued[0].relative_to(root).as_posix()
                     normalized_issued = " ".join(issued_text.split())
@@ -1937,7 +2199,11 @@ def check_work_order_contract() -> list[dict]:
                                 _WO003_SESSION_B_POINTER_STATEMENT
                             )),
                             "exactly one drafting-only authority statement")
-                    if _has_session_b_external_action_authorization(pointer):
+                    if _has_session_b_external_action_authorization(
+                        pointer,
+                        (_WO003_SESSION_B_GATE,
+                         _WO003_SESSION_B_POINTER_STATEMENT),
+                    ):
                         add("WORKORDER.md",
                             "WO-003 Session B external-action boundary",
                             "metadata application or social publication opened",

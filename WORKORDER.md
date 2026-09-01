@@ -5,9 +5,9 @@ state. Detailed mandates live under `docs/work-orders/`; their presence alone
 never authorizes implementation.
 
 - Current issued Work Order: WO-003
-- Authorized session: B
-- Base commit: `2582be8c9168d72b46846334bbba44307d348ce6`
-- Current gate: WO-003 SESSION B AUTHORIZED — DRAFT REPOSITORY DESCRIPTION ONLY
+- Authorized session: NONE
+- Base commit: `e23baa40c4b9358eb6b4448f460c054650ae64f0`
+- Current gate: WO-003 SESSION B ACCEPTED — REPOSITORY DESCRIPTION APPLICATION NOT AUTHORIZED
 - Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`
 - Issuance CI workflow: `33148089523`
 - Issuance CI job: `98773518991` — Lint, types, tests
@@ -20,6 +20,9 @@ never authorizes implementation.
 - Session B authorization commit: `2582be8c9168d72b46846334bbba44307d348ce6`
 - Session B authorization CI workflow: `33351157691`
 - Session B authorization CI job: `99364656646` — Lint, types, tests
+- Session B acceptance commit: `e23baa40c4b9358eb6b4448f460c054650ae64f0`
+- Session B acceptance CI workflow: `33476969423`
+- Session B acceptance CI job: `99758148278` — Lint, types, tests
 - Release train: WO-001 through WO-007
 - Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST
 
@@ -62,11 +65,14 @@ ports 8765–8770. At the Session A acceptance gate, Session A was accepted and
 complete with no current implementation authority; Session B was not authorized
 pending separate owner authorization.
 
-Session B is authorized under this pointer for repository-description drafting
-only, on the basis of commit `2582be8c9168d72b46846334bbba44307d348ce6`,
-successful CI workflow `33351157691`, and successful required job `99364656646`
-(`Lint, types, tests`). No repository metadata application, tag, Release, or
-social publication is authorized.
+Session B's repository-description draft was independently accepted. The
+accepted draft was committed and pushed as
+`e23baa40c4b9358eb6b4448f460c054650ae64f0`; successful CI workflow
+`33476969423` included successful required job `99758148278` (`Lint, types,
+tests`). The live GitHub repository description is unchanged. Applying the
+exact accepted repository description remains a separate owner-authorized
+external action. Metadata application, tags, Releases, and social publication
+all remain unauthorized, as do Session C and WO-004.
 
 WO-001 through WO-007 form the frozen next release train. The release version
 remains undecided and the repository stays at version 2.4.1. No tag or GitHub
