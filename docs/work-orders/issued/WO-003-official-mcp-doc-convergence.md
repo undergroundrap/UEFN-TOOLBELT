@@ -2,7 +2,7 @@
 
 STATUS: ISSUED
 
-AUTHORIZATION: ISSUED — SESSION A ACCEPTED; NO SESSION AUTHORIZED
+AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR DRAFTING ONLY
 
 OWNER: Ocean Bennett
 
@@ -27,6 +27,12 @@ SESSION_A_ACCEPTANCE_COMMIT: `d23add58e02ddc855573cf9be7a2542776d25e7e`
 SESSION_A_ACCEPTANCE_CI_WORKFLOW: `33344006899`
 
 SESSION_A_ACCEPTANCE_CI_JOB: `99344607213` — Lint, types, tests
+
+SESSION_B_AUTHORIZATION_COMMIT: `2582be8c9168d72b46846334bbba44307d348ce6`
+
+SESSION_B_AUTHORIZATION_CI_WORKFLOW: `33351157691`
+
+SESSION_B_AUTHORIZATION_CI_JOB: `99364656646` — Lint, types, tests
 
 ## Issuance basis
 
@@ -67,8 +73,28 @@ source and deployed runtime hashes; no Fortnite session, play session, or level
 mutation; then a stopped listener, closed UEFN, absent handoff, and closed ports
 8765–8770.
 
-Session A is accepted and complete. No session is currently authorized. Session
-B remains unauthorized and requires separate owner authorization.
+At the Session A acceptance gate, Session A was accepted and complete with no
+current implementation authority; Session B was not authorized pending separate
+owner authorization.
+
+## Session B authorization and draft record
+
+Session B is authorized for repository-description drafting only under the
+current root `WORKORDER.md` gate. The recorded basis is commit
+`2582be8c9168d72b46846334bbba44307d348ce6`, successful CI workflow
+`33351157691`, and successful required job `99364656646`
+(`Lint, types, tests`).
+
+CURRENT_LIVE_DESCRIPTION_READ_ONLY_NOT_CHANGED: `The ultimate, ever-expanding Swiss Army Knife for the UEFN Python API (358+ tools registered across 55+ categories). Automate world-building, manage assets, generate boilerplate Verse code, and control the editor with AI via a fully-offline PySide6 dashboard.`
+
+PROPOSED_REPOSITORY_DESCRIPTION_DRAFT_NOT_APPLIED: `UEFN Toolbelt: 362 Python automation tools across 55 categories, with a PySide6 dashboard and an experimental, authenticated same-user loopback bridge for local AI control. Complements Epic's official UEFN MCP; Toolbelt is not exposed through Epic's MCP server.`
+
+PROPOSED_DESCRIPTION_CHARACTER_COUNT: `261`
+
+Exactly one replacement description is proposed above. It is a DRAFT and has
+NOT BEEN APPLIED. This Work Order does not authorize repository metadata
+application. Applying an independently accepted description remains a separate
+owner-authorized external action after review, commit, push, and green CI.
 
 ## Planning basis
 
@@ -370,8 +396,9 @@ freezing harmless prose and formatting.
 
 ## Session B — repository-description draft only
 
-Session B requires a separate owner gate. Its scope after that gate is drafting only: it may read the current
-GitHub repository description, prepare exactly one replacement description
+Session B is authorized under the current root `WORKORDER.md` gate. Its scope
+is drafting only: it may read the current GitHub repository description,
+prepare exactly one replacement description
 grounded in Session A's accepted wording, and leave that draft uncommitted for
 independent review.
 
@@ -407,9 +434,10 @@ authorization → implementation → independent implementation review → commi
 push → CI → Session B authorization → metadata application → tag → GitHub
 Release → social publication.
 
-This Work Order remains issued. Session A is accepted and complete, and no
-session is currently authorized. Session B remains unauthorized and requires
-separate owner authorization.
+This Work Order remains issued. Session A is accepted and complete. Session B
+is authorized for repository-description drafting only. Metadata application,
+Session C or any later session, WO-004, tagging, Release creation, and social
+publication remain unauthorized.
 
 Live UEFN verification is not required for the documentation-only rows. The
 exception is the runtime-text lock — nine runtime occurrences across
@@ -419,4 +447,5 @@ registration, visual-inspection, and end-to-end install verification set defined
 above.
 
 NEXT GATE: fresh independent architect review of the complete uncommitted
-Session A acceptance transition. Session B remains unauthorized.
+Session B repository-description draft. The draft is not applied, and metadata
+application remains unauthorized.

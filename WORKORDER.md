@@ -5,9 +5,9 @@ state. Detailed mandates live under `docs/work-orders/`; their presence alone
 never authorizes implementation.
 
 - Current issued Work Order: WO-003
-- Authorized session: NONE
-- Base commit: `d23add58e02ddc855573cf9be7a2542776d25e7e`
-- Current gate: WO-003 SESSION A ACCEPTED — SESSION B NOT AUTHORIZED
+- Authorized session: B
+- Base commit: `2582be8c9168d72b46846334bbba44307d348ce6`
+- Current gate: WO-003 SESSION B AUTHORIZED — DRAFT REPOSITORY DESCRIPTION ONLY
 - Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`
 - Issuance CI workflow: `33148089523`
 - Issuance CI job: `98773518991` — Lint, types, tests
@@ -17,6 +17,9 @@ never authorizes implementation.
 - Session A acceptance commit: `d23add58e02ddc855573cf9be7a2542776d25e7e`
 - Session A acceptance CI workflow: `33344006899`
 - Session A acceptance CI job: `99344607213` — Lint, types, tests
+- Session B authorization commit: `2582be8c9168d72b46846334bbba44307d348ce6`
+- Session B authorization CI workflow: `33351157691`
+- Session B authorization CI job: `99364656646` — Lint, types, tests
 - Release train: WO-001 through WO-007
 - Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST
 
@@ -55,9 +58,15 @@ tests`). Accepted live `TOOL_TEST` evidence recorded a deploy and full UEFN
 restart, 362 tools across 55 categories, corrected dashboard About ordering,
 matching source and deployed runtime hashes, no Fortnite or play session and no
 level mutation, then a stopped listener, closed UEFN, absent handoff, and closed
-ports 8765–8770. Session A is accepted and complete; no session is currently
-authorized. Session B remains unauthorized and requires separate owner
-authorization.
+ports 8765–8770. At the Session A acceptance gate, Session A was accepted and
+complete with no current implementation authority; Session B was not authorized
+pending separate owner authorization.
+
+Session B is authorized under this pointer for repository-description drafting
+only, on the basis of commit `2582be8c9168d72b46846334bbba44307d348ce6`,
+successful CI workflow `33351157691`, and successful required job `99364656646`
+(`Lint, types, tests`). No repository metadata application, tag, Release, or
+social publication is authorized.
 
 WO-001 through WO-007 form the frozen next release train. The release version
 remains undecided and the repository stays at version 2.4.1. No tag or GitHub

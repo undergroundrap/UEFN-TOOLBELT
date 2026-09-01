@@ -221,15 +221,16 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert len(completed) == 2
     assert (work_orders / "completed" / "WO-002-epic-toolset-integration.md").exists()
     assert current == "WO-003"
-    assert session == "NONE"
+    assert session == "B"
     assert base_lines == [
-        "- Base commit: `d23add58e02ddc855573cf9be7a2542776d25e7e`"
+        "- Base commit: `2582be8c9168d72b46846334bbba44307d348ce6`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-003 SESSION A ACCEPTED — SESSION B NOT AUTHORIZED"
+        "- Current gate: WO-003 SESSION B AUTHORIZED "
+        "— DRAFT REPOSITORY DESCRIPTION ONLY"
     ]
-    # Session A is accepted with no current session authority. The issuance
-    # and authorization records that carried WO-003 here remain declared.
+    # Session A stays accepted while Session B is bounded to drafting only.
+    # All issuance and Session A provenance remains declared.
     for line in (
         "- Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`",
         "- Issuance CI workflow: `33148089523`",
@@ -242,10 +243,15 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         " `d23add58e02ddc855573cf9be7a2542776d25e7e`",
         "- Session A acceptance CI workflow: `33344006899`",
         "- Session A acceptance CI job: `99344607213` — Lint, types, tests",
+        "- Session B authorization commit:"
+        " `2582be8c9168d72b46846334bbba44307d348ce6`",
+        "- Session B authorization CI workflow: `33351157691`",
+        "- Session B authorization CI job: `99364656646` — Lint, types, tests",
     ):
         assert line in pointer, line
     assert (
-        "Session B remains unauthorized and requires separate owner authorization."
+        "No repository metadata application, tag, Release, or social publication "
+        "is authorized."
         in " ".join(pointer.split())
     )
     assert "- Release train: WO-001 through WO-007" in pointer
@@ -267,7 +273,7 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "STATUS: ISSUED"
     ]
     assert [line for line in wo003_lines if line.startswith("AUTHORIZATION:")] == [
-        "AUTHORIZATION: ISSUED — SESSION A ACCEPTED; NO SESSION AUTHORIZED"
+        "AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR DRAFTING ONLY"
     ]
     for evidence in (
         "SESSION_A_ACCEPTANCE_COMMIT:"
@@ -275,7 +281,14 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "SESSION_A_ACCEPTANCE_CI_WORKFLOW: `33344006899`",
         "SESSION_A_ACCEPTANCE_CI_JOB: `99344607213` — Lint, types, tests",
         "## Session A acceptance record",
-        "Session A is accepted and complete. No session is currently authorized.",
+        "At the Session A acceptance gate, Session A was accepted and complete",
+        "SESSION_B_AUTHORIZATION_COMMIT:"
+        " `2582be8c9168d72b46846334bbba44307d348ce6`",
+        "SESSION_B_AUTHORIZATION_CI_WORKFLOW: `33351157691`",
+        "SESSION_B_AUTHORIZATION_CI_JOB: `99364656646` — Lint, types, tests",
+        "## Session B authorization and draft record",
+        "PROPOSED_DESCRIPTION_CHARACTER_COUNT: `261`",
+        _WO003_DESCRIPTION_DRAFT,
     ):
         assert evidence in wo003_text
 
@@ -363,14 +376,121 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "Work Order WO-001" in security_normalized
 
 
-def _make_wo003_accepted_case(repo_root, tmp_path, name):
-    """Copy the current accepted WO-003 Session A state."""
+def _make_wo003_session_b_case(repo_root, tmp_path, name):
+    """Copy the current authorized WO-003 Session B drafting state."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
     shutil.copytree(
         repo_root / "docs" / "work-orders",
         case / "docs" / "work-orders",
+    )
+    return case
+
+
+def _make_wo003_accepted_case(repo_root, tmp_path, name):
+    """Reconstruct the preserved accepted WO-003 Session A state."""
+    case = _make_wo003_session_b_case(repo_root, tmp_path, name)
+    issued = case / _WO003_REL
+    text = issued.read_text(encoding="utf-8")
+    for old, new in (
+        (
+            _WO003_SESSION_B_MARKER,
+            "AUTHORIZATION: ISSUED " + _EM
+            + " SESSION A ACCEPTED; NO SESSION AUTHORIZED",
+        ),
+        (
+            _NL + "SESSION_B_AUTHORIZATION_COMMIT: `"
+            + _WO003_SESSION_B_BASE + "`" + _NL
+            + _NL + "SESSION_B_AUTHORIZATION_CI_WORKFLOW: `"
+            + _WO003_SESSION_B_WORKFLOW + "`" + _NL
+            + _NL + "SESSION_B_AUTHORIZATION_CI_JOB: `"
+            + _WO003_SESSION_B_JOB + "` " + _EM
+            + " Lint, types, tests" + _NL,
+            "",
+        ),
+        (
+            _WO003_SESSION_B_STATEMENT,
+            "This Work Order remains issued. Session A is accepted and complete,"
+            + " and no" + _NL
+            + "session is currently authorized. Session B remains unauthorized"
+            + " and requires" + _NL
+            + "separate owner authorization.",
+        ),
+        (
+            _WO003_SESSION_B_NEXT_GATE,
+            "NEXT GATE: fresh independent architect review of the complete"
+            + " uncommitted" + _NL
+            + "Session A acceptance transition. Session B remains unauthorized.",
+        ),
+        (
+            "Session B is authorized under the current root `WORKORDER.md` gate."
+            + " Its scope" + _NL
+            + "is drafting only: it may read the current GitHub repository"
+            + " description," + _NL
+            + "prepare exactly one replacement description",
+            "Session B requires a separate owner gate. Its scope after that gate"
+            + " is drafting only: it may read the current" + _NL
+            + "GitHub repository description, prepare exactly one replacement"
+            + " description",
+        ),
+    ):
+        text = _replace_once(text, old, new, "WO-003 accepted reconstruction")
+    _require_unique(
+        text,
+        ("## Session B authorization and draft record", "## Planning basis"),
+        "WO-003 Session B record excision",
+    )
+    text = _sub_once(
+        _NL + "## Session B authorization and draft record" + _NL + ".*?(?="
+        + _NL + "## Planning basis" + _NL + ")",
+        "",
+        text,
+        "WO-003 Session B record excision",
+        flags=re.DOTALL,
+    )
+    issued.write_text(text, encoding="utf-8")
+
+    pointer = case / "WORKORDER.md"
+    text = pointer.read_text(encoding="utf-8")
+    for old, new in (
+        ("- Authorized session: B", "- Authorized session: NONE"),
+        (
+            "- Base commit: `" + _WO003_SESSION_B_BASE + "`",
+            "- Base commit: `" + _WO003_SESSION_A_ACCEPTED_BASE + "`",
+        ),
+        (
+            _WO003_SESSION_B_GATE,
+            "- Current gate: WO-003 SESSION A ACCEPTED " + _EM
+            + " SESSION B NOT AUTHORIZED",
+        ),
+        (
+            "- Session B authorization commit: `" + _WO003_SESSION_B_BASE
+            + "`" + _NL
+            + "- Session B authorization CI workflow: `"
+            + _WO003_SESSION_B_WORKFLOW + "`" + _NL
+            + "- Session B authorization CI job: `" + _WO003_SESSION_B_JOB
+            + "` " + _EM + " Lint, types, tests" + _NL,
+            "",
+        ),
+        (_NL + _WO003_SESSION_B_POINTER_STATEMENT + _NL, ""),
+    ):
+        text = _replace_once(text, old, new, "WO-003 accepted pointer")
+    pointer.write_text(text, encoding="utf-8")
+
+    _assert_reconstructed(
+        "WO-003 accepted pointer", pointer.read_text(encoding="utf-8"),
+        ("- Authorized session: NONE", _WO003_SESSION_A_ACCEPTED_GATE),
+        ("- Session B authorization commit:",
+         "DRAFT REPOSITORY DESCRIPTION ONLY"),
+    )
+    _assert_reconstructed(
+        "WO-003 accepted reconstruction", issued.read_text(encoding="utf-8"),
+        ("AUTHORIZATION: ISSUED " + _EM
+         + " SESSION A ACCEPTED; NO SESSION AUTHORIZED",
+         "## Session A acceptance record"),
+        ("SESSION_B_AUTHORIZATION_COMMIT:",
+         "## Session B authorization and draft record"),
     )
     return case
 
@@ -472,10 +592,11 @@ def _make_wo003_session_a_case(repo_root, tmp_path, name):
             + "level mutation, then a stopped listener, closed UEFN, absent"
             + " handoff, and closed" + _NL
             + "ports 8765" + chr(8211)
-            + "8770. Session A is accepted and complete;"
-            + " no session is currently" + _NL
-            + "authorized. Session B remains unauthorized and requires separate"
-            + " owner" + _NL + "authorization.",
+            + "8770. At the Session A acceptance gate, Session A was accepted and"
+            + _NL
+            + "complete with no current implementation authority; Session B was"
+            + " not authorized" + _NL
+            + "pending separate owner authorization.",
             "Session A is authorized for implementation under this pointer alone,"
             + " on the" + _NL + "basis of commit `" + _WO003_SESSION_A_BASE
             + "`, successful CI" + _NL + "workflow `"
@@ -1671,7 +1792,7 @@ _ACCEPTED_WORKFLOW = "32937631903"
 _ACCEPTED_JOB = "98081919978"
 _ISSUED_REL = "docs/work-orders/issued/WO-002-epic-toolset-integration.md"
 _TERMINAL_WO002_FINDING = "completed WO-002 state"
-_TERMINAL_WO003_FINDING = "accepted WO-003 Session A state"
+_TERMINAL_WO003_FINDING = "authorized WO-003 Session B drafting state"
 
 
 def _without_terminal_lock(finding_types):
@@ -3646,6 +3767,53 @@ _WO003_SESSION_A_JOB = "98948639416"
 _WO003_SESSION_A_ACCEPTED_BASE = "d23add58e02ddc855573cf9be7a2542776d25e7e"
 _WO003_SESSION_A_ACCEPTED_WORKFLOW = "33344006899"
 _WO003_SESSION_A_ACCEPTED_JOB = "99344607213"
+_WO003_SESSION_B_BASE = "2582be8c9168d72b46846334bbba44307d348ce6"
+_WO003_SESSION_B_WORKFLOW = "33351157691"
+_WO003_SESSION_B_JOB = "99364656646"
+_WO003_SESSION_B_GATE = (
+    "- Current gate: WO-003 SESSION B AUTHORIZED " + _EM
+    + " DRAFT REPOSITORY DESCRIPTION ONLY"
+)
+_WO003_SESSION_B_MARKER = (
+    "AUTHORIZATION: ISSUED " + _EM
+    + " SESSION B AUTHORIZED FOR DRAFTING ONLY"
+)
+_WO003_SESSION_B_NEXT_GATE = (
+    "NEXT GATE: fresh independent architect review of the complete uncommitted"
+    + _NL + "Session B repository-description draft. The draft is not applied,"
+    + " and metadata" + _NL + "application remains unauthorized."
+)
+_WO003_SESSION_B_STATEMENT = (
+    "This Work Order remains issued. Session A is accepted and complete. Session"
+    + " B" + _NL
+    + "is authorized for repository-description drafting only. Metadata"
+    + " application," + _NL
+    + "Session C or any later session, WO-004, tagging, Release creation, and"
+    + " social" + _NL
+    + "publication remain unauthorized."
+)
+_WO003_SESSION_B_POINTER_STATEMENT = (
+    "Session B is authorized under this pointer for repository-description"
+    + " drafting" + _NL
+    + "only, on the basis of commit `" + _WO003_SESSION_B_BASE + "`," + _NL
+    + "successful CI workflow `" + _WO003_SESSION_B_WORKFLOW
+    + "`, and successful required job `" + _WO003_SESSION_B_JOB + "`" + _NL
+    + "(`Lint, types, tests`). No repository metadata application, tag, Release,"
+    + " or" + _NL + "social publication is authorized."
+)
+_WO003_CURRENT_DESCRIPTION = (
+    "The ultimate, ever-expanding Swiss Army Knife for the UEFN Python API "
+    "(358+ tools registered across 55+ categories). Automate world-building, "
+    "manage assets, generate boilerplate Verse code, and control the editor "
+    "with AI via a fully-offline PySide6 dashboard."
+)
+_WO003_DESCRIPTION_DRAFT = (
+    "UEFN Toolbelt: 362 Python automation tools across 55 categories, with a "
+    "PySide6 dashboard and an experimental, authenticated same-user loopback "
+    "bridge for local AI control. Complements Epic's official UEFN MCP; "
+    "Toolbelt is not exposed through Epic's MCP server."
+)
+_WO003_DESCRIPTION_DRAFT_LENGTH = 261
 _WO003_ISSUED_GATE = (
     "- Current gate: WO-003 ISSUED " + _EM
     + " SESSION A IMPLEMENTATION NOT AUTHORIZED"
@@ -3656,7 +3824,7 @@ _WO003_ISSUED_MARKER = "AUTHORIZATION: ISSUED " + _EM + " SESSION NOT AUTHORIZED
 _WO003_CORRECTED_WORDING = (
     "play-session launch, termination, and inspection operations",
     "attempted activation of Session B or application of repository metadata",
-    "Session B requires a separate owner gate",
+    "Session B is authorized under the current root `WORKORDER.md` gate",
     "run a play session, activate the custom bridge",
 )
 
@@ -4403,12 +4571,7 @@ def test_wo003_authorized_metadata_order_is_enforced(
 def test_wo003_session_b_activation_is_rejected(
     repo_root, tmp_path, monkeypatch
 ) -> None:
-    """Session B drafting needs its own owner gate, which has not been given.
-
-    A coherent pointer-plus-document flip to Session B is exactly the move this
-    lock exists to stop: the checker carries the fact, so reopening WO-003's
-    Session B has to edit drift_check.py too, which is a visible act.
-    """
+    """The old external-proof shape cannot stand in for drafting authority."""
     def activate(case):
         _edit(case, "WORKORDER.md",
               "- Authorized session: A", "- Authorized session: B")
@@ -4422,8 +4585,8 @@ def test_wo003_session_b_activation_is_rejected(
     found = _wo003_session_a_types(
         repo_root, tmp_path, monkeypatch, "session-b", activate
     )
-    assert "WO-003 Session B activation" in found, (
-        "WO-003 Session B was activated without a separate owner gate: "
+    assert {"authorized session gate", "issued session authorization"} <= found, (
+        "the wrong Session B contract was accepted: "
         + repr(sorted(found))
     )
 
@@ -4539,8 +4702,9 @@ _WO003_SESSION_A_ACCEPTED_NEXT_GATE = (
     + _NL + "Session A acceptance transition. Session B remains unauthorized."
 )
 _WO003_SESSION_A_ACCEPTED_STATEMENT = (
-    "Session A is accepted and complete. No session is currently authorized. "
-    "Session B remains unauthorized and requires separate owner authorization."
+    "At the Session A acceptance gate, Session A was accepted and complete with "
+    "no current implementation authority; Session B was not authorized pending "
+    "separate owner authorization."
 )
 
 
@@ -4552,7 +4716,9 @@ def _wo003_accepted_types(repo_root, tmp_path, monkeypatch, name, mutate):
     )
     mutate(case)
     monkeypatch.setattr(drift_check, "ROOT", str(case))
-    return {finding["type"] for finding in drift_check.check_work_order_contract()}
+    return {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    } - {_TERMINAL_WO003_FINDING}
 
 
 def test_wo003_session_a_accepted_state_is_clean(
@@ -4571,7 +4737,7 @@ def test_wo003_session_a_accepted_state_is_clean(
 @pytest.mark.parametrize(("name", "rel", "old", "new", "expected"), (
     ("session-field", "WORKORDER.md",
      "- Authorized session: NONE", "- Authorized session: A",
-     _TERMINAL_WO003_FINDING),
+     "authorized session gate"),
     ("gate", "WORKORDER.md", _WO003_SESSION_A_ACCEPTED_GATE,
      "- Current gate: WO-003 SESSION A ACCEPTED " + _EM + " SESSION B MAY BEGIN",
      "WO-003 Session A accepted gate"),
@@ -4585,7 +4751,7 @@ def test_wo003_session_a_accepted_state_is_clean(
     ("next-gate", _WO003_REL, _WO003_SESSION_A_ACCEPTED_NEXT_GATE,
      "NEXT GATE: none.", "WO-003 next gate"),
     ("accepted-statement", _WO003_REL,
-     "Session A is accepted and complete.",
+     "At the Session A acceptance gate, Session A was accepted and complete with no",
      "Session A acceptance statement removed.",
      "WO-003 Session A accepted statement"),
     ("planning-baseline", _WO003_REL,
@@ -4780,6 +4946,336 @@ def test_wo003_accepted_state_preserves_release_gate(
     )
     assert "release authorization" in found, (
         "the accepted state opened publication authority: " + repr(sorted(found))
+    )
+
+
+# ── WO-003 Session B repository-description drafting ────────────────────────
+
+_WO003_SESSION_B_DRAFT_PREFIX = (
+    "PROPOSED_REPOSITORY_DESCRIPTION_DRAFT_NOT_APPLIED: `"
+)
+_WO003_SESSION_B_DRAFT_FIELD = (
+    _WO003_SESSION_B_DRAFT_PREFIX + _WO003_DESCRIPTION_DRAFT + "`"
+)
+_WO003_SESSION_B_COUNT_FIELD = (
+    "PROPOSED_DESCRIPTION_CHARACTER_COUNT: `"
+    + str(_WO003_DESCRIPTION_DRAFT_LENGTH) + "`"
+)
+_WO003_SESSION_B_FIELD_MARKERS = (
+    ("b-commit", _WO003_REL,
+     "SESSION_B_AUTHORIZATION_COMMIT: `" + _WO003_SESSION_B_BASE + "`",
+     "SESSION_B_AUTHORIZATION_COMMIT: `" + _WRONG_COMMIT + "`",
+     "issued record"),
+    ("b-workflow", _WO003_REL,
+     "SESSION_B_AUTHORIZATION_CI_WORKFLOW: `"
+     + _WO003_SESSION_B_WORKFLOW + "`",
+     "SESSION_B_AUTHORIZATION_CI_WORKFLOW: `" + _WRONG_WORKFLOW + "`",
+     "issued record"),
+    ("b-job", _WO003_REL,
+     "SESSION_B_AUTHORIZATION_CI_JOB: `" + _WO003_SESSION_B_JOB + "` "
+     + _EM + " Lint, types, tests",
+     "SESSION_B_AUTHORIZATION_CI_JOB: `" + _WRONG_JOB + "` "
+     + _EM + " Lint, types, tests", "issued record"),
+    ("b-pointer-commit", "WORKORDER.md",
+     "- Session B authorization commit: `" + _WO003_SESSION_B_BASE + "`",
+     "- Session B authorization commit: `" + _WRONG_COMMIT + "`",
+     "WORKORDER.md"),
+    ("b-pointer-workflow", "WORKORDER.md",
+     "- Session B authorization CI workflow: `"
+     + _WO003_SESSION_B_WORKFLOW + "`",
+     "- Session B authorization CI workflow: `" + _WRONG_WORKFLOW + "`",
+     "WORKORDER.md"),
+    ("b-pointer-job", "WORKORDER.md",
+     "- Session B authorization CI job: `" + _WO003_SESSION_B_JOB + "` "
+     + _EM + " Lint, types, tests",
+     "- Session B authorization CI job: `" + _WRONG_JOB + "` "
+     + _EM + " Lint, types, tests", "WORKORDER.md"),
+)
+
+
+def _wo003_session_b_types(repo_root, tmp_path, monkeypatch, name, mutate):
+    """Findings from a mutated copy of the current drafting-only state."""
+    drift_check = _load_drift_check(repo_root, "wo003_b_" + name)
+    case = _make_wo003_session_b_case(
+        repo_root, tmp_path, "wo003-b-" + name
+    )
+    mutate(case)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return {finding["type"] for finding in drift_check.check_work_order_contract()}
+
+
+def test_wo003_session_b_drafting_state_is_clean(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Non-vacuous: the exact drafting-only state raises no finding."""
+    found = _wo003_session_b_types(
+        repo_root, tmp_path, monkeypatch, "control", lambda case: None
+    )
+    assert found == set(), "the Session B draft state is not clean: " + repr(
+        sorted(found)
+    )
+    assert len(_WO003_DESCRIPTION_DRAFT) == _WO003_DESCRIPTION_DRAFT_LENGTH
+
+
+@pytest.mark.parametrize(("name", "rel", "old", "new", "expected"), (
+    ("session", "WORKORDER.md", "- Authorized session: B",
+     "- Authorized session: C", "authorized session gate"),
+    ("base", "WORKORDER.md", "- Base commit: `" + _WO003_SESSION_B_BASE + "`",
+     "- Base commit: `" + _WRONG_COMMIT + "`", "WO-003 Session B base commit"),
+    ("gate", "WORKORDER.md", _WO003_SESSION_B_GATE,
+     "- Current gate: WO-003 SESSION B AUTHORIZED " + _EM + " APPLY METADATA",
+     "authorized session gate"),
+    ("marker", _WO003_REL, _WO003_SESSION_B_MARKER,
+     "AUTHORIZATION: ISSUED " + _EM + " SESSION B MAY APPLY METADATA",
+     "issued session authorization"),
+    ("next-gate", _WO003_REL, _WO003_SESSION_B_NEXT_GATE,
+     "NEXT GATE: apply the description.", "WO-003 next gate"),
+    ("statement", _WO003_REL, _WO003_SESSION_B_STATEMENT,
+     "Session B may apply repository metadata.",
+     "WO-003 Session B drafting-only statement"),
+))
+def test_wo003_session_b_contract_is_exact(
+    repo_root, tmp_path, monkeypatch, name, rel, old, new, expected
+) -> None:
+    """The drafting gate, base, marker, next gate and boundary are exact."""
+    found = _wo003_session_b_types(
+        repo_root, tmp_path, monkeypatch, name,
+        lambda case: _edit(case, rel, old, new),
+    )
+    assert expected in found, (
+        name + " was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "rel", "marker", "corrupt", "where"),
+    _WO003_SESSION_B_FIELD_MARKERS,
+)
+@pytest.mark.parametrize(
+    "damage", ("wrong", "removed", "duplicate", "transplant", "wrapped", "extra")
+)
+def test_wo003_session_b_authorization_fields_are_structural(
+    repo_root, tmp_path, monkeypatch, kind, rel, marker, corrupt, where, damage
+) -> None:
+    """Every B authorization field is an exact canonical declaration."""
+    def mutate(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        assert text.count(marker) == 1, "probe anchor drifted: " + marker
+        if damage == "wrong":
+            replacement = corrupt
+        elif damage == "removed":
+            replacement = ("REMOVED_FIELD: none" if rel == _WO003_REL
+                           else "- Removed field: none")
+        elif damage == "duplicate":
+            replacement = marker + _NL + _NL + marker
+        elif damage == "transplant":
+            target.write_text(
+                text.replace(marker, corrupt, 1) + _NL + marker + _NL,
+                encoding="utf-8",
+            )
+            return
+        elif damage == "wrapped":
+            replacement = corrupt + _NL + "<!--" + _NL + marker + _NL + "-->"
+        else:
+            replacement = marker + _NL + "NOTE: injected"
+        target.write_text(text.replace(marker, replacement, 1), encoding="utf-8")
+
+    found = _wo003_session_b_types(
+        repo_root, tmp_path, monkeypatch, damage + "-" + kind, mutate
+    )
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        damage + " Session B field " + kind + " was accepted: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(("name", "replacement", "expected"), (
+    ("removed", "REMOVED_DRAFT: none", "WO-003 Session B draft count"),
+    ("duplicate", _WO003_SESSION_B_DRAFT_FIELD + _NL
+     + _WO003_SESSION_B_DRAFT_FIELD, "WO-003 Session B draft count"),
+    ("stale-tools", _WO003_SESSION_B_DRAFT_FIELD.replace("362", "358+"),
+     "WO-003 Session B draft truth"),
+    ("stale-categories", _WO003_SESSION_B_DRAFT_FIELD.replace("55", "55+"),
+     "WO-003 Session B draft truth"),
+    ("stale-offline", _WO003_SESSION_B_DRAFT_FIELD.replace(
+        "PySide6 dashboard", "fully-offline PySide6 dashboard"
+    ), "WO-003 Session B draft truth"),
+    ("missing-experimental", _WO003_SESSION_B_DRAFT_FIELD.replace(
+        "experimental, ", ""
+    ), "WO-003 Session B draft truth"),
+    ("missing-loopback", _WO003_SESSION_B_DRAFT_FIELD.replace(
+        "authenticated same-user loopback bridge", "local bridge"
+    ), "WO-003 Session B draft truth"),
+    ("missing-official", _WO003_SESSION_B_DRAFT_FIELD.replace(
+        "Epic's official UEFN MCP", "the built-in service"
+    ), "WO-003 Session B draft truth"),
+    ("missing-not-exposed", _WO003_SESSION_B_DRAFT_FIELD.replace(
+        "not exposed through Epic's MCP server", "integrates with MCP"
+    ), "WO-003 Session B draft truth"),
+))
+def test_wo003_session_b_draft_truth_is_enforced(
+    repo_root, tmp_path, monkeypatch, name, replacement, expected
+) -> None:
+    """Zero/two drafts and each material-truth regression fail independently."""
+    found = _wo003_session_b_types(
+        repo_root, tmp_path, monkeypatch, "draft-" + name,
+        lambda case: _edit(
+            case, _WO003_REL, _WO003_SESSION_B_DRAFT_FIELD, replacement
+        ),
+    )
+    assert expected in found, (
+        name + " draft damage was accepted: " + repr(sorted(found))
+    )
+
+
+def test_wo003_session_b_rejects_a_second_draft_outside_the_record(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Exactly one draft means one in the document, not one per section."""
+    def mutate(case):
+        target = case / _WO003_REL
+        target.write_text(
+            target.read_text(encoding="utf-8")
+            + _NL + _WO003_SESSION_B_DRAFT_FIELD + _NL,
+            encoding="utf-8",
+        )
+
+    found = _wo003_session_b_types(
+        repo_root, tmp_path, monkeypatch, "second-draft-outside", mutate
+    )
+    assert "WO-003 Session B draft count" in found, (
+        "a second draft outside the bounded record was accepted: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo003_session_b_draft_length_is_enforced(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The proposed replacement is capped at 350 characters."""
+    longer = _WO003_DESCRIPTION_DRAFT + " " + (
+        "x" * (350 - len(_WO003_DESCRIPTION_DRAFT))
+    )
+    assert len(longer) == 351
+
+    def mutate(case):
+        _edit(case, _WO003_REL, _WO003_SESSION_B_DRAFT_FIELD,
+              _WO003_SESSION_B_DRAFT_PREFIX + longer + "`")
+        _edit(case, _WO003_REL, _WO003_SESSION_B_COUNT_FIELD,
+              "PROPOSED_DESCRIPTION_CHARACTER_COUNT: `351`")
+
+    found = _wo003_session_b_types(
+        repo_root, tmp_path, monkeypatch, "draft-length", mutate
+    )
+    assert "WO-003 Session B draft length" in found, (
+        "a 351-character draft was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("permission", (
+    "Repository metadata may now be applied.",
+    "Repository metadata was applied.",
+    "Repository metadata application is authorized.",
+    "The GitHub repository description was changed.",
+    "The repository description has been updated.",
+    "The GitHub description may be applied.",
+    "Social publication may now be published.",
+    "Social publication is authorized.",
+))
+def test_wo003_session_b_rejects_external_action_permission(
+    repo_root, tmp_path, monkeypatch, permission
+) -> None:
+    """Drafting authority never becomes metadata or publication authority."""
+    found = _wo003_session_b_types(
+        repo_root, tmp_path, monkeypatch,
+        "external-" + permission.split()[0].lower(),
+        lambda case: _edit(
+            case, "WORKORDER.md", "- Release train: WO-001 through WO-007",
+            "- Release train: WO-001 through WO-007" + _NL + permission,
+        ),
+    )
+    assert "WO-003 Session B external-action boundary" in found, (
+        permission + " was accepted: " + repr(sorted(found))
+    )
+
+
+def test_wo003_session_b_rejects_applied_draft_record(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The bounded draft record cannot claim the remote edit happened."""
+    found = _wo003_session_b_types(
+        repo_root, tmp_path, monkeypatch, "applied-record",
+        lambda case: _edit(
+            case, _WO003_REL, "It is a DRAFT and has" + _NL + "NOT BEEN APPLIED.",
+            "It is a DRAFT and HAS BEEN APPLIED.",
+        ),
+    )
+    assert "WO-003 Session B draft record" in found
+
+
+def test_wo003_session_b_cannot_roll_back_to_session_a_accepted(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """A coherent document-only rollback still trips the one-way B lock."""
+    drift_check = _load_drift_check(repo_root, "wo003_b_rollback")
+    case = _make_wo003_accepted_case(
+        repo_root, tmp_path, "wo003-b-rollback"
+    )
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    found = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert found == {_TERMINAL_WO003_FINDING}, (
+        "the accepted historical state escaped or reconstructed incompletely: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo003_session_b_rejects_wo004_activation(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Drafting WO-003 never issues or authorizes WO-004."""
+    found = _wo003_session_b_types(
+        repo_root, tmp_path, monkeypatch, "wo004",
+        lambda case: _edit(
+            case, "WORKORDER.md", "- Release train: WO-001 through WO-007",
+            "- Release train: WO-001 through WO-007" + _NL
+            + "WO-004 is authorized and may begin.",
+        ),
+    )
+    assert "next work order authorization" in found
+
+
+def test_wo003_session_b_preserves_release_gate(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Drafting Session B never opens tag or Release authority."""
+    found = _wo003_session_b_types(
+        repo_root, tmp_path, monkeypatch, "release",
+        lambda case: _edit(
+            case, "WORKORDER.md", "- Release train: WO-001 through WO-007",
+            "- Release train: WO-001 through WO-007" + _NL
+            + "A tag and GitHub Release are authorized.",
+        ),
+    )
+    assert "release authorization" in found
+
+
+def test_wo003_session_b_does_not_pin_unrelated_mandate_prose(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Harmless prose outside the bounded record remains editable."""
+    found = _wo003_session_b_types(
+        repo_root, tmp_path, monkeypatch, "unrelated-prose",
+        lambda case: _edit(
+            case, _WO003_REL,
+            "These are the anticipated writable paths;",
+            "These paths are the anticipated writable set;",
+        ),
+    )
+    assert found == set(), (
+        "unrelated mandate prose was frozen: " + repr(sorted(found))
     )
 
 
