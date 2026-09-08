@@ -12,12 +12,14 @@ tools/, and community_plugins/.
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import json
 import re
 import shutil
 import subprocess
 import sys
+from typing import NamedTuple
 
 import pytest
 
@@ -223,11 +225,11 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert current == "WO-003"
     assert session == "NONE"
     assert base_lines == [
-        "- Base commit: `e23baa40c4b9358eb6b4448f460c054650ae64f0`"
+        "- Base commit: `624ccc7f8f28cc897ec580c660607524ad5a4a3d`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-003 SESSION B ACCEPTED "
-        "— REPOSITORY DESCRIPTION APPLICATION NOT AUTHORIZED"
+        "- Current gate: WO-003 REPOSITORY DESCRIPTION APPLIED "
+        "— COMPLETION NOT AUTHORIZED"
     ]
     # Session A and Session B are both accepted and no session is open.
     # All issuance, authorization, and acceptance provenance stays declared.
@@ -254,13 +256,35 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     ):
         assert line in pointer, line
     normalized_pointer = " ".join(pointer.split())
+    # The acceptance paragraph is preserved as an explicit pre-application
+    # record, and the application itself is recorded once beside it.
     assert (
-        "The live GitHub repository description is unchanged. Applying the "
-        "exact accepted repository description remains a separate "
-        "owner-authorized external action. Metadata application, tags, "
-        "Releases, and social publication all remain unauthorized, as do "
-        "Session C and WO-004."
+        "At that gate the live GitHub repository description was still "
+        "unchanged, applying the exact accepted repository description was "
+        "still a separate owner-authorized external action, and metadata "
+        "application was not authorized. Tags, Releases, and social "
+        "publication remain unauthorized, as do Session C and WO-004."
         in normalized_pointer
+    )
+    assert (
+        "The exact accepted repository description was applied to the live "
+        "GitHub repository under separate BDFL/owner authorization, at "
+        "repository commit `624ccc7f8f28cc897ec580c660607524ad5a4a3d`."
+        in normalized_pointer
+    )
+    assert (
+        "its SHA-256 is "
+        "`a2d3b9a40e187c1fc4bce18666e3095687cc94b45d10ab27f1bee1e1e3417415`"
+        in normalized_pointer
+    )
+    assert (
+        "The homepage `https://www.fortnite.com/@ohshh`, PUBLIC visibility, "
+        "archived state `false`, and all 20 repository topics are unchanged."
+        in normalized_pointer
+    )
+    assert (
+        "The live GitHub repository description is unchanged."
+        not in normalized_pointer
     )
     assert (
         "No repository metadata application, tag, Release, or social publication "
@@ -285,7 +309,7 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "STATUS: ISSUED"
     ]
     assert [line for line in wo003_lines if line.startswith("AUTHORIZATION:")] == [
-        "AUTHORIZATION: ISSUED — SESSION B ACCEPTED; NO SESSION AUTHORIZED"
+        "AUTHORIZATION: ISSUED — DESCRIPTION APPLIED; NO SESSION AUTHORIZED"
     ]
     for evidence in (
         "SESSION_A_ACCEPTANCE_COMMIT:"
@@ -307,13 +331,33 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "SESSION_B_ACCEPTANCE_CI_JOB: `99758148278` — Lint, types, tests",
         "## Session B acceptance record",
         "ACCEPTED_DESCRIPTION_CHARACTER_COUNT: `261`",
-        "still a DRAFT and has NOT BEEN APPLIED",
-        "The live GitHub repository description is unchanged.",
-        "NEXT GATE: separate BDFL/owner authorization to apply the exact"
-        " accepted",
+        "was still a DRAFT and had NOT" + _NL + "BEEN APPLIED,",
+        "the live GitHub repository description was still" + _NL
+        + "unchanged.",
+        # The pre-application snapshots are explicitly labelled as such.
+        "PRE_APPLICATION_LIVE_DESCRIPTION_HISTORICAL_SNAPSHOT: `",
+        "PRE_APPLICATION_PROPOSED_DESCRIPTION_HISTORICAL_SNAPSHOT: `",
+        "PRE_APPLICATION_ACCEPTED_DESCRIPTION_HISTORICAL_SNAPSHOT: `",
+        # The bounded application record.
+        "## Repository description application record",
+        "APPLIED_REPOSITORY_DESCRIPTION: `" + _WO003_DESCRIPTION_DRAFT + "`",
+        "APPLIED_DESCRIPTION_CHARACTER_COUNT: `261`",
+        "APPLIED_DESCRIPTION_SHA256: `"
+        "a2d3b9a40e187c1fc4bce18666e3095687cc94b45d10ab27f1bee1e1e3417415`",
+        "APPLIED_DESCRIPTION_LIVE_READ_BACK: `byte-for-byte identical`",
+        "624ccc7f8f28cc897ec580c660607524ad5a4a3d",
+        "NEXT GATE: separate BDFL/owner authorization for the WO-003"
+        " completion",
     ):
         assert evidence in wo003_text
     assert "SESSION B AUTHORIZED FOR DRAFTING ONLY" not in wo003_text
+    for stale in (
+        "CURRENT_LIVE_DESCRIPTION_READ_ONLY_NOT_CHANGED",
+        "ACCEPTED_REPOSITORY_DESCRIPTION_NOT_APPLIED",
+        "PROPOSED_REPOSITORY_DESCRIPTION_DRAFT_NOT_APPLIED",
+        "The live GitHub repository description is unchanged.",
+    ):
+        assert stale not in wo003_text, stale
 
     wo002 = (work_orders / "completed"
              / "WO-002-epic-toolset-integration.md")
@@ -399,14 +443,95 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "Work Order WO-001" in security_normalized
 
 
-def _make_wo003_session_b_accepted_case(repo_root, tmp_path, name):
-    """Copy the current accepted WO-003 Session B state."""
+def _make_wo003_applied_case(repo_root, tmp_path, name):
+    """Copy the current applied-description WO-003 state."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
     shutil.copytree(
         repo_root / "docs" / "work-orders",
         case / "docs" / "work-orders",
+    )
+    return case
+
+
+def _make_wo003_session_b_accepted_case(repo_root, tmp_path, name):
+    """Reconstruct the preserved accepted-but-not-applied Session B state.
+
+    Applying the description moved the current state forward again, so the
+    accepted state every earlier WO-003 fixture builds on is now itself a
+    reconstruction. Only the transition itself is reversed: the two bounded
+    historical records keep their pre-application labelling, which the
+    checker pins by the same shared constants in both states.
+    """
+    case = _make_wo003_applied_case(repo_root, tmp_path, name)
+    issued = case / _WO003_REL
+    text = issued.read_text(encoding="utf-8")
+    for old, new in (
+        (_WO003_APPLIED_MARKER, _WO003_SESSION_B_ACCEPTED_MARKER),
+        (_WO003_APPLIED_STATEMENT, _WO003_SESSION_B_ACCEPTED_STATEMENT),
+        (_WO003_APPLIED_NEXT_GATE, _WO003_SESSION_B_ACCEPTED_NEXT_GATE),
+    ):
+        text = _replace_once(text, old, new, "WO-003 accepted reconstruction")
+    _require_unique(
+        text,
+        (_WO003_APPLICATION_HEADING, "## Planning basis"),
+        "WO-003 application-record excision",
+    )
+    text = _sub_once(
+        _NL + _WO003_APPLICATION_HEADING + _NL + ".*?(?="
+        + _NL + "## Planning basis" + _NL + ")",
+        "",
+        text,
+        "WO-003 application-record excision",
+        flags=re.DOTALL,
+    )
+    issued.write_text(text, encoding="utf-8")
+
+    pointer = case / "WORKORDER.md"
+    text = pointer.read_text(encoding="utf-8")
+    for old, new in (
+        (
+            "- Base commit: `" + _WO003_APPLIED_BASE + "`",
+            "- Base commit: `" + _WO003_SESSION_B_ACCEPTED_BASE + "`",
+        ),
+        (_WO003_APPLIED_GATE, _WO003_SESSION_B_ACCEPTED_GATE),
+        (
+            _WO003_PRE_APPLICATION_POINTER_STATEMENT,
+            _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT,
+        ),
+    ):
+        text = _replace_once(text, old, new, "WO-003 accepted pointer")
+    _require_unique(
+        text,
+        ("The exact accepted repository description was applied to the live"
+         " GitHub",),
+        "WO-003 applied-paragraph excision",
+    )
+    text = _sub_once(
+        _NL + _NL + "The exact accepted repository description was applied"
+        + ".*?unauthorized[.]" + _NL,
+        "",
+        text,
+        "WO-003 applied-paragraph excision",
+        flags=re.DOTALL,
+    )
+    pointer.write_text(text, encoding="utf-8")
+
+    _assert_reconstructed(
+        "WO-003 accepted pointer", pointer.read_text(encoding="utf-8"),
+        (_WO003_SESSION_B_ACCEPTED_GATE,
+         "- Base commit: `" + _WO003_SESSION_B_ACCEPTED_BASE + "`",
+         "The live GitHub repository description is unchanged."),
+        ("REPOSITORY DESCRIPTION APPLIED",
+         "was applied to the live GitHub",
+         _WO003_APPLIED_SHA256),
+    )
+    _assert_reconstructed(
+        "WO-003 accepted reconstruction", issued.read_text(encoding="utf-8"),
+        (_WO003_SESSION_B_ACCEPTED_MARKER, _WO003_SESSION_B_ACCEPTANCE_HEADING),
+        (_WO003_APPLICATION_HEADING, "APPLIED_REPOSITORY_DESCRIPTION:",
+         _WO003_APPLIED_SHA256),
     )
     return case
 
@@ -1900,7 +2025,7 @@ _ACCEPTED_WORKFLOW = "32937631903"
 _ACCEPTED_JOB = "98081919978"
 _ISSUED_REL = "docs/work-orders/issued/WO-002-epic-toolset-integration.md"
 _TERMINAL_WO002_FINDING = "completed WO-002 state"
-_TERMINAL_WO003_FINDING = "accepted WO-003 Session B state"
+_TERMINAL_WO003_FINDING = "applied WO-003 description state"
 
 
 def _without_terminal_lock(finding_types):
@@ -3962,8 +4087,70 @@ _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT = (
     + "all remain unauthorized, as do Session C and WO-004."
 )
 _WO003_SESSION_B_ACCEPTANCE_HEADING = "## Session B acceptance record"
+_WO003_APPLICATION_HEADING = "## Repository description application record"
+_WO003_APPLIED_BASE = "624ccc7f8f28cc897ec580c660607524ad5a4a3d"
+_WO003_APPLIED_SHA256 = (
+    "a2d3b9a40e187c1fc4bce18666e3095687cc94b45d10ab27f1bee1e1e3417415"
+)
+_WO003_APPLIED_GATE = (
+    "- Current gate: WO-003 REPOSITORY DESCRIPTION APPLIED " + _EM
+    + " COMPLETION NOT AUTHORIZED"
+)
+_WO003_APPLIED_MARKER = (
+    "AUTHORIZATION: ISSUED " + _EM
+    + " DESCRIPTION APPLIED; NO SESSION AUTHORIZED"
+)
+_WO003_APPLIED_NEXT_GATE = (
+    "NEXT GATE: separate BDFL/owner authorization for the WO-003 completion"
+    + _NL + "transition. WO-003 remains issued; WO-004 remains proposed and"
+    + " unauthorized."
+)
+_WO003_APPLIED_STATEMENT = (
+    "This Work Order remains issued. Session A is accepted and complete."
+    + " Session B" + _NL
+    + "is accepted and complete. The exact accepted repository description"
+    + " has been" + _NL
+    + "applied under separate owner authorization. WO-003 completion,"
+    + " Session C or" + _NL
+    + "any later session, WO-004, tagging, Release creation, branch-protection"
+    + _NL
+    + "changes, other repository metadata changes, and social publication"
+    + " remain" + _NL + "unauthorized."
+)
+# The pointer's acceptance paragraph, reworded into an explicit
+# pre-application record. Reversing this pair is what rebuilds the accepted
+# state every earlier WO-003 fixture now derives from.
+_WO003_PRE_APPLICATION_POINTER_STATEMENT = (
+    "Session B's repository-description draft was independently accepted."
+    + " The" + _NL + "accepted draft was committed and pushed as" + _NL
+    + "`" + _WO003_SESSION_B_ACCEPTED_BASE + "`; successful CI workflow"
+    + _NL + "`" + _WO003_SESSION_B_ACCEPTED_WORKFLOW
+    + "` included successful required job `"
+    + _WO003_SESSION_B_ACCEPTED_JOB + "` (`Lint, types," + _NL
+    + "tests`). At that gate the live GitHub repository description was still"
+    + _NL
+    + "unchanged, applying the exact accepted repository description was"
+    + " still a" + _NL
+    + "separate owner-authorized external action, and metadata application"
+    + " was not" + _NL
+    + "authorized. Tags, Releases, and social publication remain"
+    + " unauthorized, as do" + _NL + "Session C and WO-004."
+)
+_WO003_APPLIED_DESCRIPTION_FIELD = (
+    "APPLIED_REPOSITORY_DESCRIPTION: `" + _WO003_DESCRIPTION_DRAFT + "`"
+)
+_WO003_APPLIED_COUNT_FIELD = (
+    "APPLIED_DESCRIPTION_CHARACTER_COUNT: `"
+    + str(_WO003_DESCRIPTION_DRAFT_LENGTH) + "`"
+)
+_WO003_APPLIED_SHA_FIELD = (
+    "APPLIED_DESCRIPTION_SHA256: `" + _WO003_APPLIED_SHA256 + "`"
+)
+_WO003_APPLIED_READ_BACK_FIELD = (
+    "APPLIED_DESCRIPTION_LIVE_READ_BACK: `byte-for-byte identical`"
+)
 _WO003_ACCEPTED_DESCRIPTION_PREFIX = (
-    "ACCEPTED_REPOSITORY_DESCRIPTION_NOT_APPLIED: `"
+    "PRE_APPLICATION_ACCEPTED_DESCRIPTION_HISTORICAL_SNAPSHOT: `"
 )
 _WO003_ACCEPTED_DESCRIPTION_FIELD = (
     _WO003_ACCEPTED_DESCRIPTION_PREFIX + _WO003_DESCRIPTION_DRAFT + "`"
@@ -5110,7 +5297,7 @@ def test_wo003_accepted_state_preserves_release_gate(
 # ── WO-003 Session B repository-description drafting ────────────────────────
 
 _WO003_SESSION_B_DRAFT_PREFIX = (
-    "PROPOSED_REPOSITORY_DESCRIPTION_DRAFT_NOT_APPLIED: `"
+    "PRE_APPLICATION_PROPOSED_DESCRIPTION_HISTORICAL_SNAPSHOT: `"
 )
 _WO003_SESSION_B_DRAFT_FIELD = (
     _WO003_SESSION_B_DRAFT_PREFIX + _WO003_DESCRIPTION_DRAFT + "`"
@@ -5372,8 +5559,8 @@ def test_wo003_session_b_rejects_applied_draft_record(
     found = _wo003_session_b_types(
         repo_root, tmp_path, monkeypatch, "applied-record",
         lambda case: _edit(
-            case, _WO003_REL, "It is a DRAFT and has" + _NL + "NOT BEEN APPLIED.",
-            "It is a DRAFT and HAS BEEN APPLIED.",
+            case, _WO003_REL, "At that gate it was a" + _NL + "DRAFT and had NOT BEEN APPLIED,",
+            "At that gate it was a DRAFT and HAD BEEN APPLIED,",
         ),
     )
     assert "WO-003 Session B draft record" in found
@@ -5481,149 +5668,262 @@ _WO003_SESSION_B_ACCEPTANCE_FIELD_MARKERS = (
 )
 
 
-def _wo003_b_accepted_types(repo_root, tmp_path, monkeypatch, name, mutate):
-    """Findings from a mutated copy of the current accepted Session B state."""
-    drift_check = _load_drift_check(repo_root, "wo003_ba_" + name)
-    case = _make_wo003_session_b_accepted_case(
-        repo_root, tmp_path, "wo003-ba-" + name
-    )
+# ── WO-003 settled gates ──────────────────────────────────────────────────────
+#
+# Session B acceptance and the description application are the same shape and
+# now run the same shared checker path, so one parameterized family exercises
+# both. Each row below supplies only what differs between them; every mutation
+# is driven through the real check_work_order_contract().
+
+
+class _SettledFixture(NamedTuple):
+    """One settled WO-003 gate as the tests see it."""
+
+    name: str
+    make: object                   # fixture factory for this state
+    gate: str                      # pointer `- Current gate:` line
+    gate_kind: str
+    marker: str                    # issued AUTHORIZATION line
+    marker_kind: str
+    base: str
+    base_kind: str
+    next_gate: str
+    statement: str
+    statement_kind: str
+    # (exact pointer text, finding kind) for every statement this gate makes.
+    pointer_statements: tuple
+    boundary_kind: str
+    heading: str                   # the bounded record this gate adds
+    record_kind: str               # finding kind for that bounded record
+    body_needle: str               # a value that occurs once inside it
+    rebuilt: bool                  # reconstructed states trip the one-way lock
+
+
+_SETTLED = (
+    _SettledFixture(
+        name="applied",
+        make=_make_wo003_applied_case,
+        gate=_WO003_APPLIED_GATE,
+        gate_kind="WO-003 applied gate",
+        marker=_WO003_APPLIED_MARKER,
+        marker_kind="WO-003 applied authorization",
+        base=_WO003_APPLIED_BASE,
+        base_kind="WO-003 applied base commit",
+        next_gate=_WO003_APPLIED_NEXT_GATE,
+        statement=_WO003_APPLIED_STATEMENT,
+        statement_kind="WO-003 applied statement",
+        pointer_statements=(
+            (_WO003_PRE_APPLICATION_POINTER_STATEMENT,
+             "WO-003 pre-application pointer statement"),
+            ("The exact accepted repository description was applied to the"
+             " live GitHub", "WO-003 applied pointer statement"),
+        ),
+        boundary_kind="WO-003 external-action boundary",
+        heading=_WO003_APPLICATION_HEADING,
+        record_kind="WO-003 description application record",
+        body_needle=_WO003_APPLIED_SHA256,
+        rebuilt=False,
+    ),
+    _SettledFixture(
+        name="accepted",
+        make=_make_wo003_session_b_accepted_case,
+        gate=_WO003_SESSION_B_ACCEPTED_GATE,
+        gate_kind="WO-003 Session B accepted gate",
+        marker=_WO003_SESSION_B_ACCEPTED_MARKER,
+        marker_kind="WO-003 Session B accepted authorization",
+        base=_WO003_SESSION_B_ACCEPTED_BASE,
+        base_kind="WO-003 Session B accepted base commit",
+        next_gate=_WO003_SESSION_B_ACCEPTED_NEXT_GATE,
+        statement=_WO003_SESSION_B_ACCEPTED_STATEMENT,
+        statement_kind="WO-003 Session B accepted statement",
+        pointer_statements=(
+            (_WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT,
+             "WO-003 Session B accepted pointer statement"),
+        ),
+        boundary_kind="WO-003 Session B external-action boundary",
+        heading=_WO003_SESSION_B_ACCEPTANCE_HEADING,
+        record_kind="WO-003 Session B acceptance record",
+        body_needle=_WO003_SESSION_B_ACCEPTED_BASE,
+        rebuilt=True,
+    ),
+)
+_SETTLED_IDS = [state.name for state in _SETTLED]
+_DAMAGES = ("wrong", "removed", "duplicate", "transplant", "wrapped", "extra")
+
+
+def _settled_types(repo_root, tmp_path, monkeypatch, state, name, mutate):
+    """Findings for a mutated copy of one settled gate.
+
+    A rebuilt historical state necessarily trips the current one-way lock, so
+    that single expected finding is subtracted for those rows and asserted
+    separately by the rollback probes.
+    """
+    label = state.name + "_" + name
+    drift_check = _load_drift_check(repo_root, "settled_" + label)
+    case = state.make(repo_root, tmp_path, "settled-" + label)
     mutate(case)
     monkeypatch.setattr(drift_check, "ROOT", str(case))
-    return {
+    found = {
         finding["type"] for finding in drift_check.check_work_order_contract()
     }
+    return found - {_TERMINAL_WO003_FINDING} if state.rebuilt else found
 
 
-def test_wo003_session_b_accepted_state_is_clean(
-    repo_root, tmp_path, monkeypatch
-) -> None:
-    """Non-vacuous: the canonical accepted state raises no finding at all."""
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, "control", lambda case: None
-    )
+def _damage(target, marker, corrupt, damage):
+    """Apply one structural damage to a single declaration in one file."""
+    text = target.read_text(encoding="utf-8")
+    assert text.count(marker) == 1, "probe anchor drifted: " + repr(marker[:60])
+    if damage == "wrong":
+        body = text.replace(marker, corrupt, 1)
+    elif damage == "removed":
+        body = text.replace(marker, "REMOVED_FIELD: none", 1)
+    elif damage == "duplicate":
+        body = text.replace(marker, marker + _NL + _NL + marker, 1)
+    elif damage == "transplant":
+        body = text.replace(marker, corrupt, 1) + _NL + marker + _NL
+    elif damage == "wrapped":
+        body = text.replace(
+            marker, corrupt + _NL + "<!--" + _NL + marker + _NL + "-->", 1)
+    else:
+        body = text.replace(marker, marker + _NL + "NOTE: injected", 1)
+    target.write_text(body, encoding="utf-8")
+
+
+@pytest.mark.parametrize("state", _SETTLED, ids=_SETTLED_IDS)
+def test_settled_state_is_clean(repo_root, tmp_path, monkeypatch, state) -> None:
+    """Non-vacuous: each settled gate raises no finding of its own."""
+    found = _settled_types(repo_root, tmp_path, monkeypatch, state,
+                           "control", lambda case: None)
     assert found == set(), (
-        "the accepted WO-003 Session B state is not clean: "
-        + repr(sorted(found))
+        state.name + " settled state is not clean: " + repr(sorted(found))
     )
+    # The recorded digest really is the digest of the recorded value.
     assert len(_WO003_DESCRIPTION_DRAFT) == _WO003_DESCRIPTION_DRAFT_LENGTH
+    assert (hashlib.sha256(_WO003_DESCRIPTION_DRAFT.encode("utf-8")).hexdigest()
+            == _WO003_APPLIED_SHA256)
 
 
-@pytest.mark.parametrize(("name", "rel", "old", "new", "expected"), (
-    ("session-field", "WORKORDER.md", "- Authorized session: NONE",
-     "- Authorized session: C", "authorized session gate"),
-    ("session-field-b", "WORKORDER.md", "- Authorized session: NONE",
-     "- Authorized session: B", "accepted WO-003 Session B state"),
-    ("base", "WORKORDER.md",
-     "- Base commit: `" + _WO003_SESSION_B_ACCEPTED_BASE + "`",
-     "- Base commit: `" + _WRONG_COMMIT + "`",
-     "WO-003 Session B accepted base commit"),
-    ("gate", "WORKORDER.md", _WO003_SESSION_B_ACCEPTED_GATE,
-     "- Current gate: WO-003 SESSION B ACCEPTED " + _EM
-     + " APPLY THE DESCRIPTION", "WO-003 Session B accepted gate"),
-    ("marker", _WO003_REL, _WO003_SESSION_B_ACCEPTED_MARKER,
-     "AUTHORIZATION: ISSUED " + _EM + " SESSION B MAY APPLY METADATA",
-     "WO-003 Session B accepted authorization"),
-    ("next-gate", _WO003_REL, _WO003_SESSION_B_ACCEPTED_NEXT_GATE,
-     "NEXT GATE: apply the description.", "WO-003 next gate"),
-    ("statement", _WO003_REL, _WO003_SESSION_B_ACCEPTED_STATEMENT,
-     "Session B may apply repository metadata.",
-     "WO-003 Session B accepted statement"),
-    ("pointer-statement", "WORKORDER.md",
-     _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT,
-     "Session B is done.", "WO-003 Session B accepted pointer statement"),
-))
-def test_wo003_session_b_accepted_contract_is_exact(
-    repo_root, tmp_path, monkeypatch, name, rel, old, new, expected
-) -> None:
-    """Pointer session, base, gate, marker, next gate, and both statements."""
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, name,
-        lambda case: _edit(case, rel, old, new),
-    )
-    assert expected in found, (
-        name + " was accepted: " + repr(sorted(found))
-    )
-
-
-@pytest.mark.parametrize(
-    ("kind", "rel", "marker", "corrupt", "where"),
-    _WO003_SESSION_B_ACCEPTANCE_FIELD_MARKERS,
+# (name, path, old, new, expected finding) — each resolved against the state.
+_SETTLED_CONTRACT = (
+    ("session", "WORKORDER.md", lambda s: "- Authorized session: NONE",
+     lambda s: "- Authorized session: C",
+     lambda s: "authorized session gate"),
+    ("base", "WORKORDER.md", lambda s: "- Base commit: `" + s.base + "`",
+     lambda s: "- Base commit: `" + _WRONG_COMMIT + "`", lambda s: s.base_kind),
+    ("gate", "WORKORDER.md", lambda s: s.gate,
+     lambda s: "- Current gate: WO-003 " + _EM + " COMPLETION AUTHORIZED",
+     lambda s: s.gate_kind),
+    ("marker", _WO003_REL, lambda s: s.marker,
+     lambda s: "AUTHORIZATION: ISSUED " + _EM + " COMPLETION AUTHORIZED",
+     lambda s: s.marker_kind),
+    ("next-gate", _WO003_REL, lambda s: s.next_gate,
+     lambda s: "NEXT GATE: complete WO-003.", lambda s: "WO-003 next gate"),
+    ("statement", _WO003_REL, lambda s: s.statement,
+     lambda s: "WO-003 may now be completed.", lambda s: s.statement_kind),
 )
-@pytest.mark.parametrize(
-    "damage", ("wrong", "removed", "duplicate", "transplant", "wrapped", "extra")
-)
-def test_wo003_session_b_acceptance_fields_are_structural(
-    repo_root, tmp_path, monkeypatch, kind, rel, marker, corrupt, where, damage
-) -> None:
-    """Each acceptance field is an exact canonical slice entry, not text."""
-    def mutate(case):
-        target = case / rel
-        text = target.read_text(encoding="utf-8")
-        assert text.count(marker) == 1, "probe anchor drifted: " + marker
-        if damage == "wrong":
-            replacement = corrupt
-        elif damage == "removed":
-            replacement = ("REMOVED_FIELD: none" if rel == _WO003_REL
-                           else "- Removed field: none")
-        elif damage == "duplicate":
-            replacement = marker + _NL + _NL + marker
-        elif damage == "transplant":
-            target.write_text(
-                text.replace(marker, corrupt, 1) + _NL + marker + _NL,
-                encoding="utf-8",
-            )
-            return
-        elif damage == "wrapped":
-            replacement = corrupt + _NL + "<!--" + _NL + marker + _NL + "-->"
-        else:
-            replacement = marker + _NL + "NOTE: injected"
-        target.write_text(text.replace(marker, replacement, 1), encoding="utf-8")
 
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, damage + "-" + kind, mutate
+
+@pytest.mark.parametrize("state", _SETTLED, ids=_SETTLED_IDS)
+@pytest.mark.parametrize(("name", "rel", "old", "new", "expected"),
+                         _SETTLED_CONTRACT,
+                         ids=[row[0] for row in _SETTLED_CONTRACT])
+def test_settled_contract_is_exact(
+    repo_root, tmp_path, monkeypatch, state, name, rel, old, new, expected
+) -> None:
+    """Session field, base, gate, marker, NEXT GATE, and closing statement."""
+    found = _settled_types(
+        repo_root, tmp_path, monkeypatch, state, name,
+        lambda case: _edit(case, rel, old(state), new(state)),
+    )
+    assert expected(state) in found, (
+        state.name + " " + name + " was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("state", _SETTLED, ids=_SETTLED_IDS)
+def test_settled_pointer_statements_are_exact(
+    repo_root, tmp_path, monkeypatch, state
+) -> None:
+    """Every statement this gate makes in the root pointer is pinned."""
+    for index, (statement, kind) in enumerate(state.pointer_statements):
+        found = _settled_types(
+            repo_root, tmp_path, monkeypatch, state, "pointer" + str(index),
+            lambda case, text=statement: _edit(
+                case, "WORKORDER.md", text, "This gate is done."),
+        )
+        assert kind in found, (
+            state.name + " pointer statement was not pinned: "
+            + repr(sorted(found))
+        )
+
+
+@pytest.mark.parametrize("state", _SETTLED, ids=_SETTLED_IDS)
+@pytest.mark.parametrize(("kind", "rel", "marker", "corrupt", "where"),
+                         _WO003_SESSION_B_ACCEPTANCE_FIELD_MARKERS)
+@pytest.mark.parametrize("damage", _DAMAGES)
+def test_settled_canonical_fields_are_structural(
+    repo_root, tmp_path, monkeypatch, state, kind, rel, marker, corrupt,
+    where, damage
+) -> None:
+    """Each canonical declaration is an exact slice entry, not free text."""
+    found = _settled_types(
+        repo_root, tmp_path, monkeypatch, state, damage + "-" + kind,
+        lambda case: _damage(case / rel, marker, corrupt, damage),
     )
     assert _WO003_FIELD_FINDING + where + ")" in found, (
-        damage + " acceptance field " + kind + " was accepted: "
-        + repr(sorted(found))
+        damage + " " + kind + " was accepted: " + repr(sorted(found))
     )
 
 
-@pytest.mark.parametrize(("name", "rel", "first", "second", "joiner", "where"), (
-    ("issued", _WO003_REL,
+# Reordering two declarations, and padding after the whole slice, are the two
+# slice attacks a per-declaration damage cannot express.
+_SETTLED_SLICE_ATTACKS = (
+    ("reorder-issued", _WO003_REL,
      "SESSION_B_ACCEPTANCE_COMMIT: `" + _WO003_SESSION_B_ACCEPTED_BASE + "`",
      "SESSION_B_ACCEPTANCE_CI_WORKFLOW: `"
      + _WO003_SESSION_B_ACCEPTED_WORKFLOW + "`", _NL + _NL, "issued record"),
-    ("pointer", "WORKORDER.md",
+    ("reorder-pointer", "WORKORDER.md",
      "- Session B acceptance commit: `" + _WO003_SESSION_B_ACCEPTED_BASE + "`",
      "- Session B acceptance CI workflow: `"
      + _WO003_SESSION_B_ACCEPTED_WORKFLOW + "`", _NL, "WORKORDER.md"),
-))
-def test_wo003_session_b_acceptance_order_is_enforced(
-    repo_root, tmp_path, monkeypatch, name, rel, first, second, joiner, where
-) -> None:
-    """Reordering two acceptance declarations breaks the canonical slice."""
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, "reorder-" + name,
-        lambda case: _edit(case, rel, first + joiner + second,
-                           second + joiner + first),
-    )
-    assert _WO003_FIELD_FINDING + where + ")" in found, (
-        "a reordered acceptance slice was accepted: " + repr(sorted(found))
-    )
-
-
-@pytest.mark.parametrize(("name", "rel", "anchor", "padding", "where"), (
-    ("issued", _WO003_REL,
+)
+_SETTLED_PADDING = (
+    ("pad-issued", _WO003_REL,
      "SESSION_B_ACCEPTANCE_CI_JOB: `" + _WO003_SESSION_B_ACCEPTED_JOB + "` "
      + _EM + " Lint, types, tests",
      "SESSION_C_AUTHORIZATION_COMMIT: `" + _WRONG_COMMIT + "`",
      "issued record"),
-    ("pointer", "WORKORDER.md", _WO003_RELEASE_GATE_LINE,
+    ("pad-pointer", "WORKORDER.md", _WO003_RELEASE_GATE_LINE,
      "- Session C authorization commit: `" + _WRONG_COMMIT + "`",
      "WORKORDER.md"),
-))
-def test_wo003_session_b_accepted_slice_stays_terminal(
-    repo_root, tmp_path, monkeypatch, name, rel, anchor, padding, where
+)
+
+
+@pytest.mark.parametrize("state", _SETTLED, ids=_SETTLED_IDS)
+@pytest.mark.parametrize(("name", "rel", "first", "second", "joiner", "where"),
+                         _SETTLED_SLICE_ATTACKS,
+                         ids=[row[0] for row in _SETTLED_SLICE_ATTACKS])
+def test_settled_canonical_order_is_enforced(
+    repo_root, tmp_path, monkeypatch, state, name, rel, first, second,
+    joiner, where
+) -> None:
+    """Reordering two canonical declarations breaks the exact slice."""
+    found = _settled_types(
+        repo_root, tmp_path, monkeypatch, state, name,
+        lambda case: _edit(case, rel, first + joiner + second,
+                           second + joiner + first),
+    )
+    assert _WO003_FIELD_FINDING + where + ")" in found, (
+        "a reordered slice was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("state", _SETTLED, ids=_SETTLED_IDS)
+@pytest.mark.parametrize(("name", "rel", "anchor", "padding", "where"),
+                         _SETTLED_PADDING,
+                         ids=[row[0] for row in _SETTLED_PADDING])
+def test_settled_slice_stays_terminal(
+    repo_root, tmp_path, monkeypatch, state, name, rel, anchor, padding, where
 ) -> None:
     """Padding appended after the canonical slice is not silently absorbed."""
     def mutate(case):
@@ -5634,256 +5934,334 @@ def test_wo003_session_b_accepted_slice_stays_terminal(
         assert len(matches) == 1, "probe anchor drifted: " + anchor
         target.write_text(
             text.replace(matches[0], matches[0] + _NL + _NL + padding, 1),
-            encoding="utf-8",
-        )
+            encoding="utf-8")
 
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, "terminal-" + name, mutate
-    )
+    found = _settled_types(repo_root, tmp_path, monkeypatch, state, name,
+                           mutate)
     assert _WO003_FIELD_FINDING + where + ")" in found, (
         "padding after the canonical slice was accepted: " + repr(sorted(found))
     )
 
 
-@pytest.mark.parametrize(("name", "old", "new", "expected"), (
-    ("accepted-description", _WO003_ACCEPTED_DESCRIPTION_FIELD,
-     _WO003_ACCEPTED_DESCRIPTION_PREFIX
-     + _WO003_DESCRIPTION_DRAFT.replace("362 Python", "358+ Python") + "`",
-     "WO-003 Session B accepted description"),
-    ("accepted-description-removed", _WO003_ACCEPTED_DESCRIPTION_FIELD,
-     "REMOVED_DESCRIPTION: none",
-     "WO-003 Session B accepted description count"),
-    ("accepted-description-duplicated", _WO003_ACCEPTED_DESCRIPTION_FIELD,
-     _WO003_ACCEPTED_DESCRIPTION_FIELD + _NL
-     + _WO003_ACCEPTED_DESCRIPTION_FIELD,
-     "WO-003 Session B accepted description count"),
-    ("accepted-count", _WO003_ACCEPTED_COUNT_FIELD,
-     "ACCEPTED_DESCRIPTION_CHARACTER_COUNT: `262`",
-     "WO-003 Session B acceptance record"),
-    ("not-applied-status", "still a DRAFT and has NOT BEEN APPLIED",
-     "has now BEEN APPLIED", "WO-003 Session B acceptance record"),
-    ("live-description-changed",
-     "The live GitHub repository description is unchanged.",
-     "The live GitHub repository description was updated.",
-     "WO-003 Session B acceptance record"),
-    ("nothing-published",
-     "changed, updated, applied, or published.",
-     "published to the repository.", "WO-003 Session B acceptance record"),
-    ("proposed-draft", _WO003_SESSION_B_DRAFT_FIELD,
-     _WO003_SESSION_B_DRAFT_FIELD.replace("362 Python", "358+ Python"),
-     "WO-003 Session B draft truth"),
-    ("session-a-record",
+# Bounded records every settled gate carries. `applied_only` rows exist only
+# once the description has been applied.
+_SETTLED_RECORDS = (
+    (False, "session-a-record",
      "362 tools across 55 categories; corrected dashboard About ordering",
      "361 tools across 54 categories; corrected dashboard About ordering",
      "WO-003 Session A acceptance record"),
-))
-def test_wo003_session_b_accepted_preserves_bounded_records(
-    repo_root, tmp_path, monkeypatch, name, old, new, expected
+    (False, "draft-record", _WO003_SESSION_B_DRAFT_FIELD,
+     _WO003_SESSION_B_DRAFT_FIELD.replace("362 Python", "358+ Python"),
+     "WO-003 Session B draft truth"),
+    (False, "accepted-description", _WO003_ACCEPTED_DESCRIPTION_FIELD,
+     _WO003_ACCEPTED_DESCRIPTION_PREFIX
+     + _WO003_DESCRIPTION_DRAFT.replace("362 Python", "358+ Python") + "`",
+     "WO-003 Session B accepted description"),
+    (False, "accepted-description-removed", _WO003_ACCEPTED_DESCRIPTION_FIELD,
+     "REMOVED_DESCRIPTION: none",
+     "WO-003 Session B accepted description count"),
+    (False, "accepted-description-duplicated",
+     _WO003_ACCEPTED_DESCRIPTION_FIELD,
+     _WO003_ACCEPTED_DESCRIPTION_FIELD + _NL
+     + _WO003_ACCEPTED_DESCRIPTION_FIELD,
+     "WO-003 Session B accepted description count"),
+    (False, "accepted-count", _WO003_ACCEPTED_COUNT_FIELD,
+     "ACCEPTED_DESCRIPTION_CHARACTER_COUNT: `262`",
+     "WO-003 Session B acceptance record"),
+    (False, "not-applied-status",
+     "was still a DRAFT and had NOT" + _NL + "BEEN APPLIED,",
+     "has now BEEN APPLIED,", "WO-003 Session B acceptance record"),
+    (False, "live-description",
+     "the live GitHub repository description was still" + _NL + "unchanged.",
+     "the live GitHub repository description was updated.",
+     "WO-003 Session B acceptance record"),
+    (False, "nothing-published",
+     "had been changed, updated, applied, or published at that",
+     "was published to the repository at that",
+     "WO-003 Session B acceptance record"),
+    (True, "applied-value", _WO003_APPLIED_DESCRIPTION_FIELD,
+     "APPLIED_REPOSITORY_DESCRIPTION: `"
+     + _WO003_DESCRIPTION_DRAFT.replace("362 Python", "358+ Python") + "`",
+     "WO-003 applied description"),
+    (True, "applied-value-removed", _WO003_APPLIED_DESCRIPTION_FIELD,
+     "REMOVED_APPLIED_DESCRIPTION: none", "WO-003 applied description count"),
+    (True, "applied-value-duplicated", _WO003_APPLIED_DESCRIPTION_FIELD,
+     _WO003_APPLIED_DESCRIPTION_FIELD + _NL + _WO003_APPLIED_DESCRIPTION_FIELD,
+     "WO-003 applied description count"),
+    (True, "applied-count", _WO003_APPLIED_COUNT_FIELD,
+     "APPLIED_DESCRIPTION_CHARACTER_COUNT: `262`",
+     "WO-003 applied character-count declaration"),
+    (True, "applied-digest", _WO003_APPLIED_SHA_FIELD,
+     "APPLIED_DESCRIPTION_SHA256: `" + "0" * 64 + "`",
+     "WO-003 applied digest declaration"),
+    (True, "applied-read-back", _WO003_APPLIED_READ_BACK_FIELD,
+     "APPLIED_DESCRIPTION_LIVE_READ_BACK: `not verified`",
+     "WO-003 applied read-back evidence"),
+    (True, "authorized-command", "gh repo edit undergroundrap/UEFN-TOOLBELT",
+     "gh repo edit undergroundrap/SOME-OTHER-REPO",
+     "WO-003 description application record"),
+    (True, "unchanged-metadata", "visibility PUBLIC, archived state `false`,",
+     "visibility PRIVATE, archived state `true`,",
+     "WO-003 description application record"),
+    (True, "nothing-else-changed",
+     "No file, commit, push, tag, Release, branch" + _NL
+     + "setting, other repository metadata, or social state changed.",
+     "Branch protection and topics were changed too.",
+     "WO-003 description application record"),
+    (True, "not-applied-wording",
+     "description was applied to the live GitHub repository.",
+     "description was not applied to the live GitHub repository.",
+     "WO-003 description application record"),
+)
+
+
+@pytest.mark.parametrize("state", _SETTLED, ids=_SETTLED_IDS)
+@pytest.mark.parametrize(("applied_only", "name", "old", "new", "expected"),
+                         _SETTLED_RECORDS,
+                         ids=[row[1] for row in _SETTLED_RECORDS])
+def test_settled_bounded_records_are_pinned(
+    repo_root, tmp_path, monkeypatch, state, applied_only, name, old, new,
+    expected
 ) -> None:
-    """The accepted draft, its status, and every earlier record stay pinned."""
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, "record-" + name,
+    """Every earlier record, and the applied record, stay enforced."""
+    if applied_only and state.rebuilt:
+        pytest.skip("no application record before the description was applied")
+    found = _settled_types(
+        repo_root, tmp_path, monkeypatch, state, "record-" + name,
         lambda case: _edit(case, _WO003_REL, old, new),
     )
     assert expected in found, (
-        name + " damage was accepted: " + repr(sorted(found))
+        state.name + " " + name + " damage was accepted: " + repr(sorted(found))
     )
 
 
-def test_wo003_session_b_acceptance_record_rejects_a_presence_decoy(
-    repo_root, tmp_path, monkeypatch
-) -> None:
-    """A correct phrase parked outside the record cannot repair it."""
-    marker = "The live GitHub repository description is unchanged."
-    corrupt = "The live GitHub repository description was updated."
+_APPLIED_FIELDS = (
+    ("value", _WO003_APPLIED_DESCRIPTION_FIELD,
+     "APPLIED_REPOSITORY_DESCRIPTION: `"
+     + _WO003_DESCRIPTION_DRAFT.replace("same-user", "any-user") + "`"),
+    ("count", _WO003_APPLIED_COUNT_FIELD,
+     "APPLIED_DESCRIPTION_CHARACTER_COUNT: `999`"),
+    ("digest", _WO003_APPLIED_SHA_FIELD,
+     "APPLIED_DESCRIPTION_SHA256: `" + "f" * 64 + "`"),
+    ("read-back", _WO003_APPLIED_READ_BACK_FIELD,
+     "APPLIED_DESCRIPTION_LIVE_READ_BACK: `unverified`"),
+)
 
+
+@pytest.mark.parametrize(("kind", "marker", "corrupt"), _APPLIED_FIELDS,
+                         ids=[row[0] for row in _APPLIED_FIELDS])
+@pytest.mark.parametrize("damage", _DAMAGES)
+def test_applied_record_fields_are_structural(
+    repo_root, tmp_path, monkeypatch, kind, marker, corrupt, damage
+) -> None:
+    """Wrong, missing, duplicated, transplanted, wrapped, or padded alike."""
+    found = _settled_types(
+        repo_root, tmp_path, monkeypatch, _SETTLED[0], damage + "-" + kind,
+        lambda case: _damage(case / _WO003_REL, marker, corrupt, damage),
+    )
+    assert "WO-003 description application record" in found, (
+        damage + " " + kind + " was accepted: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("state", _SETTLED, ids=_SETTLED_IDS)
+@pytest.mark.parametrize("attack", ("decoy", "equivalent-copy",
+                                    "duplicate-heading", "wrapper"))
+def test_settled_record_rejects_structural_attacks(
+    repo_root, tmp_path, monkeypatch, state, attack
+) -> None:
+    """The record is located by position, so no copy elsewhere repairs it."""
     def mutate(case):
         target = case / _WO003_REL
         text = target.read_text(encoding="utf-8")
-        assert text.count(marker) == 1, "probe anchor drifted: " + marker
-        target.write_text(
-            text.replace(marker, corrupt, 1)
-            + _NL + "<!-- " + marker + " -->" + _NL,
-            encoding="utf-8",
-        )
-
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, "record-decoy", mutate
-    )
-    assert "WO-003 Session B acceptance record" in found, (
-        "an out-of-record decoy repaired the acceptance record: "
-        + repr(sorted(found))
-    )
-
-
-def test_wo003_session_b_acceptance_record_rejects_an_equivalent_copy(
-    repo_root, tmp_path, monkeypatch
-) -> None:
-    """A whole equivalent record elsewhere cannot stand in for the real one."""
-    def mutate(case):
-        target = case / _WO003_REL
-        text = target.read_text(encoding="utf-8")
-        head, sep, tail = text.partition(_WO003_SESSION_B_ACCEPTANCE_HEADING)
-        assert sep, "probe anchor drifted: acceptance heading"
+        if attack == "duplicate-heading":
+            target.write_text(text + _NL + state.heading + _NL,
+                              encoding="utf-8")
+            return
+        if attack == "wrapper":
+            target.write_text(
+                text.replace(state.heading,
+                             state.heading + _NL + _NL + "NOTE: injected", 1),
+                encoding="utf-8")
+            return
+        head, sep, tail = text.partition(state.heading)
+        assert sep, "probe anchor drifted: " + state.heading
         body, following, rest = tail.partition("## Planning basis")
         assert following, "probe anchor drifted: planning basis"
-        assert body.count(_WO003_SESSION_B_ACCEPTED_BASE) == 1, body[:200]
-        corrupted = body.replace(
-            _WO003_SESSION_B_ACCEPTED_BASE, _WRONG_COMMIT, 1
-        )
-        target.write_text(
-            head + sep + corrupted + following + rest + _NL
-            + "## Preserved acceptance copy" + body,
-            encoding="utf-8",
-        )
+        assert body.count(state.body_needle) == 1, "probe anchor drifted: body"
+        corrupted = body.replace(state.body_needle,
+                                 "0" * len(state.body_needle), 1)
+        parked = ("<!-- " + state.body_needle + " -->" if attack == "decoy"
+                  else "## Preserved copy" + body)
+        target.write_text(head + sep + corrupted + following + rest + _NL
+                          + parked + _NL, encoding="utf-8")
 
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, "record-copy", mutate
-    )
-    assert "WO-003 Session B acceptance record" in found, (
-        "an equivalent record planted elsewhere was accepted: "
-        + repr(sorted(found))
+    found = _settled_types(repo_root, tmp_path, monkeypatch, state, attack,
+                           mutate)
+    assert state.record_kind in found, (
+        state.name + " " + attack + " was accepted: " + repr(sorted(found))
     )
 
 
-@pytest.mark.parametrize("intruder", (
-    "<!-- acceptance record decoy -->",
-    "```text",
-    "NOTE: injected",
-))
-def test_wo003_session_b_acceptance_record_rejects_wrappers(
-    repo_root, tmp_path, monkeypatch, intruder
-) -> None:
-    """The bounded record is exact; no wrapper vocabulary is needed."""
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch,
-        "record-intruder-"
-        + intruder.split()[0].replace("<", "x").replace(":", ""),
-        lambda case: _edit(
-            case, _WO003_REL, _WO003_SESSION_B_ACCEPTANCE_HEADING,
-            _WO003_SESSION_B_ACCEPTANCE_HEADING + _NL + _NL + intruder,
-        ),
-    )
-    assert "WO-003 Session B acceptance record" in found, (
-        "an acceptance-record intruder was accepted: " + repr(sorted(found))
-    )
-
-
-def test_wo003_session_b_acceptance_record_requires_a_unique_heading(
+def test_applied_rejects_a_coordinated_value_count_and_digest_change(
     repo_root, tmp_path, monkeypatch
 ) -> None:
-    """A duplicated heading destroys the anchor and must fail closed."""
+    """A self-consistent replacement value is still not the applied one.
+
+    Text, character count, and digest edited together are internally
+    coherent; only re-derivation against the value actually read back from
+    the live repository rejects them.
+    """
+    other = _WO003_DESCRIPTION_DRAFT.replace(
+        "for local AI control.", "for local and remote AI control.")
+    digest = hashlib.sha256(other.encode("utf-8")).hexdigest()
+    assert other != _WO003_DESCRIPTION_DRAFT and digest != _WO003_APPLIED_SHA256
+
     def mutate(case):
-        target = case / _WO003_REL
-        target.write_text(
-            target.read_text(encoding="utf-8") + _NL
-            + _WO003_SESSION_B_ACCEPTANCE_HEADING + _NL,
-            encoding="utf-8",
-        )
+        _edit(case, _WO003_REL, _WO003_APPLIED_DESCRIPTION_FIELD,
+              "APPLIED_REPOSITORY_DESCRIPTION: `" + other + "`")
+        _edit(case, _WO003_REL, _WO003_APPLIED_COUNT_FIELD,
+              "APPLIED_DESCRIPTION_CHARACTER_COUNT: `" + str(len(other)) + "`")
+        _edit(case, _WO003_REL, _WO003_APPLIED_SHA_FIELD,
+              "APPLIED_DESCRIPTION_SHA256: `" + digest + "`")
 
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, "record-duplicate-heading", mutate
-    )
-    assert "WO-003 Session B acceptance record" in found, (
-        "a duplicated acceptance heading was accepted: " + repr(sorted(found))
-    )
+    found = _settled_types(repo_root, tmp_path, monkeypatch, _SETTLED[0],
+                           "coordinated", mutate)
+    assert "WO-003 applied description" in found, repr(sorted(found))
+    assert "WO-003 description application record" in found, repr(sorted(found))
 
 
-def test_wo003_session_b_acceptance_cannot_roll_back_to_drafting(
+def test_applied_cannot_complete_the_work_order(
     repo_root, tmp_path, monkeypatch
 ) -> None:
-    """A coherent document-only rollback to drafting still trips the lock."""
-    drift_check = _load_drift_check(repo_root, "wo003_ba_rollback")
-    case = _make_wo003_session_b_case(
-        repo_root, tmp_path, "wo003-ba-rollback"
+    """Applying the description does not complete WO-003.
+
+    Moving the mandate to completed/ and closing the pointer is exactly the
+    coherent document-only completion the one-way lock exists to reject.
+    """
+    def mutate(case):
+        source = case / _WO003_REL
+        text = source.read_text(encoding="utf-8")
+        text = _replace_once(text, "STATUS: ISSUED", "STATUS: COMPLETED",
+                             "WO-003 completion attempt")
+        text = _replace_once(
+            text, _WO003_APPLIED_MARKER,
+            "AUTHORIZATION: COMPLETED " + _EM + " NO SESSION AUTHORIZED",
+            "WO-003 completion attempt")
+        (case / "docs" / "work-orders" / "completed" / source.name).write_text(
+            text, encoding="utf-8")
+        source.unlink()
+        _edit(case, "WORKORDER.md", "- Current issued Work Order: WO-003",
+              "- Current issued Work Order: NONE")
+
+    drift_check = _load_drift_check(repo_root, "applied_completion")
+    case = _make_wo003_applied_case(repo_root, tmp_path, "applied-completion")
+    mutate(case)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    found = {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+    assert _TERMINAL_WO003_FINDING in found, (
+        "WO-003 was completed without an owner gate: " + repr(sorted(found))
     )
+
+
+# Each rollback rebuilds the state before it. All of them must still fail.
+_ROLLBACKS = (
+    ("applied-to-accepted", _make_wo003_session_b_accepted_case),
+    ("accepted-to-drafting", _make_wo003_session_b_case),
+)
+
+
+@pytest.mark.parametrize(("name", "make"), _ROLLBACKS,
+                         ids=[row[0] for row in _ROLLBACKS])
+def test_settled_rollback_still_trips_the_one_way_lock(
+    repo_root, tmp_path, monkeypatch, name, make
+) -> None:
+    """A coherent document-only rollback rebuilds cleanly and still fails."""
+    drift_check = _load_drift_check(repo_root, "rollback_" + name)
+    case = make(repo_root, tmp_path, "rollback-" + name)
     monkeypatch.setattr(drift_check, "ROOT", str(case))
     found = {
         finding["type"] for finding in drift_check.check_work_order_contract()
     }
     assert found == {_TERMINAL_WO003_FINDING}, (
-        "the drafting reconstruction escaped or rebuilt incompletely: "
+        name + " rebuilt incompletely or escaped the lock: "
         + repr(sorted(found))
     )
 
 
-@pytest.mark.parametrize(("name", "statement", "expected"), (
-    ("session-a", "Session A is authorized and may begin.",
-     "session authorization reopening"),
-    ("session-b", "Session B is authorized and may begin.",
-     "session authorization reopening"),
-    ("session-c", "Session C is authorized and may begin.",
-     "session authorization reopening"),
-    ("wo004", "WO-004 is authorized and may begin.",
-     "next work order authorization"),
-    ("tag", "A tag and GitHub Release are authorized.",
-     "release authorization"),
-    ("release-session", "A release session is authorized.",
-     "release authorization"),
-    ("metadata-may", "Repository metadata may now be applied.",
-     "WO-003 Session B external-action boundary"),
-    ("metadata-was", "Repository metadata was applied.",
-     "WO-003 Session B external-action boundary"),
+# Statements no settled gate may make. `kind` selects the detector that must
+# reject it; "boundary" resolves to the gate's own external-action finding.
+_SETTLED_AUTHORITY = (
+    ("session-a", "Session A is authorized and may begin.", "session"),
+    ("session-b", "Session B is authorized and may begin.", "session"),
+    ("session-c", "Session C is authorized and may begin.", "session"),
+    ("wo004", "WO-004 is authorized and may begin.", "wo004"),
+    ("tag", "A tag and GitHub Release are authorized.", "release"),
+    ("release-session", "A release session is authorized.", "release"),
+    ("metadata-may", "Repository metadata may now be applied.", "boundary"),
+    ("metadata-was", "Repository metadata was applied.", "boundary"),
     ("metadata-authorized", "Repository metadata application is authorized.",
-     "WO-003 Session B external-action boundary"),
+     "boundary"),
     ("description-changed", "The GitHub repository description was changed.",
-     "WO-003 Session B external-action boundary"),
+     "boundary"),
     ("description-updated", "The repository description has been updated.",
-     "WO-003 Session B external-action boundary"),
-    ("description-may", "The GitHub description may be applied.",
-     "WO-003 Session B external-action boundary"),
-    ("social-published", "Social publication may now be published.",
-     "WO-003 Session B external-action boundary"),
-    ("social-authorized", "Social publication is authorized.",
-     "WO-003 Session B external-action boundary"),
-))
-def test_wo003_session_b_accepted_rejects_new_authority(
-    repo_root, tmp_path, monkeypatch, name, statement, expected
+     "boundary"),
+    ("description-may", "The GitHub description may be applied.", "boundary"),
+    ("branch-protection", "Branch-protection changes are authorized.",
+     "boundary"),
+    ("social-published", "Social publication may now be published.", "boundary"),
+    ("social-authorized", "Social publication is authorized.", "boundary"),
+)
+_AUTHORITY_KINDS = {
+    "session": "session authorization reopening",
+    "wo004": "next work order authorization",
+    "release": "release authorization",
+}
+
+
+@pytest.mark.parametrize("state", _SETTLED, ids=_SETTLED_IDS)
+@pytest.mark.parametrize(("name", "statement", "kind"), _SETTLED_AUTHORITY,
+                         ids=[row[0] for row in _SETTLED_AUTHORITY])
+def test_settled_rejects_new_authority(
+    repo_root, tmp_path, monkeypatch, state, name, statement, kind
 ) -> None:
-    """Acceptance is not application, activation, publication, or release."""
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, "authority-" + name,
+    """A settled gate is not the next one: no activation, publication, release."""
+    found = _settled_types(
+        repo_root, tmp_path, monkeypatch, state, "authority-" + name,
         lambda case: _edit(
             case, "WORKORDER.md", "- Release train: WO-001 through WO-007",
-            "- Release train: WO-001 through WO-007" + _NL + statement,
-        ),
+            "- Release train: WO-001 through WO-007" + _NL + statement),
     )
+    expected = _AUTHORITY_KINDS.get(kind, state.boundary_kind)
     assert expected in found, (
-        statement + " was accepted: " + repr(sorted(found))
+        state.name + ": " + statement + " was accepted: " + repr(sorted(found))
     )
 
 
-def test_wo003_session_b_accepted_does_not_pin_unrelated_prose(
-    repo_root, tmp_path, monkeypatch
+_SETTLED_PROSE = (
+    ("mandate", _WO003_REL, "These are the anticipated writable paths;",
+     "These paths are the anticipated writable set;"),
+    ("pointer", "WORKORDER.md",
+     "New proposals default to the following release train unless",
+     "New proposals join the following release train unless"),
+)
+
+
+@pytest.mark.parametrize("state", _SETTLED, ids=_SETTLED_IDS)
+@pytest.mark.parametrize(("name", "rel", "old", "new"), _SETTLED_PROSE,
+                         ids=[row[0] for row in _SETTLED_PROSE])
+def test_settled_does_not_pin_unrelated_prose(
+    repo_root, tmp_path, monkeypatch, state, name, rel, old, new
 ) -> None:
     """Control: harmless prose outside every bounded record stays editable."""
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, "unrelated-prose",
-        lambda case: _edit(
-            case, _WO003_REL,
-            "These are the anticipated writable paths;",
-            "These paths are the anticipated writable set;",
-        ),
+    found = _settled_types(
+        repo_root, tmp_path, monkeypatch, state, "prose-" + name,
+        lambda case: _edit(case, rel, old, new),
     )
     assert found == set(), (
-        "unrelated mandate prose was frozen: " + repr(sorted(found))
-    )
-
-
-def test_wo003_session_b_accepted_does_not_pin_unrelated_pointer_prose(
-    repo_root, tmp_path, monkeypatch
-) -> None:
-    """Control: the pointer's own harmless prose stays editable too."""
-    found = _wo003_b_accepted_types(
-        repo_root, tmp_path, monkeypatch, "unrelated-pointer-prose",
-        lambda case: _edit(
-            case, "WORKORDER.md",
-            "New proposals default to the following release train unless",
-            "New proposals join the following release train unless",
-        ),
-    )
-    assert found == set(), (
-        "unrelated pointer prose was frozen: " + repr(sorted(found))
+        state.name + " froze unrelated prose: " + repr(sorted(found))
     )
 
 

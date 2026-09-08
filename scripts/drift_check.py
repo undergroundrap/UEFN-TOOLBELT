@@ -17,11 +17,13 @@ Add to pre-commit workflow:
 from __future__ import annotations
 
 import ast
+import hashlib
 import io
 import os
 import re
 import sys
 import tokenize
+from typing import NamedTuple
 
 # ── Repo root ──────────────────────────────────────────────────────────────────
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -156,6 +158,9 @@ _ISSUED_SESSION_B_DRAFT_AUTH = (
 _ISSUED_SESSION_B_ACCEPTED = (
     "AUTHORIZATION: ISSUED — SESSION B ACCEPTED; NO SESSION AUTHORIZED"
 )
+_ISSUED_DESCRIPTION_APPLIED = (
+    "AUTHORIZATION: ISSUED — DESCRIPTION APPLIED; NO SESSION AUTHORIZED"
+)
 _COMPLETED_NO_SESSION_AUTH = "AUTHORIZATION: COMPLETED — NO SESSION AUTHORIZED"
 _WO001_COMPLETION_COMMIT = "ffcbe8b1bfa03cb37453b9beefda0bbdbe45543c"
 _WO001_COMPLETION_WORKFLOW = "32921154482"
@@ -263,7 +268,7 @@ _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT = (
     "action. Metadata application, tags, Releases, and social publication all "
     "remain unauthorized, as do Session C and WO-004."
 )
-_WO003_CURRENT_DESCRIPTION = (
+_WO003_PRE_APPLICATION_DESCRIPTION = (
     "The ultimate, ever-expanding Swiss Army Knife for the UEFN Python API "
     "(358+ tools registered across 55+ categories). Automate world-building, "
     "manage assets, generate boilerplate Verse code, and control the editor "
@@ -276,6 +281,68 @@ _WO003_DESCRIPTION_DRAFT = (
     "Toolbelt is not exposed through Epic's MCP server."
 )
 _WO003_DESCRIPTION_DRAFT_LENGTH = 261
+# Applying the accepted description is the next one-way transition. The
+# applied value IS the accepted draft, so it is reused rather than restated;
+# only the digest, the live read-back, and the unchanged non-description
+# metadata are new facts. No canonical metadata field is added: the pointer
+# and issued slices carry no new declaration, and the base commit and gate
+# below are checked by the same _wo003_record_findings comparison every
+# earlier transition used.
+_WO003_APPLIED_BASE = "624ccc7f8f28cc897ec580c660607524ad5a4a3d"
+_WO003_APPLIED_DESCRIPTION = _WO003_DESCRIPTION_DRAFT
+_WO003_APPLIED_DESCRIPTION_SHA256 = (
+    "a2d3b9a40e187c1fc4bce18666e3095687cc94b45d10ab27f1bee1e1e3417415"
+)
+_WO003_APPLIED_GATE = (
+    "WO-003 REPOSITORY DESCRIPTION APPLIED — COMPLETION NOT AUTHORIZED"
+)
+_WO003_APPLIED_NEXT_GATE = (
+    "NEXT GATE: separate BDFL/owner authorization for the WO-003 completion "
+    "transition. WO-003 remains issued; WO-004 remains proposed and "
+    "unauthorized."
+)
+_WO003_APPLIED_STATEMENT = (
+    "This Work Order remains issued. Session A is accepted and complete. "
+    "Session B is accepted and complete. The exact accepted repository "
+    "description has been applied under separate owner authorization. WO-003 "
+    "completion, Session C or any later session, WO-004, tagging, Release "
+    "creation, branch-protection changes, other repository metadata changes, "
+    "and social publication remain unauthorized."
+)
+# The pointer's Session B acceptance paragraph keeps every accepted
+# identifier and now states, in the past tense, what was true at that gate.
+_WO003_PRE_APPLICATION_POINTER_STATEMENT = (
+    "Session B's repository-description draft was independently accepted. The "
+    "accepted draft was committed and pushed as `"
+    + _WO003_SESSION_B_ACCEPTED_BASE + "`; successful CI workflow `"
+    + _WO003_SESSION_B_ACCEPTED_WORKFLOW
+    + "` included successful required job `"
+    + _WO003_SESSION_B_ACCEPTED_JOB + "` (`Lint, types, tests`). At that gate "
+    "the live GitHub repository description was still unchanged, applying the "
+    "exact accepted repository description was still a separate "
+    "owner-authorized external action, and metadata application was not "
+    "authorized. Tags, Releases, and social publication remain unauthorized, "
+    "as do Session C and WO-004."
+)
+# The applied record. Like the drafting and acceptance statements before it,
+# it is the statement this gate is allowed to make, so it is removed once
+# before the positive-permission scans rather than parsed by them.
+_WO003_APPLIED_POINTER_STATEMENT = (
+    "The exact accepted repository description was applied to the live GitHub "
+    "repository under separate BDFL/owner authorization, at repository commit "
+    "`" + _WO003_APPLIED_BASE + "`. The applied value is exactly `"
+    + _WO003_APPLIED_DESCRIPTION + "` Its character count is `"
+    + str(_WO003_DESCRIPTION_DRAFT_LENGTH) + "` and its SHA-256 is `"
+    + _WO003_APPLIED_DESCRIPTION_SHA256 + "`; a read-only `gh repo view` "
+    "read-back returned the applied value byte for byte. The homepage "
+    "`https://www.fortnite.com/@ohshh`, PUBLIC visibility, archived state "
+    "`false`, and all 20 repository topics are unchanged. No file, commit, "
+    "push, tag, Release, branch-protection setting, other repository "
+    "metadata, or social state changed. WO-003 remains issued, and its "
+    "completion transition requires a separate owner gate. Session C, WO-004, "
+    "tagging, Release creation, branch-protection changes, other repository "
+    "metadata changes, and social publication all remain unauthorized."
+)
 _WO002_COMPLETED_GATE = (
     "WO-002 COMPLETED — WO-003 PROPOSED AND NOT AUTHORIZED"
 )
@@ -676,7 +743,16 @@ def _wo003_record_findings(
     out = []
     issued_sequence: tuple[str, ...]
     pointer_sequence: tuple[str, ...]
-    if session == "B_ACCEPTED":
+    if session == "APPLIED":
+        # Applying the description adds no canonical declaration, so the
+        # accepted slices are reused unchanged; only the base and gate move.
+        expected_base = _WO003_APPLIED_BASE
+        expected_gate = _WO003_APPLIED_GATE
+        issued_sequence = _WO003_SESSION_B_ACCEPTED_ISSUED_SEQUENCE
+        pointer_sequence = _WO003_SESSION_B_ACCEPTED_POINTER_SEQUENCE
+        base_kind = "WO-003 applied base commit"
+        gate_kind = "WO-003 applied gate"
+    elif session == "B_ACCEPTED":
         expected_base = _WO003_SESSION_B_ACCEPTED_BASE
         expected_gate = _WO003_SESSION_B_ACCEPTED_GATE
         issued_sequence = _WO003_SESSION_B_ACCEPTED_ISSUED_SEQUENCE
@@ -824,12 +900,12 @@ def _wo003_acceptance_record_findings(
     return []
 
 
-_WO003_CURRENT_DESCRIPTION_FIELD = (
-    "CURRENT_LIVE_DESCRIPTION_READ_ONLY_NOT_CHANGED: `"
-    + _WO003_CURRENT_DESCRIPTION + "`"
+_WO003_PRE_APPLICATION_DESCRIPTION_FIELD = (
+    "PRE_APPLICATION_LIVE_DESCRIPTION_HISTORICAL_SNAPSHOT: `"
+    + _WO003_PRE_APPLICATION_DESCRIPTION + "`"
 )
 _WO003_DRAFT_FIELD_PREFIX = (
-    "PROPOSED_REPOSITORY_DESCRIPTION_DRAFT_NOT_APPLIED: `"
+    "PRE_APPLICATION_PROPOSED_DESCRIPTION_HISTORICAL_SNAPSHOT: `"
 )
 _WO003_DRAFT_FIELD = _WO003_DRAFT_FIELD_PREFIX + _WO003_DESCRIPTION_DRAFT + "`"
 _WO003_DRAFT_COUNT_FIELD = (
@@ -837,18 +913,23 @@ _WO003_DRAFT_COUNT_FIELD = (
     + str(_WO003_DESCRIPTION_DRAFT_LENGTH) + "`"
 )
 _WO003_SESSION_B_RECORD = (
-    "## Session B authorization and draft record Session B is authorized for "
-    "repository-description drafting only under the current root `WORKORDER.md` "
-    "gate. The recorded basis is commit `" + _WO003_SESSION_B_BASE
+    "## Session B authorization and draft record HISTORICAL "
+    "PRE-APPLICATION SNAPSHOT. Every value in this section records the "
+    "state at the Session B drafting gate, before the accepted description "
+    "was applied. It does not describe the current live repository. "
+    "Session B is authorized for repository-description drafting only "
+    "under the current root `WORKORDER.md` gate. The recorded basis is "
+    "commit `" + _WO003_SESSION_B_BASE
     + "`, successful CI workflow `" + _WO003_SESSION_B_WORKFLOW
     + "`, and successful required job `" + _WO003_SESSION_B_JOB
-    + "` (`Lint, types, tests`). " + _WO003_CURRENT_DESCRIPTION_FIELD + " "
+    + "` (`Lint, types, tests`). "
+    + _WO003_PRE_APPLICATION_DESCRIPTION_FIELD + " "
     + _WO003_DRAFT_FIELD + " " + _WO003_DRAFT_COUNT_FIELD
-    + " Exactly one replacement description is proposed above. It is a DRAFT "
-    "and has NOT BEEN APPLIED. This Work Order does not authorize repository "
-    "metadata application. Applying an independently accepted description "
-    "remains a separate owner-authorized external action after review, commit, "
-    "push, and green CI."
+    + " Exactly one replacement description was proposed above. At that gate "
+    "it was a DRAFT and had NOT BEEN APPLIED, this Work Order did not "
+    "authorize repository metadata application, and applying an independently "
+    "accepted description was a separate owner-authorized external action "
+    "after review, commit, push, and green CI."
 )
 
 
@@ -916,7 +997,7 @@ def _wo003_session_b_record_findings(
 
 
 _WO003_ACCEPTED_DESCRIPTION_PREFIX = (
-    "ACCEPTED_REPOSITORY_DESCRIPTION_NOT_APPLIED: `"
+    "PRE_APPLICATION_ACCEPTED_DESCRIPTION_HISTORICAL_SNAPSHOT: `"
 )
 _WO003_SESSION_B_ACCEPTED_RUN_URL = (
     "https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/"
@@ -927,8 +1008,12 @@ _WO003_SESSION_B_ACCEPTED_JOB_URL = (
     + _WO003_SESSION_B_ACCEPTED_JOB
 )
 _WO003_SESSION_B_ACCEPTANCE_RECORD = (
-    "## Session B acceptance record Session B's repository-description draft "
-    "was independently accepted. The accepted draft was committed and pushed "
+    "## Session B acceptance record HISTORICAL PRE-APPLICATION SNAPSHOT. "
+    "Every value in this section records the state at the Session B "
+    "acceptance gate, before the accepted description was applied. It does "
+    "not describe the current live repository. Session B's "
+    "repository-description draft was independently accepted. The accepted "
+    "draft was committed and pushed "
     "as `" + _WO003_SESSION_B_ACCEPTED_BASE + "`. CI workflow "
     "[`" + _WO003_SESSION_B_ACCEPTED_WORKFLOW + "`]("
     + _WO003_SESSION_B_ACCEPTED_RUN_URL + ") completed successfully, "
@@ -936,13 +1021,13 @@ _WO003_SESSION_B_ACCEPTANCE_RECORD = (
     + "` — Lint, types, tests](" + _WO003_SESSION_B_ACCEPTED_JOB_URL
     + "). " + _WO003_ACCEPTED_DESCRIPTION_PREFIX + _WO003_DESCRIPTION_DRAFT
     + "` ACCEPTED_DESCRIPTION_CHARACTER_COUNT: `"
-    + str(_WO003_DESCRIPTION_DRAFT_LENGTH) + "` The accepted description "
-    "above is still a DRAFT and has NOT BEEN APPLIED. The live GitHub "
-    "repository description is unchanged. No repository description, "
-    "repository metadata, tag, Release, or social publication was changed, "
-    "updated, applied, or published. Applying the exact accepted description "
-    "remains a separate owner-authorized external action, and this Work Order "
-    "does not authorize repository metadata application."
+    + str(_WO003_DESCRIPTION_DRAFT_LENGTH) + "` At that gate the accepted "
+    "description above was still a DRAFT and had NOT BEEN APPLIED, and the "
+    "live GitHub repository description was still unchanged. No repository "
+    "description, repository metadata, tag, Release, or social publication "
+    "had been changed, updated, applied, or published at that gate, and "
+    "applying the exact accepted description was a separate owner-authorized "
+    "external action that this Work Order did not authorize."
 )
 # One pinned occurrence each, in its own position and form. Containment
 # alone cannot enforce these: each identifier appears twice per record -
@@ -960,23 +1045,45 @@ _WO003_SESSION_B_ACCEPTANCE_EVIDENCE = (
      "(" + _WO003_SESSION_B_ACCEPTED_JOB_URL + ")"),
     ("accepted description",
      _WO003_ACCEPTED_DESCRIPTION_PREFIX + _WO003_DESCRIPTION_DRAFT + "`"),
-    ("not-applied status",
-     "still a DRAFT and has NOT BEEN APPLIED"),
-    ("live description unchanged",
-     "The live GitHub repository description is unchanged."),
+    ("pre-application not-applied status",
+     "was still a DRAFT and had NOT BEEN APPLIED"),
+    ("pre-application live description",
+     "the live GitHub repository description was still unchanged."),
 )
 
 
-def _locate_wo003_session_b_acceptance(text):
+def _locate_wo003_session_b_acceptance(
+    text, following_heading=_WO003_PLANNING_HEADING
+):
     """The Session B acceptance record, located by its two neighbours."""
     return _wo003_anchored_section(
         text,
         (_WO003_SESSION_B_HEADING, _WO003_SESSION_B_ACCEPTANCE_HEADING,
-         _WO003_PLANNING_HEADING),
+         following_heading),
     )
 
 
-def _wo003_session_b_acceptance_findings(text):
+def _wo003_declared_value(text, prefix, kind, noun):
+    """The one backticked value declared under `prefix`, or why there is none.
+
+    Returns ``(value, findings)``. Each bounded record carries its description
+    a second time, so the value is parsed back out and re-derived rather than
+    trusted to the byte comparison alone.
+    """
+    lines = [line.strip() for line in text.split("\n")
+             if line.strip().startswith(prefix)]
+    if len(lines) != 1:
+        return None, [(kind + " count", str(len(lines)),
+                       "exactly one " + noun + " declaration")]
+    value = lines[0][len(prefix):]
+    if not value.endswith("`"):
+        return None, [(kind, lines[0], "a backtick-delimited " + noun)]
+    return value[:-1], []
+
+
+def _wo003_session_b_acceptance_findings(
+    text, following_heading=_WO003_PLANNING_HEADING
+):
     """The accepted draft, its evidence, and its not-applied status.
 
     The bounded record carries the accepted description a second time, so
@@ -987,28 +1094,19 @@ def _wo003_session_b_acceptance_findings(text):
     """
     findings = []
     for found_detail, want in _acceptance_record_findings(
-        text, _locate_wo003_session_b_acceptance,
+        text,
+        lambda body: _locate_wo003_session_b_acceptance(
+            body, following_heading),
         _WO003_SESSION_B_ACCEPTANCE_RECORD,
         _WO003_SESSION_B_ACCEPTANCE_EVIDENCE,
     ):
         findings.append(("WO-003 Session B acceptance record",
                          found_detail, want))
-    accepted = [
-        line.strip() for line in text.split("\n")
-        if line.strip().startswith(_WO003_ACCEPTED_DESCRIPTION_PREFIX)
-    ]
-    if len(accepted) != 1:
-        findings.append(("WO-003 Session B accepted description count",
-                         str(len(accepted)),
-                         "exactly one accepted description declaration"))
-        return findings
-    value = accepted[0][len(_WO003_ACCEPTED_DESCRIPTION_PREFIX):]
-    if not value.endswith("`"):
-        findings.append(("WO-003 Session B accepted description",
-                         accepted[0],
-                         "a backtick-delimited accepted description"))
-        return findings
-    value = value[:-1]
+    value, problems = _wo003_declared_value(
+        text, _WO003_ACCEPTED_DESCRIPTION_PREFIX,
+        "WO-003 Session B accepted description", "accepted description")
+    if value is None:
+        return findings + problems
     if value != _WO003_DESCRIPTION_DRAFT:
         findings.append(("WO-003 Session B accepted description",
                          "the accepted description changed",
@@ -1018,6 +1116,259 @@ def _wo003_session_b_acceptance_findings(text):
             ("WO-003 Session B accepted description character count",
              str(len(value)), str(_WO003_DESCRIPTION_DRAFT_LENGTH)))
     return findings
+
+
+_WO003_APPLICATION_HEADING = "## Repository description application record"
+_WO003_APPLIED_DESCRIPTION_PREFIX = "APPLIED_REPOSITORY_DESCRIPTION: `"
+_WO003_APPLIED_DESCRIPTION_FIELD = (
+    _WO003_APPLIED_DESCRIPTION_PREFIX + _WO003_APPLIED_DESCRIPTION + "`"
+)
+_WO003_APPLIED_COUNT_FIELD = (
+    "APPLIED_DESCRIPTION_CHARACTER_COUNT: `"
+    + str(_WO003_DESCRIPTION_DRAFT_LENGTH) + "`"
+)
+_WO003_APPLIED_SHA_FIELD = (
+    "APPLIED_DESCRIPTION_SHA256: `" + _WO003_APPLIED_DESCRIPTION_SHA256 + "`"
+)
+_WO003_APPLIED_READ_BACK_FIELD = (
+    "APPLIED_DESCRIPTION_LIVE_READ_BACK: `byte-for-byte identical`"
+)
+_WO003_APPLICATION_RECORD = (
+    _WO003_APPLICATION_HEADING + " Under separate BDFL/owner authorization, "
+    "and at repository commit `" + _WO003_APPLIED_BASE + "`, the exact "
+    "accepted repository description was applied to the live GitHub "
+    "repository. " + _WO003_APPLIED_DESCRIPTION_FIELD + " "
+    + _WO003_APPLIED_COUNT_FIELD + " " + _WO003_APPLIED_SHA_FIELD + " "
+    + _WO003_APPLIED_READ_BACK_FIELD + " The exact authorized command was "
+    "`gh repo edit undergroundrap/UEFN-TOOLBELT --description \"<the applied "
+    "value above>\"`. A read-only `gh repo view` read-back returned the "
+    "applied value byte for byte, and its recomputed SHA-256 equals the "
+    "digest declared above. The stale `358+`, `55+`, and fully-offline "
+    "wording is absent from the live description. Non-description metadata "
+    "is unchanged: homepage `https://www.fortnite.com/@ohshh`, visibility "
+    "PUBLIC, archived state `false`, and all 20 repository topics. No file, "
+    "commit, push, tag, Release, branch setting, other repository metadata, "
+    "or social state changed. WO-003 remains issued. Its completion "
+    "transition requires a separate owner gate, and no session is authorized."
+)
+# One pinned occurrence each, in its own position and form - the same
+# per-occurrence discipline the acceptance evidence uses.
+_WO003_APPLICATION_EVIDENCE = (
+    ("applied description", _WO003_APPLIED_DESCRIPTION_FIELD),
+    ("applied character count", _WO003_APPLIED_COUNT_FIELD),
+    ("applied digest", _WO003_APPLIED_SHA_FIELD),
+    ("live read-back", _WO003_APPLIED_READ_BACK_FIELD),
+    ("authorized command", "gh repo edit undergroundrap/UEFN-TOOLBELT"),
+    ("unchanged non-description metadata",
+     "visibility PUBLIC, archived state `false`, and all 20 repository "
+     "topics."),
+    ("nothing else changed",
+     "No file, commit, push, tag, Release, branch setting, other repository "
+     "metadata, or social state changed."),
+)
+
+
+def _locate_wo003_application(text):
+    """The application record, located by its two neighbouring headings."""
+    return _wo003_anchored_section(
+        text,
+        (_WO003_SESSION_B_ACCEPTANCE_HEADING, _WO003_APPLICATION_HEADING,
+         _WO003_PLANNING_HEADING),
+    )
+
+
+def _wo003_application_record_findings(text):
+    """The applied value, its count, its digest, and the live read-back.
+
+    The bounded record carries the applied description a second time, so its
+    text, its 261-character length, and its SHA-256 are re-derived here rather
+    than trusted to the byte comparison alone: a coordinated edit to the
+    record, the declared count, and the declared digest would still have to
+    survive recomputation from the value actually recorded.
+    """
+    findings = []
+    for found_detail, want in _acceptance_record_findings(
+        text, _locate_wo003_application, _WO003_APPLICATION_RECORD,
+        _WO003_APPLICATION_EVIDENCE,
+    ):
+        findings.append(("WO-003 description application record",
+                         found_detail, want))
+    value, problems = _wo003_declared_value(
+        text, _WO003_APPLIED_DESCRIPTION_PREFIX,
+        "WO-003 applied description", "applied description")
+    if value is None:
+        return findings + problems
+    if value != _WO003_APPLIED_DESCRIPTION:
+        findings.append(("WO-003 applied description",
+                         "the applied description changed",
+                         "the exact value read back from the live repository"))
+    if len(value) != _WO003_DESCRIPTION_DRAFT_LENGTH:
+        findings.append(("WO-003 applied description character count",
+                         str(len(value)),
+                         str(_WO003_DESCRIPTION_DRAFT_LENGTH)))
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()
+    if digest != _WO003_APPLIED_DESCRIPTION_SHA256:
+        findings.append(("WO-003 applied description digest", digest,
+                         _WO003_APPLIED_DESCRIPTION_SHA256))
+    for field, kind in (
+        (_WO003_APPLIED_COUNT_FIELD,
+         "WO-003 applied character-count declaration"),
+        (_WO003_APPLIED_SHA_FIELD, "WO-003 applied digest declaration"),
+        (_WO003_APPLIED_READ_BACK_FIELD, "WO-003 applied read-back evidence"),
+    ):
+        occurrences = text.count(field)
+        if occurrences != 1:
+            findings.append((kind, str(occurrences), "exactly one " + field))
+    return findings
+
+
+class _Wo003SettledGate(NamedTuple):
+    """One settled WO-003 gate, as data rather than as a branch.
+
+    Session B acceptance and the description application are the same
+    shape, so only the values that differ live here and the validation is
+    written once. This is internal checker structure carrying no authority:
+    root `WORKORDER.md` stays the sole authority pointer, and every value
+    below is only the expected form of what it already says.
+    """
+
+    gate: str                 # expected pointer `- Current gate:` value
+    marker: str               # expected issued AUTHORIZATION line
+    heading: str              # the record heading that identifies this gate
+    record_key: str           # canonical base/gate/slice row
+    auth_kind: str
+    next_gate: str
+    statement: str
+    statement_kind: str
+    # (exact text, finding kind, expected wording) per pointer statement.
+    pointer_statements: tuple[tuple[str, str, str], ...]
+    # Heading that closes the Session B acceptance record in this state.
+    acceptance_following: str
+    # Whether this gate additionally requires the bounded application record.
+    application_record: bool
+    boundary: tuple[str, str, str]
+    session_want: str
+
+
+_WO003_SETTLED_GATES = (
+    _Wo003SettledGate(
+        gate=_WO003_APPLIED_GATE,
+        marker=_ISSUED_DESCRIPTION_APPLIED,
+        heading=_WO003_APPLICATION_HEADING,
+        record_key="APPLIED",
+        auth_kind="WO-003 applied authorization",
+        next_gate=_WO003_APPLIED_NEXT_GATE,
+        statement=_WO003_APPLIED_STATEMENT,
+        statement_kind="WO-003 applied statement",
+        pointer_statements=(
+            (_WO003_PRE_APPLICATION_POINTER_STATEMENT,
+             "WO-003 pre-application pointer statement",
+             "exactly one " + _WO003_PRE_APPLICATION_POINTER_STATEMENT),
+            (_WO003_APPLIED_POINTER_STATEMENT,
+             "WO-003 applied pointer statement",
+             "exactly one " + _WO003_APPLIED_POINTER_STATEMENT),
+        ),
+        acceptance_following=_WO003_APPLICATION_HEADING,
+        application_record=True,
+        boundary=("WO-003 external-action boundary",
+                  "a further metadata or publication action opened",
+                  "the applied description only; nothing further"),
+        session_want="description applied; no session authorized",
+    ),
+    _Wo003SettledGate(
+        gate=_WO003_SESSION_B_ACCEPTED_GATE,
+        marker=_ISSUED_SESSION_B_ACCEPTED,
+        heading=_WO003_SESSION_B_ACCEPTANCE_HEADING,
+        record_key="B_ACCEPTED",
+        auth_kind="WO-003 Session B accepted authorization",
+        next_gate=_WO003_SESSION_B_ACCEPTED_NEXT_GATE,
+        statement=_WO003_SESSION_B_ACCEPTED_STATEMENT,
+        statement_kind="WO-003 Session B accepted statement",
+        pointer_statements=(
+            (_WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT,
+             "WO-003 Session B accepted pointer statement",
+             "exactly one accepted, not-applied statement"),
+        ),
+        acceptance_following=_WO003_PLANNING_HEADING,
+        application_record=False,
+        boundary=("WO-003 Session B external-action boundary",
+                  "metadata application or social publication opened",
+                  "accepted draft only; no metadata or publication action"),
+        session_want="Session B accepted; no session authorized",
+    ),
+)
+
+
+def _wo003_settled_gate(name, current_gate, auth_lines, issued_text):
+    """The settled gate this issued WO-003 is in, or None.
+
+    Ordered most-recent-first, so a document that still carries an earlier
+    record is identified by the gate it has actually reached.
+    """
+    if name != _WO003_NAME:
+        return None
+    for state in _WO003_SETTLED_GATES:
+        if (current_gate == state.gate
+                or auth_lines == [state.marker]
+                or state.heading in issued_text):
+            return state
+    return None
+
+
+def _wo003_settled_findings(
+    state, pointer, issued_text, rel, base, current_gate, auth_lines
+):
+    """Validate one settled WO-003 gate against its configuration.
+
+    Every earlier bounded record stays enforced from whichever gate is
+    current, so reaching a later gate never silences what came before.
+    """
+    out = []
+    normalized_issued = " ".join(issued_text.split())
+    normalized_pointer = " ".join(pointer.split())
+    if auth_lines != [state.marker]:
+        out.append((rel, state.auth_kind, repr(auth_lines),
+                    "exactly " + state.marker))
+    out.extend(_wo003_record_findings(
+        pointer, issued_text, rel, base, current_gate, state.record_key))
+    records = [
+        _wo003_acceptance_record_findings(
+            issued_text, _WO003_SESSION_B_HEADING),
+        _wo003_session_b_record_findings(
+            issued_text, _WO003_SESSION_B_ACCEPTANCE_HEADING),
+        _wo003_session_b_acceptance_findings(
+            issued_text, state.acceptance_following),
+    ]
+    if state.application_record:
+        records.append(_wo003_application_record_findings(issued_text))
+    for record in records:
+        for kind, found, want in record:
+            out.append((rel, kind, found, want))
+    for required, kind in ((state.next_gate, "WO-003 next gate"),
+                           (state.statement, state.statement_kind)):
+        if normalized_issued.count(required) != 1:
+            out.append((rel, kind, str(normalized_issued.count(required)),
+                        "exactly one " + required))
+    for required, kind, want in state.pointer_statements:
+        if normalized_pointer.count(required) != 1:
+            out.append(("WORKORDER.md", kind,
+                        str(normalized_pointer.count(required)), want))
+    # Reaching this gate is not reaching the next one. The pointer may not
+    # open a further external action, reopen a labeled session, or reach
+    # WO-004.
+    allowed = (state.gate,) + tuple(
+        statement for statement, _kind, _want in state.pointer_statements)
+    if _has_session_b_external_action_authorization(pointer, allowed):
+        out.append(("WORKORDER.md",) + state.boundary)
+    if _has_other_session_authorization(pointer, "", ""):
+        out.append(("WORKORDER.md", "session authorization reopening",
+                    "positive permission for Session A, Session B, or later",
+                    state.session_want))
+    if _has_next_work_order_authorization(pointer, "", "WO-004"):
+        out.append(("WORKORDER.md", "next work order authorization",
+                    "implicit WO-004 permission",
+                    "WO-004 remains proposed and not authorized"))
+    return out
 
 
 def _acceptance_record_findings(text, locate, expected, fragments):
@@ -1301,6 +1652,8 @@ def _has_release_authorization(pointer: str) -> bool:
     for statement in (
         _WO003_SESSION_B_POINTER_STATEMENT,
         _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT,
+        _WO003_PRE_APPLICATION_POINTER_STATEMENT,
+        _WO003_APPLIED_POINTER_STATEMENT,
     ):
         occurrences = text.count(statement)
         if occurrences > 1:
@@ -1323,11 +1676,12 @@ def _has_session_b_external_action_authorization(
     """Reject applying the draft or publishing it, drafted or accepted.
 
     The caller supplies the exact statements the current gate is allowed to
-    make - the drafting-only pair before acceptance, the accepted-and-not-
-    applied pair after it - and each is removed once before the scan. The
-    remaining check is intentionally limited to description/metadata
-    application and social publication; it is not another general
-    authorization-language parser.
+    make - the drafting-only pair while Session B drafts, the accepted-and-
+    not-applied pair after acceptance, and the pre-application record plus
+    the applied record once the description is applied - and each is removed
+    once before the scan. The remaining check is intentionally limited to
+    description/metadata application and social publication; it is not
+    another general authorization-language parser.
     """
     text = " ".join(pointer.split())
     for context in allowed_contexts:
@@ -1336,7 +1690,8 @@ def _has_session_b_external_action_authorization(
         text = text.replace(context, "", 1)
     action = (
         r"(?:repository\s+metadata|(?:github\s+)?repository\s+description|"
-        r"github\s+description|social\s+publication)"
+        r"github\s+description|social\s+publication|"
+        r"branch[-\s]protection)"
     )
     applied = r"(?:appl(?:y|ied)|updat(?:e|ed)|chang(?:e|ed)|publish(?:ed)?)"
     permission = r"(?:may|can|will|authorized|permitted|approved|completed)"
@@ -1726,25 +2081,27 @@ def check_work_order_contract() -> list[dict]:
             add(rel, "issued authorization", repr(auth_lines),
                 "exactly one AUTHORIZATION: ISSUED marker")
 
-    # Session B's acceptance is one-way until the owner explicitly moves
-    # the gate on. A coherent document-only rollback - to the drafting-only
-    # state, to Session A's acceptance, or anywhere earlier - must therefore
-    # still fail. Rolling back would have to edit this file too, which is a
-    # visible act.
-    accepted_b_wo003_path = issued_dir / _WO003_NAME
-    accepted_b_wo003_auth = (
+    # Applying the accepted description is one-way until the owner
+    # explicitly moves the gate on. A coherent document-only rollback - to
+    # the accepted-but-not-applied state, to drafting, to Session A's
+    # acceptance, or anywhere earlier - must therefore still fail, and so
+    # must moving WO-003 out of issued/. Either would have to edit this
+    # file too, which is a visible act.
+    applied_wo003_path = issued_dir / _WO003_NAME
+    applied_wo003_auth = (
         issued_metadata.get(_WO003_NAME, ([], [], ""))[1]
     )
     if not (
-        wo003_paths == [accepted_b_wo003_path]
+        wo003_paths == [applied_wo003_path]
         and session == "NONE"
-        and base == "`" + _WO003_SESSION_B_ACCEPTED_BASE + "`"
-        and current_gate == _WO003_SESSION_B_ACCEPTED_GATE
-        and accepted_b_wo003_auth == [_ISSUED_SESSION_B_ACCEPTED]
+        and base == "`" + _WO003_APPLIED_BASE + "`"
+        and current_gate == _WO003_APPLIED_GATE
+        and applied_wo003_auth == [_ISSUED_DESCRIPTION_APPLIED]
     ):
-        add("docs/work-orders", "accepted WO-003 Session B state",
-            "the accepted Session B state was removed or changed",
-            "WO-003 issued with Session B accepted and no session authorized")
+        add("docs/work-orders", "applied WO-003 description state",
+            "the applied description state was removed or changed",
+            "WO-003 issued with the accepted description applied and no "
+            "session authorized")
 
     completed_metadata: dict[str, tuple[list[str], list[str], str]] = {}
     for path in completed:
@@ -1889,14 +2246,8 @@ def check_work_order_contract() -> list[dict]:
                     or auth_lines == [_ISSUED_SESSION_A_ACCEPTED]
                     or _WO003_ACCEPTANCE_HEADING in issued_text
                 )
-                wo003_session_b_accepted = (
-                    issued[0].name == _WO003_NAME and (
-                        current_gate == _WO003_SESSION_B_ACCEPTED_GATE
-                        or auth_lines == [_ISSUED_SESSION_B_ACCEPTED]
-                        or _WO003_SESSION_B_ACCEPTANCE_HEADING
-                        in issued_text
-                    )
-                )
+                settled = _wo003_settled_gate(
+                    issued[0].name, current_gate, auth_lines, issued_text)
                 if wo002_session_a_accepted:
                     rel = issued[0].relative_to(root).as_posix()
                     normalized_issued = " ".join(issued_text.split())
@@ -1934,78 +2285,13 @@ def check_work_order_contract() -> list[dict]:
                         add("WORKORDER.md", "session authorization reopening",
                             "positive permission for Session A, Session B, or later",
                             "Session A accepted; no session authorized")
-                elif wo003_session_b_accepted:
-                    rel = issued[0].relative_to(root).as_posix()
-                    normalized_issued = " ".join(issued_text.split())
-                    if auth_lines != [_ISSUED_SESSION_B_ACCEPTED]:
-                        add(rel, "WO-003 Session B accepted authorization",
-                            repr(auth_lines),
-                            f"exactly {_ISSUED_SESSION_B_ACCEPTED}")
-                    for _f, _k, _found, _want in _wo003_record_findings(
-                        pointer, issued_text, rel, base, current_gate,
-                        "B_ACCEPTED",
+                elif settled is not None:
+                    for _f, _k, _found, _want in _wo003_settled_findings(
+                        settled, pointer, issued_text,
+                        issued[0].relative_to(root).as_posix(),
+                        base, current_gate, auth_lines,
                     ):
                         add(_f, _k, _found, _want)
-                    # Every earlier bounded record stays enforced: the
-                    # Session A acceptance evidence, the exact accepted
-                    # draft, and now the acceptance of that draft.
-                    for _k, _found, _want in (
-                        _wo003_acceptance_record_findings(
-                            issued_text, _WO003_SESSION_B_HEADING)
-                    ):
-                        add(rel, _k, _found, _want)
-                    for _k, _found, _want in (
-                        _wo003_session_b_record_findings(
-                            issued_text,
-                            _WO003_SESSION_B_ACCEPTANCE_HEADING)
-                    ):
-                        add(rel, _k, _found, _want)
-                    for _k, _found, _want in (
-                        _wo003_session_b_acceptance_findings(issued_text)
-                    ):
-                        add(rel, _k, _found, _want)
-                    for required, kind in (
-                        (_WO003_SESSION_B_ACCEPTED_NEXT_GATE,
-                         "WO-003 next gate"),
-                        (_WO003_SESSION_B_ACCEPTED_STATEMENT,
-                         "WO-003 Session B accepted statement"),
-                    ):
-                        if normalized_issued.count(required) != 1:
-                            add(rel, kind,
-                                str(normalized_issued.count(required)),
-                                "exactly one " + required)
-                    normalized_pointer = " ".join(pointer.split())
-                    if normalized_pointer.count(
-                        _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT
-                    ) != 1:
-                        add("WORKORDER.md",
-                            "WO-003 Session B accepted pointer statement",
-                            str(normalized_pointer.count(
-                                _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT
-                            )),
-                            "exactly one accepted, not-applied statement")
-                    # Acceptance is not application. The pointer may not
-                    # open metadata application or publication, reopen a
-                    # labeled session, or reach WO-004.
-                    if _has_session_b_external_action_authorization(
-                        pointer,
-                        (_WO003_SESSION_B_ACCEPTED_GATE,
-                         _WO003_SESSION_B_ACCEPTED_POINTER_STATEMENT),
-                    ):
-                        add("WORKORDER.md",
-                            "WO-003 Session B external-action boundary",
-                            "metadata application or social publication opened",
-                            "accepted draft only; no metadata or publication action")
-                    if _has_other_session_authorization(pointer, "", ""):
-                        add("WORKORDER.md", "session authorization reopening",
-                            "positive permission for Session A, Session B, or later",
-                            "Session B accepted; no session authorized")
-                    if _has_next_work_order_authorization(
-                        pointer, "", "WO-004"
-                    ):
-                        add("WORKORDER.md", "next work order authorization",
-                            "implicit WO-004 permission",
-                            "WO-004 remains proposed and not authorized")
                 elif wo003_session_a_accepted:
                     rel = issued[0].relative_to(root).as_posix()
                     normalized_issued = " ".join(issued_text.split())

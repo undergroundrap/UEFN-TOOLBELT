@@ -2,7 +2,7 @@
 
 STATUS: ISSUED
 
-AUTHORIZATION: ISSUED — SESSION B ACCEPTED; NO SESSION AUTHORIZED
+AUTHORIZATION: ISSUED — DESCRIPTION APPLIED; NO SESSION AUTHORIZED
 
 OWNER: Ocean Bennett
 
@@ -85,24 +85,33 @@ owner authorization.
 
 ## Session B authorization and draft record
 
+HISTORICAL PRE-APPLICATION SNAPSHOT. Every value in this section records
+the state at the Session B drafting gate, before the accepted description
+was applied. It does not describe the current live repository.
+
 Session B is authorized for repository-description drafting only under the
 current root `WORKORDER.md` gate. The recorded basis is commit
 `2582be8c9168d72b46846334bbba44307d348ce6`, successful CI workflow
 `33351157691`, and successful required job `99364656646`
 (`Lint, types, tests`).
 
-CURRENT_LIVE_DESCRIPTION_READ_ONLY_NOT_CHANGED: `The ultimate, ever-expanding Swiss Army Knife for the UEFN Python API (358+ tools registered across 55+ categories). Automate world-building, manage assets, generate boilerplate Verse code, and control the editor with AI via a fully-offline PySide6 dashboard.`
+PRE_APPLICATION_LIVE_DESCRIPTION_HISTORICAL_SNAPSHOT: `The ultimate, ever-expanding Swiss Army Knife for the UEFN Python API (358+ tools registered across 55+ categories). Automate world-building, manage assets, generate boilerplate Verse code, and control the editor with AI via a fully-offline PySide6 dashboard.`
 
-PROPOSED_REPOSITORY_DESCRIPTION_DRAFT_NOT_APPLIED: `UEFN Toolbelt: 362 Python automation tools across 55 categories, with a PySide6 dashboard and an experimental, authenticated same-user loopback bridge for local AI control. Complements Epic's official UEFN MCP; Toolbelt is not exposed through Epic's MCP server.`
+PRE_APPLICATION_PROPOSED_DESCRIPTION_HISTORICAL_SNAPSHOT: `UEFN Toolbelt: 362 Python automation tools across 55 categories, with a PySide6 dashboard and an experimental, authenticated same-user loopback bridge for local AI control. Complements Epic's official UEFN MCP; Toolbelt is not exposed through Epic's MCP server.`
 
 PROPOSED_DESCRIPTION_CHARACTER_COUNT: `261`
 
-Exactly one replacement description is proposed above. It is a DRAFT and has
-NOT BEEN APPLIED. This Work Order does not authorize repository metadata
-application. Applying an independently accepted description remains a separate
-owner-authorized external action after review, commit, push, and green CI.
+Exactly one replacement description was proposed above. At that gate it was a
+DRAFT and had NOT BEEN APPLIED, this Work Order did not authorize repository
+metadata application, and applying an independently accepted description was a
+separate owner-authorized external action after review, commit, push, and
+green CI.
 
 ## Session B acceptance record
+
+HISTORICAL PRE-APPLICATION SNAPSHOT. Every value in this section records
+the state at the Session B acceptance gate, before the accepted description
+was applied. It does not describe the current live repository.
 
 Session B's repository-description draft was independently accepted. The
 accepted draft was committed and pushed as `e23baa40c4b9358eb6b4448f460c054650ae64f0`. CI
@@ -110,16 +119,44 @@ workflow [`33476969423`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions
 completed successfully, including required job
 [`99758148278` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/33476969423/job/99758148278).
 
-ACCEPTED_REPOSITORY_DESCRIPTION_NOT_APPLIED: `UEFN Toolbelt: 362 Python automation tools across 55 categories, with a PySide6 dashboard and an experimental, authenticated same-user loopback bridge for local AI control. Complements Epic's official UEFN MCP; Toolbelt is not exposed through Epic's MCP server.`
+PRE_APPLICATION_ACCEPTED_DESCRIPTION_HISTORICAL_SNAPSHOT: `UEFN Toolbelt: 362 Python automation tools across 55 categories, with a PySide6 dashboard and an experimental, authenticated same-user loopback bridge for local AI control. Complements Epic's official UEFN MCP; Toolbelt is not exposed through Epic's MCP server.`
 
 ACCEPTED_DESCRIPTION_CHARACTER_COUNT: `261`
 
-The accepted description above is still a DRAFT and has NOT BEEN APPLIED.
-The live GitHub repository description is unchanged. No repository
-description, repository metadata, tag, Release, or social publication was
-changed, updated, applied, or published. Applying the exact accepted
-description remains a separate owner-authorized external action, and this
-Work Order does not authorize repository metadata application.
+At that gate the accepted description above was still a DRAFT and had NOT
+BEEN APPLIED, and the live GitHub repository description was still
+unchanged. No repository description, repository metadata, tag, Release, or
+social publication had been changed, updated, applied, or published at that
+gate, and applying the exact accepted description was a separate
+owner-authorized external action that this Work Order did not authorize.
+
+## Repository description application record
+
+Under separate BDFL/owner authorization, and at repository commit
+`624ccc7f8f28cc897ec580c660607524ad5a4a3d`, the exact accepted repository
+description was applied to the live GitHub repository.
+
+APPLIED_REPOSITORY_DESCRIPTION: `UEFN Toolbelt: 362 Python automation tools across 55 categories, with a PySide6 dashboard and an experimental, authenticated same-user loopback bridge for local AI control. Complements Epic's official UEFN MCP; Toolbelt is not exposed through Epic's MCP server.`
+
+APPLIED_DESCRIPTION_CHARACTER_COUNT: `261`
+
+APPLIED_DESCRIPTION_SHA256: `a2d3b9a40e187c1fc4bce18666e3095687cc94b45d10ab27f1bee1e1e3417415`
+
+APPLIED_DESCRIPTION_LIVE_READ_BACK: `byte-for-byte identical`
+
+The exact authorized command was `gh repo edit undergroundrap/UEFN-TOOLBELT
+--description "<the applied value above>"`. A read-only `gh repo view` read-back
+returned the applied value byte for byte, and its recomputed SHA-256 equals
+the digest declared above. The stale `358+`, `55+`, and fully-offline wording is
+absent from the live description.
+
+Non-description metadata is unchanged: homepage
+`https://www.fortnite.com/@ohshh`, visibility PUBLIC, archived state `false`,
+and all 20 repository topics. No file, commit, push, tag, Release, branch
+setting, other repository metadata, or social state changed.
+
+WO-003 remains issued. Its completion transition requires a separate owner
+gate, and no session is authorized.
 
 ## Planning basis
 
@@ -421,14 +458,20 @@ freezing harmless prose and formatting.
 
 ## Session B — repository-description draft only
 
+HISTORICAL PRE-APPLICATION SNAPSHOT. Every statement in this section
+records the mandate at the Session B drafting gate, before the accepted
+description was applied. It does not describe the current gate or the
+current live repository.
+
 Session B is authorized under the current root `WORKORDER.md` gate. Its scope
 is drafting only: it may read the current GitHub repository description,
 prepare exactly one replacement description
 grounded in Session A's accepted wording, and leave that draft uncommitted for
 independent review.
 
-The current live description carries stale `358+` wording and a "fully-offline"
-characterisation, both of which the corrected surface model contradicts.
+At that gate the live description carried stale `358+` wording and a
+"fully-offline" characterisation, both of which the corrected surface model
+contradicts.
 
 Session B must not apply the description, change any remote metadata, tag,
 create a GitHub Release, prepare WO-007 release or social copy, or publish
@@ -460,9 +503,11 @@ push → CI → Session B authorization → metadata application → tag → Git
 Release → social publication.
 
 This Work Order remains issued. Session A is accepted and complete. Session B
-is accepted and complete. Repository-description application, Session C or any
-later session, WO-004, tagging, Release creation, and social publication
-remain unauthorized.
+is accepted and complete. The exact accepted repository description has been
+applied under separate owner authorization. WO-003 completion, Session C or
+any later session, WO-004, tagging, Release creation, branch-protection
+changes, other repository metadata changes, and social publication remain
+unauthorized.
 
 Live UEFN verification is not required for the documentation-only rows. The
 exception is the runtime-text lock — nine runtime occurrences across
@@ -471,6 +516,5 @@ plus the two `install.py` strings — which carries the deploy, full-restart,
 registration, visual-inspection, and end-to-end install verification set defined
 above.
 
-NEXT GATE: separate BDFL/owner authorization to apply the exact accepted
-repository description. Metadata application remains unauthorized until that
-explicit gate.
+NEXT GATE: separate BDFL/owner authorization for the WO-003 completion
+transition. WO-003 remains issued; WO-004 remains proposed and unauthorized.
