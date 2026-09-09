@@ -138,7 +138,7 @@ def test_drift_check_covers_agent_context_surfaces(repo_root):
         "docs/work-orders/README.md",
         "docs/work-orders/completed/WO-001-custom-mcp-security.md",
         "docs/work-orders/completed/WO-002-epic-toolset-integration.md",
-        "docs/work-orders/issued/WO-003-official-mcp-doc-convergence.md",
+        "docs/work-orders/completed/WO-003-official-mcp-doc-convergence.md",
         "docs/work-orders/proposed/WO-004-modal-observability.md",
         "docs/work-orders/proposed/WO-005-coverage-source-of-truth.md",
         "docs/work-orders/proposed/WO-006-official-vs-toolbelt-benchmark.md",
@@ -213,23 +213,25 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
               if path.name.lower() != "readme.md"]
     completed = [path for path in (work_orders / "completed").glob("*.md")
                  if path.name.lower() != "readme.md"]
-    assert [path.name for path in issued] == [
-        "WO-003-official-mcp-doc-convergence.md"
-    ]
+    assert [path.name for path in issued] == []
     assert {path.name for path in completed} == {
         "WO-001-custom-mcp-security.md",
         "WO-002-epic-toolset-integration.md",
+        "WO-003-official-mcp-doc-convergence.md",
     }
-    assert len(completed) == 2
+    assert len(completed) == 3
     assert (work_orders / "completed" / "WO-002-epic-toolset-integration.md").exists()
-    assert current == "WO-003"
+    assert (
+        work_orders / "completed" / "WO-003-official-mcp-doc-convergence.md"
+    ).exists()
+    assert current == "NONE"
     assert session == "NONE"
     assert base_lines == [
-        "- Base commit: `624ccc7f8f28cc897ec580c660607524ad5a4a3d`"
+        "- Base commit: `7a7eedb493cbf810f758383a1fc66a285bca841a`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-003 REPOSITORY DESCRIPTION APPLIED "
-        "— COMPLETION NOT AUTHORIZED"
+        "- Current gate: WO-003 COMPLETED "
+        "— WO-004 PROPOSED AND NOT AUTHORIZED"
     ]
     # Session A and Session B are both accepted and no session is open.
     # All issuance, authorization, and acceptance provenance stays declared.
@@ -282,6 +284,22 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "archived state `false`, and all 20 repository topics are unchanged."
         in normalized_pointer
     )
+    # Completion is recorded once, with its own commit and CI evidence, and
+    # does not open WO-004.
+    assert (
+        "WO-003 is completed as `7a7eedb493cbf810f758383a1fc66a285bca841a`;"
+        in normalized_pointer
+    )
+    assert "34301244038" in normalized_pointer
+    assert "102308406590" in normalized_pointer
+    assert (
+        "WO-003 is complete; no session is authorized. WO-004 remains "
+        "proposed and unauthorized." in normalized_pointer
+    )
+    assert (
+        "WO-003 remains issued, and its completion transition requires a "
+        "separate owner gate." not in normalized_pointer
+    )
     assert (
         "The live GitHub repository description is unchanged."
         not in normalized_pointer
@@ -302,14 +320,14 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "docs/work-orders/completed/WO-002-epic-toolset-integration.md" in pointer
     assert "docs/work-orders/proposed/WO-002-epic-toolset-integration.md" not in pointer
 
-    wo003 = work_orders / "issued" / "WO-003-official-mcp-doc-convergence.md"
+    wo003 = work_orders / "completed" / "WO-003-official-mcp-doc-convergence.md"
     wo003_text = wo003.read_text(encoding="utf-8")
     wo003_lines = wo003_text.splitlines()
     assert [line for line in wo003_lines if line.startswith("STATUS:")] == [
-        "STATUS: ISSUED"
+        "STATUS: COMPLETED"
     ]
     assert [line for line in wo003_lines if line.startswith("AUTHORIZATION:")] == [
-        "AUTHORIZATION: ISSUED — DESCRIPTION APPLIED; NO SESSION AUTHORIZED"
+        "AUTHORIZATION: COMPLETED — NO SESSION AUTHORIZED"
     ]
     for evidence in (
         "SESSION_A_ACCEPTANCE_COMMIT:"
@@ -346,8 +364,17 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "a2d3b9a40e187c1fc4bce18666e3095687cc94b45d10ab27f1bee1e1e3417415`",
         "APPLIED_DESCRIPTION_LIVE_READ_BACK: `byte-for-byte identical`",
         "624ccc7f8f28cc897ec580c660607524ad5a4a3d",
-        "NEXT GATE: separate BDFL/owner authorization for the WO-003"
-        " completion",
+        # The bounded completion record. The application record above is
+        # preserved verbatim, so completion adds evidence without relaxing
+        # anything it already pinned.
+        "## WO-003 completion record",
+        "7a7eedb493cbf810f758383a1fc66a285bca841a",
+        "34301244038",
+        "102308406590",
+        "WO-003 is complete; no session is authorized. WO-004 remains"
+        " proposed and" + _NL + "unauthorized.",
+        "NEXT GATE: separate owner authorization for a fresh independent"
+        " WO-004",
     ):
         assert evidence in wo003_text
     assert "SESSION B AUTHORIZED FOR DRAFTING ONLY" not in wo003_text
@@ -356,6 +383,9 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "ACCEPTED_REPOSITORY_DESCRIPTION_NOT_APPLIED",
         "PROPOSED_REPOSITORY_DESCRIPTION_DRAFT_NOT_APPLIED",
         "The live GitHub repository description is unchanged.",
+        "This Work Order remains issued.",
+        "NEXT GATE: separate BDFL/owner authorization for the WO-003"
+        " completion",
     ):
         assert stale not in wo003_text, stale
 
@@ -443,14 +473,116 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "Work Order WO-001" in security_normalized
 
 
-def _make_wo003_applied_case(repo_root, tmp_path, name):
-    """Copy the current applied-description WO-003 state."""
+def _make_wo003_completed_case(repo_root, tmp_path, name):
+    """Copy the current completed WO-003 state."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
     shutil.copytree(
         repo_root / "docs" / "work-orders",
         case / "docs" / "work-orders",
+    )
+    return case
+
+
+def _make_wo003_applied_case(repo_root, tmp_path, name):
+    """Reconstruct the preserved applied-but-not-completed WO-003 state.
+
+    Completing WO-003 moved the current state forward again, so the applied
+    state every earlier WO-003 fixture builds on is now itself a
+    reconstruction. Only the completion transition is reversed: the bounded
+    application record keeps its wording and placement, which the checker
+    pins by the same shared constants in the issued and completed states.
+    """
+    case = _make_wo003_completed_case(repo_root, tmp_path, name)
+    completed = case / _WO003_COMPLETED_REL
+    issued = case / _WO003_REL
+    if not completed.exists():
+        # The source root is an earlier reconstruction rather than the live
+        # repository - chaining from one is how the reconstruction guards
+        # re-enter this builder - so there is no completion left to reverse.
+        # Neither location is drift, and must fail as loudly as any other.
+        assert issued.exists(), (
+            "WO-003 applied reconstruction: WO-003 is in neither completed/ "
+            "nor issued/ - this reconstruction is no longer anchored to the "
+            "recorded historical state"
+        )
+        return case
+    text = completed.read_text(encoding="utf-8")
+    for old, new in (
+        ("STATUS: COMPLETED", "STATUS: ISSUED"),
+        (_WO003_COMPLETED_MARKER, _WO003_APPLIED_MARKER),
+        (_WO003_COMPLETED_STATEMENT, _WO003_APPLIED_STATEMENT),
+        (_WO003_COMPLETED_NEXT_GATE, _WO003_APPLIED_NEXT_GATE),
+    ):
+        text = _replace_once(text, old, new, "WO-003 applied reconstruction")
+    _require_unique(
+        text,
+        (_WO003_COMPLETION_HEADING, "## Authority stop boundaries"),
+        "WO-003 completion-record excision",
+    )
+    text = _sub_once(
+        _NL + _WO003_COMPLETION_HEADING + _NL + ".*?(?="
+        + _NL + "## Authority stop boundaries" + _NL + ")",
+        "",
+        text,
+        "WO-003 completion-record excision",
+        flags=re.DOTALL,
+    )
+    issued.write_text(text, encoding="utf-8")
+    completed.unlink()
+
+    pointer = case / "WORKORDER.md"
+    text = pointer.read_text(encoding="utf-8")
+    _require_unique(
+        text,
+        ("WO-003 is completed as `" + _WO003_COMPLETION_COMMIT
+         + "`; [CI workflow",),
+        "WO-003 completion-paragraph excision",
+    )
+    text = _sub_once(
+        _NL + _NL + "WO-003 is completed as `" + _WO003_COMPLETION_COMMIT
+        + "`;" + ".*?all remain unauthorized[.]",
+        "",
+        text,
+        "WO-003 completion-paragraph excision",
+        flags=re.DOTALL,
+    )
+    for old, new in (
+        ("- Current issued Work Order: NONE",
+         "- Current issued Work Order: WO-003"),
+        ("- Base commit: `" + _WO003_COMPLETION_COMMIT + "`",
+         "- Base commit: `" + _WO003_APPLIED_BASE + "`"),
+        (_WO003_COMPLETED_GATE, _WO003_APPLIED_GATE),
+        ("[`WO-003`](" + _WO003_COMPLETED_REL + ")" + _NL + "is completed.",
+         "[`WO-003`](" + _WO003_REL + ")" + _NL + "is issued."),
+        ("social state changed. At that gate WO-003 remained issued, and its"
+         " completion" + _NL + "transition required a separate owner gate.",
+         "social state changed. WO-003 remains issued, and its completion"
+         " transition" + _NL
+         + "requires a separate owner gate. Session C, WO-004, tagging,"
+         " Release creation," + _NL
+         + "branch-protection changes, other repository metadata changes, and"
+         " social" + _NL + "publication all remain unauthorized."),
+    ):
+        text = _replace_once(text, old, new, "WO-003 applied pointer")
+    pointer.write_text(text, encoding="utf-8")
+
+    _assert_reconstructed(
+        "WO-003 applied pointer", pointer.read_text(encoding="utf-8"),
+        (_WO003_APPLIED_GATE,
+         "- Current issued Work Order: WO-003",
+         "- Base commit: `" + _WO003_APPLIED_BASE + "`",
+         "was applied to the live GitHub"),
+        ("WO-003 COMPLETED", _WO003_COMPLETION_COMMIT,
+         _WO003_COMPLETION_WORKFLOW, _WO003_COMPLETION_JOB),
+    )
+    _assert_reconstructed(
+        "WO-003 applied reconstruction", issued.read_text(encoding="utf-8"),
+        (_WO003_APPLIED_MARKER, _WO003_APPLICATION_HEADING,
+         _WO003_APPLIED_SHA256),
+        (_WO003_COMPLETION_HEADING, "STATUS: COMPLETED",
+         _WO003_COMPLETION_COMMIT),
     )
     return case
 
@@ -2025,7 +2157,7 @@ _ACCEPTED_WORKFLOW = "32937631903"
 _ACCEPTED_JOB = "98081919978"
 _ISSUED_REL = "docs/work-orders/issued/WO-002-epic-toolset-integration.md"
 _TERMINAL_WO002_FINDING = "completed WO-002 state"
-_TERMINAL_WO003_FINDING = "applied WO-003 description state"
+_TERMINAL_WO003_FINDING = "completed WO-003 state"
 
 
 def _without_terminal_lock(finding_types):
@@ -3519,6 +3651,19 @@ def _edit(case, rel, old, new):
     target.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
+def _replace_all(case, rel, old, new):
+    """Replace every occurrence, for values that legitimately repeat.
+
+    A CI id appears in its link text and again inside the URL. Replacing one
+    would leave the value present and let a presence check pass while the
+    document says two different things.
+    """
+    target = case / rel
+    text = target.read_text(encoding="utf-8")
+    assert old in text, "probe anchor drifted: " + repr(old[:60])
+    target.write_text(text.replace(old, new), encoding="utf-8")
+
+
 @pytest.mark.parametrize(("name", "rel", "old", "new", "expected"), (
     ("session-field", "WORKORDER.md",
      "- Authorized session: B", "- Authorized session: NONE",
@@ -4117,6 +4262,45 @@ _WO003_APPLIED_STATEMENT = (
     + "changes, other repository metadata changes, and social publication"
     + " remain" + _NL + "unauthorized."
 )
+# Completion moved the current state forward once more, so the applied state
+# every earlier WO-003 fixture builds on is now itself a reconstruction.
+# These are the values reversed to rebuild it.
+_WO003_COMPLETED_REL = (
+    "docs/work-orders/completed/WO-003-official-mcp-doc-convergence.md"
+)
+_WO003_COMPLETION_COMMIT = "7a7eedb493cbf810f758383a1fc66a285bca841a"
+_WO003_COMPLETION_WORKFLOW = "34301244038"
+_WO003_COMPLETION_JOB = "102308406590"
+_WO003_COMPLETION_HEADING = "## WO-003 completion record"
+_WO003_COMPLETED_GATE = (
+    "- Current gate: WO-003 COMPLETED " + _EM
+    + " WO-004 PROPOSED AND NOT AUTHORIZED"
+)
+_WO003_COMPLETED_MARKER = (
+    "AUTHORIZATION: COMPLETED " + _EM + " NO SESSION AUTHORIZED"
+)
+_WO003_COMPLETED_NEXT_GATE = (
+    "NEXT GATE: separate owner authorization for a fresh independent WO-004"
+    + _NL
+    + "pre-issuance review, after this completion transition is accepted,"
+    + " committed," + _NL
+    + "pushed, and green. Completion of WO-003 does not issue or authorize"
+    + " WO-004," + _NL
+    + "which remains proposed and unauthorized."
+)
+_WO003_COMPLETED_STATEMENT = (
+    "This Work Order is completed. Session A is accepted and complete."
+    + " Session B" + _NL
+    + "is accepted and complete. The exact accepted repository description was"
+    + _NL
+    + "applied under separate owner authorization, and this completion"
+    + " transition" + _NL
+    + "was separately authorized. Session C or any later session, WO-004,"
+    + " tagging," + _NL
+    + "Release creation, branch-protection changes, other repository metadata"
+    + _NL
+    + "changes, and social publication remain unauthorized."
+)
 # The pointer's acceptance paragraph, reworded into an explicit
 # pre-application record. Reversing this pair is what rebuilds the accepted
 # state every earlier WO-003 fixture now derives from.
@@ -4205,13 +4389,13 @@ def test_wo003_issued_state_is_clean(repo_root, tmp_path, monkeypatch) -> None:
 @pytest.mark.parametrize("phrase", _WO003_CORRECTED_WORDING)
 def test_wo003_corrected_wording_is_present(repo_root, phrase) -> None:
     """The four corrections stay in place, carrying the accepted meaning."""
-    text = (repo_root / _WO003_REL).read_text(encoding="utf-8")
+    text = (repo_root / _WO003_COMPLETED_REL).read_text(encoding="utf-8")
     assert phrase in text, "issuance wording correction lost: " + phrase
 
 
 def test_wo003_retains_no_scanner_tripping_wording(repo_root) -> None:
     """Non-vacuous: the exact strings that tripped the scanner are gone."""
-    text = (repo_root / _WO003_REL).read_text(encoding="utf-8")
+    text = (repo_root / _WO003_COMPLETED_REL).read_text(encoding="utf-8")
     for gone in (
         "play-session start/stop/inspect",
         "Session B or metadata application becoming implicitly authorized",
@@ -4304,7 +4488,11 @@ def test_wo003_cannot_be_duplicated_into_another_state(
     found = _wo003_finding_types(
         repo_root, tmp_path, monkeypatch, "dup-" + destination, duplicate
     )
-    assert found & {"duplicate work order state", "WO-003 state",
+    # "WO-003 state" is deliberately absent: the issued-path placement check
+    # that produced it was superseded by the terminal completed-state lock,
+    # so leaving it in the alternation would be vocabulary that can never
+    # match again.
+    assert found & {"duplicate work order state", "completed WO-003 state",
                     "release train proposal set"}, (
         "a duplicate WO-003 under " + destination + " was accepted: "
         + repr(sorted(found))
@@ -5697,6 +5885,10 @@ class _SettledFixture(NamedTuple):
     record_kind: str               # finding kind for that bounded record
     body_needle: str               # a value that occurs once inside it
     rebuilt: bool                  # reconstructed states trip the one-way lock
+    # Whether this gate carries the bounded application record. Distinct from
+    # `rebuilt`: since completion, every settled state is a reconstruction, so
+    # reusing `rebuilt` here would silently retire the applied-record probes.
+    has_application_record: bool
 
 
 _SETTLED = (
@@ -5722,7 +5914,8 @@ _SETTLED = (
         heading=_WO003_APPLICATION_HEADING,
         record_kind="WO-003 description application record",
         body_needle=_WO003_APPLIED_SHA256,
-        rebuilt=False,
+        rebuilt=True,
+        has_application_record=True,
     ),
     _SettledFixture(
         name="accepted",
@@ -5745,6 +5938,7 @@ _SETTLED = (
         record_kind="WO-003 Session B acceptance record",
         body_needle=_WO003_SESSION_B_ACCEPTED_BASE,
         rebuilt=True,
+        has_application_record=False,
     ),
 )
 _SETTLED_IDS = [state.name for state in _SETTLED]
@@ -6024,7 +6218,7 @@ def test_settled_bounded_records_are_pinned(
     expected
 ) -> None:
     """Every earlier record, and the applied record, stay enforced."""
-    if applied_only and state.rebuilt:
+    if applied_only and not state.has_application_record:
         pytest.skip("no application record before the description was applied")
     found = _settled_types(
         repo_root, tmp_path, monkeypatch, state, "record-" + name,
@@ -6789,7 +6983,7 @@ def test_mandate_records_the_amendment(repo_root, marker, count) -> None:
     Without this the corrections would look like unilateral scope growth, which
     is exactly what Session A stopped to avoid.
     """
-    text = (repo_root / _WO003_REL).read_text(encoding="utf-8")
+    text = (repo_root / _WO003_COMPLETED_REL).read_text(encoding="utf-8")
     assert text.count(marker) == count, (
         repr(marker) + " occurs " + str(text.count(marker)) + "x, expected "
         + str(count)
@@ -7313,4 +7507,352 @@ def test_retired_claims_still_count_inside_commentary(
     )
     assert "retired claim" in found, (
         "a retired claim hid inside a comment: " + repr(sorted(found))
+    )
+
+
+# --- WO-003 completed state -------------------------------------------------
+#
+# A completed Work Order is not a settled *issued* gate: with the pointer at
+# NONE it routes through the `current == "NONE"` branch instead of the settled
+# dispatch, so the settled family cannot reach it. The claim these probes test
+# is the design argument for the completion transition itself - that completion
+# records the change without relaxing anything the applied state already
+# pinned. The application record is enforced from the completed document by the
+# same checker function that guarded it while WO-003 was issued, so damaging it
+# here must still be rejected.
+
+
+def _completed_types(repo_root, tmp_path, monkeypatch, name, mutate):
+    """Findings for a mutated copy of the current completed WO-003 state."""
+    drift_check = _load_drift_check(repo_root, "completed_" + name)
+    case = _make_wo003_completed_case(repo_root, tmp_path, "completed-" + name)
+    mutate(case)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return {
+        finding["type"] for finding in drift_check.check_work_order_contract()
+    }
+
+
+def test_completed_state_is_clean(repo_root, tmp_path, monkeypatch) -> None:
+    """Non-vacuous: the current completed state raises no finding of its own."""
+    found = _completed_types(
+        repo_root, tmp_path, monkeypatch, "control", lambda case: None
+    )
+    assert found == set(), (
+        "completed state is not clean: " + repr(sorted(found))
+    )
+
+
+_COMPLETED_EVIDENCE = (
+    ("commit", _WO003_COMPLETION_COMMIT, "0" * 40),
+    ("workflow", _WO003_COMPLETION_WORKFLOW, "9" * 11),
+    ("job", _WO003_COMPLETION_JOB, "8" * 12),
+)
+
+
+@pytest.mark.parametrize(("name", "value", "wrong"), _COMPLETED_EVIDENCE,
+                         ids=[row[0] for row in _COMPLETED_EVIDENCE])
+def test_completed_evidence_is_pinned(
+    repo_root, tmp_path, monkeypatch, name, value, wrong
+) -> None:
+    """Falsifying completion evidence in the completed document is rejected."""
+    found = _completed_types(
+        repo_root, tmp_path, monkeypatch, "evidence-" + name,
+        lambda case: _replace_all(case, _WO003_COMPLETED_REL, value, wrong),
+    )
+    assert "WO-003 completion record" in found, (
+        "completion " + name + " falsification was accepted: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize(("name", "value", "wrong"), _COMPLETED_EVIDENCE,
+                         ids=[row[0] for row in _COMPLETED_EVIDENCE])
+def test_completed_evidence_resists_a_decoy(
+    repo_root, tmp_path, monkeypatch, name, value, wrong
+) -> None:
+    """A correct copy parked elsewhere cannot satisfy a falsified record.
+
+    A presence-anywhere check passes this: the real id is still somewhere in
+    the file. The record is bounded by its two neighbouring headings instead,
+    so a decoy outside that span - here an HTML comment, which renders
+    invisibly - is not the text that has to match.
+    """
+    def mutate(case):
+        _replace_all(case, _WO003_COMPLETED_REL, value, wrong)
+        _append(case, _WO003_COMPLETED_REL,
+                "<!-- archival reference: " + value + " -->")
+
+    found = _completed_types(
+        repo_root, tmp_path, monkeypatch, "decoy-" + name, mutate
+    )
+    assert "WO-003 completion record" in found, (
+        "a decoy satisfied a falsified completion record: "
+        + repr(sorted(found))
+    )
+
+
+def _relocate_completion_record(case):
+    """Move the whole record to the end of the document, intact."""
+    target = case / _WO003_COMPLETED_REL
+    text = target.read_text(encoding="utf-8")
+    head, sep, tail = text.partition(_WO003_COMPLETION_HEADING)
+    assert sep, "probe anchor drifted: " + _WO003_COMPLETION_HEADING
+    body, sep2, rest = tail.partition(_NL + "## Authority stop boundaries" + _NL)
+    assert sep2, "probe anchor drifted: ## Authority stop boundaries"
+    target.write_text(
+        head + "## Authority stop boundaries" + _NL + rest + _NL
+        + _WO003_COMPLETION_HEADING + body,
+        encoding="utf-8",
+    )
+
+
+_COMPLETED_STRUCTURAL = (
+    ("demoted", lambda case: _edit(
+        case, _WO003_COMPLETED_REL, _WO003_COMPLETION_HEADING,
+        "### WO-003 completion record")),
+    ("duplicated", lambda case: _edit(
+        case, _WO003_COMPLETED_REL, _WO003_COMPLETION_HEADING,
+        _WO003_COMPLETION_HEADING + _NL + _NL + _WO003_COMPLETION_HEADING)),
+    ("relocated", _relocate_completion_record),
+)
+
+
+@pytest.mark.parametrize(("name", "mutate"), _COMPLETED_STRUCTURAL,
+                         ids=[row[0] for row in _COMPLETED_STRUCTURAL])
+def test_completed_record_rejects_structural_attacks(
+    repo_root, tmp_path, monkeypatch, name, mutate
+) -> None:
+    """The record must sit between its own two headings, exactly once."""
+    found = _completed_types(
+        repo_root, tmp_path, monkeypatch, "structural-" + name, mutate
+    )
+    assert "WO-003 completion record" in found, (
+        "completion record " + name + " was accepted: " + repr(sorted(found))
+    )
+
+
+_COMPLETED_APPLICATION_DAMAGE = (
+    ("value",
+     "APPLIED_REPOSITORY_DESCRIPTION: `" + _WO003_DESCRIPTION_DRAFT + "`",
+     "APPLIED_REPOSITORY_DESCRIPTION: `"
+     + _WO003_DESCRIPTION_DRAFT.replace("362 Python", "358+ Python") + "`",
+     "WO-003 applied description"),
+    ("count", "APPLIED_DESCRIPTION_CHARACTER_COUNT: `261`",
+     "APPLIED_DESCRIPTION_CHARACTER_COUNT: `260`",
+     "WO-003 applied character-count declaration"),
+    ("digest", "APPLIED_DESCRIPTION_SHA256: `" + _WO003_APPLIED_SHA256 + "`",
+     "APPLIED_DESCRIPTION_SHA256: `" + "0" * 64 + "`",
+     "WO-003 applied digest declaration"),
+    ("read-back",
+     "APPLIED_DESCRIPTION_LIVE_READ_BACK: `byte-for-byte identical`",
+     "APPLIED_DESCRIPTION_LIVE_READ_BACK: `not verified`",
+     "WO-003 applied read-back evidence"),
+)
+
+
+@pytest.mark.parametrize(("name", "old", "new", "expected"),
+                         _COMPLETED_APPLICATION_DAMAGE,
+                         ids=[row[0] for row in _COMPLETED_APPLICATION_DAMAGE])
+def test_completed_still_enforces_the_application_record(
+    repo_root, tmp_path, monkeypatch, name, old, new, expected
+) -> None:
+    """Completion relaxes no part of the applied-description pin."""
+    found = _completed_types(
+        repo_root, tmp_path, monkeypatch, "application-" + name,
+        lambda case: _edit(case, _WO003_COMPLETED_REL, old, new),
+    )
+    assert expected in found, (
+        "applied " + name + " damage survived completion: "
+        + repr(sorted(found))
+    )
+
+
+def test_completed_application_record_cannot_be_removed(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Dropping the whole record from the completed document is rejected."""
+    def mutate(case):
+        target = case / _WO003_COMPLETED_REL
+        text = target.read_text(encoding="utf-8")
+        head, sep, tail = text.partition(_WO003_APPLICATION_HEADING)
+        assert sep, "probe anchor drifted: " + _WO003_APPLICATION_HEADING
+        _, sep2, rest = tail.partition(_NL + "## Planning basis" + _NL)
+        assert sep2, "probe anchor drifted: ## Planning basis"
+        target.write_text(head + "## Planning basis" + _NL + rest,
+                          encoding="utf-8")
+
+    found = _completed_types(
+        repo_root, tmp_path, monkeypatch, "application-removed", mutate
+    )
+    assert "WO-003 description application record" in found, (
+        "the application record vanished with completion: "
+        + repr(sorted(found))
+    )
+
+
+def test_completed_cannot_roll_back_to_issued(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Moving WO-003 back out of completed/ trips the one-way lock."""
+    def mutate(case):
+        completed = case / _WO003_COMPLETED_REL
+        issued = case / _WO003_REL
+        issued.write_text(completed.read_text(encoding="utf-8"),
+                          encoding="utf-8")
+        completed.unlink()
+
+    found = _completed_types(
+        repo_root, tmp_path, monkeypatch, "rollback", mutate
+    )
+    assert _TERMINAL_WO003_FINDING in found, (
+        "a rollback out of completed/ escaped the lock: " + repr(sorted(found))
+    )
+
+
+_COMPLETED_POINTER_DAMAGE = (
+    ("gate", _WO003_COMPLETED_GATE,
+     "- Current gate: WO-003 REPOSITORY DESCRIPTION APPLIED " + _EM
+     + " COMPLETION NOT AUTHORIZED", "WO-003 completed gate"),
+    ("base", "- Base commit: `" + _WO003_COMPLETION_COMMIT + "`",
+     "- Base commit: `" + _WO003_APPLIED_BASE + "`",
+     "WO-003 completion base commit"),
+    ("reopened", "- Current issued Work Order: NONE",
+     "- Current issued Work Order: WO-003", "current issued work order"),
+    ("session", "- Authorized session: NONE", "- Authorized session: C",
+     "authorization without issued work order"),
+)
+
+
+@pytest.mark.parametrize(("name", "old", "new", "expected"),
+                         _COMPLETED_POINTER_DAMAGE,
+                         ids=[row[0] for row in _COMPLETED_POINTER_DAMAGE])
+def test_completed_pointer_damage_is_rejected(
+    repo_root, tmp_path, monkeypatch, name, old, new, expected
+) -> None:
+    """The pointer's completed gate, base, and closed session are all pinned.
+
+    The kind is pinned, not merely "some finding": every row here also trips
+    the one-way lock, so a bare truthiness assertion would pass on that
+    collateral alone and stop testing what it names.
+    """
+    found = _completed_types(
+        repo_root, tmp_path, monkeypatch, "pointer-" + name,
+        lambda case: _edit(case, "WORKORDER.md", old, new),
+    )
+    assert expected in found, (
+        "completed pointer " + name + " damage was accepted: "
+        + repr(sorted(found))
+    )
+
+
+_APPLIED_PIN = "WO-003 applied pointer statement"
+_PROVENANCE_PIN = "WO-003 issuance field (WORKORDER.md)"
+_COMPLETED_POINTER_PINS = (
+    ("applied-count", "Its character count is `261` and",
+     "Its character count is `9999` and", _APPLIED_PIN),
+    ("applied-digest", _WO003_APPLIED_SHA256, "0" * 64, _APPLIED_PIN),
+    ("applied-description", "362 Python automation tools",
+     "358+ Python automation tools", _APPLIED_PIN),
+    ("issuance-commit",
+     "- Issuance commit: `" + _WO003_ISSUANCE_COMMIT + "`",
+     "- Issuance commit: `" + "0" * 40 + "`", _PROVENANCE_PIN),
+    ("session-a-acceptance-workflow",
+     "- Session A acceptance CI workflow: `"
+     + _WO003_SESSION_A_ACCEPTED_WORKFLOW + "`",
+     "- Session A acceptance CI workflow: `00000000000`", _PROVENANCE_PIN),
+    ("session-b-acceptance-job",
+     "- Session B acceptance CI job: `" + _WO003_SESSION_B_ACCEPTED_JOB + "`",
+     "- Session B acceptance CI job: `00000000000`", _PROVENANCE_PIN),
+)
+
+
+@pytest.mark.parametrize(("name", "old", "new", "expected"),
+                         _COMPLETED_POINTER_PINS,
+                         ids=[row[0] for row in _COMPLETED_POINTER_PINS])
+def test_completed_pointer_keeps_wo003_pins(
+    repo_root, tmp_path, monkeypatch, name, old, new, expected
+) -> None:
+    """The pointer's applied facts and provenance survive completion.
+
+    The settled gate enforced all of these while WO-003 was issued. The first
+    attempt at this transition let them lapse: the applied description's own
+    character count and digest could be falsified in the authority pointer
+    with `drift_check` green, on the one gate AGENTS.md mandates before every
+    commit and CI does not run. These probes exist so that cannot recur
+    silently.
+    """
+    found = _completed_types(
+        repo_root, tmp_path, monkeypatch, "pin-" + name,
+        lambda case: _replace_all(case, "WORKORDER.md", old, new),
+    )
+    assert expected in found, (
+        "completed pointer " + name + " damage was accepted: "
+        + repr(sorted(found))
+    )
+
+
+# Every statement the applied gate rejected must still be rejected once
+# WO-003 is completed. The session and external-action scanners live in the
+# issued branch, so the completed WO-003 path calls them itself rather than
+# inheriting them: an older code path is not a licence for a newly completed
+# Work Order to stop rejecting what it rejected the day before.
+_COMPLETED_AUTHORITY = (
+    ("wo004-authorized", "WORKORDER.md",
+     "WO-004 is issued and authorized for implementation.",
+     "next work order authorization"),
+    ("session-c", "WORKORDER.md",
+     "Session C is authorized for implementation.",
+     "session authorization reopening"),
+    ("session-b-reopened", "WORKORDER.md",
+     "Session B is authorized to draft a new description.",
+     "session authorization reopening"),
+    ("release", "WORKORDER.md",
+     "A tag and GitHub Release are authorized for this train.",
+     "release authorization"),
+    ("branch-protection", "WORKORDER.md",
+     "Branch-protection changes are authorized.",
+     "WO-003 external-action boundary"),
+    ("social", "WORKORDER.md",
+     "Social publication is authorized.",
+     "WO-003 external-action boundary"),
+    ("metadata", "WORKORDER.md",
+     "Repository metadata may now be applied.",
+     "WO-003 external-action boundary"),
+    ("description-changed", "WORKORDER.md",
+     "The GitHub repository description was changed.",
+     "WO-003 external-action boundary"),
+)
+
+
+@pytest.mark.parametrize(("name", "rel", "line", "expected"),
+                         _COMPLETED_AUTHORITY,
+                         ids=[row[0] for row in _COMPLETED_AUTHORITY])
+def test_completed_state_opens_no_later_gate(
+    repo_root, tmp_path, monkeypatch, name, rel, line, expected
+) -> None:
+    """Completing WO-003 is not reaching WO-004, Session C, or a Release."""
+    found = _completed_types(
+        repo_root, tmp_path, monkeypatch, "authority-" + name,
+        lambda case: _append(case, rel, line),
+    )
+    assert expected in found, (
+        name + " opened a later gate: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("rel", ("WORKORDER.md", _WO003_COMPLETED_REL))
+def test_completed_state_does_not_pin_unrelated_prose(
+    repo_root, tmp_path, monkeypatch, rel
+) -> None:
+    """Harmless prose stays editable: the contract forbids freezing it."""
+    found = _completed_types(
+        repo_root, tmp_path, monkeypatch,
+        "prose-" + rel.replace("/", "-").replace(".", "-"),
+        lambda case: _append(
+            case, rel, "This paragraph records no authority of any kind."
+        ),
+    )
+    assert found == set(), (
+        "harmless prose in " + rel + " was pinned: " + repr(sorted(found))
     )

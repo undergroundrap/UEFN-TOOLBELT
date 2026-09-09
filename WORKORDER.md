@@ -4,10 +4,10 @@ This file is the repository's sole authority pointer for current Work Order
 state. Detailed mandates live under `docs/work-orders/`; their presence alone
 never authorizes implementation.
 
-- Current issued Work Order: WO-003
+- Current issued Work Order: NONE
 - Authorized session: NONE
-- Base commit: `624ccc7f8f28cc897ec580c660607524ad5a4a3d`
-- Current gate: WO-003 REPOSITORY DESCRIPTION APPLIED — COMPLETION NOT AUTHORIZED
+- Base commit: `7a7eedb493cbf810f758383a1fc66a285bca841a`
+- Current gate: WO-003 COMPLETED — WO-004 PROPOSED AND NOT AUTHORIZED
 - Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`
 - Issuance CI workflow: `33148089523`
 - Issuance CI job: `98773518991` — Lint, types, tests
@@ -48,8 +48,8 @@ External official-MCP exposure failed and was accepted as a terminal
 negative result bounded by ToolsetPolicy. WO-002 is complete; no session
 is authorized.
 
-[`WO-003`](docs/work-orders/issued/WO-003-official-mcp-doc-convergence.md)
-is issued. Its accepted planning baseline is
+[`WO-003`](docs/work-orders/completed/WO-003-official-mcp-doc-convergence.md)
+is completed. Its accepted planning baseline is
 `e0b1063f5300404534c76789bdb6742f639425ba`; the accepted revision was
 committed as `19350aa324bea4d88e494ee806801586a383d76e` after CI
 workflow `33148089523` and required job `98773518991` passed.
@@ -86,10 +86,18 @@ read-only `gh repo view` read-back returned the applied value byte for byte.
 The homepage `https://www.fortnite.com/@ohshh`, PUBLIC visibility, archived
 state `false`, and all 20 repository topics are unchanged. No file, commit,
 push, tag, Release, branch-protection setting, other repository metadata, or
-social state changed. WO-003 remains issued, and its completion transition
-requires a separate owner gate. Session C, WO-004, tagging, Release creation,
-branch-protection changes, other repository metadata changes, and social
-publication all remain unauthorized.
+social state changed. At that gate WO-003 remained issued, and its completion
+transition required a separate owner gate.
+
+WO-003 is completed as `7a7eedb493cbf810f758383a1fc66a285bca841a`; [CI workflow
+`34301244038`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/34301244038)
+completed successfully, including required job
+[`102308406590` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/34301244038/job/102308406590).
+The repository-description application record is preserved and still enforced
+from the completed Work Order document. WO-003 is complete; no session is
+authorized. WO-004 remains proposed and unauthorized. Session C or any later
+session, tagging, Release creation, branch-protection changes, other
+repository metadata changes, and social publication all remain unauthorized.
 
 WO-001 through WO-007 form the frozen next release train. The release version
 remains undecided and the repository stays at version 2.4.1. No tag or GitHub

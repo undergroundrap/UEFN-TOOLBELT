@@ -3,9 +3,9 @@
 > This is a living document. Items move between phases as priorities shift.
 > Current version: **v2.4.1** · Last completed phase: **21**
 >
-> Work Order track: WO-001 (custom bridge security) and WO-002 (Epic Toolset
-> integration truth) are completed; WO-003 through WO-007 form the frozen next
-> release train. This roadmap grants no implementation authority — root
+> Work Order track: WO-001 through WO-003 are completed. The frozen release
+> train remains WO-001 through WO-007; WO-004 through WO-007 remain proposed
+> and unauthorized. This roadmap grants no implementation authority — root
 > [`WORKORDER.md`](WORKORDER.md) is the sole current gate.
 
 ---

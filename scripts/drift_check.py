@@ -84,7 +84,7 @@ SCAN_FILES = [
     "docs/work-orders/README.md",
     "docs/work-orders/completed/WO-001-custom-mcp-security.md",
     "docs/work-orders/completed/WO-002-epic-toolset-integration.md",
-    "docs/work-orders/issued/WO-003-official-mcp-doc-convergence.md",
+    "docs/work-orders/completed/WO-003-official-mcp-doc-convergence.md",
     "docs/work-orders/proposed/WO-004-modal-observability.md",
     "docs/work-orders/proposed/WO-005-coverage-source-of-truth.md",
     "docs/work-orders/proposed/WO-006-official-vs-toolbelt-benchmark.md",
@@ -327,7 +327,13 @@ _WO003_PRE_APPLICATION_POINTER_STATEMENT = (
 # The applied record. Like the drafting and acceptance statements before it,
 # it is the statement this gate is allowed to make, so it is removed once
 # before the positive-permission scans rather than parsed by them.
-_WO003_APPLIED_POINTER_STATEMENT = (
+# The applied facts themselves - value, count, digest, live read-back, and the
+# unchanged non-description metadata - are identical before and after
+# completion. Only the closing sentence moves to the past tense, so the facts
+# are defined once and both gates' statements are built from them. That is what
+# keeps the pointer's copy of the applied description enforced after
+# completion, not just the completed document's copy.
+_WO003_APPLIED_POINTER_FACTS = (
     "The exact accepted repository description was applied to the live GitHub "
     "repository under separate BDFL/owner authorization, at repository commit "
     "`" + _WO003_APPLIED_BASE + "`. The applied value is exactly `"
@@ -338,10 +344,90 @@ _WO003_APPLIED_POINTER_STATEMENT = (
     "`https://www.fortnite.com/@ohshh`, PUBLIC visibility, archived state "
     "`false`, and all 20 repository topics are unchanged. No file, commit, "
     "push, tag, Release, branch-protection setting, other repository "
-    "metadata, or social state changed. WO-003 remains issued, and its "
+    "metadata, or social state changed."
+)
+_WO003_APPLIED_POINTER_STATEMENT = (
+    _WO003_APPLIED_POINTER_FACTS + " WO-003 remains issued, and its "
     "completion transition requires a separate owner gate. Session C, WO-004, "
     "tagging, Release creation, branch-protection changes, other repository "
     "metadata changes, and social publication all remain unauthorized."
+)
+_WO003_COMPLETED_APPLIED_POINTER_STATEMENT = (
+    _WO003_APPLIED_POINTER_FACTS + " At that gate WO-003 remained issued, and "
+    "its completion transition required a separate owner gate."
+)
+# Completion is the next one-way transition after application. The applied
+# description facts outlive the Work Order that carried them: the application
+# record moves into the completed document and
+# _wo003_application_record_findings still enforces it there, so completing
+# WO-003 records the transition without relaxing any earlier pin.
+_WO003_COMPLETION_COMMIT = "7a7eedb493cbf810f758383a1fc66a285bca841a"
+_WO003_COMPLETION_WORKFLOW = "34301244038"
+_WO003_COMPLETION_JOB = "102308406590"
+_WO003_COMPLETED_GATE = (
+    "WO-003 COMPLETED — WO-004 PROPOSED AND NOT AUTHORIZED"
+)
+_WO003_COMPLETED_STATEMENT = (
+    "WO-003 is complete; no session is authorized. WO-004 remains proposed "
+    "and unauthorized."
+)
+_WO003_COMPLETED_NEXT_GATE = (
+    "NEXT GATE: separate owner authorization for a fresh independent WO-004 "
+    "pre-issuance review, after this completion transition is accepted, "
+    "committed, pushed, and green. Completion of WO-003 does not issue or "
+    "authorize WO-004, which remains proposed and unauthorized."
+)
+_WO003_COMPLETION_RUN_URL = (
+    "https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/"
+    + _WO003_COMPLETION_WORKFLOW
+)
+_WO003_COMPLETION_JOB_URL = (
+    _WO003_COMPLETION_RUN_URL + "/job/" + _WO003_COMPLETION_JOB
+)
+_WO003_COMPLETION_POINTER_STATEMENT = (
+    "WO-003 is completed as `" + _WO003_COMPLETION_COMMIT + "`; [CI workflow "
+    "`" + _WO003_COMPLETION_WORKFLOW + "`](" + _WO003_COMPLETION_RUN_URL
+    + ") completed successfully, including required job [`"
+    + _WO003_COMPLETION_JOB + "` — Lint, types, tests]("
+    + _WO003_COMPLETION_JOB_URL + "). The repository-description application "
+    "record is preserved and still enforced from the completed Work Order "
+    "document. " + _WO003_COMPLETED_STATEMENT + " Session C or any later "
+    "session, tagging, Release creation, branch-protection changes, other "
+    "repository metadata changes, and social publication all remain "
+    "unauthorized."
+)
+# The completion record is bounded by its two neighbouring headings, exactly
+# as the application record beside it is. Presence-only checking would let a
+# correct copy elsewhere in the file - an HTML comment, a relocated section -
+# satisfy a falsified record.
+_WO003_COMPLETION_HEADING = "## WO-003 completion record"
+_WO003_BOUNDARIES_HEADING = "## Boundaries with WO-004 through WO-007"
+_WO003_STOP_HEADING = "## Authority stop boundaries"
+_WO003_COMPLETION_RECORD = (
+    _WO003_COMPLETION_HEADING + " WO-003 is completed. The "
+    "repository-description application record above was committed and pushed "
+    "as `" + _WO003_COMPLETION_COMMIT + "`; CI workflow [`"
+    + _WO003_COMPLETION_WORKFLOW + "`](" + _WO003_COMPLETION_RUN_URL
+    + ") completed successfully, including required job [`"
+    + _WO003_COMPLETION_JOB + "` — Lint, types, tests]("
+    + _WO003_COMPLETION_JOB_URL + "). Session A converged repository "
+    "documentation truth across the row table above and is accepted and "
+    "complete. Session B drafted exactly one replacement repository "
+    "description and is accepted and complete. The exact accepted description "
+    "was applied to the live GitHub repository under separate owner "
+    "authorization, and that application record remains enforced from this "
+    "completed document rather than relaxed by completion. "
+    + _WO003_COMPLETED_STATEMENT
+)
+_WO003_COMPLETION_EVIDENCE = (
+    ("completion commit", "`" + _WO003_COMPLETION_COMMIT + "`"),
+    ("completion workflow",
+     "[`" + _WO003_COMPLETION_WORKFLOW + "`](" + _WO003_COMPLETION_RUN_URL
+     + ")"),
+    ("completion job",
+     "[`" + _WO003_COMPLETION_JOB + "` — Lint, types, tests]("
+     + _WO003_COMPLETION_JOB_URL + ")"),
+    ("completion statement", _WO003_COMPLETED_STATEMENT),
 )
 _WO002_COMPLETED_GATE = (
     "WO-002 COMPLETED — WO-003 PROPOSED AND NOT AUTHORIZED"
@@ -743,7 +829,18 @@ def _wo003_record_findings(
     out = []
     issued_sequence: tuple[str, ...]
     pointer_sequence: tuple[str, ...]
-    if session == "APPLIED":
+    if session == "COMPLETED":
+        # Completion adds no canonical declaration either, so the same
+        # accepted slices are reused again: every provenance bullet the
+        # applied gate pinned stays pinned once WO-003 is completed. Only the
+        # base and gate move.
+        expected_base = _WO003_COMPLETION_COMMIT
+        expected_gate = _WO003_COMPLETED_GATE
+        issued_sequence = _WO003_SESSION_B_ACCEPTED_ISSUED_SEQUENCE
+        pointer_sequence = _WO003_SESSION_B_ACCEPTED_POINTER_SEQUENCE
+        base_kind = "WO-003 completion base commit"
+        gate_kind = "WO-003 completed gate"
+    elif session == "APPLIED":
         # Applying the description adds no canonical declaration, so the
         # accepted slices are reused unchanged; only the base and gate move.
         expected_base = _WO003_APPLIED_BASE
@@ -1175,6 +1272,32 @@ def _locate_wo003_application(text):
         (_WO003_SESSION_B_ACCEPTANCE_HEADING, _WO003_APPLICATION_HEADING,
          _WO003_PLANNING_HEADING),
     )
+
+
+def _locate_wo003_completion(text):
+    """The completion record, located by its two neighbouring headings."""
+    return _wo003_anchored_section(
+        text,
+        (_WO003_BOUNDARIES_HEADING, _WO003_COMPLETION_HEADING,
+         _WO003_STOP_HEADING),
+    )
+
+
+def _wo003_completion_record_findings(text):
+    """The completion commit, workflow, and job, bounded by position.
+
+    Structural rather than present-anywhere: the record must sit between its
+    two neighbouring headings and match byte for byte, so a correct copy
+    parked elsewhere in the document cannot satisfy a falsified one, and the
+    heading cannot be duplicated, demoted, or relocated.
+    """
+    return [
+        ("WO-003 completion record", found_detail, want)
+        for found_detail, want in _acceptance_record_findings(
+            text, _locate_wo003_completion, _WO003_COMPLETION_RECORD,
+            _WO003_COMPLETION_EVIDENCE,
+        )
+    ]
 
 
 def _wo003_application_record_findings(text):
@@ -2051,10 +2174,6 @@ def check_work_order_contract() -> list[dict]:
             expected_wo002_path.relative_to(root).as_posix())
 
     wo003_paths = [path for path in state_paths if path.name == _WO003_NAME]
-    if wo003_placed and wo003_paths != [issued_dir / _WO003_NAME]:
-        add("docs/work-orders", "WO-003 state",
-            repr([path.relative_to(root).as_posix() for path in wo003_paths]),
-            (issued_dir / _WO003_NAME).relative_to(root).as_posix())
 
     # WO-002 completion is terminal. This checker carries the WO-002 completion
     # contract, so no rollback of the documents alone - however internally
@@ -2081,28 +2200,6 @@ def check_work_order_contract() -> list[dict]:
             add(rel, "issued authorization", repr(auth_lines),
                 "exactly one AUTHORIZATION: ISSUED marker")
 
-    # Applying the accepted description is one-way until the owner
-    # explicitly moves the gate on. A coherent document-only rollback - to
-    # the accepted-but-not-applied state, to drafting, to Session A's
-    # acceptance, or anywhere earlier - must therefore still fail, and so
-    # must moving WO-003 out of issued/. Either would have to edit this
-    # file too, which is a visible act.
-    applied_wo003_path = issued_dir / _WO003_NAME
-    applied_wo003_auth = (
-        issued_metadata.get(_WO003_NAME, ([], [], ""))[1]
-    )
-    if not (
-        wo003_paths == [applied_wo003_path]
-        and session == "NONE"
-        and base == "`" + _WO003_APPLIED_BASE + "`"
-        and current_gate == _WO003_APPLIED_GATE
-        and applied_wo003_auth == [_ISSUED_DESCRIPTION_APPLIED]
-    ):
-        add("docs/work-orders", "applied WO-003 description state",
-            "the applied description state was removed or changed",
-            "WO-003 issued with the accepted description applied and no "
-            "session authorized")
-
     completed_metadata: dict[str, tuple[list[str], list[str], str]] = {}
     for path in completed:
         text = path.read_text(encoding="utf-8")
@@ -2118,6 +2215,29 @@ def check_work_order_contract() -> list[dict]:
         if auth_lines != [_COMPLETED_NO_SESSION_AUTH]:
             add(rel, "completed authorization", repr(auth_lines),
                 f"exactly {_COMPLETED_NO_SESSION_AUTH}")
+
+    # Completing WO-003 is one-way, exactly as applying the description was.
+    # A coherent document-only rollback - to the applied-but-not-completed
+    # state, to Session B's acceptance, to drafting, or anywhere earlier -
+    # must therefore still fail, and so must moving WO-003 back out of
+    # completed/. Either would have to edit this file too, which is a
+    # visible act.
+    terminal_wo003_path = completed_dir / _WO003_NAME
+    completed_wo003_auth = (
+        completed_metadata.get(_WO003_NAME, ([], [], ""))[1]
+    )
+    if not (
+        wo003_paths == [terminal_wo003_path]
+        and current == "NONE"
+        and session == "NONE"
+        and base == "`" + _WO003_COMPLETION_COMMIT + "`"
+        and current_gate == _WO003_COMPLETED_GATE
+        and completed_wo003_auth == [_COMPLETED_NO_SESSION_AUTH]
+    ):
+        add("docs/work-orders", "completed WO-003 state",
+            "the completed WO-003 state was removed or changed",
+            "WO-003 completed with no issued Work Order and no session "
+            "authorized")
 
     wo001_name = "WO-001-custom-mcp-security.md"
     wo001_path = completed_dir / wo001_name
@@ -2141,6 +2261,10 @@ def check_work_order_contract() -> list[dict]:
     if _WO002_NAME in completed_metadata:
         wo002_completed_text = completed_metadata[_WO002_NAME][2]
 
+    wo003_completed_text = ""
+    if _WO003_NAME in completed_metadata:
+        wo003_completed_text = completed_metadata[_WO003_NAME][2]
+
     if current == "NONE":
         if session != "NONE":
             add("WORKORDER.md", "authorization without issued work order",
@@ -2149,7 +2273,11 @@ def check_work_order_contract() -> list[dict]:
             add("docs/work-orders/issued", "unpointed issued work order",
                 issued[0].name, "empty while current pointer is NONE")
         # Whichever Work Order closed last owns the pointer's base and gate.
-        if wo002_completed_text:
+        if wo003_completed_text:
+            next_order, basis_text = "WO-004", wo003_completed_text
+            expected_base = _WO003_COMPLETION_COMMIT
+            expected_closed_gate = _WO003_COMPLETED_GATE
+        elif wo002_completed_text:
             next_order, basis_text = "WO-003", wo002_completed_text
             expected_base = _WO002_COMPLETION_COMMIT
             expected_closed_gate = _WO002_COMPLETED_GATE
@@ -2190,6 +2318,70 @@ def check_work_order_contract() -> list[dict]:
                 pointer, wo002_completed_text, rel
             ):
                 add(_f, _k, _found, _want)
+        if wo003_completed_text:
+            rel = (completed_dir / _WO003_NAME).relative_to(root).as_posix()
+            # Completion moves the gate; it does not retire WO-003's
+            # enforcement. Everything the applied gate checked - the canonical
+            # slice and its provenance bullets, every earlier bounded record,
+            # the applied description with its count, digest and read-back on
+            # BOTH the pointer and the document, and the external-action and
+            # session boundaries - is checked again here. This block is
+            # reached only for completed WO-003, so the completed WO-001 and
+            # WO-002 states keep their existing behaviour unchanged.
+            for _f, _k, _found, _want in _wo003_record_findings(
+                pointer, wo003_completed_text, rel, base, current_gate,
+                "COMPLETED",
+            ):
+                add(_f, _k, _found, _want)
+            for record in (
+                _wo003_acceptance_record_findings(
+                    wo003_completed_text, _WO003_SESSION_B_HEADING),
+                _wo003_session_b_record_findings(
+                    wo003_completed_text, _WO003_SESSION_B_ACCEPTANCE_HEADING),
+                _wo003_session_b_acceptance_findings(
+                    wo003_completed_text, _WO003_APPLICATION_HEADING),
+                _wo003_application_record_findings(wo003_completed_text),
+                _wo003_completion_record_findings(wo003_completed_text),
+            ):
+                for kind, found, want in record:
+                    add(rel, kind, found, want)
+            normalized_wo003 = " ".join(wo003_completed_text.split())
+            for wording, kind in (
+                (_WO003_COMPLETED_STATEMENT, "WO-003 completion statement"),
+                (_WO003_COMPLETED_NEXT_GATE, "WO-003 next gate"),
+            ):
+                if normalized_wo003.count(wording) != 1:
+                    add(rel, kind, str(normalized_wo003.count(wording)),
+                        "exactly one " + wording)
+            normalized_pointer = " ".join(pointer.split())
+            wo003_pointer_statements = (
+                (_WO003_PRE_APPLICATION_POINTER_STATEMENT,
+                 "WO-003 pre-application pointer statement"),
+                (_WO003_COMPLETED_APPLIED_POINTER_STATEMENT,
+                 "WO-003 applied pointer statement"),
+                (_WO003_COMPLETION_POINTER_STATEMENT,
+                 "WO-003 completion pointer statement"),
+            )
+            for required, kind in wo003_pointer_statements:
+                if normalized_pointer.count(required) != 1:
+                    add("WORKORDER.md", kind,
+                        str(normalized_pointer.count(required)),
+                        "exactly one " + required)
+            # Completing WO-003 is not reaching the next gate. These are the
+            # statements this gate is allowed to make; anything else that
+            # reads as a positive permission is a finding.
+            allowed = (_WO003_COMPLETED_GATE,) + tuple(
+                statement for statement, _kind in wo003_pointer_statements)
+            if _has_session_b_external_action_authorization(pointer, allowed):
+                add("WORKORDER.md", "WO-003 external-action boundary",
+                    "positive permission for a further external action",
+                    "WO-003 is completed; repository metadata, "
+                    "branch-protection, and social publication remain "
+                    "unauthorized")
+            if _has_other_session_authorization(pointer, "", ""):
+                add("WORKORDER.md", "session authorization reopening",
+                    "positive permission for Session A, Session B, or later",
+                    "WO-003 is completed and no session is authorized")
     elif current is not None:
         if len(issued) != 1:
             add("docs/work-orders/issued", "current issued work order",
