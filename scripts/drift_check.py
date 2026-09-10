@@ -85,7 +85,7 @@ SCAN_FILES = [
     "docs/work-orders/completed/WO-001-custom-mcp-security.md",
     "docs/work-orders/completed/WO-002-epic-toolset-integration.md",
     "docs/work-orders/completed/WO-003-official-mcp-doc-convergence.md",
-    "docs/work-orders/proposed/WO-004-modal-observability.md",
+    "docs/work-orders/issued/WO-004-modal-observability.md",
     "docs/work-orders/proposed/WO-005-coverage-source-of-truth.md",
     "docs/work-orders/proposed/WO-006-official-vs-toolbelt-benchmark.md",
     "docs/work-orders/proposed/WO-007-public-mcp-explainer.md",
@@ -371,6 +371,17 @@ _WO003_COMPLETED_STATEMENT = (
     "WO-003 is complete; no session is authorized. WO-004 remains proposed "
     "and unauthorized."
 )
+# The completed document is a frozen record of what was true at its own
+# gate, so it keeps the clause about WO-004's state. The root pointer is
+# the LIVE authority surface, and there that clause goes stale the moment
+# WO-004 is issued: it would assert, in the present tense, that the
+# currently issued Work Order is still a proposal - and pinning it here
+# would make correcting the pointer fail this very gate. Issuing WO-003
+# dropped the identical clause about WO-003 from the pointer (`52d8929`);
+# this is the same deletion, one order later.
+_WO003_COMPLETED_POINTER_CLAUSE = (
+    "WO-003 is complete; no session is authorized."
+)
 _WO003_COMPLETED_NEXT_GATE = (
     "NEXT GATE: separate owner authorization for a fresh independent WO-004 "
     "pre-issuance review, after this completion transition is accepted, "
@@ -391,7 +402,8 @@ _WO003_COMPLETION_POINTER_STATEMENT = (
     + _WO003_COMPLETION_JOB + "` — Lint, types, tests]("
     + _WO003_COMPLETION_JOB_URL + "). The repository-description application "
     "record is preserved and still enforced from the completed Work Order "
-    "document. " + _WO003_COMPLETED_STATEMENT + " Session C or any later "
+    "document. " + _WO003_COMPLETED_POINTER_CLAUSE + " Session C or any "
+    "later "
     "session, tagging, Release creation, branch-protection changes, other "
     "repository metadata changes, and social publication all remain "
     "unauthorized."
@@ -774,7 +786,8 @@ def _canonical_metadata(text: str, stop) -> list[str]:
     return out
 
 
-def _wo003_field_findings(text, sequence, stop, where, exact, terminal):
+def _canonical_field_findings(text, sequence, stop, where, exact, terminal,
+                              label="WO-003 issuance field"):
     """The canonical metadata as an exact contiguous slice.
 
     Enumerating wrapper syntax was a blacklist: an unlisted wrapper such as
@@ -784,7 +797,7 @@ def _wo003_field_findings(text, sequence, stop, where, exact, terminal):
     entries, so any inserted line - wrapper, note, or otherwise - breaks it
     without the checker needing to know what that line means.
     """
-    label = "WO-003 issuance field (" + where + ")"
+    label = label + " (" + where + ")"
 
     def fits(line: str, expected: str) -> bool:
         return line == expected if expected in exact else line.startswith(expected)
@@ -812,6 +825,35 @@ def _wo003_field_findings(text, sequence, stop, where, exact, terminal):
                  "extra metadata after the canonical slice: " + trailing[0],
                  "the canonical slice ends the metadata block")]
     return []
+
+
+def _canonical_key_findings(text, stop, keys, label):
+    """Each canonical key is declared exactly once, and only there.
+
+    The exact-slice comparison above proves that the declarations it finds
+    are right, contiguous, and terminal. It cannot see a corrupted twin
+    sitting BEFORE the slice: a wrong BASELINE line followed by a
+    byte-correct one leaves the slice intact and the corruption in the
+    file. Counting keys inside the canonical block closes that, and
+    counting the exact declaration across the whole document stops a
+    correct copy placed elsewhere - prose, a comment, a relocated section
+    - from standing in for a missing or corrupted one.
+    """
+    out = []
+    block = _canonical_metadata(text, stop)
+    for prefix, declaration in keys:
+        declared = [line for line in block if line.startswith(prefix)]
+        if len(declared) != 1:
+            out.append((label,
+                        prefix + " is declared " + str(len(declared))
+                        + "x in the canonical block",
+                        "exactly one canonical " + prefix))
+        occurrences = text.count(declaration)
+        if occurrences != 1:
+            out.append((label,
+                        declaration + " occurs " + str(occurrences) + "x",
+                        "exactly one " + declaration))
+    return out
 
 
 def _wo003_record_findings(
@@ -899,7 +941,7 @@ def _wo003_record_findings(
         if current_gate != expected_gate:
             out.append(("WORKORDER.md", gate_kind, str(current_gate),
                         expected_gate))
-        for kind, found_detail, want in _wo003_field_findings(
+        for kind, found_detail, want in _canonical_field_findings(
             pointer, pointer_sequence,
             lambda line: _WO001_COMPLETED_LINK in line,
             "WORKORDER.md",
@@ -919,7 +961,7 @@ def _wo003_record_findings(
         # Only the pinned declarations carry a backticked value. The pointer's
         # remaining keys keep their own dedicated checks, so position and key
         # are all this comparison asserts for them.
-        for kind, found_detail, want in _wo003_field_findings(
+        for kind, found_detail, want in _canonical_field_findings(
             issued_text, issued_sequence,
             lambda line: line.startswith("## "),
             "issued record",
@@ -1594,6 +1636,114 @@ _CLOSED_RELEASE_GATE = (
     "NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL "
     "INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST"
 )
+
+# WO-004's issuance record. The canonical bullet block in WORKORDER.md and
+# the canonical metadata block in the mandate are the only surfaces that
+# DECLARE these values; the narrative paragraphs restate them. Each surface
+# is therefore compared as an exact, contiguous, terminal slice AND has its
+# keys counted, so a restatement can never satisfy a missing or corrupted
+# declaration.
+_WO004_ID, _WO004_NAME = _RELEASE_TRAIN[3]
+_WO004_PLANNING_BASELINE = "0d513f1639cf197707132205f4074d0fe3a750cc"
+_WO004_BASELINE_MARKER = "BASELINE: `" + _WO004_PLANNING_BASELINE + "`"
+_WO004_ISSUANCE_COMMIT = "8444faf340afe47765c43d943200db712880817b"
+_WO004_ISSUANCE_WORKFLOW = "34441169191"
+_WO004_ISSUANCE_JOB = "102756337393"
+_WO004_ISSUED_SEQUENCE = (
+    _WO004_BASELINE_MARKER,
+    "ISSUANCE_COMMIT: `" + _WO004_ISSUANCE_COMMIT + "`",
+    "ISSUANCE_CI_WORKFLOW: `" + _WO004_ISSUANCE_WORKFLOW + "`",
+    "ISSUANCE_CI_JOB: `" + _WO004_ISSUANCE_JOB + "` — Lint, types, tests",
+)
+# Only the pinned declarations carry a backticked value in THIS sequence,
+# so key and position are all the slice comparison asserts for the rest.
+# That is not the whole story for the base commit: its exact value is
+# pinned by _WO004_POINTER_KEYS below, which runs in every session state,
+# and the closed-session branch compares it a second time under a finding
+# that names it directly. Moving the base to a later gate's commit is
+# therefore not a WORKORDER.md-only edit - that transition has to update
+# this file too, which is the visible act the governance model wants.
+_WO004_POINTER_SEQUENCE = (
+    "- Current issued Work Order:",
+    "- Authorized session:",
+    "- Base commit:",
+    "- Current gate:",
+    "- Issuance commit: `" + _WO004_ISSUANCE_COMMIT + "`",
+    "- Issuance CI workflow: `" + _WO004_ISSUANCE_WORKFLOW + "`",
+    "- Issuance CI job: `" + _WO004_ISSUANCE_JOB + "` — Lint, types, tests",
+    "- Release train:",
+    "- Release gate:",
+)
+_WO004_POINTER_KEYS = (
+    ("- Base commit:",
+     "- Base commit: `" + _WO004_ISSUANCE_COMMIT + "`"),
+    ("- Issuance commit:", _WO004_POINTER_SEQUENCE[4]),
+    ("- Issuance CI workflow:", _WO004_POINTER_SEQUENCE[5]),
+    ("- Issuance CI job:", _WO004_POINTER_SEQUENCE[6]),
+)
+_WO004_ISSUED_KEYS = (
+    ("BASELINE:", _WO004_ISSUED_SEQUENCE[0]),
+    ("ISSUANCE_COMMIT:", _WO004_ISSUED_SEQUENCE[1]),
+    ("ISSUANCE_CI_WORKFLOW:", _WO004_ISSUED_SEQUENCE[2]),
+    ("ISSUANCE_CI_JOB:", _WO004_ISSUED_SEQUENCE[3]),
+)
+_WO004_ISSUANCE_STATEMENT = (
+    "Issuance alone grants no implementation authority. A session becomes "
+    "implementable only when the owner names it in root `WORKORDER.md`."
+)
+_WO004_NEXT_GATE = (
+    "NEXT GATE: separate owner authorization for Session A feasibility "
+    "only, recorded in root `WORKORDER.md`. Issuance authorizes no session. "
+    "Session A, Session B, Session C, and all live UEFN work remain closed."
+)
+
+
+def _wo004_issuance_findings(pointer, issued_text, rel):
+    """WO-004's issuance record on the two surfaces that declare it.
+
+    Called from outside the session branches on purpose: authorizing a
+    session must not silence the record that issued the Work Order.
+
+    That includes the base commit. _WO004_POINTER_KEYS pins its exact
+    value from here, in EVERY session state - not only while the session
+    is closed. The closed-session branch adds a second comparison that
+    names the base directly, but it is not the only pin, so a later
+    authorization gate cannot move the base by editing WORKORDER.md
+    alone: it must update this file too.
+    """
+    def pointer_stop(line: str) -> bool:
+        return _WO001_COMPLETED_LINK in line
+
+    def document_stop(line: str) -> bool:
+        return line.startswith("## ")
+
+    out = []
+    for surface, text, stop, sequence, keys, where in (
+        ("WORKORDER.md", pointer, pointer_stop, _WO004_POINTER_SEQUENCE,
+         _WO004_POINTER_KEYS, "WORKORDER.md"),
+        (rel, issued_text, document_stop, _WO004_ISSUED_SEQUENCE,
+         _WO004_ISSUED_KEYS, "issued record"),
+    ):
+        for kind, found, want in _canonical_field_findings(
+            text, sequence, stop, where,
+            exact={item for item in sequence if "`" in item},
+            terminal=True, label="WO-004 issuance field",
+        ):
+            out.append((surface, kind, found, want))
+        for kind, found, want in _canonical_key_findings(
+            text, stop, keys,
+            "WO-004 issuance declaration (" + where + ")",
+        ):
+            out.append((surface, kind, found, want))
+    normalized = " ".join(issued_text.split())
+    for wording, kind in (
+        (_WO004_ISSUANCE_STATEMENT, "WO-004 issuance statement"),
+        (_WO004_NEXT_GATE, "WO-004 next gate"),
+    ):
+        if normalized.count(wording) != 1:
+            out.append((rel, kind, str(normalized.count(wording)),
+                        "exactly one " + wording))
+    return out
 
 
 def _accepted_record_findings(
@@ -2352,6 +2502,36 @@ def check_work_order_contract() -> list[dict]:
     if _WO003_NAME in completed_metadata:
         wo003_completed_text = completed_metadata[_WO003_NAME][2]
 
+    # Whichever Work Order closed last owns the pointer's base and gate,
+    # and its document is the basis for the successor guard. Selecting it
+    # here rather than inside the branch below is what lets the ARTIFACT
+    # half of that guard keep running: a completed Work Order must never
+    # grant authority to the order that follows it, whoever owns the
+    # pointer. Leaving the whole guard in the NONE branch meant issuing
+    # WO-004 silenced the scan of WO-003's completed document - exactly
+    # the failure the WO-002 hoist below exists to prevent.
+    if wo003_completed_text:
+        next_order, basis_name = "WO-004", _WO003_NAME
+        basis_text = wo003_completed_text
+        expected_base = _WO003_COMPLETION_COMMIT
+        expected_closed_gate = _WO003_COMPLETED_GATE
+    elif wo002_completed_text:
+        next_order, basis_name = "WO-003", _WO002_NAME
+        basis_text = wo002_completed_text
+        expected_base = _WO002_COMPLETION_COMMIT
+        expected_closed_gate = _WO002_COMPLETED_GATE
+    else:
+        next_order, basis_name = "WO-002", wo001_name
+        basis_text = wo001_completed_text
+        expected_base = _WO001_COMPLETION_COMMIT
+        expected_closed_gate = _WO001_COMPLETED_GATE
+    # Scanned alone, so the finding names the file that carries the claim.
+    if _has_next_work_order_authorization("", basis_text, next_order):
+        add((completed_dir / basis_name).relative_to(root).as_posix(),
+            "next work order authorization",
+            f"implicit {next_order} permission",
+            f"{next_order} authority comes only from the root pointer")
+
     if current == "NONE":
         if session != "NONE":
             add("WORKORDER.md", "authorization without issued work order",
@@ -2359,20 +2539,10 @@ def check_work_order_contract() -> list[dict]:
         if issued:
             add("docs/work-orders/issued", "unpointed issued work order",
                 issued[0].name, "empty while current pointer is NONE")
-        # Whichever Work Order closed last owns the pointer's base and gate.
-        if wo003_completed_text:
-            next_order, basis_text = "WO-004", wo003_completed_text
-            expected_base = _WO003_COMPLETION_COMMIT
-            expected_closed_gate = _WO003_COMPLETED_GATE
-        elif wo002_completed_text:
-            next_order, basis_text = "WO-003", wo002_completed_text
-            expected_base = _WO002_COMPLETION_COMMIT
-            expected_closed_gate = _WO002_COMPLETED_GATE
-        else:
-            next_order, basis_text = "WO-002", wo001_completed_text
-            expected_base = _WO001_COMPLETION_COMMIT
-            expected_closed_gate = _WO001_COMPLETED_GATE
-        if _has_next_work_order_authorization(pointer, basis_text, next_order):
+        # The pointer half of the successor guard. The document half is
+        # artifact-bound and runs outside this branch, so issuing a later
+        # order cannot silence it.
+        if _has_next_work_order_authorization(pointer, "", next_order):
             add("WORKORDER.md", "next work order authorization",
                 f"implicit {next_order} permission",
                 f"{next_order} remains proposed and not authorized")
@@ -2382,29 +2552,6 @@ def check_work_order_contract() -> list[dict]:
         if current_gate != expected_closed_gate:
             add("WORKORDER.md", "completed work order gate", str(current_gate),
                 expected_closed_gate)
-        if wo002_completed_text:
-            rel = (completed_dir / _WO002_NAME).relative_to(root).as_posix()
-            for evidence, kind in (
-                (_WO002_COMPLETION_COMMIT, "WO-002 completion commit"),
-                (_WO002_COMPLETION_WORKFLOW, "WO-002 completion workflow"),
-                (_WO002_COMPLETION_JOB, "WO-002 completion job"),
-                (_WO002_EVIDENCE_PATH, "WO-002 evidence artifact"),
-                (_WO002_EVIDENCE_SHA256, "WO-002 evidence digest"),
-            ):
-                if evidence not in wo002_completed_text:
-                    add(rel, kind, "missing", evidence)
-            normalized_wo002 = " ".join(wo002_completed_text.split())
-            for wording, kind in (
-                (_WO002_TERMINAL_EXTERNAL, "WO-002 terminal external result"),
-                (_WO002_NEGATIVE_RESULT, "WO-002 accepted negative result"),
-            ):
-                if wording not in normalized_wo002:
-                    add(rel, kind, "missing or changed", wording)
-            # Session A's accepted record outlives the Work Order that carried it.
-            for _f, _k, _found, _want in _accepted_record_findings(
-                pointer, wo002_completed_text, rel
-            ):
-                add(_f, _k, _found, _want)
         if wo003_completed_text:
             # Pointer-bound half only: the canonical pointer slice with its
             # provenance bullets, and the completed base and gate. The
@@ -2439,6 +2586,16 @@ def check_work_order_contract() -> list[dict]:
                     ", ".join(sorted(valid_pointers)))
 
             _statuses, auth_lines, issued_text = issued_metadata[issued[0].name]
+            # Bound to the ISSUED ARTIFACT rather than to a session, and so
+            # placed outside the session branches below: authorizing a session
+            # must not silence the record that issued the Work Order.
+            if (issued[0].name == _WO004_NAME
+                    and issued_id == _WO004_ID):
+                for _f, _k, _found, _want in _wo004_issuance_findings(
+                    pointer, issued_text,
+                    issued[0].relative_to(root).as_posix(),
+                ):
+                    add(_f, _k, _found, _want)
             if issued[0].name == _WO002_NAME:
                 rel = issued[0].relative_to(root).as_posix()
                 baseline_lines = [
@@ -2666,6 +2823,11 @@ def check_work_order_contract() -> list[dict]:
                     ):
                         add("WORKORDER.md", "implicit session authorization",
                             "contradictory Session A permission", expected_gate)
+                    if (issued[0].name == _WO004_NAME
+                            and issued_id == _WO004_ID
+                            and base != f"`{_WO004_ISSUANCE_COMMIT}`"):
+                        add("WORKORDER.md", "WO-004 issuance base commit",
+                            str(base), f"`{_WO004_ISSUANCE_COMMIT}`")
                     if issued[0].name == _WO003_NAME:
                         for _f, _k, _found, _want in _wo003_record_findings(
                             pointer, issued_text,
@@ -2859,6 +3021,36 @@ def check_work_order_contract() -> list[dict]:
             else:
                 add("WORKORDER.md", "authorized session gate", str(session),
                     "NONE or the specifically authorized session A or B")
+
+    # WO-002's completed-document enforcement is bound to the artifact too.
+    # It used to live in the NONE branch, where a later Work Order taking the
+    # root pointer over would have silently stopped it - the same incomplete
+    # hoist WO-003's completed checks were split to avoid. The pointer-bound
+    # halves it reads (the acceptance paragraph and the accepted identifiers)
+    # are anchored by WO-001's completion reference, which no issuance moves.
+    if wo002_completed_text:
+        wo002_rel = (completed_dir / _WO002_NAME).relative_to(root).as_posix()
+        for evidence, kind in (
+            (_WO002_COMPLETION_COMMIT, "WO-002 completion commit"),
+            (_WO002_COMPLETION_WORKFLOW, "WO-002 completion workflow"),
+            (_WO002_COMPLETION_JOB, "WO-002 completion job"),
+            (_WO002_EVIDENCE_PATH, "WO-002 evidence artifact"),
+            (_WO002_EVIDENCE_SHA256, "WO-002 evidence digest"),
+        ):
+            if evidence not in wo002_completed_text:
+                add(wo002_rel, kind, "missing", evidence)
+        normalized_wo002 = " ".join(wo002_completed_text.split())
+        for wording, kind in (
+            (_WO002_TERMINAL_EXTERNAL, "WO-002 terminal external result"),
+            (_WO002_NEGATIVE_RESULT, "WO-002 accepted negative result"),
+        ):
+            if wording not in normalized_wo002:
+                add(wo002_rel, kind, "missing or changed", wording)
+        # Session A's accepted record outlives the Work Order that carried it.
+        for _f, _k, _found, _want in _accepted_record_findings(
+            pointer, wo002_completed_text, wo002_rel
+        ):
+            add(_f, _k, _found, _want)
 
     # WO-003's completed-document enforcement is bound to the artifact, not to
     # the root pointer, so it keeps running once a later Work Order takes the

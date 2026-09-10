@@ -25,6 +25,9 @@ import pytest
 
 SKIP_DIRS = {"verse-book", "__pycache__", ".git", "Intermediate", "Saved"}
 
+_NL = chr(10)
+_EM = chr(8212)
+
 BASE_FIELDS = ["id", "name", "version", "author", "type",
                "description", "category", "url", "min_toolbelt_version"]
 COMMUNITY_EXTRA = ["download_url"]
@@ -139,7 +142,7 @@ def test_drift_check_covers_agent_context_surfaces(repo_root):
         "docs/work-orders/completed/WO-001-custom-mcp-security.md",
         "docs/work-orders/completed/WO-002-epic-toolset-integration.md",
         "docs/work-orders/completed/WO-003-official-mcp-doc-convergence.md",
-        "docs/work-orders/proposed/WO-004-modal-observability.md",
+        "docs/work-orders/issued/WO-004-modal-observability.md",
         "docs/work-orders/proposed/WO-005-coverage-source-of-truth.md",
         "docs/work-orders/proposed/WO-006-official-vs-toolbelt-benchmark.md",
         "docs/work-orders/proposed/WO-007-public-mcp-explainer.md",
@@ -185,7 +188,6 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
 
     proposals = sorted((work_orders / "proposed").glob("WO-*.md"))
     expected_proposals = {
-        "WO-004-modal-observability.md",
         "WO-005-coverage-source-of-truth.md",
         "WO-006-official-vs-toolbelt-benchmark.md",
         "WO-007-public-mcp-explainer.md",
@@ -213,7 +215,9 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
               if path.name.lower() != "readme.md"]
     completed = [path for path in (work_orders / "completed").glob("*.md")
                  if path.name.lower() != "readme.md"]
-    assert [path.name for path in issued] == []
+    assert [path.name for path in issued] == [
+        "WO-004-modal-observability.md"
+    ]
     assert {path.name for path in completed} == {
         "WO-001-custom-mcp-security.md",
         "WO-002-epic-toolset-integration.md",
@@ -224,39 +228,33 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert (
         work_orders / "completed" / "WO-003-official-mcp-doc-convergence.md"
     ).exists()
-    assert current == "NONE"
+    assert current == "WO-004"
     assert session == "NONE"
     assert base_lines == [
-        "- Base commit: `7a7eedb493cbf810f758383a1fc66a285bca841a`"
+        "- Base commit: `8444faf340afe47765c43d943200db712880817b`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-003 COMPLETED "
-        "— WO-004 PROPOSED AND NOT AUTHORIZED"
+        "- Current gate: WO-004 ISSUED "
+        "— SESSION A IMPLEMENTATION NOT AUTHORIZED"
     ]
-    # Session A and Session B are both accepted and no session is open.
-    # All issuance, authorization, and acceptance provenance stays declared.
+    # The canonical bullet block belongs to whichever order owns the
+    # pointer. WO-004's issuance evidence is declared here; WO-003's own
+    # issuance, authorization, and acceptance provenance is preserved in
+    # its completed document's canonical block and in the narrative
+    # paragraphs below, and is still enforced from there.
     for line in (
-        "- Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`",
-        "- Issuance CI workflow: `33148089523`",
-        "- Issuance CI job: `98773518991` — Lint, types, tests",
-        "- Session A authorization commit:"
-        " `52d89295614a4ce686094736d87f7e6c907e12a0`",
-        "- Session A authorization CI workflow: `33200547479`",
-        "- Session A authorization CI job: `98948639416` — Lint, types, tests",
-        "- Session A acceptance commit:"
-        " `d23add58e02ddc855573cf9be7a2542776d25e7e`",
-        "- Session A acceptance CI workflow: `33344006899`",
-        "- Session A acceptance CI job: `99344607213` — Lint, types, tests",
-        "- Session B authorization commit:"
-        " `2582be8c9168d72b46846334bbba44307d348ce6`",
-        "- Session B authorization CI workflow: `33351157691`",
-        "- Session B authorization CI job: `99364656646` — Lint, types, tests",
-        "- Session B acceptance commit:"
-        " `e23baa40c4b9358eb6b4448f460c054650ae64f0`",
-        "- Session B acceptance CI workflow: `33476969423`",
-        "- Session B acceptance CI job: `99758148278` — Lint, types, tests",
+        "- Issuance commit: `8444faf340afe47765c43d943200db712880817b`",
+        "- Issuance CI workflow: `34441169191`",
+        "- Issuance CI job: `102756337393` — Lint, types, tests",
     ):
         assert line in pointer, line
+    for stale in (
+        "- Session A authorization commit:",
+        "- Session A acceptance commit:",
+        "- Session B authorization commit:",
+        "- Session B acceptance commit:",
+    ):
+        assert stale not in pointer, stale
     normalized_pointer = " ".join(pointer.split())
     # The acceptance paragraph is preserved as an explicit pre-application
     # record, and the application itself is recorded once beside it.
@@ -293,8 +291,22 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "34301244038" in normalized_pointer
     assert "102308406590" in normalized_pointer
     assert (
-        "WO-003 is complete; no session is authorized. WO-004 remains "
-        "proposed and unauthorized." in normalized_pointer
+        "WO-003 is complete; no session is authorized. Session C or any "
+        "later session, tagging, Release creation, branch-protection "
+        "changes, other repository metadata changes, and social "
+        "publication all remain unauthorized." in normalized_pointer
+    )
+    # The completed document keeps the clause about WO-004's state at its
+    # own gate; the LIVE pointer must not, now that WO-004 is issued.
+    # Issuing WO-003 dropped the identical clause about WO-003 (`52d8929`).
+    assert (
+        "WO-004 remains proposed and unauthorized" not in normalized_pointer
+    )
+    assert (
+        "WO-004 remains proposed and\nunauthorized." in (
+            work_orders / "completed"
+            / "WO-003-official-mcp-doc-convergence.md"
+        ).read_text(encoding="utf-8")
     )
     assert (
         "WO-003 remains issued, and its completion transition requires a "
@@ -308,6 +320,21 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "No repository metadata application, tag, Release, or social publication "
         "is authorized." not in normalized_pointer
     )
+    assert (
+        "[`WO-004`](docs/work-orders/issued/WO-004-modal-observability.md) is "
+        "issued." in normalized_pointer
+    )
+    assert (
+        "Issuance grants no implementation authority and opens no session."
+        in normalized_pointer
+    )
+    assert (
+        "Tagging, Release creation, branch-protection changes, other "
+        "repository metadata changes, and social publication all remain "
+        "unauthorized, as do WO-005, WO-006, and WO-007, which stay proposed."
+        in normalized_pointer
+    )
+    assert "docs/work-orders/proposed/WO-004-modal-observability.md" not in pointer
     assert "- Release train: WO-001 through WO-007" in pointer
     assert (
         "- Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE "
@@ -319,6 +346,54 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "docs/work-orders/proposed/WO-001-custom-mcp-security.md" not in pointer
     assert "docs/work-orders/completed/WO-002-epic-toolset-integration.md" in pointer
     assert "docs/work-orders/proposed/WO-002-epic-toolset-integration.md" not in pointer
+
+    wo004 = work_orders / "issued" / "WO-004-modal-observability.md"
+    wo004_text = wo004.read_text(encoding="utf-8")
+    wo004_lines = wo004_text.splitlines()
+    assert [line for line in wo004_lines if line.startswith("STATUS:")] == [
+        "STATUS: ISSUED"
+    ]
+    assert [
+        line for line in wo004_lines if line.startswith("AUTHORIZATION:")
+    ] == ["AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED"]
+    # The planning baseline is preserved; the issuance evidence is new and
+    # distinct from it.
+    assert [line for line in wo004_lines if line.startswith("BASELINE:")] == [
+        "BASELINE: `0d513f1639cf197707132205f4074d0fe3a750cc`"
+    ]
+    for line, prefix in (
+        ("ISSUANCE_COMMIT: `8444faf340afe47765c43d943200db712880817b`",
+         "ISSUANCE_COMMIT:"),
+        ("ISSUANCE_CI_WORKFLOW: `34441169191`", "ISSUANCE_CI_WORKFLOW:"),
+        ("ISSUANCE_CI_JOB: `102756337393` — Lint, types, tests",
+         "ISSUANCE_CI_JOB:"),
+    ):
+        assert [
+            candidate for candidate in wo004_lines
+            if candidate.startswith(prefix)
+        ] == [line], line
+    for evidence in (
+        "## Issuance basis",
+        "Issuance alone grants no implementation authority.",
+        "34441169191",
+        "102756337393",
+        "NEXT GATE: separate owner authorization for Session A feasibility"
+        " only,",
+    ):
+        assert evidence in wo004_text, evidence
+    for stale in (
+        "STATUS: PROPOSED",
+        "AUTHORIZATION: NOT AUTHORIZED",
+        "NEXT GATE: independent pre-issuance review of this revision",
+        "This proposal does not",
+    ):
+        assert stale not in wo004_text, stale
+    # Issuance opens no session and leaves the later orders proposed.
+    normalized_wo004 = " ".join(wo004_text.split())
+    assert (
+        "Issuance authorizes no session. Session A, Session B, Session C, "
+        "and all live UEFN work remain closed." in normalized_wo004
+    )
 
     wo003 = work_orders / "completed" / "WO-003-official-mcp-doc-convergence.md"
     wo003_text = wo003.read_text(encoding="utf-8")
@@ -473,14 +548,209 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "Work Order WO-001" in security_normalized
 
 
-def _make_wo003_completed_case(repo_root, tmp_path, name):
-    """Copy the current completed WO-003 state."""
+# --- WO-004 issuance: the current state, and the head of the chain -------
+#
+# Every historical fixture below is reconstructed backwards from whatever
+# the repository currently holds. Issuing WO-004 moved that forward again,
+# so the completed-WO-003 state the rest of the chain builds on is now a
+# reconstruction of its own.
+
+_WO004_ID = "WO-004"
+_WO004_ISSUED_REL = "docs/work-orders/issued/WO-004-modal-observability.md"
+_WO004_PROPOSED_REL = (
+    "docs/work-orders/proposed/WO-004-modal-observability.md"
+)
+_WO004_BASELINE = "0d513f1639cf197707132205f4074d0fe3a750cc"
+_WO004_ISSUANCE_COMMIT = "8444faf340afe47765c43d943200db712880817b"
+_WO004_ISSUANCE_WORKFLOW = "34441169191"
+_WO004_ISSUANCE_JOB = "102756337393"
+_WO004_ISSUED_GATE = (
+    "WO-004 ISSUED " + _EM + " SESSION A IMPLEMENTATION NOT AUTHORIZED"
+)
+_WO004_SESSION_A_GATE = (
+    "WO-004 SESSION A AUTHORIZED " + _EM + " IMPLEMENT SESSION A ONLY"
+)
+_WO004_ISSUED_MARKER = "AUTHORIZATION: ISSUED " + _EM + " SESSION NOT AUTHORIZED"
+_WO004_SESSION_A_MARKER = (
+    "AUTHORIZATION: ISSUED " + _EM + " SESSION A AUTHORIZED FOR IMPLEMENTATION"
+)
+# The mandate's canonical issuance declarations, and the pointer's.
+_WO004_ISSUED_METADATA = (
+    ("ISSUANCE_COMMIT:",
+     "ISSUANCE_COMMIT: `" + _WO004_ISSUANCE_COMMIT + "`"),
+    ("ISSUANCE_CI_WORKFLOW:",
+     "ISSUANCE_CI_WORKFLOW: `" + _WO004_ISSUANCE_WORKFLOW + "`"),
+    ("ISSUANCE_CI_JOB:",
+     "ISSUANCE_CI_JOB: `" + _WO004_ISSUANCE_JOB + "` " + _EM
+     + " Lint, types, tests"),
+)
+_WO004_POINTER_METADATA = (
+    ("- Base commit:", "- Base commit: `" + _WO004_ISSUANCE_COMMIT + "`"),
+    ("- Issuance commit:",
+     "- Issuance commit: `" + _WO004_ISSUANCE_COMMIT + "`"),
+    ("- Issuance CI workflow:",
+     "- Issuance CI workflow: `" + _WO004_ISSUANCE_WORKFLOW + "`"),
+    ("- Issuance CI job:",
+     "- Issuance CI job: `" + _WO004_ISSUANCE_JOB + "` " + _EM
+     + " Lint, types, tests"),
+)
+_WO004_ISSUANCE_BULLETS = _NL.join(
+    line for _prefix, line in _WO004_POINTER_METADATA[1:]
+)
+_WO004_NEXT_GATE = _NL.join((
+    "NEXT GATE: separate owner authorization for Session A feasibility only,",
+    "recorded in root `WORKORDER.md`. Issuance authorizes no session."
+    " Session A,",
+    "Session B, Session C, and all live UEFN work remain closed.",
+))
+_WO004_PROPOSED_NEXT_GATE = _NL.join((
+    "NEXT GATE: independent pre-issuance review of this revision, performed"
+    " by a",
+    "reviewer who did not write it. Issuance, Session A, and all live UEFN"
+    " work",
+    "remain closed.",
+))
+# WO-003's canonical provenance bullets, which the pointer carried while
+# nothing was issued. Restoring them is what puts the reconstruction back
+# into the state WO-003's completion left behind.
+_WO003_POINTER_BULLETS = _NL.join((
+    "- Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`",
+    "- Issuance CI workflow: `33148089523`",
+    "- Issuance CI job: `98773518991` " + _EM + " Lint, types, tests",
+    "- Session A authorization commit:"
+    " `52d89295614a4ce686094736d87f7e6c907e12a0`",
+    "- Session A authorization CI workflow: `33200547479`",
+    "- Session A authorization CI job: `98948639416` " + _EM
+    + " Lint, types, tests",
+    "- Session A acceptance commit:"
+    " `d23add58e02ddc855573cf9be7a2542776d25e7e`",
+    "- Session A acceptance CI workflow: `33344006899`",
+    "- Session A acceptance CI job: `99344607213` " + _EM
+    + " Lint, types, tests",
+    "- Session B authorization commit:"
+    " `2582be8c9168d72b46846334bbba44307d348ce6`",
+    "- Session B authorization CI workflow: `33351157691`",
+    "- Session B authorization CI job: `99364656646` " + _EM
+    + " Lint, types, tests",
+    "- Session B acceptance commit:"
+    " `e23baa40c4b9358eb6b4448f460c054650ae64f0`",
+    "- Session B acceptance CI workflow: `33476969423`",
+    "- Session B acceptance CI job: `99758148278` " + _EM
+    + " Lint, types, tests",
+))
+
+
+def _make_wo004_issued_case(repo_root, tmp_path, name):
+    """Copy the current issued WO-004 state."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
     shutil.copytree(
         repo_root / "docs" / "work-orders",
         case / "docs" / "work-orders",
+    )
+    return case
+
+
+def _make_wo003_completed_case(repo_root, tmp_path, name):
+    """Reconstruct the preserved completed-WO-003, nothing-issued state.
+
+    Issuing WO-004 moved the current state forward, so the state every
+    earlier fixture builds on is now itself a reconstruction. Only the
+    issuance transition is reversed: WO-004 returns to proposed/ carrying
+    its proposal markers and no canonical issuance declarations, and the
+    pointer's canonical bullet block goes back to WO-003's provenance.
+
+    The mandate's own prose is deliberately NOT rewound. No gate reads it -
+    a proposal is validated on its status, its authorization, and the
+    absence of canonical gate lines - so rewinding paragraphs would add
+    anchors that can drift without protecting anything.
+    """
+    case = _make_wo004_issued_case(repo_root, tmp_path, name)
+    issued = case / _WO004_ISSUED_REL
+    proposed = case / _WO004_PROPOSED_REL
+    if not issued.exists():
+        # The source root is an earlier reconstruction rather than the live
+        # repository - chaining from one is how the reconstruction guards
+        # re-enter this builder - so there is no issuance left to reverse.
+        assert proposed.exists(), (
+            "WO-004 issuance reconstruction: WO-004 is in neither issued/ "
+            "nor proposed/ - this reconstruction is no longer anchored to "
+            "the recorded historical state"
+        )
+        return case
+    text = issued.read_text(encoding="utf-8")
+    for old, new in (
+        ("STATUS: ISSUED", "STATUS: PROPOSED"),
+        (_WO004_ISSUED_MARKER, "AUTHORIZATION: NOT AUTHORIZED"),
+        (_WO004_NEXT_GATE, _WO004_PROPOSED_NEXT_GATE),
+    ):
+        text = _replace_once(text, old, new, "WO-004 issuance reconstruction")
+    _require_unique(
+        text,
+        ("BASELINE: `" + _WO004_BASELINE + "`", "## Issuance basis",
+         "## Planning basis"),
+        "WO-004 issuance-metadata excision",
+    )
+    keep = "BASELINE: `" + _WO004_BASELINE + "`" + _NL + _NL
+    text = _sub_once(
+        re.escape(keep) + ".*?(?="
+        + re.escape("## Planning basis" + _NL) + ")",
+        keep,
+        text,
+        "WO-004 issuance-metadata excision",
+        flags=re.DOTALL,
+    )
+    proposed.write_text(text, encoding="utf-8")
+    issued.unlink()
+
+    pointer = case / "WORKORDER.md"
+    text = pointer.read_text(encoding="utf-8")
+    opening = "[`WO-004`](" + _WO004_ISSUED_REL + ") is"
+    _require_unique(
+        text,
+        (opening,
+         "WO-001 through WO-007 form the frozen next release train. The"
+         " release version"),
+        "WO-004 issuance-paragraph excision",
+    )
+    text = _sub_once(
+        re.escape(opening) + ".*?(?="
+        + re.escape("WO-001 through WO-007 form the frozen") + ")",
+        "",
+        text,
+        "WO-004 issuance-paragraph excision",
+        flags=re.DOTALL,
+    )
+    for old, new in (
+        ("- Current issued Work Order: WO-004",
+         "- Current issued Work Order: NONE"),
+        ("- Base commit: `" + _WO004_ISSUANCE_COMMIT + "`",
+         "- Base commit: `" + _WO003_COMPLETION_COMMIT + "`"),
+        ("- Current gate: " + _WO004_ISSUED_GATE, _WO003_COMPLETED_GATE),
+        (_WO004_ISSUANCE_BULLETS, _WO003_POINTER_BULLETS),
+    ):
+        text = _replace_once(text, old, new, "WO-004 issuance pointer")
+    pointer.write_text(text, encoding="utf-8")
+
+    _assert_reconstructed(
+        "WO-004 issuance pointer", pointer.read_text(encoding="utf-8"),
+        ("- Current issued Work Order: NONE",
+         "- Base commit: `" + _WO003_COMPLETION_COMMIT + "`",
+         _WO003_COMPLETED_GATE, _WO003_POINTER_BULLETS),
+        (_WO004_ISSUED_GATE, _WO004_ISSUANCE_COMMIT,
+         _WO004_ISSUANCE_WORKFLOW, _WO004_ISSUANCE_JOB,
+         _WO004_ISSUED_REL),
+    )
+    _assert_reconstructed(
+        "WO-004 issuance reconstruction",
+        proposed.read_text(encoding="utf-8"),
+        ("STATUS: PROPOSED", "AUTHORIZATION: NOT AUTHORIZED",
+         "BASELINE: `" + _WO004_BASELINE + "`",
+         "## Planning basis", _WO004_PROPOSED_NEXT_GATE),
+        ("STATUS: ISSUED", _WO004_ISSUED_MARKER, "## Issuance basis",
+         _WO004_ISSUED_METADATA[0][0], _WO004_ISSUED_METADATA[1][0],
+         _WO004_ISSUED_METADATA[2][0], _WO004_NEXT_GATE),
     )
     return case
 
@@ -2179,8 +2449,6 @@ _RECONSTRUCTION_FAILURE = (
 _COMPLETED_REL = (
     "docs/work-orders/completed/WO-002-epic-toolset-integration.md"
 )
-_NL = chr(10)
-_EM = chr(8212)
 _WRONG_COMMIT = "60b881716abea3b5838c2a971caac40ee4cd5d30"
 _WRONG_WORKFLOW = "42937631903"
 _WRONG_JOB = "98081919979"
@@ -7886,15 +8154,50 @@ _COMPLETED_GATE_LINE = (
 )
 
 
+def _make_live_issued_case(repo_root, tmp_path, name, body, ptr, session):
+    """WO-004 is issued for real, so its probes run against that state.
+
+    Synthesizing an issuance for the order that is actually issued would
+    measure every probe against a fixture instead of the repository.
+    """
+    case = _make_wo004_issued_case(repo_root, tmp_path, name)
+    issued = case / _WO004_ISSUED_REL
+    pointer = case / "WORKORDER.md"
+    if session != "NONE":
+        issued.write_text(
+            _replace_once(
+                issued.read_text(encoding="utf-8"),
+                _WO004_ISSUED_MARKER, _WO004_SESSION_A_MARKER,
+                "live issued fixture authorization"),
+            encoding="utf-8")
+        text = pointer.read_text(encoding="utf-8")
+        for old, new in (
+            ("- Authorized session: NONE",
+             "- Authorized session: " + session),
+            ("- Current gate: " + _WO004_ISSUED_GATE,
+             "- Current gate: " + _WO004_SESSION_A_GATE),
+        ):
+            text = _replace_once(text, old, new,
+                                 "live issued fixture gate")
+        pointer.write_text(text, encoding="utf-8")
+    for path, extra in ((issued, body), (pointer, ptr)):
+        if extra:
+            path.write_text(
+                path.read_text(encoding="utf-8") + _NL + extra + _NL,
+                encoding="utf-8")
+    return case
+
+
 def _make_issued_case(repo_root, tmp_path, name, order, body="", ptr="",
                       session="NONE", filename=None, pointer_id=None):
     """A valid issued state for one frozen-train order, built from its own
     proposal document so the mandate text is real rather than synthetic."""
-    case = tmp_path / name
-    case.mkdir(parents=True)
-    shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
-    shutil.copytree(repo_root / "docs" / "work-orders",
-                    case / "docs" / "work-orders")
+    if order == _WO004_ID and filename is None and pointer_id is None:
+        return _make_live_issued_case(repo_root, tmp_path, name, body,
+                                      ptr, session)
+    # Every other order is issued from the reconstructed nothing-issued
+    # state, which is where its own issuance would have started.
+    case = _make_wo003_completed_case(repo_root, tmp_path, name)
     # `filename` and `pointer_id` exist so a probe can construct an order
     # that is NOT the declared one - an undeclared id, or a pointer naming a
     # different order than the file. Valid fixtures leave both unset.
@@ -8566,4 +8869,567 @@ def test_a_transplanted_lock_cannot_conceal_a_positive_claim(
     assert "external-action boundary" in found, (
         "a transplanted lock concealed a positive claim: "
         + repr(sorted(found))
+    )
+
+
+# --- WO-004 issuance enforcement -------------------------------------------
+#
+# Three surfaces produced ZERO findings at WO-004's planning baseline: the
+# root pointer's `- Base commit:`, the root pointer's issuance bullets, and
+# the mandate's own `BASELINE:` marker. Each probe below is a delta against
+# the real issued state - the one the repository actually holds - which
+# test_valid_issued_order_is_completely_clean[WO-004-NONE] proves raises
+# nothing, so any finding here is caused by the mutation and nothing else.
+#
+# The kind is pinned in every assertion. A bare `assert found` would pass on
+# unrelated collateral and stop testing the declaration it names.
+
+_ZERO_SHA = "0" * 40
+_WRONG_RUN = "99999999999"
+_WO004_POINTER_REL = "WORKORDER.md"
+_WO004_FIELD_POINTER = "WO-004 issuance field (WORKORDER.md)"
+_WO004_FIELD_RECORD = "WO-004 issuance field (issued record)"
+_WO004_DECL_POINTER = "WO-004 issuance declaration (WORKORDER.md)"
+_WO004_DECL_RECORD = "WO-004 issuance declaration (issued record)"
+
+
+def _append(case, rel, text):
+    """Append below the canonical block - the decoy's natural hiding place."""
+    target = case / rel
+    target.write_text(
+        target.read_text(encoding="utf-8") + _NL + text + _NL,
+        encoding="utf-8")
+
+
+def _wo004_types(repo_root, tmp_path, monkeypatch, name, mutate):
+    """Findings for the real WO-004 issuance after one further mutation."""
+    return _issued_case_types(repo_root, tmp_path, monkeypatch,
+                              "wo004-" + name, _WO004_ID, mutate)
+
+
+# ── the root pointer's base commit ─────────────────────────────────────────
+
+_WO004_BASE_LINE = _WO004_POINTER_METADATA[0][1]
+
+
+def _base_changed(case):
+    _edit(case, _WO004_POINTER_REL, _WO004_BASE_LINE,
+          "- Base commit: `" + _ZERO_SHA + "`")
+
+
+def _base_removed(case):
+    _edit(case, _WO004_POINTER_REL, _WO004_BASE_LINE + _NL, "")
+
+
+def _base_duplicated(case):
+    _edit(case, _WO004_POINTER_REL, _WO004_BASE_LINE + _NL,
+          _WO004_BASE_LINE + _NL + _WO004_BASE_LINE + _NL)
+
+
+def _base_decoy(case):
+    # The genuine declaration is corrupted and a byte-correct copy is placed
+    # outside the canonical block. Presence-anywhere checking would pass.
+    _base_changed(case)
+    _append(case, _WO004_POINTER_REL, _WO004_BASE_LINE)
+
+
+_WO004_BASE_MUTATIONS = (
+    ("changed", _base_changed),
+    ("removed", _base_removed),
+    ("duplicated", _base_duplicated),
+    ("decoy", _base_decoy),
+)
+
+
+@pytest.mark.parametrize(("name", "mutate"), _WO004_BASE_MUTATIONS,
+                         ids=[row[0] for row in _WO004_BASE_MUTATIONS])
+def test_wo004_issuance_pins_the_root_base_commit(
+    repo_root, tmp_path, monkeypatch, name, mutate
+) -> None:
+    """A zeroed, absent, doubled, or decoyed base commit is a finding.
+
+    At the planning baseline none of these raised anything once a later
+    order owned the pointer - the first of the three named surfaces.
+    """
+    found = _wo004_types(repo_root, tmp_path, monkeypatch, "base-" + name,
+                         mutate)
+    assert "WO-004 issuance base commit" in found, (
+        "a " + name + " base commit was accepted: " + repr(sorted(found))
+    )
+
+
+# ── the root pointer's issuance evidence ──────────────────────────────────
+
+_WO004_COMMIT_LINE = _WO004_POINTER_METADATA[1][1]
+_WO004_WORKFLOW_LINE = _WO004_POINTER_METADATA[2][1]
+_WO004_JOB_LINE = _WO004_POINTER_METADATA[3][1]
+
+
+def _issuance_changed(case):
+    _edit(case, _WO004_POINTER_REL, _WO004_WORKFLOW_LINE,
+          "- Issuance CI workflow: `" + _WRONG_RUN + "`")
+
+
+def _issuance_removed(case):
+    _edit(case, _WO004_POINTER_REL, _WO004_COMMIT_LINE + _NL, "")
+
+
+def _issuance_duplicated(case):
+    _edit(case, _WO004_POINTER_REL, _WO004_JOB_LINE + _NL,
+          _WO004_JOB_LINE + _NL + _WO004_JOB_LINE + _NL)
+
+
+def _issuance_reordered(case):
+    _edit(case, _WO004_POINTER_REL,
+          _WO004_COMMIT_LINE + _NL + _WO004_WORKFLOW_LINE + _NL,
+          _WO004_WORKFLOW_LINE + _NL + _WO004_COMMIT_LINE + _NL)
+
+
+def _issuance_intruded(case):
+    _edit(case, _WO004_POINTER_REL, _WO004_WORKFLOW_LINE + _NL,
+          _WO004_WORKFLOW_LINE + _NL + "- Note: nothing to see." + _NL)
+
+
+def _issuance_decoy(case):
+    _edit(case, _WO004_POINTER_REL, _WO004_COMMIT_LINE,
+          "- Issuance commit: `" + _ZERO_SHA + "`")
+    _append(case, _WO004_POINTER_REL, _WO004_COMMIT_LINE)
+
+
+_WO004_POINTER_MUTATIONS = (
+    ("changed", _issuance_changed),
+    ("removed", _issuance_removed),
+    ("duplicated", _issuance_duplicated),
+    ("reordered", _issuance_reordered),
+    ("intruding-line", _issuance_intruded),
+    ("decoy", _issuance_decoy),
+)
+
+
+@pytest.mark.parametrize(("name", "mutate"), _WO004_POINTER_MUTATIONS,
+                         ids=[row[0] for row in _WO004_POINTER_MUTATIONS])
+def test_wo004_issuance_pins_the_pointer_evidence(
+    repo_root, tmp_path, monkeypatch, name, mutate
+) -> None:
+    """The three issuance bullets are an exact, contiguous, terminal slice.
+
+    At the planning baseline all three could simply be deleted with no
+    finding - the second of the three named surfaces.
+    """
+    found = _wo004_types(repo_root, tmp_path, monkeypatch,
+                         "ptr-" + name, mutate)
+    assert _WO004_FIELD_POINTER in found, (
+        "a " + name + " pointer issuance record was accepted: "
+        + repr(sorted(found))
+    )
+
+
+# ── the mandate's own BASELINE marker ─────────────────────────────────────
+
+_WO004_BASELINE_MARKER = "BASELINE: `" + _WO004_BASELINE + "`"
+
+
+def _baseline_changed(case):
+    _edit(case, _WO004_ISSUED_REL, _WO004_BASELINE_MARKER,
+          "BASELINE: `" + _ZERO_SHA + "`")
+
+
+def _baseline_removed(case):
+    _edit(case, _WO004_ISSUED_REL, _WO004_BASELINE_MARKER + _NL + _NL,
+          "")
+
+
+def _baseline_duplicated(case):
+    _edit(case, _WO004_ISSUED_REL, _WO004_BASELINE_MARKER + _NL,
+          _WO004_BASELINE_MARKER + _NL + _NL
+          + _WO004_BASELINE_MARKER + _NL)
+
+
+def _baseline_decoy_outside(case):
+    _baseline_changed(case)
+    _append(case, _WO004_ISSUED_REL, _WO004_BASELINE_MARKER)
+
+
+_WO004_BASELINE_MUTATIONS = (
+    ("changed", _baseline_changed, _WO004_FIELD_RECORD),
+    ("removed", _baseline_removed, _WO004_FIELD_RECORD),
+    ("duplicated", _baseline_duplicated, _WO004_DECL_RECORD),
+    ("decoy-outside-the-block", _baseline_decoy_outside,
+     _WO004_FIELD_RECORD),
+)
+
+
+@pytest.mark.parametrize(("name", "mutate", "expected"),
+                         _WO004_BASELINE_MUTATIONS,
+                         ids=[row[0] for row in _WO004_BASELINE_MUTATIONS])
+def test_wo004_issuance_pins_the_mandate_baseline(
+    repo_root, tmp_path, monkeypatch, name, mutate, expected
+) -> None:
+    """Exactly one canonical BASELINE marker, carrying the accepted value.
+
+    At the planning baseline it could be zeroed with no finding - the third
+    of the three named surfaces.
+    """
+    found = _wo004_types(repo_root, tmp_path, monkeypatch,
+                         "baseline-" + name, mutate)
+    assert expected in found, (
+        "a " + name + " BASELINE marker was accepted: " + repr(sorted(found))
+    )
+
+
+def test_a_correct_baseline_twin_cannot_conceal_a_corrupted_one(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The one case an exact-slice comparison alone cannot see.
+
+    A wrong declaration placed BEFORE a byte-correct one leaves the slice
+    itself intact - it starts at the correct line and runs to the end of
+    the block - while the corruption sits in the file above it. Counting
+    the key inside the canonical block is what closes that.
+    """
+    def mutate(case):
+        _edit(case, _WO004_ISSUED_REL, _WO004_BASELINE_MARKER + _NL,
+              "BASELINE: `" + _ZERO_SHA + "`" + _NL + _NL
+              + _WO004_BASELINE_MARKER + _NL)
+
+    found = _wo004_types(repo_root, tmp_path, monkeypatch,
+                         "baseline-twin", mutate)
+    assert _WO004_DECL_RECORD in found, (
+        "a corrupted BASELINE hid behind a correct twin: "
+        + repr(sorted(found))
+    )
+
+
+# ── the mandate's canonical issuance declarations ─────────────────────────
+
+
+def _mandate_changed(case):
+    _edit(case, _WO004_ISSUED_REL, _WO004_ISSUED_METADATA[2][1],
+          "ISSUANCE_CI_JOB: `" + _WRONG_RUN + "` " + _EM
+          + " Lint, types, tests")
+
+
+def _mandate_removed(case):
+    _edit(case, _WO004_ISSUED_REL,
+          _WO004_ISSUED_METADATA[1][1] + _NL + _NL, "")
+
+
+def _mandate_duplicated(case):
+    _edit(case, _WO004_ISSUED_REL, _WO004_ISSUED_METADATA[0][1] + _NL,
+          _WO004_ISSUED_METADATA[0][1] + _NL + _NL
+          + _WO004_ISSUED_METADATA[0][1] + _NL)
+
+
+def _mandate_decoy(case):
+    _edit(case, _WO004_ISSUED_REL, _WO004_ISSUED_METADATA[0][1],
+          "ISSUANCE_COMMIT: `" + _ZERO_SHA + "`")
+    _append(case, _WO004_ISSUED_REL, _WO004_ISSUED_METADATA[0][1])
+
+
+_WO004_MANDATE_MUTATIONS = (
+    ("changed", _mandate_changed, _WO004_FIELD_RECORD),
+    ("removed", _mandate_removed, _WO004_FIELD_RECORD),
+    ("duplicated", _mandate_duplicated, _WO004_DECL_RECORD),
+    ("decoy-outside-the-block", _mandate_decoy, _WO004_FIELD_RECORD),
+)
+
+
+@pytest.mark.parametrize(("name", "mutate", "expected"),
+                         _WO004_MANDATE_MUTATIONS,
+                         ids=[row[0] for row in _WO004_MANDATE_MUTATIONS])
+def test_wo004_issuance_pins_the_mandate_evidence(
+    repo_root, tmp_path, monkeypatch, name, mutate, expected
+) -> None:
+    """The mandate records its own issuance commit, workflow, and job."""
+    found = _wo004_types(repo_root, tmp_path, monkeypatch,
+                         "mandate-" + name, mutate)
+    assert expected in found, (
+        "a " + name + " mandate issuance record was accepted: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo004_next_gate_cannot_open_a_session(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The next gate is pinned: Session A feasibility, owner-authorized."""
+    def mutate(case):
+        _edit(case, _WO004_ISSUED_REL, _WO004_NEXT_GATE,
+              "NEXT GATE: Session A may now begin.")
+
+    found = _wo004_types(repo_root, tmp_path, monkeypatch, "next-gate",
+                         mutate)
+    assert "WO-004 next gate" in found, (
+        "a rewritten next gate was accepted: " + repr(sorted(found))
+    )
+
+
+# ── state, identity, and session boundaries ───────────────────────────────
+
+_WO004_STRAY_STATES = (
+    ("proposed", "docs/work-orders/proposed"),
+    ("completed", "docs/work-orders/completed"),
+    ("superseded", "docs/work-orders/superseded"),
+)
+
+
+@pytest.mark.parametrize(("name", "directory"), _WO004_STRAY_STATES,
+                         ids=[row[0] for row in _WO004_STRAY_STATES])
+def test_wo004_cannot_be_in_two_states_at_once(
+    repo_root, tmp_path, monkeypatch, name, directory
+) -> None:
+    """An issued Work Order is absent from every other state directory."""
+    def mutate(case):
+        stray = case / directory / "WO-004-modal-observability.md"
+        stray.write_text(
+            (case / _WO004_ISSUED_REL).read_text(encoding="utf-8"),
+            encoding="utf-8")
+
+    found = _wo004_types(repo_root, tmp_path, monkeypatch,
+                         "stray-" + name, mutate)
+    assert "duplicate work order state" in found, (
+        "a stray WO-004 copy in " + name + "/ was accepted: "
+        + repr(sorted(found))
+    )
+    assert "release train inventory" in found, (
+        "the frozen-train inventory ignored a second WO-004 document: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo004_issuance_opens_no_session(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Naming a session in the pointer without the mandate marker fails.
+
+    Issuance authorizes no session, so flipping the pointer alone must not
+    quietly become an authorized Session A.
+    """
+    def mutate(case):
+        _edit(case, _WO004_POINTER_REL, "- Authorized session: NONE",
+              "- Authorized session: A")
+
+    found = _wo004_types(repo_root, tmp_path, monkeypatch, "session-a",
+                         mutate)
+    assert "issued session authorization" in found, (
+        "a session was opened from the pointer alone: " + repr(sorted(found))
+    )
+
+
+def test_wo004_authorization_marker_cannot_be_widened(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The mandate marker cannot grant Session A while the gate stays closed."""
+    def mutate(case):
+        _edit(case, _WO004_ISSUED_REL, _WO004_ISSUED_MARKER,
+              _WO004_SESSION_A_MARKER)
+
+    found = _wo004_types(repo_root, tmp_path, monkeypatch,
+                         "widened-marker", mutate)
+    assert "issued session authorization" in found, (
+        "a widened authorization marker was accepted: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo004_status_cannot_revert_to_proposed(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """An issued document carries STATUS: ISSUED and nothing else."""
+    def mutate(case):
+        _edit(case, _WO004_ISSUED_REL, "STATUS: ISSUED", "STATUS: PROPOSED")
+
+    found = _wo004_types(repo_root, tmp_path, monkeypatch, "status", mutate)
+    assert "issued status" in found, (
+        "a reverted status was accepted: " + repr(sorted(found))
+    )
+
+
+# ── WO-002's completed evidence, hoisted out of the NONE branch ───────────
+#
+# It used to run only while nothing was issued, so WO-004 taking the pointer
+# would have silently ended it - the same incomplete hoist WO-003's
+# completed checks were split to avoid. These probes are what make the
+# hoist verified rather than merely written.
+
+_WO002_SURVIVING_EVIDENCE = (
+    ("completion commit", _WO002_COMPLETION_COMMIT, _ZERO_SHA,
+     "WO-002 completion commit"),
+    ("completion workflow", _WO002_COMPLETION_WORKFLOW, _WRONG_RUN,
+     "WO-002 completion workflow"),
+    ("evidence digest", _WO002_EVIDENCE_SHA256, _ZERO_SHA.upper(),
+     "WO-002 evidence digest"),
+)
+
+
+@pytest.mark.parametrize(("name", "old", "new", "expected"),
+                         _WO002_SURVIVING_EVIDENCE,
+                         ids=[row[0] for row in _WO002_SURVIVING_EVIDENCE])
+def test_completed_wo002_evidence_survives_a_later_issuance(
+    repo_root, tmp_path, monkeypatch, name, old, new, expected
+) -> None:
+    """WO-002's completed-document pins still fire once WO-004 owns the pointer."""
+    def mutate(case):
+        _replace_all(case, _COMPLETED_REL, old, new)
+
+    found = _issued_case_types(repo_root, tmp_path, monkeypatch,
+                               "wo002doc-" + name, _WO004_ID, mutate)
+    assert expected in found, (
+        "WO-002 " + name + " forgery was accepted under a later issuance: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo002_acceptance_record_survives_a_later_issuance(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The structurally anchored acceptance record is checked too."""
+    def mutate(case):
+        _edit(case, _COMPLETED_REL,
+              "`" + _ACCEPTED_COMMIT + "`. CI workflow",
+              "`" + _WRONG_COMMIT + "`. CI workflow")
+
+    found = _issued_case_types(repo_root, tmp_path, monkeypatch,
+                               "wo002-acceptance", _WO004_ID, mutate)
+    assert _ISSUED_FINDING in found, (
+        "a forged WO-002 acceptance record was accepted under a later "
+        "issuance: " + repr(sorted(found))
+    )
+
+
+# ── controls ──────────────────────────────────────────────────────────────
+
+_WO004_HARMLESS = (
+    ("restates-the-baseline",
+     "The planning baseline for this mandate is described in the planning"
+     " basis section above; this sentence declares nothing."),
+    ("mentions-the-issuance-run",
+     "The issuance CI run is recorded in the canonical block; naming it in"
+     " prose adds no declaration."),
+    ("describes-the-next-gate",
+     "The next gate is a separate owner decision and this paragraph does"
+     " not anticipate it."),
+)
+
+
+@pytest.mark.parametrize(("name", "prose"), _WO004_HARMLESS,
+                         ids=[row[0] for row in _WO004_HARMLESS])
+def test_wo004_issuance_does_not_pin_harmless_prose(
+    repo_root, tmp_path, monkeypatch, name, prose
+) -> None:
+    """Prose ABOUT the declarations is editable; only declarations are pinned.
+
+    Without this control the enforcement above could be satisfied by pinning
+    the whole document, which would make every later edit a finding.
+    """
+    found = _issued_types(repo_root, tmp_path, monkeypatch,
+                          "wo004-prose-" + name, _WO004_ID, body=prose)
+    assert found == set(), (
+        "harmless prose was pinned: " + repr(sorted(found))
+    )
+
+
+def test_wo004_historical_reconstruction_reaches_the_previous_state(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The reconstructed nothing-issued state is itself valid and clean.
+
+    Every historical fixture in this file is built by reversing the WO-004
+    issuance first. If that reconstruction landed somewhere invalid, all of
+    those probes would be deltas against a state the checker already
+    rejects, and their findings would prove nothing.
+    """
+    drift_check = _load_drift_check(repo_root, "wo004_reconstruction")
+    case = _make_wo003_completed_case(repo_root, tmp_path,
+                                      "wo004-reconstruction")
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    found = {f["type"] for f in drift_check.check_work_order_contract()}
+    assert found == set(), (
+        "the reconstructed completed-WO-003 state is not clean: "
+        + repr(sorted(found))
+    )
+    assert not (case / _WO004_ISSUED_REL).exists()
+    assert (case / _WO004_PROPOSED_REL).exists()
+
+
+# --- the successor guard is artifact-bound, not pointer-bound -------------
+#
+# A completed Work Order must never grant authority to the order that
+# follows it. That scan used to sit inside the `current == "NONE"` branch,
+# so issuing WO-004 silenced the scan of WO-003's completed document - the
+# same failure mode the WO-002 hoist beside it exists to prevent.
+
+_SUCCESSOR_GRANTS = (
+    ("authorized",
+     "WO-004 Session A is authorized and may begin implementation."),
+    ("issued", "WO-004 is issued and cleared to proceed."),
+    ("go-ahead", "The owner gave the go-ahead for WO-004 implementation."),
+)
+
+
+@pytest.mark.parametrize(("name", "grant"), _SUCCESSOR_GRANTS,
+                         ids=[row[0] for row in _SUCCESSOR_GRANTS])
+def test_completed_wo003_cannot_grant_wo004_under_a_later_issuance(
+    repo_root, tmp_path, monkeypatch, name, grant
+) -> None:
+    """The completed document is scanned for a successor grant either way.
+
+    Before the hoist this was caught only while nothing was issued, so the
+    very act of issuing WO-004 turned the guard off for the document that
+    hands off to it.
+    """
+    def mutate(case):
+        target = case / _WO003_COMPLETED_REL
+        target.write_text(
+            target.read_text(encoding="utf-8") + _NL + "## Note" + _NL + _NL
+            + grant + _NL,
+            encoding="utf-8")
+
+    found = _issued_case_types(repo_root, tmp_path, monkeypatch,
+                               "successor-" + name, _WO004_ID, mutate)
+    assert "next work order authorization" in found, (
+        "a completed document granted WO-004 authority under a later "
+        "issuance: " + repr(sorted(found))
+    )
+
+
+def test_the_successor_grant_is_reported_against_the_document(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Attribution: the finding names the file that carries the claim.
+
+    The pointer half stays attributed to WORKORDER.md; scanning the
+    document alone is what keeps a mandate's claim from sending the reader
+    to a file with nothing wrong in it.
+    """
+    drift_check = _load_drift_check(repo_root, "successor_attr")
+    case = _make_issued_case(repo_root, tmp_path, "successor-attr",
+                             _WO004_ID)
+    target = case / _WO003_COMPLETED_REL
+    target.write_text(
+        target.read_text(encoding="utf-8") + _NL + "## Note" + _NL + _NL
+        + "WO-004 Session A is authorized and may begin implementation."
+        + _NL,
+        encoding="utf-8")
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    found = {(f["type"], f["file"])
+             for f in drift_check.check_work_order_contract()}
+    assert ("next work order authorization", _WO003_COMPLETED_REL) in found, (
+        "the grant was reported against the wrong file: " + repr(sorted(found))
+    )
+
+
+def test_a_completed_document_may_still_close_its_successor(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The control: WO-003's real closing language must stay acceptable.
+
+    Its completion record and NEXT GATE both name WO-004 in the negative.
+    A guard that fired on those would make the historical record unwritable.
+    """
+    found = _issued_types(repo_root, tmp_path, monkeypatch,
+                          "successor-control", _WO004_ID)
+    assert found == set(), (
+        "the completed WO-003 document's own closing language was read as a "
+        "grant: " + repr(sorted(found))
     )

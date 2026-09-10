@@ -1,14 +1,33 @@
 # WO-004 — Modal Observability and Human-Safe Blocking
 
-STATUS: PROPOSED
+STATUS: ISSUED
 
-AUTHORIZATION: NOT AUTHORIZED
+AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED
 
 OWNER: Ocean Bennett
 
 PRIORITY: P1
 
 BASELINE: `0d513f1639cf197707132205f4074d0fe3a750cc`
+
+ISSUANCE_COMMIT: `8444faf340afe47765c43d943200db712880817b`
+
+ISSUANCE_CI_WORKFLOW: `34441169191`
+
+ISSUANCE_CI_JOB: `102756337393` — Lint, types, tests
+
+## Issuance basis
+
+The independently accepted revision of this mandate was committed as
+`8444faf340afe47765c43d943200db712880817b`; [CI workflow
+`34441169191`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/34441169191)
+completed successfully, including required job
+[`102756337393` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/34441169191/job/102756337393).
+
+Issuance alone grants no implementation authority. A session becomes
+implementable only when the owner names it in root `WORKORDER.md`. The
+planning baseline above is preserved unchanged; it records the state this
+mandate was planned against, not the issuance point.
 
 ## Planning basis
 
@@ -243,32 +262,37 @@ acceptance.
 Live UEFN probes are owner-operated and separately gated. This document opens
 nothing.
 
-## Issuance requirement
+## Issuance enforcement
 
-Issuance acceptance must protect three surfaces that are unenforced at this
-baseline. Driving the real `check_work_order_contract()` against a temporary
-issued-state fixture at `0d513f1639cf197707132205f4074d0fe3a750cc` produced zero
-findings for all of the following, which is why each is named here:
+Issuance acceptance had to protect three surfaces that were unenforced at the
+planning baseline. Driving the real `check_work_order_contract()` against a
+temporary issued-state fixture at
+`0d513f1639cf197707132205f4074d0fe3a750cc` produced zero findings for all of
+the following, which is why each is named here:
 
 1. **The root pointer's `- Base commit:`** — a zeroed, garbage, or simply wrong
-   value raises nothing once a later order owns the pointer.
+   value raised nothing once a later order owned the pointer. It is now pinned
+   to the issuance commit while this mandate is issued and no session is open.
 2. **The root pointer's issuance evidence** — the `- Issuance commit:`,
-   `- Issuance CI workflow:`, and `- Issuance CI job:` bullets can be deleted
-   with no finding.
-3. **This mandate's own `BASELINE:` marker** — it can be zeroed with no finding.
-   Exactly one canonical marker must be present, carrying the expected value.
+   `- Issuance CI workflow:`, and `- Issuance CI job:` bullets could be deleted
+   with no finding. They are now an exact, contiguous, terminal slice of the
+   pointer's canonical bullet block.
+3. **This mandate's own `BASELINE:` marker** — it could be zeroed with no
+   finding. Exactly one canonical marker must now be present in this document,
+   carrying the expected value, opening the canonical metadata slice.
 
-Enforcement must use the existing structural validators in
-`scripts/drift_check.py` and carry meaningful mutation coverage in
+Enforcement uses the existing structural validators in
+`scripts/drift_check.py` and carries mutation coverage in
 `tests/test_repo_integrity.py`, driving the real checker over temporary copies.
-The mutation set must include, for each of the three surfaces: a changed value,
+The mutation set covers, for each of the three surfaces: a changed value,
 a removed field, a duplicated field, and a decoy — a correct value placed
-somewhere else in the file, which must not satisfy the check.
+somewhere else in the file, which does not satisfy the check.
 
-The planning basis recorded above and the issuance basis recorded at the
-issuance gate are distinct and must not be conflated. This proposal does not
-implement any of this enforcement.
+All three surfaces are enforced as of this issuance, against the values
+declared in the canonical metadata block above and in the root pointer's
+canonical bullet block. The planning basis and the issuance basis are
+distinct records and must not be conflated.
 
-NEXT GATE: independent pre-issuance review of this revision, performed by a
-reviewer who did not write it. Issuance, Session A, and all live UEFN work
-remain closed.
+NEXT GATE: separate owner authorization for Session A feasibility only,
+recorded in root `WORKORDER.md`. Issuance authorizes no session. Session A,
+Session B, Session C, and all live UEFN work remain closed.

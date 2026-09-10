@@ -4,25 +4,13 @@ This file is the repository's sole authority pointer for current Work Order
 state. Detailed mandates live under `docs/work-orders/`; their presence alone
 never authorizes implementation.
 
-- Current issued Work Order: NONE
+- Current issued Work Order: WO-004
 - Authorized session: NONE
-- Base commit: `7a7eedb493cbf810f758383a1fc66a285bca841a`
-- Current gate: WO-003 COMPLETED — WO-004 PROPOSED AND NOT AUTHORIZED
-- Issuance commit: `19350aa324bea4d88e494ee806801586a383d76e`
-- Issuance CI workflow: `33148089523`
-- Issuance CI job: `98773518991` — Lint, types, tests
-- Session A authorization commit: `52d89295614a4ce686094736d87f7e6c907e12a0`
-- Session A authorization CI workflow: `33200547479`
-- Session A authorization CI job: `98948639416` — Lint, types, tests
-- Session A acceptance commit: `d23add58e02ddc855573cf9be7a2542776d25e7e`
-- Session A acceptance CI workflow: `33344006899`
-- Session A acceptance CI job: `99344607213` — Lint, types, tests
-- Session B authorization commit: `2582be8c9168d72b46846334bbba44307d348ce6`
-- Session B authorization CI workflow: `33351157691`
-- Session B authorization CI job: `99364656646` — Lint, types, tests
-- Session B acceptance commit: `e23baa40c4b9358eb6b4448f460c054650ae64f0`
-- Session B acceptance CI workflow: `33476969423`
-- Session B acceptance CI job: `99758148278` — Lint, types, tests
+- Base commit: `8444faf340afe47765c43d943200db712880817b`
+- Current gate: WO-004 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED
+- Issuance commit: `8444faf340afe47765c43d943200db712880817b`
+- Issuance CI workflow: `34441169191`
+- Issuance CI job: `102756337393` — Lint, types, tests
 - Release train: WO-001 through WO-007
 - Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST
 
@@ -95,9 +83,25 @@ completed successfully, including required job
 [`102308406590` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/34301244038/job/102308406590).
 The repository-description application record is preserved and still enforced
 from the completed Work Order document. WO-003 is complete; no session is
-authorized. WO-004 remains proposed and unauthorized. Session C or any later
-session, tagging, Release creation, branch-protection changes, other
-repository metadata changes, and social publication all remain unauthorized.
+authorized. Session C or any later session, tagging, Release creation,
+branch-protection changes, other repository metadata changes, and social
+publication all remain unauthorized.
+
+[`WO-004`](docs/work-orders/issued/WO-004-modal-observability.md) is
+issued. Its accepted planning baseline is
+`0d513f1639cf197707132205f4074d0fe3a750cc`; the independently accepted
+proposal was committed as `8444faf340afe47765c43d943200db712880817b`
+after [CI workflow
+`34441169191`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/34441169191)
+completed successfully, including required job
+[`102756337393` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/34441169191/job/102756337393).
+
+Issuance grants no implementation authority and opens no session. Session
+A feasibility work needs its own separate owner gate recorded in this
+pointer, and Session B and Session C stay closed behind it. Tagging,
+Release creation, branch-protection changes, other repository metadata
+changes, and social publication all remain unauthorized, as do WO-005,
+WO-006, and WO-007, which stay proposed.
 
 WO-001 through WO-007 form the frozen next release train. The release version
 remains undecided and the repository stays at version 2.4.1. No tag or GitHub
