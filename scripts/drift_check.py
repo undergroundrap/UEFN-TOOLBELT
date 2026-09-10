@@ -815,7 +815,8 @@ def _wo003_field_findings(text, sequence, stop, where, exact, terminal):
 
 
 def _wo003_record_findings(
-    pointer, issued_text, wo003_rel, base, current_gate, session
+    pointer, issued_text, wo003_rel, base, current_gate, session,
+    surface="both",
 ):
     """WO-003 issuance evidence survives the Session A transition.
 
@@ -826,6 +827,8 @@ def _wo003_record_findings(
     terminal, so the issuance fields cannot be dropped, reordered, or
     padded on the way through.
     """
+    if surface not in ("both", "pointer", "document"):
+        raise ValueError("unknown surface: " + repr(surface))
     out = []
     issued_sequence: tuple[str, ...]
     pointer_sequence: tuple[str, ...]
@@ -884,39 +887,46 @@ def _wo003_record_findings(
         pointer_sequence = _WO003_POINTER_SEQUENCE
         base_kind = "WO-003 issuance base commit"
         gate_kind = "WO-003 issued gate"
-    if base != "`" + expected_base + "`":
-        out.append(("WORKORDER.md", base_kind, str(base),
-                    "`" + expected_base + "`"))
-    if current_gate != expected_gate:
-        out.append(("WORKORDER.md", gate_kind, str(current_gate),
-                    expected_gate))
-    # The accepted planning baseline is pinned as its BASELINE marker; the
-    # same hash also appears in the planning prose, which is not a second
-    # declaration.
-    marker = "BASELINE: `" + _WO003_PLANNING_BASELINE + "`"
-    if issued_text.count(marker) != 1:
-        out.append((wo003_rel, "WO-003 planning baseline",
-                    str(issued_text.count(marker)),
-                    "exactly one " + marker))
-    # Only the pinned declarations carry a backticked value. The pointer's
-    # remaining keys keep their own dedicated checks, so position and key
-    # are all this comparison asserts for them.
-    for kind, found_detail, want in _wo003_field_findings(
-        issued_text, issued_sequence,
-        lambda line: line.startswith("## "),
-        "issued record",
-        exact={item for item in issued_sequence if "`" in item},
-        terminal=True,
-    ):
-        out.append((wo003_rel, kind, found_detail, want))
-    for kind, found_detail, want in _wo003_field_findings(
-        pointer, pointer_sequence,
-        lambda line: _WO001_COMPLETED_LINK in line,
-        "WORKORDER.md",
-        exact={item for item in pointer_sequence if "`" in item},
-        terminal=True,
-    ):
-        out.append(("WORKORDER.md", kind, found_detail, want))
+    # `surface` separates the two halves. The base, gate, and canonical
+    # pointer slice describe the ROOT POINTER and are only meaningful while
+    # WO-003 owns it. The baseline marker and the canonical issued slice
+    # describe the WORK ORDER DOCUMENT and must keep being checked after a
+    # later order takes the pointer over.
+    if surface in ("both", "pointer"):
+        if base != "`" + expected_base + "`":
+            out.append(("WORKORDER.md", base_kind, str(base),
+                        "`" + expected_base + "`"))
+        if current_gate != expected_gate:
+            out.append(("WORKORDER.md", gate_kind, str(current_gate),
+                        expected_gate))
+        for kind, found_detail, want in _wo003_field_findings(
+            pointer, pointer_sequence,
+            lambda line: _WO001_COMPLETED_LINK in line,
+            "WORKORDER.md",
+            exact={item for item in pointer_sequence if "`" in item},
+            terminal=True,
+        ):
+            out.append(("WORKORDER.md", kind, found_detail, want))
+    if surface in ("both", "document"):
+        # The accepted planning baseline is pinned as its BASELINE marker; the
+        # same hash also appears in the planning prose, which is not a second
+        # declaration.
+        marker = "BASELINE: `" + _WO003_PLANNING_BASELINE + "`"
+        if issued_text.count(marker) != 1:
+            out.append((wo003_rel, "WO-003 planning baseline",
+                        str(issued_text.count(marker)),
+                        "exactly one " + marker))
+        # Only the pinned declarations carry a backticked value. The pointer's
+        # remaining keys keep their own dedicated checks, so position and key
+        # are all this comparison asserts for them.
+        for kind, found_detail, want in _wo003_field_findings(
+            issued_text, issued_sequence,
+            lambda line: line.startswith("## "),
+            "issued record",
+            exact={item for item in issued_sequence if "`" in item},
+            terminal=True,
+        ):
+            out.append((wo003_rel, kind, found_detail, want))
     return out
 
 
@@ -1557,6 +1567,28 @@ _REMAINING_RELEASE_PROPOSALS = {
     "WO-006-official-vs-toolbelt-benchmark.md",
     "WO-007-public-mcp-explainer.md",
 }
+# The frozen train as a DECLARED ordered inventory: canonical order identity
+# to canonical filename. Successor identity is read from here, never from
+# whatever files happen to be on disk, so an extra, malformed, or misplaced
+# document cannot move the train or silence a later-order check.
+_RELEASE_TRAIN = (
+    ("WO-001", "WO-001-custom-mcp-security.md"),
+    ("WO-002", _WO002_NAME),
+    ("WO-003", _WO003_NAME),
+    ("WO-004", "WO-004-modal-observability.md"),
+    ("WO-005", "WO-005-coverage-source-of-truth.md"),
+    ("WO-006", "WO-006-official-vs-toolbelt-benchmark.md"),
+    ("WO-007", "WO-007-public-mcp-explainer.md"),
+)
+_RELEASE_TRAIN_IDS = tuple(order for order, _name in _RELEASE_TRAIN)
+_WO007_ID, _WO007_NAME = _RELEASE_TRAIN[-1]
+# WO-007's mandate forbids the very actions the external-action scanner looks
+# for. The scanner has no negation handling, so this exact sentence is removed
+# once before scanning - but only from WO-007's own validated mandate.
+_WO007_DRAFTING_PROHIBITION = (
+    "Decision lock: drafting grants no authority to publish, change the "
+    "repository description, create a Release, or post socially."
+)
 _FROZEN_RELEASE_TRAIN = "WO-001 through WO-007"
 _CLOSED_RELEASE_GATE = (
     "NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL "
@@ -1756,9 +1788,18 @@ def _has_next_work_order_authorization(
     return False
 
 
-def _has_release_authorization(pointer: str) -> bool:
-    """Reject a positive tag or Release grant while the train gate is closed."""
+def _has_release_authorization(pointer: str, other_text: str = "") -> bool:
+    """Reject a positive tag or Release grant while the train gate is closed.
+
+    `other_text` is an additional surface - an issued Work Order body. The
+    exact-once guard belongs to the POINTER, where those lines are canonical;
+    applying it to the combined text made a mandate that legitimately restates
+    the closed boundary read as a grant. The body's restatements are removed
+    by the same bounded-context mechanism instead. Removal cannot conceal a
+    separate positive permission, which is different text and survives it.
+    """
     text = " ".join(pointer.split())
+    extra = " ".join(other_text.split())
     allowed = (
         f"- Release gate: {_CLOSED_RELEASE_GATE}",
         "No tag or GitHub Release is authorized until the frozen train is complete, "
@@ -1769,6 +1810,7 @@ def _has_release_authorization(pointer: str) -> bool:
         if text.count(context) != 1:
             return True
         text = text.replace(context, "", 1)
+        extra = extra.replace(context, "")
     # Session B's current drafting-only record repeats the same closed release
     # boundary. It is optional in historical fixtures, exact when present, and
     # removed before the positive-permission scan.
@@ -1783,6 +1825,8 @@ def _has_release_authorization(pointer: str) -> bool:
             return True
         if occurrences == 1:
             text = text.replace(statement, "", 1)
+        extra = extra.replace(statement, "")
+    text = text + " " + extra
     release_target = r"(?:tag|github\s+release|release\s+session)"
     positive = r"(?:authorized|permitted|approved|cleared|granted|ready)"
     return bool(re.search(
@@ -1794,7 +1838,7 @@ def _has_release_authorization(pointer: str) -> bool:
 
 
 def _has_session_b_external_action_authorization(
-    pointer: str, allowed_contexts: tuple[str, ...]
+    pointer: str, allowed_contexts: tuple[str, ...], other_text: str = ""
 ) -> bool:
     """Reject applying the draft or publishing it, drafted or accepted.
 
@@ -1805,12 +1849,22 @@ def _has_session_b_external_action_authorization(
     once before the scan. The remaining check is intentionally limited to
     description/metadata application and social publication; it is not
     another general authorization-language parser.
+
+    `other_text` is an additional surface - an issued Work Order body. The
+    exact-once guard is a POINTER-integrity check: those statements are
+    canonical there, and a missing or duplicated one is a finding. A mandate
+    that merely quotes one is not a second canonical declaration, so the body
+    is scanned with the same statements removed rather than counted. Removal
+    cannot hide an independent positive permission, which is different text.
     """
     text = " ".join(pointer.split())
+    extra = " ".join(other_text.split())
     for context in allowed_contexts:
         if text.count(context) != 1:
             return True
         text = text.replace(context, "", 1)
+        extra = extra.replace(context, "")
+    text = text + " " + extra
     action = (
         r"(?:repository\s+metadata|(?:github\s+)?repository\s+description|"
         r"github\s+description|social\s+publication|"
@@ -2005,6 +2059,23 @@ def check_ui_coverage() -> list[dict]:
     return []
 
 
+def _next_release_train_order(current_id: str) -> str | None:
+    """The next order in the declared frozen train, or None at its end.
+
+    Read from the declared inventory, not the filesystem. Enumerating state
+    directories let one unvalidated file - `superseded/` validates nothing -
+    become the highest name and silently disable the successor check.
+    WO-007 ends the train and yields no successor rather than an invented
+    WO-008.
+    """
+    if current_id not in _RELEASE_TRAIN_IDS:
+        return None
+    index = _RELEASE_TRAIN_IDS.index(current_id)
+    if index + 1 < len(_RELEASE_TRAIN_IDS):
+        return _RELEASE_TRAIN_IDS[index + 1]
+    return None
+
+
 def check_work_order_contract() -> list[dict]:
     """Prevent durable planning files from silently granting authority."""
     from pathlib import Path
@@ -2107,16 +2178,20 @@ def check_work_order_contract() -> list[dict]:
     current_is_wo002 = current in {
         "WO-002", _WO002_NAME, _WO002_NAME.removesuffix(".md")
     }
-    wo002_placed = ((issued_dir / _WO002_NAME).exists()
-                    or (completed_dir / _WO002_NAME).exists())
-    wo003_placed = ((issued_dir / _WO003_NAME).exists()
-                    or (completed_dir / _WO003_NAME).exists())
+    def _placed(name: str) -> bool:
+        """True once a Work Order has left proposed/ for issued or completed."""
+        return ((issued_dir / name).exists() or (completed_dir / name).exists())
+
+    wo002_placed = _placed(_WO002_NAME)
     expected_proposals = set(_REMAINING_RELEASE_PROPOSALS)
     if not wo002_placed:
         expected_proposals.add(_WO002_NAME)
-    if wo003_placed:
-        # An issued or completed Work Order is no longer a proposal.
-        expected_proposals.discard(_WO003_NAME)
+    # An issued or completed Work Order is no longer a proposal. This is
+    # derived per name rather than hardcoded per order, so issuing WO-004
+    # through WO-007 needs no further edit here.
+    for _name in tuple(expected_proposals):
+        if _placed(_name):
+            expected_proposals.discard(_name)
     if proposal_names != expected_proposals:
         add("docs/work-orders/proposed", "release train proposal set",
             repr(sorted(proposal_names)),
@@ -2153,6 +2228,14 @@ def check_work_order_contract() -> list[dict]:
         add("docs/work-orders/issued", "issued work order count", str(len(issued)), "at most 1")
 
     state_paths = proposals + issued + completed + superseded
+    # The declared frozen train must be present and unambiguous. A missing
+    # document is its own finding, never something that quietly changes which
+    # order comes next.
+    for _train_id, _train_name in _RELEASE_TRAIN:
+        if sum(1 for path in state_paths if path.name == _train_name) != 1:
+            add("docs/work-orders", "release train inventory",
+                _train_id + ": " + _train_name,
+                "exactly one document per frozen-train order")
     state_counts: dict[str, int] = {}
     for path in state_paths:
         state_counts[path.name] = state_counts.get(path.name, 0) + 1
@@ -2222,22 +2305,26 @@ def check_work_order_contract() -> list[dict]:
     # must therefore still fail, and so must moving WO-003 back out of
     # completed/. Either would have to edit this file too, which is a
     # visible act.
+    # The lock is on WO-003's terminal *document* state, not on the root
+    # pointer. WO-003 must stay exclusively under completed/ carrying the
+    # completed status and closed authorization markers, and its document
+    # cannot be rolled back. The pointer's own completed-state values - base,
+    # gate, and the closed session - belong to the branch that owns the
+    # pointer, so a later legitimately issued Work Order may take it over
+    # without disturbing this lock.
     terminal_wo003_path = completed_dir / _WO003_NAME
-    completed_wo003_auth = (
-        completed_metadata.get(_WO003_NAME, ([], [], ""))[1]
+    completed_wo003_status, completed_wo003_auth, _text = (
+        completed_metadata.get(_WO003_NAME, ([], [], ""))
     )
     if not (
         wo003_paths == [terminal_wo003_path]
-        and current == "NONE"
-        and session == "NONE"
-        and base == "`" + _WO003_COMPLETION_COMMIT + "`"
-        and current_gate == _WO003_COMPLETED_GATE
+        and completed_wo003_status == ["STATUS: COMPLETED"]
         and completed_wo003_auth == [_COMPLETED_NO_SESSION_AUTH]
     ):
         add("docs/work-orders", "completed WO-003 state",
             "the completed WO-003 state was removed or changed",
-            "WO-003 completed with no issued Work Order and no session "
-            "authorized")
+            "WO-003 exclusively under completed/ with the completed status "
+            "and closed authorization markers")
 
     wo001_name = "WO-001-custom-mcp-security.md"
     wo001_path = completed_dir / wo001_name
@@ -2319,75 +2406,33 @@ def check_work_order_contract() -> list[dict]:
             ):
                 add(_f, _k, _found, _want)
         if wo003_completed_text:
-            rel = (completed_dir / _WO003_NAME).relative_to(root).as_posix()
-            # Completion moves the gate; it does not retire WO-003's
-            # enforcement. Everything the applied gate checked - the canonical
-            # slice and its provenance bullets, every earlier bounded record,
-            # the applied description with its count, digest and read-back on
-            # BOTH the pointer and the document, and the external-action and
-            # session boundaries - is checked again here. This block is
-            # reached only for completed WO-003, so the completed WO-001 and
-            # WO-002 states keep their existing behaviour unchanged.
+            # Pointer-bound half only: the canonical pointer slice with its
+            # provenance bullets, and the completed base and gate. The
+            # document-bound half runs outside this branch so it survives a
+            # later issuance.
             for _f, _k, _found, _want in _wo003_record_findings(
-                pointer, wo003_completed_text, rel, base, current_gate,
-                "COMPLETED",
+                pointer, wo003_completed_text,
+                (completed_dir / _WO003_NAME).relative_to(root).as_posix(),
+                base, current_gate, "COMPLETED", surface="pointer",
             ):
                 add(_f, _k, _found, _want)
-            for record in (
-                _wo003_acceptance_record_findings(
-                    wo003_completed_text, _WO003_SESSION_B_HEADING),
-                _wo003_session_b_record_findings(
-                    wo003_completed_text, _WO003_SESSION_B_ACCEPTANCE_HEADING),
-                _wo003_session_b_acceptance_findings(
-                    wo003_completed_text, _WO003_APPLICATION_HEADING),
-                _wo003_application_record_findings(wo003_completed_text),
-                _wo003_completion_record_findings(wo003_completed_text),
-            ):
-                for kind, found, want in record:
-                    add(rel, kind, found, want)
-            normalized_wo003 = " ".join(wo003_completed_text.split())
-            for wording, kind in (
-                (_WO003_COMPLETED_STATEMENT, "WO-003 completion statement"),
-                (_WO003_COMPLETED_NEXT_GATE, "WO-003 next gate"),
-            ):
-                if normalized_wo003.count(wording) != 1:
-                    add(rel, kind, str(normalized_wo003.count(wording)),
-                        "exactly one " + wording)
-            normalized_pointer = " ".join(pointer.split())
-            wo003_pointer_statements = (
-                (_WO003_PRE_APPLICATION_POINTER_STATEMENT,
-                 "WO-003 pre-application pointer statement"),
-                (_WO003_COMPLETED_APPLIED_POINTER_STATEMENT,
-                 "WO-003 applied pointer statement"),
-                (_WO003_COMPLETION_POINTER_STATEMENT,
-                 "WO-003 completion pointer statement"),
-            )
-            for required, kind in wo003_pointer_statements:
-                if normalized_pointer.count(required) != 1:
-                    add("WORKORDER.md", kind,
-                        str(normalized_pointer.count(required)),
-                        "exactly one " + required)
-            # Completing WO-003 is not reaching the next gate. These are the
-            # statements this gate is allowed to make; anything else that
-            # reads as a positive permission is a finding.
-            allowed = (_WO003_COMPLETED_GATE,) + tuple(
-                statement for statement, _kind in wo003_pointer_statements)
-            if _has_session_b_external_action_authorization(pointer, allowed):
-                add("WORKORDER.md", "WO-003 external-action boundary",
-                    "positive permission for a further external action",
-                    "WO-003 is completed; repository metadata, "
-                    "branch-protection, and social publication remain "
-                    "unauthorized")
-            if _has_other_session_authorization(pointer, "", ""):
-                add("WORKORDER.md", "session authorization reopening",
-                    "positive permission for Session A, Session B, or later",
-                    "WO-003 is completed and no session is authorized")
     elif current is not None:
         if len(issued) != 1:
             add("docs/work-orders/issued", "current issued work order",
                 str(len(issued)), "exactly one file matching the pointer")
         else:
             issued_id = "-".join(issued[0].stem.split("-")[:2])
+            # Only a declared frozen-train order may be issued, under its own
+            # canonical filename. Without this, an order outside the inventory
+            # yields no successor and the next-order guard silently stops
+            # running - the enforcement fails open, which is the one direction
+            # a governance check must never fail.
+            _declared = dict(_RELEASE_TRAIN)
+            if _declared.get(issued_id) != issued[0].name:
+                add("docs/work-orders/issued", "issued work order identity",
+                    issued_id + " / " + issued[0].name,
+                    "a declared frozen-train order under its canonical "
+                    "filename")
             valid_pointers = {issued[0].name, issued[0].stem, issued_id}
             if current not in valid_pointers:
                 add("WORKORDER.md", "current issued work order mismatch", current,
@@ -2426,6 +2471,95 @@ def check_work_order_contract() -> list[dict]:
                 ):
                     add("WORKORDER.md", "WO-002 pointer path", "stale or missing",
                         issued_link)
+
+            # Generic issued-order boundary for the rest of the frozen train.
+            # WO-002 and WO-003 carry bespoke paths of their own, so they are
+            # excluded here rather than checked twice. Both surfaces are
+            # scanned - the root pointer and the issued document - because an
+            # authorization claim is as effective in the mandate body as in
+            # the pointer, and the body was previously unscanned for these
+            # three classes. The existing scanners and their vocabulary are
+            # reused unchanged: nothing new parses prose.
+            if issued[0].name not in (_WO002_NAME, _WO003_NAME):
+                rel = issued[0].relative_to(root).as_posix()
+                normalized_issued = " ".join(issued_text.split())
+                # Attribution: each surface is scanned alone first, so a claim
+                # is reported against the file that actually carries it.
+                # Reporting a mandate's claim against WORKORDER.md sends the
+                # reader to a file with nothing wrong in it.
+                if _has_release_authorization(pointer):
+                    add("WORKORDER.md", "release authorization",
+                        "positive release permission", _CLOSED_RELEASE_GATE)
+                elif _has_release_authorization(pointer, issued_text):
+                    add(rel, "release authorization",
+                        "positive release permission", _CLOSED_RELEASE_GATE)
+                # A completed WO-003 leaves three statements in the pointer
+                # that legitimately describe an applied description. They are
+                # pinned byte-exact and singular elsewhere, so they are
+                # removed once here - the same allowed-context mechanism the
+                # WO-003 gates use - rather than being read as fresh
+                # permission for a later order.
+                allowed_history: tuple[str, ...] = ()
+                if wo003_completed_text:
+                    allowed_history = (
+                        _WO003_PRE_APPLICATION_POINTER_STATEMENT,
+                        _WO003_COMPLETED_APPLIED_POINTER_STATEMENT,
+                        _WO003_COMPLETION_POINTER_STATEMENT,
+                    )
+                # WO-007's accepted mandate forbids these very actions in
+                # prose, and this scanner has no negation handling, so that
+                # one sentence is removed before scanning. The exemption is
+                # bound to WO-007's validated identity AND to the sentence
+                # occurring exactly once in WO-007's own mandate - not to the
+                # text appearing anywhere in arbitrary input, which would be
+                # the same decoy weakness in a new place. A missing or
+                # duplicated decision lock is its own finding and grants no
+                # exemption, so the exact-occurrence guard stays meaningful.
+                # The lock is removed from the BODY surface, not offered as a
+                # pointer context: it lives in WO-007's mandate and never in
+                # WORKORDER.md, so passing it as an allowed context would fail
+                # the pointer's exact-once guard on a perfectly valid WO-007
+                # issuance.
+                scannable_body = normalized_issued
+                if issued[0].name == _WO007_NAME and issued_id == _WO007_ID:
+                    locks = normalized_issued.count(_WO007_DRAFTING_PROHIBITION)
+                    if locks != 1:
+                        add(rel, "WO-007 decision lock", str(locks),
+                            "exactly one " + _WO007_DRAFTING_PROHIBITION)
+                    else:
+                        scannable_body = normalized_issued.replace(
+                            _WO007_DRAFTING_PROHIBITION, "", 1)
+                _external_want = (
+                    "repository metadata, branch-protection, and social "
+                    "publication remain unauthorized"
+                )
+                if _has_session_b_external_action_authorization(
+                    pointer, allowed_history
+                ):
+                    add("WORKORDER.md", "external-action boundary",
+                        "positive permission for a further external action",
+                        _external_want)
+                elif _has_session_b_external_action_authorization(
+                    pointer, allowed_history, scannable_body
+                ):
+                    add(rel, "external-action boundary",
+                        "positive permission for a further external action",
+                        _external_want)
+                successor = _next_release_train_order(issued_id)
+                if successor is not None:
+                    _next_want = (
+                        f"{successor} remains proposed and not authorized"
+                    )
+                    if _has_next_work_order_authorization(
+                        pointer, "", successor
+                    ):
+                        add("WORKORDER.md", "next work order authorization",
+                            f"implicit {successor} permission", _next_want)
+                    elif _has_next_work_order_authorization(
+                        pointer, issued_text, successor
+                    ):
+                        add(rel, "next work order authorization",
+                            f"implicit {successor} permission", _next_want)
 
             if session == "NONE":
                 wo002_session_a_accepted = issued[0].name == _WO002_NAME and (
@@ -2725,6 +2859,72 @@ def check_work_order_contract() -> list[dict]:
             else:
                 add("WORKORDER.md", "authorized session gate", str(session),
                     "NONE or the specifically authorized session A or B")
+
+    # WO-003's completed-document enforcement is bound to the artifact, not to
+    # the root pointer, so it keeps running once a later Work Order takes the
+    # pointer over. Only the pointer's completed-state base and gate are
+    # pointer-bound, and those stay in the NONE branch above.
+    if wo003_completed_text:
+        rel = (completed_dir / _WO003_NAME).relative_to(root).as_posix()
+        # Document-bound half: the planning baseline and the canonical issued
+        # slice live in the completed document, so they are checked whichever
+        # Work Order currently owns the root pointer.
+        for _f, _k, _found, _want in _wo003_record_findings(
+            pointer, wo003_completed_text, rel, base, current_gate,
+            "COMPLETED", surface="document",
+        ):
+            add(_f, _k, _found, _want)
+        for record in (
+            _wo003_acceptance_record_findings(
+                wo003_completed_text, _WO003_SESSION_B_HEADING),
+            _wo003_session_b_record_findings(
+                wo003_completed_text, _WO003_SESSION_B_ACCEPTANCE_HEADING),
+            _wo003_session_b_acceptance_findings(
+                wo003_completed_text, _WO003_APPLICATION_HEADING),
+            _wo003_application_record_findings(wo003_completed_text),
+            _wo003_completion_record_findings(wo003_completed_text),
+        ):
+            for kind, found, want in record:
+                add(rel, kind, found, want)
+        normalized_wo003 = " ".join(wo003_completed_text.split())
+        for wording, kind in (
+            (_WO003_COMPLETED_STATEMENT, "WO-003 completion statement"),
+            (_WO003_COMPLETED_NEXT_GATE, "WO-003 next gate"),
+        ):
+            if normalized_wo003.count(wording) != 1:
+                add(rel, kind, str(normalized_wo003.count(wording)),
+                    "exactly one " + wording)
+        normalized_pointer = " ".join(pointer.split())
+        wo003_pointer_statements = (
+            (_WO003_PRE_APPLICATION_POINTER_STATEMENT,
+             "WO-003 pre-application pointer statement"),
+            (_WO003_COMPLETED_APPLIED_POINTER_STATEMENT,
+             "WO-003 applied pointer statement"),
+            (_WO003_COMPLETION_POINTER_STATEMENT,
+             "WO-003 completion pointer statement"),
+        )
+        for required, kind in wo003_pointer_statements:
+            if normalized_pointer.count(required) != 1:
+                add("WORKORDER.md", kind,
+                    str(normalized_pointer.count(required)),
+                    "exactly one " + required)
+        # Completing WO-003 is not reaching the next gate. These are the
+        # statements this gate is allowed to make; the completed gate line is
+        # one of them only while WO-003 still owns the pointer.
+        allowed = tuple(
+            statement for statement, _kind in wo003_pointer_statements)
+        if current == "NONE":
+            allowed = (_WO003_COMPLETED_GATE,) + allowed
+        if _has_session_b_external_action_authorization(pointer, allowed):
+            add("WORKORDER.md", "WO-003 external-action boundary",
+                "positive permission for a further external action",
+                "WO-003 is completed; repository metadata, branch-protection, "
+                "and social publication remain unauthorized")
+        if _has_other_session_authorization(pointer, "", session or ""):
+            add("WORKORDER.md", "session authorization reopening",
+                "positive permission for a session other than the authorized "
+                "one",
+                "WO-003 is completed; only the authorized session may act")
 
     return findings
 

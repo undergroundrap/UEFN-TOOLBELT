@@ -6355,7 +6355,12 @@ def test_applied_cannot_complete_the_work_order(
     found = {
         finding["type"] for finding in drift_check.check_work_order_contract()
     }
-    assert _TERMINAL_WO003_FINDING in found, (
+    # The terminal lock now covers WO-003's document state only, so a forged
+    # completion that copies the status and authorization markers no longer
+    # trips it. What exposes the forgery is the completion evidence it cannot
+    # produce, which is the stronger claim: this asserts the fabrication was
+    # rejected *because* it carries no valid completion record.
+    assert "WO-003 completion record" in found, (
         "WO-003 was completed without an owner gate: " + repr(sorted(found))
     )
 
@@ -7855,4 +7860,710 @@ def test_completed_state_does_not_pin_unrelated_prose(
     )
     assert found == set(), (
         "harmless prose in " + rel + " was pinned: " + repr(sorted(found))
+    )
+
+
+# --- generic issued-order boundary (WO-004 through WO-007) -------------------
+#
+# WO-002 and WO-003 carry bespoke enforcement. Every later order in the frozen
+# train relies on the generic path, and before this repair an issued order that
+# was not WO-002 or WO-003 was scanned for none of release, next-order, or
+# external-action claims on either surface. The control here is a COMPLETE
+# VALID issued fixture that produces zero findings from the whole checker - not
+# a delta against an already-failing state, which cannot show that a real
+# issuance is clean.
+
+_TRAIN = {
+    "WO-004": "WO-004-modal-observability.md",
+    "WO-005": "WO-005-coverage-source-of-truth.md",
+    "WO-006": "WO-006-official-vs-toolbelt-benchmark.md",
+    "WO-007": "WO-007-public-mcp-explainer.md",
+}
+_TRAIN_IDS = sorted(_TRAIN)
+_COMPLETED_GATE_LINE = (
+    "- Current gate: WO-003 COMPLETED " + _EM
+    + " WO-004 PROPOSED AND NOT AUTHORIZED"
+)
+
+
+def _make_issued_case(repo_root, tmp_path, name, order, body="", ptr="",
+                      session="NONE", filename=None, pointer_id=None):
+    """A valid issued state for one frozen-train order, built from its own
+    proposal document so the mandate text is real rather than synthetic."""
+    case = tmp_path / name
+    case.mkdir(parents=True)
+    shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
+    shutil.copytree(repo_root / "docs" / "work-orders",
+                    case / "docs" / "work-orders")
+    # `filename` and `pointer_id` exist so a probe can construct an order
+    # that is NOT the declared one - an undeclared id, or a pointer naming a
+    # different order than the file. Valid fixtures leave both unset.
+    canonical = _TRAIN[order]
+    issued_as = filename or canonical
+    src = case / "docs" / "work-orders" / "proposed" / canonical
+    dst = case / "docs" / "work-orders" / "issued" / issued_as
+    text = _replace_once(src.read_text(encoding="utf-8"),
+                         "STATUS: PROPOSED", "STATUS: ISSUED",
+                         "issued fixture status")
+    marker = (
+        "AUTHORIZATION: ISSUED " + _EM + " SESSION NOT AUTHORIZED"
+        if session == "NONE" else
+        "AUTHORIZATION: ISSUED " + _EM
+        + " SESSION A AUTHORIZED FOR IMPLEMENTATION"
+    )
+    text = _replace_once(text, "AUTHORIZATION: NOT AUTHORIZED", marker,
+                         "issued fixture authorization")
+    if body:
+        text += _NL + body + _NL
+    dst.write_text(text, encoding="utf-8")
+    if filename is None:
+        src.unlink()
+
+    pointer = case / "WORKORDER.md"
+    text = pointer.read_text(encoding="utf-8")
+    named = pointer_id or order
+    text = _replace_once(text, "- Current issued Work Order: NONE",
+                         "- Current issued Work Order: " + named,
+                         "issued fixture pointer order")
+    gate = (
+        "- Current gate: " + named + " ISSUED " + _EM
+        + " SESSION A IMPLEMENTATION NOT AUTHORIZED"
+        if session == "NONE" else
+        "- Current gate: " + named + " SESSION A AUTHORIZED " + _EM
+        + " IMPLEMENT SESSION A ONLY"
+    )
+    text = _replace_once(text, _COMPLETED_GATE_LINE, gate,
+                         "issued fixture gate")
+    text = _replace_once(text, "- Authorized session: NONE",
+                         "- Authorized session: " + session,
+                         "issued fixture session")
+    if ptr:
+        text += _NL + ptr + _NL
+    pointer.write_text(text, encoding="utf-8")
+    return case
+
+
+def _issued_types(repo_root, tmp_path, monkeypatch, name, order, **kwargs):
+    drift_check = _load_drift_check(repo_root, "issued_" + name)
+    case = _make_issued_case(repo_root, tmp_path, "issued-" + name, order,
+                             **kwargs)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return {f["type"] for f in drift_check.check_work_order_contract()}
+
+
+def _issued_findings(repo_root, tmp_path, monkeypatch, name, order, **kwargs):
+    """(type, file) pairs, so attribution can be asserted, not just presence."""
+    drift_check = _load_drift_check(repo_root, "attr_" + name)
+    case = _make_issued_case(repo_root, tmp_path, "attr-" + name, order,
+                             **kwargs)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return {(f["type"], f["file"])
+            for f in drift_check.check_work_order_contract()}
+
+
+def _pointer_paragraph(repo_root, first_words):
+    """One of WORKORDER.md's canonical paragraphs, read from the pointer.
+
+    Read from the live document rather than re-declared here: these probes
+    are about a mandate QUOTING the pointer, so the quotation must be the
+    real text. Sourcing it from the pointer keeps the probe independent of
+    the checker's own constants.
+    """
+    text = (repo_root / "WORKORDER.md").read_text(encoding="utf-8")
+    start = text.index(first_words)
+    end = text.index(_NL + _NL, start)
+    return text[start:end]
+
+
+_HISTORICAL_RESTATEMENTS = (
+    ("pre-application", "Session B's repository-description draft was"),
+    ("applied", "The exact accepted repository description was applied"),
+    ("completion", "WO-003 is completed as `"),
+)
+
+
+@pytest.mark.parametrize(("name", "first_words"), _HISTORICAL_RESTATEMENTS,
+                         ids=[row[0] for row in _HISTORICAL_RESTATEMENTS])
+def test_a_mandate_may_quote_a_canonical_pointer_statement(
+    repo_root, tmp_path, monkeypatch, name, first_words
+) -> None:
+    """Quoting WO-003's history is not a second canonical declaration.
+
+    The exact-once guard on those statements is POINTER integrity - they are
+    canonical in WORKORDER.md, and a missing or duplicated one is a finding
+    there. Counting them across the combined pointer-plus-mandate text made a
+    mandate that merely quotes one read as a grant of external-action
+    authority.
+    """
+    quoted = _pointer_paragraph(repo_root, first_words)
+    found = _issued_types(repo_root, tmp_path, monkeypatch,
+                          "quote-" + name, "WO-004", body=quoted)
+    assert found == set(), (
+        "quoting the " + name + " statement was read as a grant: "
+        + repr(sorted(found))
+    )
+
+
+def test_quoting_a_pointer_statement_cannot_conceal_a_claim(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Removing the quotation must not swallow an independent permission."""
+    quoted = _pointer_paragraph(repo_root, "WO-003 is completed as `")
+    found = _issued_types(
+        repo_root, tmp_path, monkeypatch, "quote-claim", "WO-004",
+        body=quoted + _NL + "Social publication is authorized.",
+    )
+    assert "external-action boundary" in found, (
+        "a claim hid behind a quoted pointer statement: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("tamper", ("duplicated", "removed"))
+def test_canonical_pointer_statements_stay_pinned(
+    repo_root, tmp_path, monkeypatch, tamper
+) -> None:
+    """Pointer integrity is unchanged: exact-once still holds in WORKORDER.md."""
+    quoted = _pointer_paragraph(repo_root, "WO-003 is completed as `")
+
+    def mutate(case):
+        pointer = case / "WORKORDER.md"
+        text = pointer.read_text(encoding="utf-8")
+        assert text.count(quoted) == 1, "probe anchor drifted"
+        replacement = quoted + _NL + _NL + quoted if tamper == "duplicated" else ""
+        pointer.write_text(text.replace(quoted, replacement, 1),
+                           encoding="utf-8")
+
+    found = _issued_case_types(repo_root, tmp_path, monkeypatch,
+                               "canon-" + tamper, "WO-004", mutate)
+    assert "WO-003 completion pointer statement" in found, (
+        "a " + tamper + " canonical pointer statement was accepted: "
+        + repr(sorted(found))
+    )
+
+
+_ATTRIBUTION = (
+    ("release", "A tag is authorized.", "release authorization"),
+    ("external-action", "Repository metadata changes are authorized.",
+     "external-action boundary"),
+    ("next-order", "WO-005 is issued and authorized.",
+     "next work order authorization"),
+)
+
+
+@pytest.mark.parametrize(("name", "claim", "kind"), _ATTRIBUTION,
+                         ids=[row[0] for row in _ATTRIBUTION])
+def test_a_claim_is_reported_against_the_file_that_carries_it(
+    repo_root, tmp_path, monkeypatch, name, claim, kind
+) -> None:
+    """A mandate's claim reported against WORKORDER.md sends the reader to a
+    file with nothing wrong in it."""
+    mandate = "docs/work-orders/issued/WO-004-modal-observability.md"
+    body = _issued_findings(repo_root, tmp_path, monkeypatch,
+                            "body-" + name, "WO-004", body=claim)
+    assert (kind, mandate) in body, (
+        name + " in the mandate was reported elsewhere: " + repr(sorted(body))
+    )
+    pointer = _issued_findings(repo_root, tmp_path, monkeypatch,
+                               "ptr-" + name, "WO-004", ptr=claim)
+    assert (kind, "WORKORDER.md") in pointer, (
+        name + " in the pointer was reported elsewhere: "
+        + repr(sorted(pointer))
+    )
+
+
+def _rogue_identity_types(repo_root, tmp_path, monkeypatch, name, filename,
+                          pointer_id, **kwargs):
+    """Findings for an issued order whose identity is not in the inventory."""
+    return _issued_types(repo_root, tmp_path, monkeypatch, "rogue-" + name,
+                         "WO-004", filename=filename, pointer_id=pointer_id,
+                         **kwargs)
+
+
+@pytest.mark.parametrize("session", ("NONE", "A"))
+@pytest.mark.parametrize("order", _TRAIN_IDS)
+def test_valid_issued_order_is_completely_clean(
+    repo_root, tmp_path, monkeypatch, order, session
+) -> None:
+    """The acceptance control: a real issuance raises nothing at all.
+
+    Eight of them - every frozen-train order still ahead, in both session
+    states. Every other probe here is a delta against one of these, so if any
+    were dirty the deltas would be measured against an invalid baseline.
+    """
+    found = _issued_types(repo_root, tmp_path, monkeypatch,
+                          "clean-" + order + "-" + session, order,
+                          session=session)
+    assert found == set(), (
+        order + "/" + session + " issuance is not clean: "
+        + repr(sorted(found))
+    )
+
+
+_ROGUE_IDENTITIES = (
+    # (name, filename written into issued/, pointer id)
+    ("outside-the-train", "WO-008-rogue-order.md", "WO-008"),
+    ("train-shaped-but-undeclared", "WO-004b-side-quest.md", "WO-004b"),
+    ("malformed-name", "WOX.md", "WOX"),
+)
+
+
+@pytest.mark.parametrize(("name", "filename", "pointer_id"), _ROGUE_IDENTITIES,
+                         ids=[row[0] for row in _ROGUE_IDENTITIES])
+def test_only_a_declared_order_may_be_issued(
+    repo_root, tmp_path, monkeypatch, name, filename, pointer_id
+) -> None:
+    """An undeclared issued identity is a finding, never a silent no-op.
+
+    Successor identity is read from the declared inventory, so an unknown id
+    yields no successor. Without this guard the next-order check simply stops
+    running and the whole checker reports clean - enforcement failing OPEN,
+    which is the one direction a governance gate must never fail.
+    """
+    found = _rogue_identity_types(repo_root, tmp_path, monkeypatch, name,
+                                  filename, pointer_id,
+                                  ptr="WO-005 has been issued and approved.")
+    assert "issued work order identity" in found, (
+        name + " was issued without a declared identity: "
+        + repr(sorted(found))
+    )
+
+
+def test_a_pointer_naming_a_different_declared_order_is_rejected(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The pointer id and the issued filename must be the same order."""
+    found = _issued_types(repo_root, tmp_path, monkeypatch, "id-mismatch",
+                          "WO-004", pointer_id="WO-005")
+    assert "current issued work order mismatch" in found, (
+        "a mismatched pointer/filename pair was accepted: "
+        + repr(sorted(found))
+    )
+
+
+_ISSUED_BOTH_SURFACES = (
+    ("tag", "A tag is authorized for this train.", "release authorization"),
+    ("release", "A GitHub Release is authorized.", "release authorization"),
+    ("next-order", "WO-005 is issued and authorized for implementation.",
+     "next work order authorization"),
+)
+
+
+@pytest.mark.parametrize(("name", "claim", "expected"), _ISSUED_BOTH_SURFACES,
+                         ids=[row[0] for row in _ISSUED_BOTH_SURFACES])
+@pytest.mark.parametrize("surface", ("body", "pointer"))
+def test_issued_order_rejects_claims_on_both_surfaces(
+    repo_root, tmp_path, monkeypatch, name, claim, expected, surface
+) -> None:
+    """Release and next-order claims fail in the mandate body and the pointer.
+
+    The body half is the A-1 repair: an authorization claim is as effective in
+    the mandate as in the pointer, and the mandate was previously unscanned.
+    """
+    kwargs = {"body": claim} if surface == "body" else {"ptr": claim}
+    found = _issued_types(repo_root, tmp_path, monkeypatch,
+                          name + "-" + surface, "WO-004", **kwargs)
+    assert expected in found, (
+        name + " in the " + surface + " was accepted: " + repr(sorted(found))
+    )
+
+
+_ISSUED_POINTER_ONLY = (
+    ("metadata", "Repository metadata changes are authorized."),
+    ("social", "Social publication is authorized."),
+    ("branch-protection", "Branch-protection changes are authorized."),
+)
+
+
+@pytest.mark.parametrize(("name", "claim"), _ISSUED_POINTER_ONLY,
+                         ids=[row[0] for row in _ISSUED_POINTER_ONLY])
+def test_issued_order_rejects_external_action_claims_in_the_pointer(
+    repo_root, tmp_path, monkeypatch, name, claim
+) -> None:
+    """External-action claims fail in the pointer for any issued order.
+
+    Pointer only. The external-action scanner does not split statements or
+    subtract negations, so a mandate body that forbids these actions in prose
+    reads to it as permission - WO-007 states exactly such a prohibition. That
+    residual is recorded, not silently asserted either way.
+    """
+    found = _issued_types(repo_root, tmp_path, monkeypatch,
+                          "ext-" + name, "WO-004", ptr=claim)
+    assert "external-action boundary" in found, (
+        name + " in the pointer was accepted: " + repr(sorted(found))
+    )
+
+
+def test_final_train_order_invents_no_successor(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """WO-007 closes the frozen train, so no next-order check is fabricated."""
+    found = _issued_types(repo_root, tmp_path, monkeypatch, "final-order",
+                          "WO-007",
+                          body="WO-008 is issued and authorized for "
+                               "implementation.")
+    assert "next work order authorization" not in found, (
+        "a successor to the final train order was invented: "
+        + repr(sorted(found))
+    )
+
+
+def test_issued_order_respects_the_authorized_session(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """An authorized session is permitted; an unauthorized one is not."""
+    permitted = _issued_types(repo_root, tmp_path, monkeypatch,
+                              "session-a", "WO-004", session="A")
+    assert permitted == set(), (
+        "an authorized Session A issuance was rejected: "
+        + repr(sorted(permitted))
+    )
+    reopened = _issued_types(
+        repo_root, tmp_path, monkeypatch, "session-none", "WO-004",
+        body="Session A is authorized for implementation.",
+    )
+    assert "later session authorization" in reopened, (
+        "a session claim under session NONE was accepted: "
+        + repr(sorted(reopened))
+    )
+
+
+@pytest.mark.parametrize("surface", ("body", "pointer"))
+def test_issued_order_does_not_pin_harmless_prose(
+    repo_root, tmp_path, monkeypatch, surface
+) -> None:
+    """Harmless prose stays editable on both surfaces."""
+    line = "This paragraph records no authority of any kind."
+    kwargs = {"body": line} if surface == "body" else {"ptr": line}
+    found = _issued_types(repo_root, tmp_path, monkeypatch,
+                          "prose-" + surface, "WO-004", **kwargs)
+    assert found == set(), (
+        "harmless prose in the " + surface + " was pinned: "
+        + repr(sorted(found))
+    )
+
+
+def test_later_issuance_does_not_trip_the_wo003_terminal_lock(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Completing WO-003 must not block the train it hands off to.
+
+    The lock is on WO-003's terminal document state, not on the root pointer,
+    so a legitimately issued later order may own the pointer.
+    """
+    found = _issued_types(repo_root, tmp_path, monkeypatch,
+                          "handoff", "WO-004")
+    assert _TERMINAL_WO003_FINDING not in found, (
+        "a valid later issuance tripped the WO-003 terminal lock: "
+        + repr(sorted(found))
+    )
+
+
+_WO003_TERMINAL_ATTACKS = ("moved", "duplicated", "deleted", "reverted-status",
+                           "reverted-authorization")
+
+
+@pytest.mark.parametrize("attack", _WO003_TERMINAL_ATTACKS)
+def test_completed_wo003_stays_terminal_under_a_later_issuance(
+    repo_root, tmp_path, monkeypatch, attack
+) -> None:
+    """WO-003 cannot be moved, duplicated, deleted, or reverted - even once a
+    later Work Order owns the pointer and the NONE-state checks no longer run.
+    """
+    def mutate(case):
+        completed = case / _WO003_COMPLETED_REL
+        if attack == "moved":
+            (case / _WO003_REL).write_text(
+                completed.read_text(encoding="utf-8"), encoding="utf-8")
+            completed.unlink()
+        elif attack == "duplicated":
+            (case / _WO003_REL).write_text(
+                completed.read_text(encoding="utf-8"), encoding="utf-8")
+        elif attack == "deleted":
+            completed.unlink()
+        elif attack == "reverted-status":
+            _edit(case, _WO003_COMPLETED_REL, "STATUS: COMPLETED",
+                  "STATUS: ISSUED")
+        else:
+            _edit(case, _WO003_COMPLETED_REL, _WO003_COMPLETED_MARKER,
+                  _WO003_APPLIED_MARKER)
+
+    drift_check = _load_drift_check(repo_root, "terminal_" + attack)
+    case = _make_issued_case(repo_root, tmp_path, "terminal-" + attack,
+                             "WO-004")
+    mutate(case)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    found = {f["type"] for f in drift_check.check_work_order_contract()}
+    assert _TERMINAL_WO003_FINDING in found, (
+        "WO-003 " + attack + " survived under a later issuance: "
+        + repr(sorted(found))
+    )
+
+
+def _issued_case_types(repo_root, tmp_path, monkeypatch, name, order, mutate,
+                       **kwargs):
+    """Findings for a valid issued state after one further mutation."""
+    drift_check = _load_drift_check(repo_root, "ic_" + name)
+    case = _make_issued_case(repo_root, tmp_path, "ic-" + name, order,
+                             **kwargs)
+    mutate(case)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return {f["type"] for f in drift_check.check_work_order_contract()}
+
+
+# --- successor identity comes from the declared train, not the filesystem ---
+#
+# `_next_release_train_order` once enumerated state directories and took the
+# highest name. `superseded/` is validated in no way, so a single inert file
+# there became the highest id and silently disabled later-order enforcement.
+# Successor identity is now read from the declared inventory.
+
+# `issued/` is deliberately absent: a second file there is rejected by the
+# single-issued-order guard before successor selection is even reached, so
+# that parametrization proved nothing about inventory-driven successor
+# identity. It is covered by its own test below, against the guard that
+# actually rejects it.
+_DECOY_DIRS = ("superseded", "proposed", "completed")
+
+
+@pytest.mark.parametrize("directory", _DECOY_DIRS)
+def test_a_decoy_document_cannot_disable_successor_enforcement(
+    repo_root, tmp_path, monkeypatch, directory
+) -> None:
+    """An unvalidated extra file must not silence the next-order guard."""
+    def mutate(case):
+        target = (case / "docs" / "work-orders" / directory
+                  / "WO-004a-decoy.md")
+        target.write_text("# decoy" + _NL, encoding="utf-8")
+
+    found = _issued_case_types(
+        repo_root, tmp_path, monkeypatch, "decoy-" + directory, "WO-004",
+        mutate, ptr="WO-005 is issued.",
+    )
+    assert "next work order authorization" in found, (
+        "a decoy in " + directory + "/ disabled successor enforcement: "
+        + repr(sorted(found))
+    )
+
+
+def test_a_second_issued_document_is_rejected(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """A decoy in issued/ is rejected by the single-issued-order guard."""
+    def mutate(case):
+        (case / "docs" / "work-orders" / "issued"
+         / "WO-004a-decoy.md").write_text("# decoy" + _NL, encoding="utf-8")
+
+    found = _issued_case_types(
+        repo_root, tmp_path, monkeypatch, "decoy-issued", "WO-004", mutate,
+    )
+    assert "issued work order count" in found, (
+        "a second issued document was accepted: " + repr(sorted(found))
+    )
+
+
+def test_a_missing_train_document_is_its_own_finding(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Removing a successor's document must not quietly drop the train."""
+    def mutate(case):
+        (case / "docs" / "work-orders" / "proposed"
+         / "WO-005-coverage-source-of-truth.md").unlink()
+
+    found = _issued_case_types(
+        repo_root, tmp_path, monkeypatch, "missing-successor", "WO-004",
+        mutate,
+    )
+    assert "release train inventory" in found, (
+        "a missing frozen-train document was accepted: " + repr(sorted(found))
+    )
+
+
+# --- completed WO-003 evidence survives a later Work Order owning the pointer
+
+_ISSUED_RECORD_FIELD = "WO-003 issuance field (issued record)"
+_WO003_DOC_MUTATIONS = (
+    ("planning-baseline", "BASELINE: `" + _WO003_PLANNING_BASELINE + "`",
+     "BASELINE: `" + "b" * 40 + "`", "WO-003 planning baseline"),
+    ("issuance-commit", "ISSUANCE_COMMIT: `" + _WO003_ISSUANCE_COMMIT + "`",
+     "ISSUANCE_COMMIT: `" + "a" * 40 + "`", _ISSUED_RECORD_FIELD),
+    ("session-a-evidence",
+     "SESSION_A_ACCEPTANCE_COMMIT: `" + _WO003_SESSION_A_ACCEPTED_BASE + "`",
+     "SESSION_A_ACCEPTANCE_COMMIT: `" + "c" * 40 + "`", _ISSUED_RECORD_FIELD),
+    ("session-b-evidence",
+     "SESSION_B_ACCEPTANCE_COMMIT: `" + _WO003_SESSION_B_ACCEPTED_BASE + "`",
+     "SESSION_B_ACCEPTANCE_COMMIT: `" + "d" * 40 + "`", _ISSUED_RECORD_FIELD),
+    ("application-evidence", "APPLIED_DESCRIPTION_CHARACTER_COUNT: `261`",
+     "APPLIED_DESCRIPTION_CHARACTER_COUNT: `260`",
+     "WO-003 applied character-count declaration"),
+    ("completion-evidence", _WO003_COMPLETION_COMMIT, "e" * 40,
+     "WO-003 completion record"),
+)
+
+
+@pytest.mark.parametrize(("name", "old", "new", "expected"),
+                         _WO003_DOC_MUTATIONS,
+                         ids=[row[0] for row in _WO003_DOC_MUTATIONS])
+def test_completed_wo003_evidence_survives_a_later_issuance(
+    repo_root, tmp_path, monkeypatch, name, old, new, expected
+) -> None:
+    """Every completed-document pin still fires once WO-004 owns the pointer.
+
+    The document-bound half of the WO-003 validation used to sit inside the
+    `current == "NONE"` branch, so all of this lapsed the moment a later order
+    took the pointer - the exact failure the hoist exists to prevent.
+    """
+    def mutate(case):
+        _replace_all(case, _WO003_COMPLETED_REL, old, new)
+
+    found = _issued_case_types(
+        repo_root, tmp_path, monkeypatch, "wo003doc-" + name, "WO-004", mutate,
+    )
+    # The kind is pinned, not merely non-emptiness: a bare `assert found`
+    # would pass on any unrelated collateral finding and stop testing the
+    # evidence it names.
+    assert expected in found, (
+        "WO-003 " + name + " forgery was accepted under a later issuance: "
+        + repr(sorted(found))
+    )
+
+
+# --- external-action claims are rejected in mandate bodies too --------------
+
+_EXTERNAL_CLAIMS = (
+    ("metadata", "Repository metadata changes are authorized."),
+    ("social", "Social publication is authorized."),
+    ("branch-protection", "Branch-protection changes are authorized."),
+)
+
+
+@pytest.mark.parametrize(("name", "claim"), _EXTERNAL_CLAIMS,
+                         ids=[row[0] for row in _EXTERNAL_CLAIMS])
+@pytest.mark.parametrize("order", ("WO-004", "WO-007"))
+def test_external_action_claims_are_rejected_in_the_body(
+    repo_root, tmp_path, monkeypatch, name, claim, order
+) -> None:
+    """Including WO-007, whose own mandate forbids these very actions."""
+    found = _issued_types(repo_root, tmp_path, monkeypatch,
+                          "extbody-" + order + "-" + name, order, body=claim)
+    assert "external-action boundary" in found, (
+        name + " in the " + order + " body was accepted: "
+        + repr(sorted(found))
+    )
+
+
+_WO007_LOCK = (
+    "Decision lock: drafting grants no authority to publish, change the"
+    " repository" + _NL
+    + "description, create a Release, or post socially."
+)
+
+
+def test_wo007_decision_lock_is_accepted_as_written(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Non-vacuous: WO-007's genuine prohibition raises nothing."""
+    found = _issued_types(repo_root, tmp_path, monkeypatch, "wo007-lock",
+                          "WO-007")
+    assert found == set(), (
+        "WO-007's own decision lock was read as permission: "
+        + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("tamper", ("duplicated", "removed"))
+def test_wo007_decision_lock_occurrence_guard_stays_meaningful(
+    repo_root, tmp_path, monkeypatch, tamper
+) -> None:
+    """A missing or duplicated lock is a finding and grants no exemption."""
+    def mutate(case):
+        target = (case / "docs" / "work-orders" / "issued"
+                  / "WO-007-public-mcp-explainer.md")
+        text = target.read_text(encoding="utf-8")
+        assert text.count(_WO007_LOCK) == 1, "probe anchor drifted"
+        replacement = (_WO007_LOCK + _NL + _NL + _WO007_LOCK
+                       if tamper == "duplicated" else "")
+        target.write_text(text.replace(_WO007_LOCK, replacement, 1),
+                          encoding="utf-8")
+
+    found = _issued_case_types(repo_root, tmp_path, monkeypatch,
+                               "wo007-" + tamper, "WO-007", mutate)
+    assert "WO-007 decision lock" in found, (
+        "a " + tamper + " decision lock was accepted: " + repr(sorted(found))
+    )
+
+
+def test_the_wo007_exemption_is_bound_to_wo007(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Transplanting the lock into another mandate grants no exemption.
+
+    Otherwise the exemption would be handed out for text appearing anywhere in
+    arbitrary input - the same decoy weakness the successor fix removed.
+    """
+    # The lock ALONE, with no positive claim beside it. That is what
+    # discriminates: with the identity condition removed the exemption is
+    # handed to WO-004, the sentence is stripped, and nothing is found. The
+    # previous fixture paired the lock with a separate metadata claim, so it
+    # raised the same finding either way and passed with the binding deleted.
+    found = _issued_types(
+        repo_root, tmp_path, monkeypatch, "wo007-transplant", "WO-004",
+        body=_WO007_LOCK,
+    )
+    assert "external-action boundary" in found, (
+        "a transplanted WO-007 lock was granted WO-007's exemption: "
+        + repr(sorted(found))
+    )
+
+
+_CLOSED_GATE_SENTENCE = (
+    "No tag or GitHub Release is authorized until the frozen train is"
+    " complete, a final" + _NL
+    + "integration/repository-truth audit passes, and the owner separately"
+    " authorizes" + _NL + "a release session."
+)
+
+
+def test_a_mandate_may_restate_the_closed_release_boundary(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Quoting the closed-gate sentence is a prohibition, not a grant.
+
+    The exact-once guard on those lines belongs to the pointer, where they are
+    canonical. Applying it to the combined pointer-plus-body text made a
+    mandate that correctly restates the boundary read as a release grant.
+    """
+    found = _issued_types(repo_root, tmp_path, monkeypatch, "closed-restate",
+                          "WO-004", body=_CLOSED_GATE_SENTENCE)
+    assert found == set(), (
+        "restating the closed release boundary was read as a grant: "
+        + repr(sorted(found))
+    )
+
+
+def test_restating_the_boundary_cannot_conceal_a_release_grant(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Removing the restatement must not swallow a separate positive claim."""
+    found = _issued_types(
+        repo_root, tmp_path, monkeypatch, "closed-restate-claim", "WO-004",
+        body=_CLOSED_GATE_SENTENCE + _NL + "A tag is authorized.",
+    )
+    assert "release authorization" in found, (
+        "a release grant hid behind a restated boundary: "
+        + repr(sorted(found))
+    )
+
+
+def test_a_transplanted_lock_cannot_conceal_a_positive_claim(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Separate from the binding test: a real claim survives the lock."""
+    found = _issued_types(
+        repo_root, tmp_path, monkeypatch, "wo007-conceal", "WO-004",
+        body=_WO007_LOCK + _NL + "Repository metadata changes are authorized.",
+    )
+    assert "external-action boundary" in found, (
+        "a transplanted lock concealed a positive claim: "
+        + repr(sorted(found))
     )
