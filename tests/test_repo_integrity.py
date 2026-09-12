@@ -137,6 +137,7 @@ def test_drift_check_covers_agent_context_surfaces(repo_root):
         "llms.txt",
         "docs/PIPELINE.md",
         "docs/audits/2026-08-24-uefn-42-official-mcp-audit.md",
+        "docs/audits/2026-09-10-wo004-session-a-modal-feasibility.md",
         "docs/audits/evidence/2026-08-24-official-mcp-signatures.json",
         "docs/work-orders/README.md",
         "docs/work-orders/completed/WO-001-custom-mcp-security.md",
@@ -229,13 +230,16 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         work_orders / "completed" / "WO-003-official-mcp-doc-convergence.md"
     ).exists()
     assert current == "WO-004"
-    assert session == "NONE"
+    assert session == "A"
+    # The base moves with the gate; the issuance commit stays declared in its
+    # own bullet, so authorizing a session records new evidence without
+    # overwriting the evidence that issued the order.
     assert base_lines == [
-        "- Base commit: `8444faf340afe47765c43d943200db712880817b`"
+        "- Base commit: `f9fc7268d63dad92f5dd009bbf20e11477b8f926`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-004 ISSUED "
-        "— SESSION A IMPLEMENTATION NOT AUTHORIZED"
+        "- Current gate: WO-004 SESSION A AUTHORIZED "
+        "— READ-ONLY FEASIBILITY PLANNING ONLY"
     ]
     # The canonical bullet block belongs to whichever order owns the
     # pointer. WO-004's issuance evidence is declared here; WO-003's own
@@ -246,10 +250,49 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "- Issuance commit: `8444faf340afe47765c43d943200db712880817b`",
         "- Issuance CI workflow: `34441169191`",
         "- Issuance CI job: `102756337393` — Lint, types, tests",
+        "- Session A authorization commit:"
+        " `f9fc7268d63dad92f5dd009bbf20e11477b8f926`",
+        "- Session A authorization CI workflow: `34509193110`",
+        "- Session A authorization CI job: `102978793893` — Lint, types,"
+        " tests",
     ):
         assert line in pointer, line
+    # Session A is read-only feasibility planning. Live UEFN work, the later
+    # sessions, and the publication gates all stay closed.
+    wo004_live = (
+        work_orders / "issued" / "WO-004-modal-observability.md"
+    ).read_text(encoding="utf-8")
+    assert [
+        line for line in wo004_live.splitlines()
+        if line.startswith("AUTHORIZATION:")
+    ] == ["AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR FEASIBILITY"
+          " PLANNING ONLY"]
+    assert "## Session A authorization basis" in wo004_live
+    normalized_live = " ".join(wo004_live.split())
+    assert (
+        "It opens no live UEFN work: no editor launch, no bridge start, no "
+        "official-MCP call, and no level mutation." in normalized_live
+    )
+    assert (
+        "Session A is authorized under this pointer for read-only feasibility "
+        "planning only" in " ".join(pointer.split())
+    )
+    # WO-003's own session bullets are gone from the pointer - they live in
+    # its completed document now. WO-004 declares a Session A
+    # authorization bullet of its own, so the WO-003 VALUES are what must be
+    # absent here, not the bullet keys. The SHAs themselves stay in the
+    # narrative paragraphs below, which is where that evidence is preserved.
     for stale in (
-        "- Session A authorization commit:",
+        "- Session A authorization commit:"
+        " `52d89295614a4ce686094736d87f7e6c907e12a0`",
+        "- Session A acceptance commit:"
+        " `d23add58e02ddc855573cf9be7a2542776d25e7e`",
+        "- Session B authorization commit:"
+        " `2582be8c9168d72b46846334bbba44307d348ce6`",
+    ):
+        assert stale not in pointer, stale
+    # WO-004 has no acceptance and no Session B, so those keys stay absent.
+    for stale in (
         "- Session A acceptance commit:",
         "- Session B authorization commit:",
         "- Session B acceptance commit:",
@@ -355,7 +398,8 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     ]
     assert [
         line for line in wo004_lines if line.startswith("AUTHORIZATION:")
-    ] == ["AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED"]
+    ] == ["AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR "
+          "FEASIBILITY PLANNING ONLY"]
     # The planning baseline is preserved; the issuance evidence is new and
     # distinct from it.
     assert [line for line in wo004_lines if line.startswith("BASELINE:")] == [
@@ -367,6 +411,14 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         ("ISSUANCE_CI_WORKFLOW: `34441169191`", "ISSUANCE_CI_WORKFLOW:"),
         ("ISSUANCE_CI_JOB: `102756337393` — Lint, types, tests",
          "ISSUANCE_CI_JOB:"),
+        ("SESSION_A_AUTHORIZATION_COMMIT:"
+         " `f9fc7268d63dad92f5dd009bbf20e11477b8f926`",
+         "SESSION_A_AUTHORIZATION_COMMIT:"),
+        ("SESSION_A_AUTHORIZATION_CI_WORKFLOW: `34509193110`",
+         "SESSION_A_AUTHORIZATION_CI_WORKFLOW:"),
+        ("SESSION_A_AUTHORIZATION_CI_JOB: `102978793893` — Lint, "
+         "types, tests",
+         "SESSION_A_AUTHORIZATION_CI_JOB:"),
     ):
         assert [
             candidate for candidate in wo004_lines
@@ -377,22 +429,35 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "Issuance alone grants no implementation authority.",
         "34441169191",
         "102756337393",
-        "NEXT GATE: separate owner authorization for Session A feasibility"
-        " only,",
+        "## Session A authorization basis",
+        "34509193110",
+        "102978793893",
+        "NEXT GATE: fresh independent review of the complete uncommitted"
+        " Session A",
     ):
         assert evidence in wo004_text, evidence
     for stale in (
         "STATUS: PROPOSED",
         "AUTHORIZATION: NOT AUTHORIZED",
         "NEXT GATE: independent pre-issuance review of this revision",
+        "NEXT GATE: separate owner authorization for Session A feasibility",
         "This proposal does not",
     ):
         assert stale not in wo004_text, stale
     # Issuance opens no session and leaves the later orders proposed.
     normalized_wo004 = " ".join(wo004_text.split())
     assert (
-        "Issuance authorizes no session. Session A, Session B, Session C, "
-        "and all live UEFN work remain closed." in normalized_wo004
+        "Session B, Session C, and all live UEFN work remain closed."
+        in normalized_wo004
+    )
+    # Session A is planning only: the mandate says so in its own basis section.
+    assert (
+        "It opens no live UEFN work: no editor launch, no bridge start, no "
+        "official-MCP call, and no level mutation." in normalized_wo004
+    )
+    assert (
+        "Every probe this session specifies needs its own separate owner gate "
+        "before anyone runs it." in normalized_wo004
     )
 
     wo003 = work_orders / "completed" / "WO-003-official-mcp-doc-convergence.md"
@@ -640,14 +705,150 @@ _WO003_POINTER_BULLETS = _NL.join((
 ))
 
 
-def _make_wo004_issued_case(repo_root, tmp_path, name):
-    """Copy the current issued WO-004 state."""
+# --- WO-004 Session A: the current state, and the head of the chain ------
+#
+# Authorizing Session A moved the current state forward again, so the
+# closed-issuance state - and every historical fixture below it - is now
+# reconstructed backwards from the Session A state.
+
+_WO004_SA_COMMIT = "f9fc7268d63dad92f5dd009bbf20e11477b8f926"
+_WO004_SA_WORKFLOW = "34509193110"
+_WO004_SA_JOB = "102978793893"
+_WO004_SA_GATE = (
+    "WO-004 SESSION A AUTHORIZED " + _EM
+    + " READ-ONLY FEASIBILITY PLANNING ONLY"
+)
+_WO004_SA_MARKER = (
+    "AUTHORIZATION: ISSUED " + _EM
+    + " SESSION A AUTHORIZED FOR FEASIBILITY PLANNING ONLY"
+)
+_WO004_SA_METADATA = (
+    ("SESSION_A_AUTHORIZATION_COMMIT:",
+     "SESSION_A_AUTHORIZATION_COMMIT: `" + _WO004_SA_COMMIT + "`"),
+    ("SESSION_A_AUTHORIZATION_CI_WORKFLOW:",
+     "SESSION_A_AUTHORIZATION_CI_WORKFLOW: `" + _WO004_SA_WORKFLOW + "`"),
+    ("SESSION_A_AUTHORIZATION_CI_JOB:",
+     "SESSION_A_AUTHORIZATION_CI_JOB: `" + _WO004_SA_JOB + "` " + _EM
+     + " Lint, types, tests"),
+)
+_WO004_SA_POINTER_BULLETS = _NL.join((
+    "- Session A authorization commit: `" + _WO004_SA_COMMIT + "`",
+    "- Session A authorization CI workflow: `" + _WO004_SA_WORKFLOW + "`",
+    "- Session A authorization CI job: `" + _WO004_SA_JOB + "` " + _EM
+    + " Lint, types, tests",
+))
+_WO004_SA_NEXT_GATE = _NL.join((
+    "NEXT GATE: fresh independent review of the complete uncommitted Session A",
+    "feasibility record, followed by a separate owner decision on whether the",
+    "proposed probes run. Session B, Session C, and all live UEFN work remain",
+    "closed.",
+))
+_WO004_SA_BASIS_HEADING = "## Session A authorization basis"
+
+
+def _make_wo004_session_a_case(repo_root, tmp_path, name):
+    """Copy the current Session A authorized WO-004 state."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
     shutil.copytree(
         repo_root / "docs" / "work-orders",
         case / "docs" / "work-orders",
+    )
+    return case
+
+
+def _make_wo004_issued_case(repo_root, tmp_path, name):
+    """Reconstruct the preserved closed-issuance WO-004 state.
+
+    Authorizing Session A moved the current state forward, so the state the
+    issuance fixtures and their mutation coverage build on is now itself a
+    reconstruction. Only the Session A authorization is reversed: the
+    issuance evidence and the planning baseline are preserved untouched,
+    which is the point - their enforcement must survive the transition.
+    """
+    case = _make_wo004_session_a_case(repo_root, tmp_path, name)
+    issued = case / _WO004_ISSUED_REL
+    if not issued.exists():
+        # Chained from an earlier reconstruction, so there is no Session A
+        # authorization left to reverse.
+        assert (case / _WO004_PROPOSED_REL).exists(), (
+            "WO-004 Session A reconstruction: WO-004 is in neither issued/ "
+            "nor proposed/ - this reconstruction is no longer anchored to "
+            "the recorded historical state"
+        )
+        return case
+    text = issued.read_text(encoding="utf-8")
+    if _WO004_SA_MARKER not in text:
+        return case  # already reversed by a chained reconstruction
+    for old, new in (
+        (_WO004_SA_MARKER, _WO004_ISSUED_MARKER),
+        (_WO004_SA_NEXT_GATE, _WO004_NEXT_GATE),
+    ):
+        text = _replace_once(text, old, new, "WO-004 Session A reconstruction")
+    for _prefix, declaration in _WO004_SA_METADATA:
+        text = _replace_once(text, _NL + declaration + _NL, "",
+                             "WO-004 Session A metadata excision")
+    _require_unique(
+        text, (_WO004_SA_BASIS_HEADING, "## Planning basis"),
+        "WO-004 Session A basis excision",
+    )
+    text = _sub_once(
+        re.escape(_WO004_SA_BASIS_HEADING)
+        + ".*?(?=" + re.escape("## Planning basis" + _NL) + ")",
+        "",
+        text,
+        "WO-004 Session A basis excision",
+        flags=re.DOTALL,
+    )
+    issued.write_text(text, encoding="utf-8")
+
+    pointer = case / "WORKORDER.md"
+    text = pointer.read_text(encoding="utf-8")
+    opening = "Session A is authorized under this pointer for read-only"
+    _require_unique(
+        text,
+        ("- Authorized session: A",
+         "WO-001 through WO-007 form the frozen next release train. The"
+         " release version"),
+        "WO-004 Session A pointer excision",
+    )
+    text = _sub_once(
+        re.escape(opening) + ".*?(?="
+        + re.escape("WO-001 through WO-007 form the frozen") + ")",
+        "",
+        text,
+        "WO-004 Session A paragraph excision",
+        flags=re.DOTALL,
+    )
+    for old, new in (
+        ("- Authorized session: A", "- Authorized session: NONE"),
+        ("- Base commit: `" + _WO004_SA_COMMIT + "`",
+         "- Base commit: `" + _WO004_ISSUANCE_COMMIT + "`"),
+        ("- Current gate: " + _WO004_SA_GATE,
+         "- Current gate: " + _WO004_ISSUED_GATE),
+        (_NL + _WO004_SA_POINTER_BULLETS, ""),
+    ):
+        text = _replace_once(text, old, new, "WO-004 Session A pointer")
+    pointer.write_text(text, encoding="utf-8")
+
+    _assert_reconstructed(
+        "WO-004 Session A pointer", pointer.read_text(encoding="utf-8"),
+        ("- Authorized session: NONE",
+         "- Base commit: `" + _WO004_ISSUANCE_COMMIT + "`",
+         "- Current gate: " + _WO004_ISSUED_GATE,
+         "- Issuance commit: `" + _WO004_ISSUANCE_COMMIT + "`"),
+        (_WO004_SA_GATE, _WO004_SA_COMMIT, _WO004_SA_WORKFLOW,
+         _WO004_SA_JOB),
+    )
+    _assert_reconstructed(
+        "WO-004 Session A reconstruction",
+        issued.read_text(encoding="utf-8"),
+        (_WO004_ISSUED_MARKER, _WO004_NEXT_GATE,
+         "BASELINE: `" + _WO004_BASELINE + "`",
+         _WO004_ISSUED_METADATA[0][1]),
+        (_WO004_SA_MARKER, _WO004_SA_BASIS_HEADING,
+         "SESSION_A_AUTHORIZATION_COMMIT:", _WO004_SA_NEXT_GATE),
     )
     return case
 
@@ -8160,10 +8361,14 @@ def _make_live_issued_case(repo_root, tmp_path, name, body, ptr, session):
     Synthesizing an issuance for the order that is actually issued would
     measure every probe against a fixture instead of the repository.
     """
-    case = _make_wo004_issued_case(repo_root, tmp_path, name)
+    # Session A is authorized for real, so its probes run against the
+    # live state; the closed-issuance state is the reconstruction.
+    case = (_make_wo004_session_a_case(repo_root, tmp_path, name)
+            if session == "A"
+            else _make_wo004_issued_case(repo_root, tmp_path, name))
     issued = case / _WO004_ISSUED_REL
     pointer = case / "WORKORDER.md"
-    if session != "NONE":
+    if session not in ("NONE", "A"):
         issued.write_text(
             _replace_once(
                 issued.read_text(encoding="utf-8"),
@@ -9432,4 +9637,253 @@ def test_a_completed_document_may_still_close_its_successor(
     assert found == set(), (
         "the completed WO-003 document's own closing language was read as a "
         "grant: " + repr(sorted(found))
+    )
+
+
+# --- WO-004 Session A authorization ---------------------------------------
+#
+# Authorizing a session must record new evidence WITHOUT overwriting the
+# evidence that issued the order. Every probe here is a delta against the
+# live Session A state, which the control below proves is clean.
+
+_WO004_SA_SURFACES = (
+    ("pointer", "WORKORDER.md", "- Session A authorization commit:"),
+    ("mandate", _WO004_ISSUED_REL, "SESSION_A_AUTHORIZATION_COMMIT:"),
+)
+_WO004_ZERO_SHA = "0" * 40
+
+
+def _sa_types(repo_root, tmp_path, monkeypatch, name, mutate):
+    """Findings for the live Session A state after one mutation."""
+    drift_check = _load_drift_check(repo_root, "sa_" + name)
+    case = _make_wo004_session_a_case(repo_root, tmp_path, "sa-" + name)
+    mutate(case)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return {f["type"] for f in drift_check.check_work_order_contract()}
+
+
+def test_wo004_session_a_state_is_clean(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The control: the real Session A authorization raises nothing."""
+    found = _sa_types(repo_root, tmp_path, monkeypatch, "control",
+                      lambda case: None)
+    assert found == set(), (
+        "the live Session A state is not clean: " + repr(sorted(found))
+    )
+
+
+@pytest.mark.parametrize("damage",
+                         ("changed", "removed", "duplicated", "decoy"))
+@pytest.mark.parametrize(("surface", "rel", "prefix"), _WO004_SA_SURFACES,
+                         ids=[row[0] for row in _WO004_SA_SURFACES])
+def test_wo004_session_a_evidence_is_pinned(
+    repo_root, tmp_path, monkeypatch, surface, rel, prefix, damage
+) -> None:
+    """The Session A authorization commit is enforced on both surfaces."""
+    def mutate(case):
+        target = case / rel
+        text = target.read_text(encoding="utf-8")
+        line = next(candidate for candidate in text.splitlines()
+                    if candidate.startswith(prefix))
+        if damage == "changed":
+            new = line.replace(_WO004_SA_COMMIT, _WO004_ZERO_SHA)
+        elif damage == "removed":
+            new = ""
+        elif damage == "duplicated":
+            new = line + _NL + line
+        else:
+            new = line.replace(_WO004_SA_COMMIT, _WO004_ZERO_SHA)
+        # The genuine declaration is corrupted first; only then is the
+        # byte-correct decoy parked outside the canonical block, so the
+        # replacement still has exactly one anchor to act on.
+        text = _replace_once(text, line, new, "session A " + damage)
+        if damage == "decoy":
+            text = text.rstrip() + _NL + _NL + line + _NL
+        target.write_text(text, encoding="utf-8")
+
+    found = _sa_types(repo_root, tmp_path, monkeypatch,
+                      surface + "-" + damage, mutate)
+    assert found, (
+        "a " + damage + " Session A authorization commit in the " + surface
+        + " was accepted"
+    )
+
+
+def test_wo004_session_a_preserves_the_issuance_record(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Moving the base must not let the issuance evidence be dropped.
+
+    This is the property the cumulative-slice design exists for: the
+    pointer base now names the Session A commit, and the issuance commit
+    still has to be declared in its own bullet beside it.
+    """
+    def mutate(case):
+        pointer = case / "WORKORDER.md"
+        pointer.write_text(
+            _replace_once(
+                pointer.read_text(encoding="utf-8"),
+                "- Issuance commit: `" + _WO004_ISSUANCE_COMMIT + "`" + _NL,
+                "", "issuance bullet removal"),
+            encoding="utf-8")
+
+    found = _sa_types(repo_root, tmp_path, monkeypatch, "issuance-kept",
+                      mutate)
+    assert found, (
+        "the issuance record became droppable once Session A opened"
+    )
+
+
+def test_wo004_session_a_base_is_repinned(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The base must name the Session A commit, not the issuance commit."""
+    def mutate(case):
+        pointer = case / "WORKORDER.md"
+        pointer.write_text(
+            _replace_once(
+                pointer.read_text(encoding="utf-8"),
+                "- Base commit: `" + _WO004_SA_COMMIT + "`",
+                "- Base commit: `" + _WO004_ISSUANCE_COMMIT + "`",
+                "base rollback"),
+            encoding="utf-8")
+
+    found = _sa_types(repo_root, tmp_path, monkeypatch, "base-rollback",
+                      mutate)
+    assert found, "the base commit could stay at the issuance commit"
+
+
+def test_wo004_session_a_gate_cannot_be_widened(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Read-only feasibility must not silently become implementation."""
+    def mutate(case):
+        pointer = case / "WORKORDER.md"
+        pointer.write_text(
+            _replace_once(
+                pointer.read_text(encoding="utf-8"),
+                "- Current gate: " + _WO004_SA_GATE,
+                "- Current gate: WO-004 SESSION A AUTHORIZED " + _EM
+                + " IMPLEMENT SESSION A ONLY",
+                "gate widening"),
+            encoding="utf-8")
+
+    found = _sa_types(repo_root, tmp_path, monkeypatch, "widen-gate",
+                      mutate)
+    assert "authorized session gate" in found, (
+        "the feasibility gate was widened to implementation: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo004_session_a_marker_cannot_be_widened(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """The mandate marker must stay the feasibility-only one."""
+    def mutate(case):
+        target = case / _WO004_ISSUED_REL
+        target.write_text(
+            _replace_once(
+                target.read_text(encoding="utf-8"),
+                _WO004_SA_MARKER,
+                "AUTHORIZATION: ISSUED " + _EM
+                + " SESSION A AUTHORIZED FOR IMPLEMENTATION",
+                "marker widening"),
+            encoding="utf-8")
+
+    found = _sa_types(repo_root, tmp_path, monkeypatch, "widen-marker",
+                      mutate)
+    assert "issued session authorization" in found, (
+        "the feasibility-only marker was widened: " + repr(sorted(found))
+    )
+
+
+def test_wo004_rogue_session_cannot_silence_the_issuance_record(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """An unrecognized session value is not a way to switch the record off."""
+    def mutate(case):
+        pointer = case / "WORKORDER.md"
+        text = pointer.read_text(encoding="utf-8")
+        text = _replace_once(text, "- Authorized session: A",
+                             "- Authorized session: Q", "rogue session")
+        text = _replace_once(
+            text, "- Issuance CI workflow: `34441169191`",
+            "- Issuance CI workflow: `99999999999`", "rogue issuance")
+        pointer.write_text(text, encoding="utf-8")
+
+    found = _sa_types(repo_root, tmp_path, monkeypatch, "rogue", mutate)
+    assert "WO-004 issuance declaration (WORKORDER.md)" in found, (
+        "a rogue session value silenced the issuance record: "
+        + repr(sorted(found))
+    )
+
+
+def test_wo004_session_a_does_not_pin_harmless_prose(
+    repo_root, tmp_path, monkeypatch
+) -> None:
+    """Ordinary feasibility prose in the mandate must not raise findings."""
+    def mutate(case):
+        target = case / _WO004_ISSUED_REL
+        target.write_text(
+            target.read_text(encoding="utf-8") + _NL
+            + "The feasibility record notes that Session A inspected source"
+            + _NL + "and documentation only, and that no probe was run." + _NL,
+            encoding="utf-8")
+
+    found = _sa_types(repo_root, tmp_path, monkeypatch, "prose", mutate)
+    assert found == set(), (
+        "harmless feasibility prose was pinned: " + repr(sorted(found))
+    )
+
+
+# --- the Session A record is content-pinned, not merely present ------------
+#
+# drift_check's SCAN_FILES entry makes DELETING the record a finding. It does
+# not notice a truncating write or a bad merge that empties it, which would
+# silently discard the whole of Session A's output while both gates stayed
+# green. Its peer audit in the same list is content-asserted for the same
+# reason; this brings the new record up to that standard.
+
+_SESSION_A_RECORD = (
+    "docs/audits/2026-09-10-wo004-session-a-modal-feasibility.md"
+)
+_SESSION_A_ANCHORS = (
+    ("authorization basis",
+     "SESSION_A_AUTHORIZATION_COMMIT: `f9fc7268d63dad92f5dd009bbf20e11477b8f926`"),
+    ("read-only declaration",
+     "AUTHORIZATION: READ-ONLY PLANNING " + _EM
+     + " NO LIVE UEFN WORK PERFORMED"),
+    ("conclusion", "**UNKNOWN, with the missing evidence named.**"),
+    ("decisive unknown", "### 2.4 The decisive unknown"),
+    ("no HTTP-thread command",
+     "**No command in this bridge is served from the HTTP thread.**"),
+    ("evidence absence", "**Recorded absence.**"),
+    ("probes not executed", "## 4. Proposed owner-operated probes (NOT executed)"),
+    ("next gate", "**Next gate.**"),
+)
+
+
+@pytest.mark.parametrize(("name", "anchor"), _SESSION_A_ANCHORS,
+                         ids=[row[0] for row in _SESSION_A_ANCHORS])
+def test_session_a_record_keeps_its_conclusion(repo_root, name, anchor) -> None:
+    """Emptying or gutting the Session A record must fail a gate."""
+    # Whitespace-normalized: an anchor that straddles a line wrap would
+    # otherwise fail on a purely editorial re-wrap, which is a false positive,
+    # not a caught regression.
+    text = " ".join(
+        (repo_root / _SESSION_A_RECORD).read_text(encoding="utf-8").split())
+    assert anchor in text, (
+        "the Session A record lost its " + name + " anchor: " + repr(anchor)
+    )
+
+
+def test_session_a_record_is_a_declared_scan_target(repo_root) -> None:
+    """The pin has to be declared, not just satisfied by the file existing."""
+    checker = (repo_root / "scripts" / "drift_check.py").read_text(
+        encoding="utf-8")
+    assert _SESSION_A_RECORD in checker, (
+        "the Session A record is not a declared scan target, so deleting it "
+        "would raise nothing"
     )

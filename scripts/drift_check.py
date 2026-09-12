@@ -80,6 +80,7 @@ SCAN_FILES = [
     "docs/SCHEMA_EXPLORER.md",
     "docs/PIPELINE.md",
     "docs/audits/2026-08-24-uefn-42-official-mcp-audit.md",
+    "docs/audits/2026-09-10-wo004-session-a-modal-feasibility.md",
     "docs/audits/evidence/2026-08-24-official-mcp-signatures.json",
     "docs/work-orders/README.md",
     "docs/work-orders/completed/WO-001-custom-mcp-security.md",
@@ -1687,18 +1688,88 @@ _WO004_ISSUED_KEYS = (
     ("ISSUANCE_CI_WORKFLOW:", _WO004_ISSUED_SEQUENCE[2]),
     ("ISSUANCE_CI_JOB:", _WO004_ISSUED_SEQUENCE[3]),
 )
+# Authorizing Session A adds three declarations to each canonical block.
+# The slices stay exact and terminal in the new state, so the issuance
+# record cannot be dropped, reordered, or padded on the way through - the
+# same cumulative shape WO-003's session transitions used.
+_WO004_SESSION_A_COMMIT = "f9fc7268d63dad92f5dd009bbf20e11477b8f926"
+_WO004_SESSION_A_WORKFLOW = "34509193110"
+_WO004_SESSION_A_JOB = "102978793893"
+_WO004_SESSION_A_GATE = (
+    "WO-004 SESSION A AUTHORIZED — READ-ONLY FEASIBILITY PLANNING ONLY"
+)
+_WO004_SESSION_A_AUTH = (
+    "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR FEASIBILITY "
+    "PLANNING ONLY"
+)
+_WO004_SESSION_A_ISSUED_SEQUENCE = _WO004_ISSUED_SEQUENCE + (
+    "SESSION_A_AUTHORIZATION_COMMIT: `" + _WO004_SESSION_A_COMMIT + "`",
+    "SESSION_A_AUTHORIZATION_CI_WORKFLOW: `"
+    + _WO004_SESSION_A_WORKFLOW + "`",
+    "SESSION_A_AUTHORIZATION_CI_JOB: `" + _WO004_SESSION_A_JOB + "` "
+    + "— Lint, types, tests",
+)
+_WO004_SESSION_A_POINTER_SEQUENCE = _WO004_POINTER_SEQUENCE[:7] + (
+    "- Session A authorization commit: `" + _WO004_SESSION_A_COMMIT + "`",
+    "- Session A authorization CI workflow: `"
+    + _WO004_SESSION_A_WORKFLOW + "`",
+    "- Session A authorization CI job: `" + _WO004_SESSION_A_JOB + "` "
+    + "— Lint, types, tests",
+) + _WO004_POINTER_SEQUENCE[7:]
+_WO004_SESSION_A_ISSUED_KEYS = _WO004_ISSUED_KEYS + (
+    ("SESSION_A_AUTHORIZATION_COMMIT:",
+     _WO004_SESSION_A_ISSUED_SEQUENCE[4]),
+    ("SESSION_A_AUTHORIZATION_CI_WORKFLOW:",
+     _WO004_SESSION_A_ISSUED_SEQUENCE[5]),
+    ("SESSION_A_AUTHORIZATION_CI_JOB:",
+     _WO004_SESSION_A_ISSUED_SEQUENCE[6]),
+)
+# The base commit is the one declared value that moves with the gate, so
+# the Session A key set repins it to the authorization commit and keeps
+# every issuance bullet unchanged beside it.
+_WO004_SESSION_A_POINTER_KEYS = (
+    (("- Base commit:",
+      "- Base commit: `" + _WO004_SESSION_A_COMMIT + "`"),)
+    + _WO004_POINTER_KEYS[1:]
+    + (("- Session A authorization commit:",
+        _WO004_SESSION_A_POINTER_SEQUENCE[7]),
+       ("- Session A authorization CI workflow:",
+        _WO004_SESSION_A_POINTER_SEQUENCE[8]),
+       ("- Session A authorization CI job:",
+        _WO004_SESSION_A_POINTER_SEQUENCE[9]))
+)
+_WO004_SESSION_A_STATEMENT = (
+    "Session A is authorized for read-only feasibility planning under the "
+    "current root `WORKORDER.md` gate alone."
+)
 _WO004_ISSUANCE_STATEMENT = (
     "Issuance alone grants no implementation authority. A session becomes "
     "implementable only when the owner names it in root `WORKORDER.md`."
 )
-_WO004_NEXT_GATE = (
+_WO004_ISSUED_NEXT_GATE = (
     "NEXT GATE: separate owner authorization for Session A feasibility "
     "only, recorded in root `WORKORDER.md`. Issuance authorizes no session. "
     "Session A, Session B, Session C, and all live UEFN work remain closed."
 )
+_WO004_SESSION_A_NEXT_GATE = (
+    "NEXT GATE: fresh independent review of the complete uncommitted "
+    "Session A feasibility record, followed by a separate owner decision "
+    "on whether the proposed probes run. Session B, Session C, and all "
+    "live UEFN work remain closed."
+)
+# Which canonical shape each authorized state must present. Adding a state
+# here is the visible act that moves the pointer's base commit.
+_WO004_STATES = {
+    "NONE": (_WO004_POINTER_SEQUENCE, _WO004_POINTER_KEYS,
+             _WO004_ISSUED_SEQUENCE, _WO004_ISSUED_KEYS,
+             _WO004_ISSUED_NEXT_GATE, None),
+    "A": (_WO004_SESSION_A_POINTER_SEQUENCE, _WO004_SESSION_A_POINTER_KEYS,
+          _WO004_SESSION_A_ISSUED_SEQUENCE, _WO004_SESSION_A_ISSUED_KEYS,
+          _WO004_SESSION_A_NEXT_GATE, _WO004_SESSION_A_STATEMENT),
+}
 
 
-def _wo004_issuance_findings(pointer, issued_text, rel):
+def _wo004_issuance_findings(pointer, issued_text, rel, session):
     """WO-004's issuance record on the two surfaces that declare it.
 
     Called from outside the session branches on purpose: authorizing a
@@ -1718,11 +1789,34 @@ def _wo004_issuance_findings(pointer, issued_text, rel):
         return line.startswith("## ")
 
     out = []
+    state = _WO004_STATES.get(session)
+    if state is None:
+        # An unrecognized session value is its own finding in the session
+        # branch below. The issuance declarations are common to every
+        # valid state, so they are still counted here - a rogue value
+        # must not be a way to silence the record that issued the order.
+        # Distinct loop names: this branch and the state-driven one below
+        # bind differently shaped key tuples, and reusing one name makes the
+        # second assignment a type error rather than a wider inference.
+        for surface, text, stop, common_keys, where in (
+            ("WORKORDER.md", pointer, pointer_stop,
+             _WO004_POINTER_KEYS[1:], "WORKORDER.md"),
+            (rel, issued_text, document_stop, _WO004_ISSUED_KEYS,
+             "issued record"),
+        ):
+            for kind, found, want in _canonical_key_findings(
+                text, stop, common_keys,
+                "WO-004 issuance declaration (" + where + ")",
+            ):
+                out.append((surface, kind, found, want))
+        return out
+    (pointer_sequence, pointer_keys, issued_sequence, issued_keys,
+     next_gate, statement) = state
     for surface, text, stop, sequence, keys, where in (
-        ("WORKORDER.md", pointer, pointer_stop, _WO004_POINTER_SEQUENCE,
-         _WO004_POINTER_KEYS, "WORKORDER.md"),
-        (rel, issued_text, document_stop, _WO004_ISSUED_SEQUENCE,
-         _WO004_ISSUED_KEYS, "issued record"),
+        ("WORKORDER.md", pointer, pointer_stop, pointer_sequence,
+         pointer_keys, "WORKORDER.md"),
+        (rel, issued_text, document_stop, issued_sequence,
+         issued_keys, "issued record"),
     ):
         for kind, found, want in _canonical_field_findings(
             text, sequence, stop, where,
@@ -1736,10 +1830,11 @@ def _wo004_issuance_findings(pointer, issued_text, rel):
         ):
             out.append((surface, kind, found, want))
     normalized = " ".join(issued_text.split())
-    for wording, kind in (
-        (_WO004_ISSUANCE_STATEMENT, "WO-004 issuance statement"),
-        (_WO004_NEXT_GATE, "WO-004 next gate"),
-    ):
+    wordings = [(_WO004_ISSUANCE_STATEMENT, "WO-004 issuance statement"),
+                (next_gate, "WO-004 next gate")]
+    if statement is not None:
+        wordings.append((statement, "WO-004 session A statement"))
+    for wording, kind in wordings:
         if normalized.count(wording) != 1:
             out.append((rel, kind, str(normalized.count(wording)),
                         "exactly one " + wording))
@@ -2593,7 +2688,7 @@ def check_work_order_contract() -> list[dict]:
                     and issued_id == _WO004_ID):
                 for _f, _k, _found, _want in _wo004_issuance_findings(
                     pointer, issued_text,
-                    issued[0].relative_to(root).as_posix(),
+                    issued[0].relative_to(root).as_posix(), session,
                 ):
                     add(_f, _k, _found, _want)
             if issued[0].name == _WO002_NAME:
@@ -2852,13 +2947,22 @@ def check_work_order_contract() -> list[dict]:
                             add(rel, "WO-002 next gate", "missing or changed",
                                 _WO002_NEXT_GATE)
             elif session == "A":
+                # WO-004's Session A is read-only feasibility planning, not
+                # implementation, so it carries its own gate and marker
+                # rather than the generic implementation pair.
+                wo004_session_a = issued[0].name == _WO004_NAME
                 expected_gate = (
+                    _WO004_SESSION_A_GATE if wo004_session_a else
                     f"{issued_id} SESSION A AUTHORIZED — IMPLEMENT SESSION A ONLY"
                 )
-                if auth_lines != [_ISSUED_SESSION_A_AUTH]:
+                expected_session_a_auth = (
+                    _WO004_SESSION_A_AUTH if wo004_session_a
+                    else _ISSUED_SESSION_A_AUTH
+                )
+                if auth_lines != [expected_session_a_auth]:
                     add(issued[0].relative_to(root).as_posix(),
                         "issued session authorization", repr(auth_lines),
-                        f"exactly {_ISSUED_SESSION_A_AUTH}")
+                        f"exactly {expected_session_a_auth}")
                 if current_gate != expected_gate:
                     add("WORKORDER.md", "authorized session gate", str(current_gate),
                         expected_gate)

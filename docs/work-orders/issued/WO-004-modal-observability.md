@@ -2,7 +2,7 @@
 
 STATUS: ISSUED
 
-AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED
+AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR FEASIBILITY PLANNING ONLY
 
 OWNER: Ocean Bennett
 
@@ -16,6 +16,12 @@ ISSUANCE_CI_WORKFLOW: `34441169191`
 
 ISSUANCE_CI_JOB: `102756337393` — Lint, types, tests
 
+SESSION_A_AUTHORIZATION_COMMIT: `f9fc7268d63dad92f5dd009bbf20e11477b8f926`
+
+SESSION_A_AUTHORIZATION_CI_WORKFLOW: `34509193110`
+
+SESSION_A_AUTHORIZATION_CI_JOB: `102978793893` — Lint, types, tests
+
 ## Issuance basis
 
 The independently accepted revision of this mandate was committed as
@@ -28,6 +34,29 @@ Issuance alone grants no implementation authority. A session becomes
 implementable only when the owner names it in root `WORKORDER.md`. The
 planning baseline above is preserved unchanged; it records the state this
 mandate was planned against, not the issuance point.
+
+## Session A authorization basis
+
+Session A is authorized for read-only feasibility planning under the
+current root `WORKORDER.md` gate alone. The recorded basis is commit
+`f9fc7268d63dad92f5dd009bbf20e11477b8f926`; [CI workflow
+`34509193110`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/34509193110)
+completed successfully, including required job
+[`102978793893` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/34509193110/job/102978793893).
+
+This gate covers source and documentation inspection and the drafting of
+proposed probes. It opens no live UEFN work: no editor launch, no bridge
+start, no official-MCP call, and no level mutation. Every probe this
+session specifies needs its own separate owner gate before anyone runs
+it. The issuance evidence above is preserved unchanged; the planning
+baseline records the state this mandate was planned against, and neither
+is the Session A basis.
+
+Session A records its result in [the 2026-09-10 modal-feasibility
+record](../../audits/2026-09-10-wo004-session-a-modal-feasibility.md). It is a
+declared scan target, and its conclusion is content-pinned in
+`tests/test_repo_integrity.py`, so the record can be neither deleted nor
+emptied silently.
 
 ## Planning basis
 
@@ -293,6 +322,7 @@ declared in the canonical metadata block above and in the root pointer's
 canonical bullet block. The planning basis and the issuance basis are
 distinct records and must not be conflated.
 
-NEXT GATE: separate owner authorization for Session A feasibility only,
-recorded in root `WORKORDER.md`. Issuance authorizes no session. Session A,
-Session B, Session C, and all live UEFN work remain closed.
+NEXT GATE: fresh independent review of the complete uncommitted Session A
+feasibility record, followed by a separate owner decision on whether the
+proposed probes run. Session B, Session C, and all live UEFN work remain
+closed.

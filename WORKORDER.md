@@ -5,12 +5,15 @@ state. Detailed mandates live under `docs/work-orders/`; their presence alone
 never authorizes implementation.
 
 - Current issued Work Order: WO-004
-- Authorized session: NONE
-- Base commit: `8444faf340afe47765c43d943200db712880817b`
-- Current gate: WO-004 ISSUED — SESSION A IMPLEMENTATION NOT AUTHORIZED
+- Authorized session: A
+- Base commit: `f9fc7268d63dad92f5dd009bbf20e11477b8f926`
+- Current gate: WO-004 SESSION A AUTHORIZED — READ-ONLY FEASIBILITY PLANNING ONLY
 - Issuance commit: `8444faf340afe47765c43d943200db712880817b`
 - Issuance CI workflow: `34441169191`
 - Issuance CI job: `102756337393` — Lint, types, tests
+- Session A authorization commit: `f9fc7268d63dad92f5dd009bbf20e11477b8f926`
+- Session A authorization CI workflow: `34509193110`
+- Session A authorization CI job: `102978793893` — Lint, types, tests
 - Release train: WO-001 through WO-007
 - Release gate: NO TAG OR GITHUB RELEASE AUTHORIZED — COMPLETE THE FROZEN TRAIN AND FINAL INTEGRATION/REPOSITORY-TRUTH AUDIT FIRST
 
@@ -102,6 +105,18 @@ pointer, and Session B and Session C stay closed behind it. Tagging,
 Release creation, branch-protection changes, other repository metadata
 changes, and social publication all remain unauthorized, as do WO-005,
 WO-006, and WO-007, which stay proposed.
+
+Session A is authorized under this pointer for read-only feasibility
+planning only, on the basis of commit `f9fc7268d63dad92f5dd009bbf20e11477b8f926`,
+successful CI workflow `34509193110`, and successful required job
+`102978793893` (`Lint, types, tests`). It covers source and
+documentation inspection and the drafting of proposed probes. No live
+UEFN probe, editor launch, bridge start, official-MCP call, or level
+mutation is authorized, and every proposed probe needs its own separate
+owner gate. Session B and Session C stay closed, as do WO-005, WO-006,
+and WO-007. Tagging, Release creation, branch-protection changes, other
+repository metadata changes, and social publication all remain
+unauthorized.
 
 WO-001 through WO-007 form the frozen next release train. The release version
 remains undecided and the repository stays at version 2.4.1. No tag or GitHub
