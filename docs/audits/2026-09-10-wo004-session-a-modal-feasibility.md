@@ -6,6 +6,14 @@ AUTHORIZATION: READ-ONLY PLANNING — NO LIVE UEFN WORK PERFORMED
 
 SESSION_A_AUTHORIZATION_COMMIT: `f9fc7268d63dad92f5dd009bbf20e11477b8f926`
 
+**Record status (added 2026-09-12).** Sections 1–5 are the Session A planning
+record as committed at `aef5f6ea1f8fcb8b86d4eea4ebf68d69a8b10697`, preserved
+unchanged. The `AUTHORIZATION` line above and the statements in Sections 1–5 that
+nothing was executed describe that point in time. Owner-operated live
+observations made on 2026-09-12 are appended in
+[Section 6](#6-live-probe-a-observations-2026-09-12); they add to the planning
+findings and do not rewrite them.
+
 ## Scope and authority
 
 Session A was authorized for read-only feasibility planning under the root
@@ -428,3 +436,289 @@ signal backed by a stall observation. They would **not** establish
 **Next gate.** A separate owner authorization to run Probes A—C in `TOOL_TEST`.
 Feasibility is not proven, no dependent implementation may begin, and Session B
 remains closed and un-scoped until Probe A returns.
+
+## 6. Live Probe A observations (2026-09-12)
+
+### 6.1 Provenance and scope
+
+This section was recorded after the live runs. Sections 1–5 are unchanged.
+
+The owner authorized live execution of Probe A during the working session on
+2026-09-12 and personally operated UEFN and every dialog. The Python-opened
+message-box run in 6.6 was separately authorized in the same session. Root
+`WORKORDER.md` was **not** changed for these runs and still reads
+`WO-004 SESSION A AUTHORIZED — READ-ONLY FEASIBILITY PLANNING ONLY`; the live
+runs were authorized in-session, not through an updated pointer gate. No
+implementation, bridge, MCP call, save, or import took place.
+
+### 6.2 Configuration
+
+| | |
+|---|---|
+| Date and clock | 2026-09-12. Local times are UTC−4. Editor-log timestamps are UTC; the offset was calibrated against the probe's own printed start time. |
+| Editor | Engine Version `6.0.0-57819926+++Fortnite+Release-42.10`, branch `++Fortnite+Release-42.10`, Net CL `56443220`, Shipping build, Windows 11 (25H2) |
+| Version fields | The running editor reported `Release-42.10` in its Engine Version and branch fields, above. `TOOL_TEST.uefnproject` separately declares `"compatibilityVersion": "42.00"`; that is a project field and does not identify the running editor build. The mandate's fixture list names 42.00, and session summaries written during the runs described the editor as 42.00 in error. |
+| Project and level | `TOOL_TEST` |
+| Project settings | `bEnablePythonForProject: true` and `bEnableToolsetsForProject: true`, read from `TOOL_TEST.uefnproject` |
+| Toolbelt bridge | Not started. At every check made before and after the runs, ports 8765–8770 were not listening and no handoff file existed. |
+| Deployment | None. The probe scripts import no Toolbelt module. |
+
+### 6.3 Scripts actually executed
+
+The code block in Section 4 is **not** byte-identical to what ran. The executed
+scripts are preserved exactly in the evidence directory (6.12):
+
+| File | Role | Difference from Section 4 |
+|---|---|---|
+| `wo004_probe_a.py.txt` | tick recorder | Distinguishes a first run (no prior handle) from a failed unregistration and halts on failure, instead of `except Exception: pass`. Halts if registration returns no handle. Uses `_wo004_*` global names. |
+| `wo004_probe_a_stop.py.txt` | stop | Unregisters and confirms; halts on failure. Section 4 has no separate stop script. |
+| `wo004_dialog_api_check.py.txt` | read-only attribute check | Not in Section 4. Opens nothing. |
+| `wo004_dialog_probe.py.txt` | Python-opened message box | Not in Section 4. See 6.6. |
+
+They carry a `.txt` suffix because two `raise` statements inside `except` blocks
+omit `from`, which the repository's ruff configuration reports as B904
+(`wo004_probe_a.py:28`, `wo004_probe_a_stop.py:23`). Stored as `.py` they would
+fail the lint gate; editing them would break byte-exactness. Their content is
+unchanged.
+
+### 6.4 Runs
+
+Tick counts and gaps are computed from the tick logs. In every run the `n`
+counter is contiguous, so no writes were dropped.
+
+| Run | Dialog, as observed by the owner | Ticks and span | Longest callback gap | Next-longest |
+|---|---|---|---|---|
+| `162950` | **None.** The dialog step was not performed: the instruction was buried in a long message. Recorded as an idle observation. | 3,214 ticks, 16:29:50.028–16:32:50.545 (180.5 s) | **27.781 s**, 16:32:09.740 to 16:32:37.521 | 0.460 s |
+| `170615` | None. Idle control. | 310 ticks, 17:06:15.608–17:07:19.004 (63.4 s): ticks 1–11 within 0.082 s; then one tick about every 0.333 s from tick 11 (17:06:15.690) to tick 198 (17:07:18.021); then ticks 198–310 (113 ticks) within the final 0.983 s before the stop command | 0.335 s | 0.335 s |
+| `171234` | Content Browser → Import file picker, opened by the owner, no file selected, cancelled. File → Choose Files to Save had opened no window on the clean project. | 2,324 ticks, 17:12:34.859–17:15:12.477 (157.6 s) | **52.589 s**, 17:13:14.094 to 17:14:06.683 | 0.338 s |
+| `172253` | OK-only message box opened by a Python console command. A deviation; see 6.6. | 1,364 ticks, 17:22:53.376–17:24:44.711 (111.3 s) | **48.365 s**, 17:23:49.569 to 17:24:37.934 | 0.335 s |
+
+### 6.5 Observed conditions and competing explanations
+
+Four kinds of evidence are kept separate here.
+
+**Callback gaps** — measured from the tick logs, as in 6.4.
+
+**Owner-observed dialogs** — `162950` and `170615`: none. `171234`: the Import
+picker, open during a period the owner confirmed in chat. `172253`: the message
+box, confirmed by the owner and timestamped by the script.
+
+**Editor-log events** — observed. Each item names its source: the committed
+`editor-log-excerpts.txt`, the tick logs, the structured events file, or the
+unredacted raw log preserved outside the repository.
+
+- `162950` (excerpt and tick log): `LogStreaming: FlushAsyncLoading` is logged at
+  16:32:09.717, about 23 ms **before** the last callback that precedes the gap
+  (16:32:09.740782; the editor log records whole milliseconds). It is not inside
+  the gap. Four `LogAssetRegistry` cache lines are logged at 16:32:31.511–.517,
+  inside the gap (16:32:09.740–16:32:37.521). Neither the excerpt nor the raw log
+  contains a line between the two.
+- `171234`: no editor-log line falls inside the gap (17:13:14.094–17:14:06.683).
+  In the committed excerpt the nearest lines are at 17:13:05.865 before it and
+  17:15:12.482 after it; the unredacted raw log, preserved outside the
+  repository, also has no line of any category inside the gap. Garbage
+  collection was logged at 17:13:05.735–.865, ending before the gap began.
+- `172253` (excerpt): `before_show_message` logged at 17:23:49.574; swap chain
+  created 17:23:49.599; `Window 'WO-004 test dialog' being destroyed`
+  17:24:37.908; `Message dialog closed, result: Ok` 17:24:37.925;
+  `after_show_message` logged at 17:24:37.926. No other lines between opening
+  and closing. These are editor-log times at millisecond resolution; the
+  structured events file records the same two events at 17:23:49.574271 and
+  17:24:37.925532 (6.6).
+
+**Inferred causes** — none verified. A log line near or inside a gap does not
+establish what caused it:
+
+- `162950`: a loading flush was logged about 23 ms before the gap, and
+  registry-cache work inside it. Whether either relates to the gap is not
+  established.
+- `170615`: the cadence of about one tick every 0.333 s is consistent with the
+  editor throttling ticks while unfocused. The owner did not report focus state,
+  so this is an inference.
+- `171234`: the gap overlapped the owner-reported picker period (6.8). The
+  mechanism is unverified; a blocking operating-system dialog loop on the editor
+  thread is one plausible explanation.
+- `172253`: the gap matched the Python call's duration. Two competing
+  explanations remain; see 6.6.
+
+Callback silence was therefore recorded under three distinct observed
+conditions. Its cause in each remains unestablished.
+
+### 6.6 The Python-opened message box: deviation and confound
+
+**Deviation.** The reviewed Probe A procedure is an owner-opened dialog. This run
+instead opened a dialog from a Python console command. It is recorded as a
+separate, additional observation and is not the originally reviewed probe.
+
+It was preceded by a read-only check that opened nothing and confirmed that
+`unreal.EditorDialog.show_message` exists, with the signature
+`show_message(title, message, message_type, default_value=AppReturnType.NO, message_category=AppMsgCategory.WARNING) -> AppReturnType`.
+Epic's docstring states that the call blocks execution until the user makes a
+decision, unless the editor runs in `-unattended` mode.
+
+**Observation.** Zero callbacks between the structured event timestamps
+`before_show_message` (17:23:49.574271) and `after_show_message`
+(17:24:37.925532) in `wo004_dialog_events_172349.jsonl`, a span of 48.351 s. The
+last tick was 5.0 ms before the first event and the first tick 8.5 ms after the
+second. The corresponding editor-log lines are at 17:23:49.574 and 17:24:37.926
+(6.5).
+
+**Confound.** The dialog was opened from inside a Python command that kept
+executing until the owner clicked OK. This run cannot separate two explanations:
+
+- **(a)** the modal message-box loop does not deliver Slate post-tick callbacks;
+- **(b)** post-tick delivery continues, but Python callbacks are not dispatched
+  while another Python command is still executing.
+
+Neither is verified. If (b) holds, the run says nothing about dialogs a person
+opens.
+
+### 6.7 The log-prefix counter field
+
+**Source.** The second bracketed integer in each timestamped line of
+`UnrealEditorFortnite.log`, as in `[2026.09.12-21.23.49:572][176]`. Its
+semantics are not documented in this repository, and engine source is not
+available here.
+
+**Empirical behaviour** across the 7,844 timestamped lines of this log: values
+range from 0 to 989. Consecutive lines decrease 26 times; 6 of those are
+high-to-low (`>=900` to `<=100`) and 20 are not, for example `282` to `280` and
+`286` to `186`. The field is therefore not monotonic from line to line, and a
+difference between two values cannot be read as a count of frames or of any
+other event.
+
+**Observations only.** In `162950`, the value is `989` on the five lines from
+16:32:09.717 to 16:32:31.517 — the only place in the log where consecutive lines
+more than 5 s apart share a value. In `172253`, the value is `176` on the lines at
+the dialog's opening and `40` at its closing, with no lines between.
+
+**Withdrawn.** Statements made during the session that the editor "kept rendering
+frames" (at least 864) while the message box was open, or was "frozen" during
+`162950`, are not supported and are not part of this record.
+
+### 6.8 What the owner-opened Import-picker run establishes
+
+**Established**, for this window, in this configuration, in one trial:
+
+- A 52.589 s callback gap (17:13:14.094–17:14:06.683, from the tick log) covered
+  the agent's live check that followed the owner's report that the picker was
+  open. That check read the live tick log at 17:13:43–17:13:46 and found no new
+  ticks, the newest record being 32 s old. Ticks had resumed by the check made
+  after the owner reported the picker closed. The live-check times come from the
+  working-session record and are not preserved in the evidence directory. The
+  gap is bracketed by these checks: it is not the dialog's duration, and whether
+  its start and end coincide with opening and cancelling is unknown.
+- No Python command was executing during it, so explanation (b) in 6.6 does not
+  apply to this run.
+- No editor-log line of any kind falls inside the gap: none in the committed
+  excerpt, and none in the unredacted raw log preserved outside the repository.
+
+**Unknown:**
+
+- the exact open and cancel instants, which were not independently timestamped —
+  the gap is bracketed, not matched;
+- why the callbacks stopped;
+- whether the editor continued other work meanwhile — the log contains no line
+  inside the gap, and the counter field in 6.7 cannot answer it;
+- whether an in-editor Slate dialog, including the Save Content prompt from the
+  2026-08-24 incident, behaves the same;
+- whether the result repeats;
+- whether anything outside the Python tick path could observe or classify it.
+
+**Further testing** should answer a specific remaining design question, not add
+dialog examples:
+
+1. **Does WO-004 need dialog-specific classification at all?** The mandate
+   already makes `unknown`/`pending` the default without positive evidence. If
+   callback silence is only ever reported as `unknown`, no dialog test is
+   required. This is a design decision, not a test.
+2. **If a silence reader is pursued, can it run outside the Python tick path?**
+   Section 2.3 found no bridge command is served from the HTTP thread. This is a
+   Session B design question.
+3. **If dialog attribution is pursued:** during an owner-opened in-editor Slate
+   modal with no Python command executing, are Python post-tick callbacks
+   delivered? That would separate (a) from (b) in 6.6. It needs unsaved content
+   to produce the Save Content prompt, and so a specific owner-approved temporary
+   change.
+
+### 6.9 Bounded conclusion
+
+- Callback silence was observed in multiple conditions: overlapping an
+  owner-reported native file picker, during a Python-opened message box, and with
+  no dialog open.
+- Where boundaries were recorded, the silence was sharply bounded: within 5.0 ms
+  and 8.5 ms of the message-box call in `172253`.
+- Because silence also occurred with no dialog open, callback silence alone cannot
+  identify a dialog as its cause.
+- **The cause of the silence remains unproven in every run.**
+- **Dialog-specific classification or diagnosis remains unproven.**
+- **An operational external reader remains unproven.** `_tick_health` is still
+  write-only, and nothing reads it.
+- There was one trial per condition. No heartbeat reliability is claimed.
+
+The planning conclusion in Section 5 is preserved as historical. Probe A's
+question is now answered only for the windows and conditions above, not in
+general. Probes B and C were not run.
+
+### 6.10 Limitations
+
+- One trial per condition, one machine, editor build `Release-42.10` (project
+  `compatibilityVersion` 42.00), Toolsets beta enabled.
+- The control, `170615`, ticked about every 0.333 s for most of its span, with
+  fast bursts in its first 0.082 s and final 0.983 s (6.4). Its cadence differs
+  from the other runs, so it is not a matched control.
+- `162950` was meant to be the dialog run, but no dialog was opened.
+- File → Choose Files to Save opened no window, so the Save Content prompt
+  remains untested.
+- Live checks in `171234` depended on chat round-trip timing; they bracket events
+  rather than timestamp them.
+- The recorder writes to disk on every tick. The perturbation is irrelevant at a
+  scale of tens of seconds.
+- Nothing here concerns Epic's official MCP surface.
+
+### 6.11 Cleanup evidence
+
+- Every run's stop script printed `callback unregistered and confirmed.`, and each
+  tick log's record count equals the count the stop script reported: 3,214, 310,
+  2,324 and 1,364.
+- No tick log changed size or modification time after its stop command. This was
+  checked over 3 s immediately after `171234` and `172253`, and at later reads for
+  all four.
+- No bridge ran: at every check before and after the runs, ports 8765–8770 were
+  not listening and no handoff file existed.
+- In `TOOL_TEST`, nothing was saved or imported and no content was modified.
+- The raw originals remain in the editor's `Saved` directory, unmodified.
+
+### 6.12 Evidence and redaction
+
+`docs/audits/evidence/wo004-probe-a/` contains:
+
+- the four tick logs and one dialog-events file — byte-exact copies of the files
+  UEFN wrote;
+- the four executed scripts, as `.py.txt` — byte-exact;
+- `editor-log-excerpts.txt` — redacted editor-log excerpts for the five run and
+  check windows;
+- `SHA256SUMS.txt` — the SHA-256 of every file listed here;
+- `.gitattributes` — `* binary`, so git stores and checks out exact bytes and the
+  hashes hold regardless of `core.autocrlf`. This differs from
+  `2026-08-27-wo002-session-b-official-mcp.json`, which is stored
+  text-normalized.
+
+**Redaction** applies to `editor-log-excerpts.txt` only. The tick logs, events
+file and scripts contain no paths or identifiers and are unredacted.
+
+- 20 lines: the Windows user-profile path segment containing the account name was
+  replaced with `<user>`, and the agent's temporary working directory with
+  `<agent-scratchpad>`.
+- Whole categories were excluded: `LogEOSSDK` (48 lines, account and auth
+  activity), `LogOnlineAccount` (4 lines, auth-token cache) and
+  `LogShaderCompilers` (40 lines, not relevant).
+- Nothing else was altered. Line order and timestamps are unchanged.
+- The unredacted originals are preserved outside the repository, in the editor's
+  `Saved/wo004-probe-a-raw/` directory, with their own verified SHA-256 manifest.
+
+### 6.13 Gate status
+
+`WORKORDER.md` is unchanged and still authorizes Session A for read-only
+feasibility planning only. This record authorizes no further live test, no
+Session B or C, and no implementation, and it does not complete WO-004.

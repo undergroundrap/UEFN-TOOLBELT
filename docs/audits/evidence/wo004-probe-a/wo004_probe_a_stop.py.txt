@@ -1,0 +1,36 @@
+# WO-004 Probe A — stop and confirm.
+#
+# Unregisters the tick callback and CONFIRMS it. A failure here is not
+# swallowed: it halts with an explicit restart requirement, because a stale
+# C++ registration against a freed Python object is Quirk #26 -
+# EXCEPTION_ACCESS_VIOLATION, no traceback, nothing catchable.
+
+import time
+import traceback
+
+import unreal
+
+_h = globals().get("_wo004_h")
+if _h is None:
+    print("[WO-004] nothing to unregister in this console session.")
+    print("[WO-004] If a probe was started in an EARLIER session, its handle "
+          "is gone. Restart UEFN before running the probe again.")
+else:
+    try:
+        unreal.unregister_slate_post_tick_callback(_h)
+    except Exception:
+        traceback.print_exc()
+        raise RuntimeError(
+            "WO-004 PROBE A STOP FAILED: the callback may still be "
+            "registered. Do NOT run the probe again. Restart UEFN fully "
+            "before any further run."
+        )
+    _wo004_h = None
+    globals().pop("_wo004_h", None)
+    print("[WO-004] callback unregistered and confirmed.")
+
+print("[WO-004] wall-clock stop:", time.strftime("%H:%M:%S"))
+print("[WO-004] ticks recorded this run:",
+      globals().get("_wo004_state", {}).get("n", "unknown"))
+print("[WO-004] log file:", globals().get("_wo004_log", "unknown"))
+print("[WO-004] Leave the .jsonl files in place - they are the evidence.")

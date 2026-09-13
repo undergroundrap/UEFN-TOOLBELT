@@ -1,0 +1,26 @@
+# WO-004 — read-only check: does this UEFN expose a message-box API?
+#
+# Opens NOTHING. Calls nothing that shows UI. Only inspects attributes and
+# prints what exists, so the dialog probe is not handed over on an assumption.
+
+import unreal
+
+_dlg = getattr(unreal, "EditorDialog", None)
+_show = getattr(_dlg, "show_message", None)
+_msg_type = getattr(unreal, "AppMsgType", None)
+_ret_type = getattr(unreal, "AppReturnType", None)
+
+print("[WO-004 check] unreal.EditorDialog exists:", _dlg is not None)
+print("[WO-004 check] EditorDialog.show_message exists:", _show is not None)
+print("[WO-004 check] unreal.AppMsgType exists:", _msg_type is not None)
+print("[WO-004 check] AppMsgType.OK exists:", hasattr(_msg_type, "OK"))
+print("[WO-004 check] unreal.AppReturnType exists:", _ret_type is not None)
+if _msg_type is not None:
+    print("[WO-004 check] AppMsgType members:",
+          [name for name in dir(_msg_type) if name.isupper()])
+if _show is not None:
+    _doc = (getattr(_show, "__doc__", "") or "").strip().splitlines()
+    print("[WO-004 check] show_message signature/doc:")
+    for _line in _doc[:12]:
+        print("[WO-004 check]   " + _line)
+print("[WO-004 check] done - nothing was opened")

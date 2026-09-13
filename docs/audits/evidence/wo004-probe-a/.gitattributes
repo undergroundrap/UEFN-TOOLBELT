@@ -1,0 +1,3 @@
+# Raw WO-004 Probe A evidence. Store and check out the exact bytes, so
+# SHA256SUMS.txt holds on every platform regardless of core.autocrlf.
+* binary

@@ -1,0 +1,58 @@
+# WO-004 Probe A — does a Slate post-tick callback keep firing during a dialog?
+#
+# Runs in the UEFN Python console. Imports only unreal/time/json/pathlib —
+# no Toolbelt module, so no deployment is involved.
+# Writes one scratch .jsonl. Touches no level state, saves nothing.
+#
+# Divergence from the committed report, made deliberately on owner direction:
+# the report's guard was `except Exception: pass`, which would swallow a real
+# unregistration failure and carry on. Here a FIRST RUN (no prior handle) is
+# distinguished from an ACTUAL FAILURE to unregister, and the failure halts.
+
+import json
+import pathlib
+import time
+import traceback
+
+import unreal
+
+_prior = globals().get("_wo004_h")
+if _prior is None:
+    print("[WO-004] no prior callback handle in this console session")
+else:
+    try:
+        unreal.unregister_slate_post_tick_callback(_prior)
+        print("[WO-004] prior callback unregistered cleanly")
+    except Exception:
+        traceback.print_exc()
+        raise RuntimeError(
+            "WO-004 PROBE A HALTED: the prior tick callback could not be "
+            "unregistered, so its state is uncertain. Do NOT re-run this "
+            "probe. Restart UEFN fully before any further run - a stale C++ "
+            "registration against a freed Python object is Quirk #26."
+        )
+
+_wo004_run = time.strftime("%H%M%S")
+_wo004_log = (pathlib.Path(str(unreal.Paths.project_saved_dir()))
+              / ("wo004_tick_probe_" + _wo004_run + ".jsonl"))
+_wo004_state = {"n": 0}
+
+
+def _wo004_probe(delta_time):
+    _wo004_state["n"] += 1
+    with open(_wo004_log, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps({"n": _wo004_state["n"],
+                                 "t": time.time()}) + "\n")
+
+
+_wo004_h = unreal.register_slate_post_tick_callback(_wo004_probe)
+if _wo004_h is None:
+    raise RuntimeError(
+        "WO-004 PROBE A HALTED: registration returned no handle, so nothing "
+        "can be unregistered later. Restart UEFN before retrying."
+    )
+
+print("[WO-004] run", _wo004_run, "recording to:", _wo004_log)
+print("[WO-004] wall-clock start:", time.strftime("%H:%M:%S"))
+print("[WO-004] leave idle ~15s, then open the dialog. Note the time you")
+print("[WO-004] open it and the time you dismiss it.")

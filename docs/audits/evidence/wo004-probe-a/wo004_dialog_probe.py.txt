@@ -1,0 +1,47 @@
+# WO-004 — dialog probe: opens ONE harmless OK-only message box and records
+# exact timestamps immediately before it opens and immediately after it closes.
+#
+# Run ONLY while wo004_probe_a.py is recording. The tick recorder and this
+# script together answer: do Slate post-tick callbacks keep firing while an
+# in-editor modal message box is open?
+#
+# Safety: the box has a single OK button and changes nothing. Nothing here
+# dismisses or confirms it - the owner clicks OK. Writes one scratch .jsonl.
+#
+# This runs from the console, not from inside a tick callback: opening a modal
+# re-entrantly from a Slate tick is a crash risk, so it is deliberately avoided.
+
+import json
+import pathlib
+import time
+
+import unreal
+
+if globals().get("_wo004_h") is None:
+    raise RuntimeError(
+        "WO-004 DIALOG PROBE HALTED: the tick recorder is not running. "
+        "Start wo004_probe_a.py first, then run this."
+    )
+
+_wo004_events = (pathlib.Path(str(unreal.Paths.project_saved_dir()))
+                 / ("wo004_dialog_events_" + time.strftime("%H%M%S") + ".jsonl"))
+
+
+def _wo004_mark(event, **extra):
+    record = {"event": event, "t": time.time()}
+    record.update(extra)
+    with open(_wo004_events, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record) + "\n")
+    print("[WO-004 dialog]", event, time.strftime("%H:%M:%S"), extra or "")
+
+
+print("[WO-004 dialog] events file:", _wo004_events)
+_wo004_mark("before_show_message")
+_wo004_result = unreal.EditorDialog.show_message(
+    "WO-004 test dialog",
+    "This is a harmless test dialog. It changes nothing.\n\n"
+    "Wait about 30 seconds, then click OK.",
+    unreal.AppMsgType.OK,
+)
+_wo004_mark("after_show_message", result=str(_wo004_result))
+print("[WO-004 dialog] done - now run the stop command")

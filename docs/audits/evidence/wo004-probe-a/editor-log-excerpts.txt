@@ -1,0 +1,127 @@
+===== run 162950 - no dialog was opened | editor log UTC 20:29:45-20:32:56 | local time = UTC-4 =====
+[2026.09.12-20.29.47:108][492]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.29.50:013][833]LogPython: exec(open(r"<agent-scratchpad>\wo004_probe_a.py").read())
+[2026.09.12-20.29.50:015][833]LogPython: [WO-004] no prior callback handle in this console session
+[2026.09.12-20.29.50:015][833]LogPython: [WO-004] run 162950 recording to: C:\Users\<user>\AppData\Local\UnrealEditorFortnite\Saved\wo004_tick_probe_162950.jsonl
+[2026.09.12-20.29.50:019][833]LogPython: [WO-004] wall-clock start: 16:29:50
+[2026.09.12-20.29.50:019][833]LogPython: [WO-004] leave idle ~15s, then open the dialog. Note the time you
+[2026.09.12-20.29.50:023][833]LogPython: [WO-004] open it and the time you dismiss it.
+[2026.09.12-20.31.29:355][562]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.31.31:527][790]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.31.32:016][839]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.31.32:528][897]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.31.32:689][912]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.31.33:045][941]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.31.33:716][ 19]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.31.34:240][ 79]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.31.34:523][109]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.31.53:828][412]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.31.55:258][514]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.31.56:350][613]LogSlate: Display: Synchronously lazy loading font file '../../../Engine/Content/Slate/Fonts/Roboto-Light.ttf' with subface index 0 in Game thread.
+[2026.09.12-20.31.56:350][613]LogSlate: Display: Took 0.000502 seconds to synchronously load lazily loaded font '../../../Engine/Content/Slate/Fonts/Roboto-Light.ttf' (167K) on Game thread.
+[2026.09.12-20.31.56:350][613]LogSlate: Display: Freetype font face in memory successfully created with synchronously loaded raw font file '../../../Engine/Content/Slate/Fonts/Roboto-Light.ttf' subface 0 in Game thread.
+[2026.09.12-20.31.56:350][613]LogSlate: Display: Font face '../../../Engine/Content/Slate/Fonts/Roboto-Light.ttf' subface index 0 successfully added to font face map in Game thread.
+[2026.09.12-20.32.09:717][989]LogStreaming: Display: FlushAsyncLoading(3310): 1 QueuedPackages, 0 AsyncPackages
+[2026.09.12-20.32.31:511][989]LogAssetRegistry: Display: Asset registry cache written as 12.4 MiB to C:/Users/<user>/AppData/Local/UnrealEditorFortnite/Intermediate/CachedAssetRegistry/CachedAssetRegistry_*.ref
+[2026.09.12-20.32.31:515][989]LogAssetRegistry: Display: CleanupOrphanedCacheFiles (PostWrite): 1 .ref files found, 1 referenced binaries
+[2026.09.12-20.32.31:517][989]LogAssetRegistry: Display:   CachedAssetRegistry_0_8DB6BBBA4229B49AEDBAC99E10BE3BB3.bin: deleted (orphaned, unreferenced by any .ref)
+[2026.09.12-20.32.31:517][989]LogAssetRegistry: Display: CleanupOrphanedCacheFiles: 2 total binaries, 1 referenced (kept), 0 old-style pre-migration (kept), 1 orphans deleted, 0 orphans locked (kept)
+[2026.09.12-20.32.45:698][478]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-20.32.50:549][ 46]LogPython: exec(open(r"<agent-scratchpad>\wo004_probe_a_stop.py").read())
+[2026.09.12-20.32.50:550][ 46]LogPython: [WO-004] callback unregistered and confirmed.
+[2026.09.12-20.32.50:550][ 46]LogPython: [WO-004] wall-clock stop: 16:32:50
+[2026.09.12-20.32.50:557][ 46]LogPython: [WO-004] ticks recorded this run: 3214
+[2026.09.12-20.32.50:557][ 46]LogPython: [WO-004] log file: C:\Users\<user>\AppData\Local\UnrealEditorFortnite\Saved\wo004_tick_probe_162950.jsonl
+[2026.09.12-20.32.50:564][ 46]LogPython: [WO-004] Leave the .jsonl files in place - they are the evidence.
+[2026.09.12-20.32.51:728][185]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+
+===== run 170615 - idle control | editor log UTC 21:06:10-21:07:25 | local time = UTC-4 =====
+[2026.09.12-21.06.15:512][323]LogPython: exec(open(r"<agent-scratchpad>\wo004_probe_a.py").read())
+[2026.09.12-21.06.15:514][323]LogPython: [WO-004] no prior callback handle in this console session
+[2026.09.12-21.06.15:538][323]LogPython: [WO-004] run 170615 recording to: C:\Users\<user>\AppData\Local\UnrealEditorFortnite\Saved\wo004_tick_probe_170615.jsonl
+[2026.09.12-21.06.15:538][323]LogPython: [WO-004] wall-clock start: 17:06:15
+[2026.09.12-21.06.15:562][323]LogPython: [WO-004] leave idle ~15s, then open the dialog. Note the time you
+[2026.09.12-21.06.15:563][323]LogPython: [WO-004] open it and the time you dismiss it.
+[2026.09.12-21.07.19:009][633]LogPython: exec(open(r"<agent-scratchpad>\wo004_probe_a_stop.py").read())
+[2026.09.12-21.07.19:010][633]LogPython: [WO-004] callback unregistered and confirmed.
+[2026.09.12-21.07.19:010][633]LogPython: [WO-004] wall-clock stop: 17:07:19
+[2026.09.12-21.07.19:014][633]LogPython: [WO-004] ticks recorded this run: 310
+[2026.09.12-21.07.19:014][633]LogPython: [WO-004] log file: C:\Users\<user>\AppData\Local\UnrealEditorFortnite\Saved\wo004_tick_probe_170615.jsonl
+[2026.09.12-21.07.19:018][633]LogPython: [WO-004] Leave the .jsonl files in place - they are the evidence.
+
+===== run 171234 - owner-opened Import picker | editor log UTC 21:12:30-21:15:15 | local time = UTC-4 =====
+[2026.09.12-21.12.30:954][918]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-21.12.34:845][371]LogPython: exec(open(r"<agent-scratchpad>\wo004_probe_a.py").read())
+[2026.09.12-21.12.34:845][371]LogPython: [WO-004] no prior callback handle in this console session
+[2026.09.12-21.12.34:846][371]LogPython: [WO-004] run 171234 recording to: C:\Users\<user>\AppData\Local\UnrealEditorFortnite\Saved\wo004_tick_probe_171234.jsonl
+[2026.09.12-21.12.34:849][371]LogPython: [WO-004] wall-clock start: 17:12:34
+[2026.09.12-21.12.34:849][371]LogPython: [WO-004] leave idle ~15s, then open the dialog. Note the time you
+[2026.09.12-21.12.34:853][371]LogPython: [WO-004] open it and the time you dismiss it.
+[2026.09.12-21.13.00:995][557]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-21.13.02:938][755]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-21.13.05:735][ 77]LogGarbage: Collecting garbage
+[2026.09.12-21.13.05:801][ 77]LogGarbage: GC Reachability Analysis total time: 66.64 ms (66.64 ms on reference traversal)
+[2026.09.12-21.13.05:801][ 77]LogGarbage: 66.64 ms for GC - 0 refs/ms while processing 0 references from 0 objects  with 0 clusters
+[2026.09.12-21.13.05:801][ 77]LogGarbage: Freed 69880b from 16 GC contexts
+[2026.09.12-21.13.05:802][ 77]LogGarbage: 0.484399 ms for Gather Unreachable Objects (2426 objects collected / 455591 scanned with 26 thread(s))
+[2026.09.12-21.13.05:813][ 77]LogGarbage: 5.201202 ms for unhashing unreachable objects (2426 objects unhashed)
+[2026.09.12-21.13.05:860][ 77]LogGarbage: GC purged 2426 objects (455591 -> 453165) in 47.052ms (1 iteration(s))
+[2026.09.12-21.13.05:865][ 77]LogUObjectHash: Compacting FUObjectHashTables data took   5.33ms
+[2026.09.12-21.15.12:482][694]LogPython: exec(open(r"<agent-scratchpad>\wo004_probe_a_stop.py").read())
+[2026.09.12-21.15.12:482][694]LogPython: [WO-004] callback unregistered and confirmed.
+[2026.09.12-21.15.12:482][694]LogPython: [WO-004] wall-clock stop: 17:15:12
+[2026.09.12-21.15.12:486][694]LogPython: [WO-004] ticks recorded this run: 2324
+[2026.09.12-21.15.12:486][694]LogPython: [WO-004] log file: C:\Users\<user>\AppData\Local\UnrealEditorFortnite\Saved\wo004_tick_probe_171234.jsonl
+[2026.09.12-21.15.12:490][694]LogPython: [WO-004] Leave the .jsonl files in place - they are the evidence.
+
+===== read-only API check - no dialog opened | editor log UTC 21:15:15-21:22:50 | local time = UTC-4 =====
+[2026.09.12-21.17.43:681][892]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-21.21.59:088][323]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-21.22.01:761][638]LogPython: exec(open(r"<agent-scratchpad>\wo004_dialog_api_check.py").read())
+[2026.09.12-21.22.01:762][638]LogPython: [WO-004 check] unreal.EditorDialog exists: True
+[2026.09.12-21.22.01:762][638]LogPython: [WO-004 check] EditorDialog.show_message exists: True
+[2026.09.12-21.22.01:765][638]LogPython: [WO-004 check] unreal.AppMsgType exists: True
+[2026.09.12-21.22.01:765][638]LogPython: [WO-004 check] AppMsgType.OK exists: True
+[2026.09.12-21.22.01:769][638]LogPython: [WO-004 check] unreal.AppReturnType exists: True
+[2026.09.12-21.22.01:770][638]LogPython: [WO-004 check] AppMsgType members: ['CANCEL_RETRY_CONTINUE', 'OK', 'OK_CANCEL', 'YES_NO', 'YES_NO_CANCEL', 'YES_NO_YES_ALL', 'YES_NO_YES_ALL_NO_ALL', 'YES_NO_YES_ALL_NO_ALL_CANCEL']
+[2026.09.12-21.22.01:773][638]LogPython: [WO-004 check] show_message signature/doc:
+[2026.09.12-21.22.01:773][638]LogPython: [WO-004 check]   X.show_message(title, message, message_type, default_value=AppReturnType.NO, message_category=AppMsgCategory.WARNING) -> AppReturnType
+[2026.09.12-21.22.01:777][638]LogPython: [WO-004 check]   Open a modal message box dialog with the given message. If running in "-unattended" mode it will immediately
+[2026.09.12-21.22.01:777][638]LogPython: [WO-004 check]   return the value specified by DefaultValue. If not running in "-unattended" mode then it will block execution
+[2026.09.12-21.22.01:781][638]LogPython: [WO-004 check]   until the user makes a decision, at which point their decision will be returned.
+[2026.09.12-21.22.01:781][638]LogPython: [WO-004 check]   
+[2026.09.12-21.22.01:785][638]LogPython: [WO-004 check]   Args:
+[2026.09.12-21.22.01:785][638]LogPython: [WO-004 check]       title (Text): The title of the created dialog window
+[2026.09.12-21.22.01:789][638]LogPython: [WO-004 check]       message (Text): Text of the message to show
+[2026.09.12-21.22.01:789][638]LogPython: [WO-004 check]       message_type (AppMsgType): Specifies which buttons the dialog should have
+[2026.09.12-21.22.01:793][638]LogPython: [WO-004 check]       default_value (AppReturnType): If the application is Unattended, the function will log and return DefaultValue
+[2026.09.12-21.22.01:793][638]LogPython: [WO-004 check]       message_category (AppMsgCategory): The category of the message (affects the icon used)
+[2026.09.12-21.22.01:797][638]LogPython: [WO-004 check]   
+[2026.09.12-21.22.01:797][638]LogPython: [WO-004 check] done - nothing was opened
+[2026.09.12-21.22.02:769][753]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+
+===== run 172253 - Python-opened message box | editor log UTC 21:22:50-21:24:50 | local time = UTC-4 =====
+[2026.09.12-21.22.50:024][225]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-21.22.53:361][600]LogPython: exec(open(r"<agent-scratchpad>\wo004_probe_a.py").read())
+[2026.09.12-21.22.53:362][600]LogPython: [WO-004] no prior callback handle in this console session
+[2026.09.12-21.22.53:362][600]LogPython: [WO-004] run 172253 recording to: C:\Users\<user>\AppData\Local\UnrealEditorFortnite\Saved\wo004_tick_probe_172253.jsonl
+[2026.09.12-21.22.53:366][600]LogPython: [WO-004] wall-clock start: 17:22:53
+[2026.09.12-21.22.53:366][600]LogPython: [WO-004] leave idle ~15s, then open the dialog. Note the time you
+[2026.09.12-21.22.53:370][600]LogPython: [WO-004] open it and the time you dismiss it.
+[2026.09.12-21.23.49:572][176]LogPython: exec(open(r"<agent-scratchpad>\wo004_dialog_probe.py").read())
+[2026.09.12-21.23.49:573][176]LogPython: [WO-004 dialog] events file: C:\Users\<user>\AppData\Local\UnrealEditorFortnite\Saved\wo004_dialog_events_172349.jsonl
+[2026.09.12-21.23.49:574][176]LogPython: [WO-004 dialog] before_show_message 17:23:49 
+[2026.09.12-21.23.49:599][176]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+[2026.09.12-21.24.37:908][ 40]LogSlate: Window 'WO-004 test dialog' being destroyed
+[2026.09.12-21.24.37:925][ 40]Message dialog closed, result: Ok, title: WO-004 test dialog, text: This is a harmless test dialog. It changes nothing.
+Wait about 30 seconds, then click OK.
+[2026.09.12-21.24.37:926][ 40]LogPython: [WO-004 dialog] after_show_message 17:24:37 {'result': '<AppReturnType.OK: 5>'}
+[2026.09.12-21.24.37:926][ 40]LogPython: [WO-004 dialog] done - now run the stop command
+[2026.09.12-21.24.44:715][828]LogPython: exec(open(r"<agent-scratchpad>\wo004_probe_a_stop.py").read())
+[2026.09.12-21.24.44:716][828]LogPython: [WO-004] callback unregistered and confirmed.
+[2026.09.12-21.24.44:716][828]LogPython: [WO-004] wall-clock stop: 17:24:44
+[2026.09.12-21.24.44:719][828]LogPython: [WO-004] ticks recorded this run: 1364
+[2026.09.12-21.24.44:719][828]LogPython: [WO-004] log file: C:\Users\<user>\AppData\Local\UnrealEditorFortnite\Saved\wo004_tick_probe_172253.jsonl
+[2026.09.12-21.24.44:723][828]LogPython: [WO-004] Leave the .jsonl files in place - they are the evidence.
+[2026.09.12-21.24.45:674][941]LogD3D12RHI: Swap chain created with frame-latency waitable object, maximum frame latency 1
+
