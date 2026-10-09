@@ -4976,10 +4976,10 @@ _WO008_SECTION_HEADINGS = (
     "## Decision locks and next gate",
 )
 
-# Session A offline preparation (A_PREP) is the only later phase installed.
-# Its records replace the closed current gate and marker; the closed record
-# stays as history. Later phases have no entry in _WO008_PHASES, so their
-# traces fail instead of falling back to a permissive shape.
+# Session A offline preparation (A_PREP) was the first later phase installed.
+# Its records replaced the closed current gate and marker; the closed record
+# stays as history. A_LIVE, below, now replaces A_PREP's current texts the
+# same way.
 _WO008_A_PREP_BASE = "0d1de9e6a1f49ea422cd7911d1c40d67787ddde4"
 _WO008_A_PREP_WORKFLOW = "37359992194"
 _WO008_A_PREP_JOB = "111931901481"
@@ -5101,7 +5101,194 @@ _WO008_A_PREP_TRACES = (
     _ISSUED_SESSION_A_PREP_AUTH,
     _WO008_A_PREP_HEADING,
 )
-# Two literal entries, not a policy engine. Each phase names its own current
+
+# Session A live baseline (A_LIVE): one bounded live run under the owner's X2
+# instruction. Its records replace the A_PREP current gate and marker; the
+# closed and A_PREP records stay as history. Later phases still have no entry
+# in _WO008_PHASES, so their traces fail instead of falling back.
+_WO008_A_LIVE_BASE = "075ba2948444e40da9fb975f1cda4c29006b0169"
+_WO008_A_LIVE_WORKFLOW = "37698808630"
+_WO008_A_LIVE_JOB = "113057020206"
+_WO008_A_LIVE_INSTRUCTION_SHA256 = (
+    "671d1dfe2c84922709366cf189c2576c8fc3ea96ddd2bc45e1346b9ce22925a9"
+)
+_WO008_A_LIVE_PLAN_SHA256SUMS = (
+    "8e2d7481e4b245ed5e5afb132b9545d3754108907b1c16beb8c64fe3ad8a9add"
+)
+_WO008_A_PREP_PACKAGE_SHA256SUMS = (
+    "8df8abdb4d70882f4ee0d1129907b166fa44f1ffbf87361ca3586d565d261ed1"
+)
+_WO008_A_PREP_REVIEW_SHA256SUMS = (
+    "517b9c15744ee26e4c5967ff00eb9a4476330b723e878eb11902fc9d84e0351a"
+)
+_WO008_A_LIVE_GATE = (
+    "WO-008 SESSION A LIVE BASELINE ONLY — PRODUCT CORRECTIONS NOT AUTHORIZED"
+)
+_ISSUED_SESSION_A_LIVE_AUTH = (
+    "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR THE PINNED LIVE BASELINE ONLY"
+)
+_WO008_A_LIVE_POINTER_SEQUENCE = (
+    "- Current issued Work Order: WO-008",
+    "- Authorized session: A",
+    "- Base commit: `" + _WO008_A_LIVE_BASE + "`",
+    "- Current gate: " + _WO008_A_LIVE_GATE,
+) + _WO008_A_PREP_POINTER_SEQUENCE[4:] + (
+    "- WO-008 Session A preparation commit: `" + _WO008_A_LIVE_BASE + "`",
+    "- WO-008 Session A preparation CI workflow: `" + _WO008_A_LIVE_WORKFLOW + "`",
+    "- WO-008 Session A preparation CI job: `" + _WO008_A_LIVE_JOB
+    + "` — Lint, types, tests",
+    "- WO-008 Session A live baseline instruction SHA-256: `"
+    + _WO008_A_LIVE_INSTRUCTION_SHA256 + "`",
+)
+# The A_PREP records as history: exact-once pairs, applied per record constant
+# because the pointer and the mandate share one passage.
+_WO008_A_PREP_HISTORY_POINTER_RECORD = _replaced_once(_WO008_A_PREP_POINTER_RECORD, (
+    ("Preparation produces only a redacted exact call plan and a fixture/setup\n"
+     "checklist, outside the checkout, for independent review, and changes no\n"
+     "repository file. Client launch,",
+     "Preparation produced only a redacted exact call plan and a fixture/setup\n"
+     "checklist, outside the checkout, for independent review, and changed no\n"
+     "repository file. At that gate, client launch,"),
+    ("fixture mutation, product changes, recovery, commits and pushes remain\n"
+     "unauthorized. Live start needs an accepted call plan and a separate owner\n"
+     "live-start instruction recorded here.",
+     "fixture mutation, product changes, recovery, commits and pushes remained\n"
+     "unauthorized. Live start needed an accepted call plan and a separate owner\n"
+     "live-start instruction recorded here."),
+))
+_WO008_A_PREP_HISTORY_RECORD = _replaced_once(_WO008_A_PREP_RECORD, (
+    ("Preparation produces, outside the checkout, a redacted exact call plan and a\n"
+     "fixture/setup checklist for independent review. It reads no owner\n"
+     "`.mcp.json`, credential, session handoff or private editor log, and changes\n"
+     "no repository file. Client launch,",
+     "Preparation produced, outside the checkout, a redacted exact call plan and a\n"
+     "fixture/setup checklist for independent review. It read no owner\n"
+     "`.mcp.json`, credential, session handoff or private editor log, and changed\n"
+     "no repository file. At that gate, client launch,"),
+    ("fixture mutation, product changes, recovery, commits and pushes remain\n"
+     "unauthorized. Planned values are not recorded as observed results.",
+     "fixture mutation, product changes, recovery, commits and pushes remained\n"
+     "unauthorized. Planned values were not recorded as observed results."),
+    ("Runtime or live need stops the work.",
+     "Runtime or live need stopped that work."),
+))
+_WO008_A_LIVE_POINTER_RECORD = (
+    "WO-008 Session A live baseline record: the owner authorized Session A for the\n"
+    "pinned live baseline only, on the basis of the offline preparation committed\n"
+    "as `" + _WO008_A_LIVE_BASE + "`; [CI workflow\n"
+    "`" + _WO008_A_LIVE_WORKFLOW + "`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/"
+    + _WO008_A_LIVE_WORKFLOW + ")\n"
+    "completed successfully on that commit, including required job\n"
+    "[`" + _WO008_A_LIVE_JOB + "` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/"
+    + _WO008_A_LIVE_WORKFLOW + "/job/" + _WO008_A_LIVE_JOB + ").\n"
+    "That CI tested the offline-preparation enforcement, not this transition, a\n"
+    "live result, an MCP host or a live build. The accepted preparation package\n"
+    "is identified by SHA256SUMS `" + _WO008_A_PREP_PACKAGE_SHA256SUMS + "`,\n"
+    "its review by SHA256SUMS `" + _WO008_A_PREP_REVIEW_SHA256SUMS + "`,\n"
+    "and the accepted plan for this transition by SHA256SUMS\n"
+    "`" + _WO008_A_LIVE_PLAN_SHA256SUMS + "`. The instruction is\n"
+    "identified by SHA-256 `" + _WO008_A_LIVE_INSTRUCTION_SHA256 + "`.\n"
+    "Session A may run at most once: one attempt of the accepted call plan, as\n"
+    "amended by the accepted execution addendum, through Claude Code with the\n"
+    "owner decisions that instruction records, deployed from the clean,\n"
+    "synchronized commit that carries this record once that commit's own CI has\n"
+    "succeeded. Independent review, the commit, the push and that CI are\n"
+    "preconditions only; none of them authorizes or starts the run. Any stop\n"
+    "after live-run setup begins ends the attempt. A retry or repeat run needs a\n"
+    "new reviewed transition recorded here, and recovery needs a separately\n"
+    "bounded owner instruction. A choice or setup item that instruction omits\n"
+    "follows the accepted addendum's missing-choice rule. Product corrections,\n"
+    "installations or configuration changes that instruction does not name,\n"
+    "commits and pushes remain unauthorized. Session B and Session C remain\n"
+    "unauthorized, results are recorded only by a separate transition, and this\n"
+    "record grants no further authority."
+)
+_WO008_A_LIVE_OPENING = (
+    "This is an issued following-train Work Order, outside the frozen\n"
+    "WO-001 through WO-007 train. The root pointer identifies WO-008 with\n"
+    "Session A authorized for the pinned live baseline only. Product\n"
+    "corrections, Session B and Session C remain unauthorized."
+)
+_WO008_A_PREP_PREREQUISITES_HEAD = (
+    "The separately adopted issuance/session-enforcement plan r2 supported the\n"
+    "closed issuance, and a separate transition installs Session A offline\n"
+    "preparation only. Live start, product corrections and live acceptance still\n"
+    "need separately reviewed enforcement transitions and explicit owner\n"
+    "decisions. No later phase is installed here."
+)
+_WO008_A_LIVE_PREREQUISITES = _replaced_once(_WO008_A_PREP_PREREQUISITES, ((
+    _WO008_A_PREP_PREREQUISITES_HEAD,
+    "The separately adopted issuance/session-enforcement plan r2 supported the\n"
+    "closed issuance and Session A offline preparation, and a separate transition\n"
+    "installs the pinned Session A live baseline only. Recording the result,\n"
+    "product corrections and live acceptance still need separately reviewed\n"
+    "enforcement transitions and explicit owner decisions. No later phase is\n"
+    "installed here.",
+),))
+_WO008_A_LIVE_HEADING = "## Session A live baseline record"
+_WO008_A_LIVE_RECORD = (
+    "Session A live baseline basis commit: `" + _WO008_A_LIVE_BASE + "`\n"
+    "Session A live baseline CI workflow: `" + _WO008_A_LIVE_WORKFLOW + "`\n"
+    "Session A live baseline CI job: `" + _WO008_A_LIVE_JOB + "` — Lint, types, tests\n"
+    "Accepted preparation package SHA256SUMS: `" + _WO008_A_PREP_PACKAGE_SHA256SUMS + "`\n"
+    "Accepted preparation review SHA256SUMS: `" + _WO008_A_PREP_REVIEW_SHA256SUMS + "`\n"
+    "Accepted A_LIVE plan SHA256SUMS: `" + _WO008_A_LIVE_PLAN_SHA256SUMS + "`\n"
+    "Owner Session A live baseline instruction SHA-256: `"
+    + _WO008_A_LIVE_INSTRUCTION_SHA256 + "`\n"
+    "\n"
+    "The owner authorized Session A for the pinned live baseline only: one run\n"
+    "of the accepted call plan, as amended by the accepted execution addendum,\n"
+    "through Claude Code against an owner-approved disposable project, with the\n"
+    "owner decisions that instruction records. CI succeeded on the preparation\n"
+    "commit, not on this transition or any live result; it demonstrates neither\n"
+    "an MCP host nor a live UEFN build.\n"
+    "\n"
+    "Within that one run, Session A uses as its deploy source the clean,\n"
+    "synchronized commit that carries this record, after that commit's own CI\n"
+    "has succeeded and its runtime and deployment sources are shown unchanged\n"
+    "from the basis commit. For Session A the owner performs the deploy, editor\n"
+    "start, fixture preparation and local bridge start, and stops the bridge only\n"
+    "as the cleanup decision that instruction records allows; Session A's client\n"
+    "issues only the nine planned tool calls, each approved individually, with no\n"
+    "retry. Any stop after live-run setup begins ends the attempt. Session A\n"
+    "recovery, a repeat run, installations or configuration changes that\n"
+    "instruction does not name, product corrections, Session B, Session C,\n"
+    "commits and pushes remain unauthorized. Results are recorded only by a\n"
+    "separate transition.\n"
+    "\n"
+    "Independent review, the commit, the push and successful CI are\n"
+    "preconditions only; none of them authorizes or starts the run. A choice\n"
+    "or setup item that instruction omits follows the accepted addendum's\n"
+    "missing-choice rule.\n"
+    "\n"
+    "The owner accepted a narrow offline-verification exemption for this\n"
+    "transition's five governance paths only. The live run is Session A\n"
+    "evidence, not verification of this transition."
+)
+_WO008_A_LIVE_NEXT_GATE = (
+    "NEXT GATE: separate owner decisions on an independent review of the redacted\n"
+    "Session A live evidence, and then on a transition recording its result.\n"
+    "Product corrections, Session B, Session C, recovery, a repeat run, exact\n"
+    "commits and pushes remain separate decisions. This mandate grants no review,\n"
+    "implementation, commit or push authority."
+)
+_WO008_A_LIVE_ISSUED_SEQUENCE = tuple(
+    _ISSUED_SESSION_A_LIVE_AUTH if line == _ISSUED_SESSION_A_PREP_AUTH else line
+    for line in _WO008_A_PREP_ISSUED_SEQUENCE)
+_WO008_A_LIVE_SECTION_HEADINGS = (
+    _WO008_A_PREP_SECTION_HEADINGS[:4] + (_WO008_A_LIVE_HEADING,)
+    + _WO008_A_PREP_SECTION_HEADINGS[4:])
+# None of these occurs in the A_PREP state; the A_LIVE state keeps the A_PREP
+# traces as history, which is why A_LIVE is selected first.
+_WO008_A_LIVE_TRACES = (
+    _WO008_A_LIVE_GATE,
+    "- WO-008 Session A preparation commit:",
+    "- WO-008 Session A live baseline instruction SHA-256:",
+    "WO-008 Session A live baseline record:",
+    _ISSUED_SESSION_A_LIVE_AUTH,
+    _WO008_A_LIVE_HEADING,
+)
+# Three literal entries, not a policy engine. Each phase names its own current
 # texts and the prior-state texts that must not survive the change.
 _WO008_PHASES: dict[str, dict] = {
     "ISSUED_CLOSED": {
@@ -5144,17 +5331,49 @@ _WO008_PHASES: dict[str, dict] = {
         "record": "WO-008 Session A preparation record",
         "session": "A",
     },
+    "A_LIVE": {
+        "pointer_sequence": _WO008_A_LIVE_POINTER_SEQUENCE,
+        "issued_sequence": _WO008_A_LIVE_ISSUED_SEQUENCE,
+        "marker": _ISSUED_SESSION_A_LIVE_AUTH,
+        "gate": _WO008_A_LIVE_GATE,
+        "pointer_records": (_WO008_CLOSED_HISTORY_RECORD,
+                            _WO008_A_PREP_HISTORY_POINTER_RECORD,
+                            _WO008_A_LIVE_POINTER_RECORD),
+        "opening": _WO008_A_LIVE_OPENING,
+        "prerequisites": _WO008_A_LIVE_PREREQUISITES,
+        "sections": (("## Issuance basis", _WO008_ISSUANCE_RECORD),
+                     (_WO008_A_PREP_HEADING, _WO008_A_PREP_HISTORY_RECORD),
+                     (_WO008_A_LIVE_HEADING, _WO008_A_LIVE_RECORD)),
+        "next_gate": _WO008_A_LIVE_NEXT_GATE,
+        "headings": _WO008_A_LIVE_SECTION_HEADINGS,
+        "forbidden_pointer": (_WO008_POINTER_RECORD, _WO008_GATE,
+                              _WO008_A_PREP_POINTER_RECORD, _WO008_A_PREP_GATE),
+        "forbidden_document": (_WO008_OPENING, _WO008_NEXT_GATE,
+                               _WO008_CLOSED_PREREQUISITES_HEAD,
+                               _ISSUED_NO_SESSION_AUTH,
+                               _WO008_A_PREP_OPENING, _WO008_A_PREP_NEXT_GATE,
+                               _WO008_A_PREP_PREREQUISITES_HEAD,
+                               _ISSUED_SESSION_A_PREP_AUTH,
+                               _WO008_A_PREP_RECORD),
+        "label": "WO-008 Session A live baseline",
+        "record": "WO-008 Session A live baseline record",
+        "session": "A",
+    },
 }
 
 
 def _wo008_phase(pointer: str, text: str) -> str:
-    """Any A_PREP trace on either surface selects the full A_PREP shape.
+    """Any trace on either surface selects that phase's full shape.
 
-    A partial install is then validated against A_PREP and fails on what is
-    missing; it can never fall back to the clean closed shape. The session
-    line counts only while the pointer names WO-008: an earlier order's
-    Session A, such as WO-007's in its historical states, is not a trace.
+    A_LIVE is checked first, because the A_LIVE state legitimately keeps
+    A_PREP traces in its history. A partial install is then validated against
+    the selected shape and fails on what is missing; it can never fall back to
+    an earlier clean shape. The session line counts only while the pointer
+    names WO-008: an earlier order's Session A, such as WO-007's in its
+    historical states, is not a trace.
     """
+    if any(trace in pointer or trace in text for trace in _WO008_A_LIVE_TRACES):
+        return "A_LIVE"
     lines = pointer.splitlines()
     session_a = ("- Authorized session: A" in lines
                  and "- Current issued Work Order: WO-008" in lines)
@@ -5272,7 +5491,7 @@ def _wo008_issuance_findings(
 def _wo008_phase_findings(
     pointer: str, text: str, rel: str, surface: str, phase: str | None = None,
 ) -> tuple[list[tuple[str, str, str, str]], str]:
-    """ISSUED_CLOSED or A_PREP only; later phases need separate transitions."""
+    """ISSUED_CLOSED, A_PREP or A_LIVE only; later phases need separate transitions."""
     spec = _WO008_PHASES[phase or _wo008_phase(pointer, text)]
     source = pointer if surface == "pointer" else text
     out = _wo008_issuance_findings(pointer, text, rel, surface, phase)
@@ -6253,7 +6472,7 @@ def check_work_order_contract() -> list[dict]:
         current == _WO008_ID or bool(wo008_text)
         or "WO-008 closed issuance record:" in pointer
         or "- WO-008 admission basis commit:" in pointer
-        or wo008_phase == "A_PREP")
+        or wo008_phase in ("A_PREP", "A_LIVE"))
     wo008_pointer_residual = pointer
     wo008_history_findings = []
     if wo008_trace:
@@ -6263,6 +6482,12 @@ def check_work_order_contract() -> list[dict]:
             add("WORKORDER.md", "WO-008 Session A preparation state",
                 "the Session A offline preparation records were removed",
                 "WO-008 Session A offline preparation records")
+        # One-way: once the Session A live baseline is installed, a coherent
+        # rollback to offline preparation trips exactly this lock.
+        if wo008_phase == "A_PREP":
+            add("WORKORDER.md", "WO-008 Session A live baseline state",
+                "the Session A live baseline records were removed",
+                "WO-008 Session A live baseline records")
         # Old NONE fields retire, not their canonical history or terminal locks.
         wo008_history_findings = _wo007_completed_findings(
             pointer, wo007_completed_text,
@@ -6715,7 +6940,7 @@ def check_work_order_contract() -> list[dict]:
                     add(rel, "planning-only proposal placement",
                         "issuance record missing or malformed",
                         "canonical issued WO-008 with validated closed records")
-                # In A_PREP the other-session scan exempts only Session A;
+                # In A_PREP and A_LIVE the other-session scan exempts only Session A;
                 # any Session A grant beyond the records is widening below.
                 for where, residual in (
                     ("WORKORDER.md", wo008_pointer_residual),

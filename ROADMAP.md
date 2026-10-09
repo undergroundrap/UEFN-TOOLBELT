@@ -14,8 +14,8 @@
 > separate owner authorizations, v2.5.0 was then tagged and published as a
 > GitHub Release. Social publication, private-draft publication, and scratch
 > cleanup remain separately gated. WO-008 is issued outside the frozen train;
-> Session A is authorized for offline preparation only, and live start is not
-> authorized.
+> Session A is authorized for the pinned live baseline only, and product
+> corrections are not authorized.
 > This roadmap grants no implementation authority — root
 > [`WORKORDER.md`](WORKORDER.md) is the sole current gate.
 

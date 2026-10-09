@@ -6,8 +6,8 @@ never authorizes implementation.
 
 - Current issued Work Order: WO-008
 - Authorized session: A
-- Base commit: `0d1de9e6a1f49ea422cd7911d1c40d67787ddde4`
-- Current gate: WO-008 SESSION A OFFLINE PREPARATION ONLY — LIVE START NOT AUTHORIZED
+- Base commit: `075ba2948444e40da9fb975f1cda4c29006b0169`
+- Current gate: WO-008 SESSION A LIVE BASELINE ONLY — PRODUCT CORRECTIONS NOT AUTHORIZED
 - WO-008 admission basis commit: `4ff86e8d1c9c89ebda597570ad4f757605ccd81e`
 - WO-008 admission CI workflow: `37246398757`
 - WO-008 admission CI job: `111565059168` — Lint, types, tests
@@ -16,6 +16,10 @@ never authorizes implementation.
 - WO-008 closed issuance CI workflow: `37359992194`
 - WO-008 closed issuance CI job: `111931901481` — Lint, types, tests
 - WO-008 Session A preparation decision SHA-256: `3f2218b675dc2257fffe3ea4e4ceb4e351a23bc651cfd53177fe7ef62882c9ed`
+- WO-008 Session A preparation commit: `075ba2948444e40da9fb975f1cda4c29006b0169`
+- WO-008 Session A preparation CI workflow: `37698808630`
+- WO-008 Session A preparation CI job: `113057020206` — Lint, types, tests
+- WO-008 Session A live baseline instruction SHA-256: `671d1dfe2c84922709366cf189c2576c8fc3ea96ddd2bc45e1346b9ce22925a9`
 - Issuance commit: `c04e4a794f1e7d0c607c7ad712cbd28e86a55914`
 - Issuance CI workflow: `37050236355`
 - Issuance CI job: `110981533635` — Lint, types, tests
@@ -516,11 +520,39 @@ completed successfully on that commit, including required job
 That CI tested the closed issuance enforcement, not this transition, a
 Session A output, an MCP host or a live build. The instruction is identified
 by SHA-256 `3f2218b675dc2257fffe3ea4e4ceb4e351a23bc651cfd53177fe7ef62882c9ed`.
-Preparation produces only a redacted exact call plan and a fixture/setup
-checklist, outside the checkout, for independent review, and changes no
-repository file. Client launch, configuration reads or changes, dependency
+Preparation produced only a redacted exact call plan and a fixture/setup
+checklist, outside the checkout, for independent review, and changed no
+repository file. At that gate, client launch, configuration reads or changes, dependency
 installation, deploy, editor contact, bridge lifecycle, endpoint calls,
-fixture mutation, product changes, recovery, commits and pushes remain
-unauthorized. Live start needs an accepted call plan and a separate owner
+fixture mutation, product changes, recovery, commits and pushes remained
+unauthorized. Live start needed an accepted call plan and a separate owner
 live-start instruction recorded here. Session B and Session C remain
 unauthorized, and this record grants no further authority.
+
+WO-008 Session A live baseline record: the owner authorized Session A for the
+pinned live baseline only, on the basis of the offline preparation committed
+as `075ba2948444e40da9fb975f1cda4c29006b0169`; [CI workflow
+`37698808630`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/37698808630)
+completed successfully on that commit, including required job
+[`113057020206` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/37698808630/job/113057020206).
+That CI tested the offline-preparation enforcement, not this transition, a
+live result, an MCP host or a live build. The accepted preparation package
+is identified by SHA256SUMS `8df8abdb4d70882f4ee0d1129907b166fa44f1ffbf87361ca3586d565d261ed1`,
+its review by SHA256SUMS `517b9c15744ee26e4c5967ff00eb9a4476330b723e878eb11902fc9d84e0351a`,
+and the accepted plan for this transition by SHA256SUMS
+`8e2d7481e4b245ed5e5afb132b9545d3754108907b1c16beb8c64fe3ad8a9add`. The instruction is
+identified by SHA-256 `671d1dfe2c84922709366cf189c2576c8fc3ea96ddd2bc45e1346b9ce22925a9`.
+Session A may run at most once: one attempt of the accepted call plan, as
+amended by the accepted execution addendum, through Claude Code with the
+owner decisions that instruction records, deployed from the clean,
+synchronized commit that carries this record once that commit's own CI has
+succeeded. Independent review, the commit, the push and that CI are
+preconditions only; none of them authorizes or starts the run. Any stop
+after live-run setup begins ends the attempt. A retry or repeat run needs a
+new reviewed transition recorded here, and recovery needs a separately
+bounded owner instruction. A choice or setup item that instruction omits
+follows the accepted addendum's missing-choice rule. Product corrections,
+installations or configuration changes that instruction does not name,
+commits and pushes remain unauthorized. Session B and Session C remain
+unauthorized, results are recorded only by a separate transition, and this
+record grants no further authority.

@@ -1,7 +1,7 @@
 # WO-008 User reliability and MCP client acceptance
 
 STATUS: ISSUED
-AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR OFFLINE PREPARATION ONLY
+AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR THE PINNED LIVE BASELINE ONLY
 Owner: Ocean Bennett
 Priority: user-facing reliability and missing integration evidence
 Draft date: 2026-10-04
@@ -10,8 +10,8 @@ Planning baseline: `9879d39fbdb58083a0f7229a9c9c90c7d6fb375f`
 
 This is an issued following-train Work Order, outside the frozen
 WO-001 through WO-007 train. The root pointer identifies WO-008 with
-Session A authorized for offline preparation only. Live start, Session B
-and Session C remain unauthorized.
+Session A authorized for the pinned live baseline only. Product
+corrections, Session B and Session C remain unauthorized.
 
 ## Purpose and evidence
 
@@ -48,10 +48,11 @@ following-train proposal only and retained NONE/NONE. WO-008 is not added
 to the frozen WO-001 through WO-007 train.
 
 The separately adopted issuance/session-enforcement plan r2 supported the
-closed issuance, and a separate transition installs Session A offline
-preparation only. Live start, product corrections and live acceptance still
-need separately reviewed enforcement transitions and explicit owner
-decisions. No later phase is installed here.
+closed issuance and Session A offline preparation, and a separate transition
+installs the pinned Session A live baseline only. Recording the result,
+product corrections and live acceptance still need separately reviewed
+enforcement transitions and explicit owner decisions. No later phase is
+installed here.
 Frozen-train missing, duplicate and misplaced-order protections, publication
 history and earlier terminal records remain in force. Unknown issued orders
 remain invalid; there is no blanket scanner exemption.
@@ -84,16 +85,55 @@ The owner authorized Session A for offline preparation only. CI succeeded on
 the closed issuance commit, not on this transition or any Session A output;
 it demonstrates neither an MCP host nor a live UEFN build.
 
-Preparation produces, outside the checkout, a redacted exact call plan and a
-fixture/setup checklist for independent review. It reads no owner
-`.mcp.json`, credential, session handoff or private editor log, and changes
-no repository file. Client launch, configuration reads or changes, dependency
+Preparation produced, outside the checkout, a redacted exact call plan and a
+fixture/setup checklist for independent review. It read no owner
+`.mcp.json`, credential, session handoff or private editor log, and changed
+no repository file. At that gate, client launch, configuration reads or changes, dependency
 installation, deploy, editor contact, bridge lifecycle, endpoint calls,
-fixture mutation, product changes, recovery, commits and pushes remain
-unauthorized. Planned values are not recorded as observed results.
+fixture mutation, product changes, recovery, commits and pushes remained
+unauthorized. Planned values were not recorded as observed results.
 
 The owner accepted a narrow offline-verification exemption for this
-transition's five governance paths only. Runtime or live need stops the work.
+transition's five governance paths only. Runtime or live need stopped that work.
+
+## Session A live baseline record
+
+Session A live baseline basis commit: `075ba2948444e40da9fb975f1cda4c29006b0169`
+Session A live baseline CI workflow: `37698808630`
+Session A live baseline CI job: `113057020206` — Lint, types, tests
+Accepted preparation package SHA256SUMS: `8df8abdb4d70882f4ee0d1129907b166fa44f1ffbf87361ca3586d565d261ed1`
+Accepted preparation review SHA256SUMS: `517b9c15744ee26e4c5967ff00eb9a4476330b723e878eb11902fc9d84e0351a`
+Accepted A_LIVE plan SHA256SUMS: `8e2d7481e4b245ed5e5afb132b9545d3754108907b1c16beb8c64fe3ad8a9add`
+Owner Session A live baseline instruction SHA-256: `671d1dfe2c84922709366cf189c2576c8fc3ea96ddd2bc45e1346b9ce22925a9`
+
+The owner authorized Session A for the pinned live baseline only: one run
+of the accepted call plan, as amended by the accepted execution addendum,
+through Claude Code against an owner-approved disposable project, with the
+owner decisions that instruction records. CI succeeded on the preparation
+commit, not on this transition or any live result; it demonstrates neither
+an MCP host nor a live UEFN build.
+
+Within that one run, Session A uses as its deploy source the clean,
+synchronized commit that carries this record, after that commit's own CI
+has succeeded and its runtime and deployment sources are shown unchanged
+from the basis commit. For Session A the owner performs the deploy, editor
+start, fixture preparation and local bridge start, and stops the bridge only
+as the cleanup decision that instruction records allows; Session A's client
+issues only the nine planned tool calls, each approved individually, with no
+retry. Any stop after live-run setup begins ends the attempt. Session A
+recovery, a repeat run, installations or configuration changes that
+instruction does not name, product corrections, Session B, Session C,
+commits and pushes remain unauthorized. Results are recorded only by a
+separate transition.
+
+Independent review, the commit, the push and successful CI are
+preconditions only; none of them authorizes or starts the run. A choice
+or setup item that instruction omits follows the accepted addendum's
+missing-choice rule.
+
+The owner accepted a narrow offline-verification exemption for this
+transition's five governance paths only. The live run is Session A
+evidence, not verification of this transition.
 
 ## Session A Real client baseline
 
@@ -264,8 +304,8 @@ the client/project/fixture/target choices, live start, any unexpected repair,
 recovery, exact commits, pushes, completion, and any later release decision.
 Review acceptance never substitutes for these decisions.
 
-NEXT GATE: separate owner decisions on an independent review of the Session A
-offline call plan and fixture/setup checklist, and then on live start.
-Live start, Session B, Session C, product corrections, recovery, exact
+NEXT GATE: separate owner decisions on an independent review of the redacted
+Session A live evidence, and then on a transition recording its result.
+Product corrections, Session B, Session C, recovery, a repeat run, exact
 commits and pushes remain separate decisions. This mandate grants no review,
 implementation, commit or push authority.

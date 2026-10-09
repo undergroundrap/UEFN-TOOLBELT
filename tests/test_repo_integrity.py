@@ -224,7 +224,8 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert [path.name for path in issued] == [_WO008_PROPOSAL_NAME]
     issued_text = issued[0].read_text(encoding="utf-8")
     assert issued_text.splitlines().count("STATUS: ISSUED") == 1
-    assert issued_text.splitlines().count(_WO008_A_PREP_MARKER) == 1
+    assert issued_text.splitlines().count(_WO008_A_LIVE_MARKER) == 1
+    assert issued_text.splitlines().count(_WO008_A_PREP_MARKER) == 0
     assert issued_text.splitlines().count(
         "AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED") == 0
     for state in ("proposed", "issued"):
@@ -258,14 +259,14 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         work_orders / "issued" / "WO-006-official-vs-toolbelt-benchmark.md"
     ).exists()
     assert current == "WO-008"
-    # Session A is open for offline preparation only. The base is the closed
-    # issuance commit, and the gate still denies live start.
+    # Session A is open for the pinned live baseline only. The base is the
+    # offline-preparation commit, and the gate still denies product corrections.
     assert session == "A"
     assert base_lines == [
-        "- Base commit: `0d1de9e6a1f49ea422cd7911d1c40d67787ddde4`"
+        "- Base commit: `075ba2948444e40da9fb975f1cda4c29006b0169`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-008 SESSION A OFFLINE PREPARATION ONLY — LIVE START NOT AUTHORIZED"
+        "- Current gate: WO-008 SESSION A LIVE BASELINE ONLY — PRODUCT CORRECTIONS NOT AUTHORIZED"
     ]
     for line in (
         "- WO-008 closed issuance commit: `0d1de9e6a1f49ea422cd7911d1c40d67787ddde4`",
@@ -273,6 +274,11 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "- WO-008 closed issuance CI job: `111931901481` — Lint, types, tests",
         "- WO-008 Session A preparation decision SHA-256: "
         "`3f2218b675dc2257fffe3ea4e4ceb4e351a23bc651cfd53177fe7ef62882c9ed`",
+        "- WO-008 Session A preparation commit: `075ba2948444e40da9fb975f1cda4c29006b0169`",
+        "- WO-008 Session A preparation CI workflow: `37698808630`",
+        "- WO-008 Session A preparation CI job: `113057020206` — Lint, types, tests",
+        "- WO-008 Session A live baseline instruction SHA-256: "
+        "`671d1dfe2c84922709366cf189c2576c8fc3ea96ddd2bc45e1346b9ce22925a9`",
     ):
         assert pointer_lines.count(line) == 1, line
     for line in (
@@ -395,8 +401,8 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "authorizations, v2.5.0 was then tagged and published as a GitHub "
         "Release. Social publication, private-draft publication, and scratch "
         "cleanup remain separately gated. WO-008 is issued outside the frozen "
-        "train; Session A is authorized for offline preparation only, and live "
-        "start is not authorized."
+        "train; Session A is authorized for the pinned live baseline only, and "
+        "product corrections are not authorized."
         in normalized_roadmap
     )
     assert "its recheck is not authorized" not in normalized_roadmap
@@ -4198,6 +4204,36 @@ _WO008_CLOSED_HISTORY_PAIRS = (
 )
 
 
+_WO008_A_LIVE_FINDING = "WO-008 Session A live baseline state"
+_WO008_A_LIVE_RECORD_KIND = "WO-008 Session A live baseline record"
+_WO008_A_LIVE_GATE = "WO-008 SESSION A LIVE BASELINE ONLY — PRODUCT CORRECTIONS NOT AUTHORIZED"
+_WO008_A_LIVE_MARKER = "AUTHORIZATION: ISSUED — SESSION A AUTHORIZED FOR THE PINNED LIVE BASELINE ONLY"
+_WO008_A_LIVE_HEADER = "- Current issued Work Order: WO-008\n- Authorized session: A\n- Base commit: `075ba2948444e40da9fb975f1cda4c29006b0169`\n- Current gate: WO-008 SESSION A LIVE BASELINE ONLY — PRODUCT CORRECTIONS NOT AUTHORIZED\n- WO-008 admission basis commit: `4ff86e8d1c9c89ebda597570ad4f757605ccd81e`\n- WO-008 admission CI workflow: `37246398757`\n- WO-008 admission CI job: `111565059168` — Lint, types, tests\n- WO-008 issuance decision SHA-256: `5997654fb63b587ae72265d4382bf9f2f8a752e4fb09a6d79593a5b88725746a`\n- WO-008 closed issuance commit: `0d1de9e6a1f49ea422cd7911d1c40d67787ddde4`\n- WO-008 closed issuance CI workflow: `37359992194`\n- WO-008 closed issuance CI job: `111931901481` — Lint, types, tests\n- WO-008 Session A preparation decision SHA-256: `3f2218b675dc2257fffe3ea4e4ceb4e351a23bc651cfd53177fe7ef62882c9ed`\n- WO-008 Session A preparation commit: `075ba2948444e40da9fb975f1cda4c29006b0169`\n- WO-008 Session A preparation CI workflow: `37698808630`\n- WO-008 Session A preparation CI job: `113057020206` — Lint, types, tests\n- WO-008 Session A live baseline instruction SHA-256: `671d1dfe2c84922709366cf189c2576c8fc3ea96ddd2bc45e1346b9ce22925a9`"
+_WO008_A_LIVE_POINTER_RECORD = "WO-008 Session A live baseline record: the owner authorized Session A for the\npinned live baseline only, on the basis of the offline preparation committed\nas `075ba2948444e40da9fb975f1cda4c29006b0169`; [CI workflow\n`37698808630`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/37698808630)\ncompleted successfully on that commit, including required job\n[`113057020206` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/37698808630/job/113057020206).\nThat CI tested the offline-preparation enforcement, not this transition, a\nlive result, an MCP host or a live build. The accepted preparation package\nis identified by SHA256SUMS `8df8abdb4d70882f4ee0d1129907b166fa44f1ffbf87361ca3586d565d261ed1`,\nits review by SHA256SUMS `517b9c15744ee26e4c5967ff00eb9a4476330b723e878eb11902fc9d84e0351a`,\nand the accepted plan for this transition by SHA256SUMS\n`8e2d7481e4b245ed5e5afb132b9545d3754108907b1c16beb8c64fe3ad8a9add`. The instruction is\nidentified by SHA-256 `671d1dfe2c84922709366cf189c2576c8fc3ea96ddd2bc45e1346b9ce22925a9`.\nSession A may run at most once: one attempt of the accepted call plan, as\namended by the accepted execution addendum, through Claude Code with the\nowner decisions that instruction records, deployed from the clean,\nsynchronized commit that carries this record once that commit's own CI has\nsucceeded. Independent review, the commit, the push and that CI are\npreconditions only; none of them authorizes or starts the run. Any stop\nafter live-run setup begins ends the attempt. A retry or repeat run needs a\nnew reviewed transition recorded here, and recovery needs a separately\nbounded owner instruction. A choice or setup item that instruction omits\nfollows the accepted addendum's missing-choice rule. Product corrections,\ninstallations or configuration changes that instruction does not name,\ncommits and pushes remain unauthorized. Session B and Session C remain\nunauthorized, results are recorded only by a separate transition, and this\nrecord grants no further authority."
+_WO008_A_LIVE_OPENING = "This is an issued following-train Work Order, outside the frozen\nWO-001 through WO-007 train. The root pointer identifies WO-008 with\nSession A authorized for the pinned live baseline only. Product\ncorrections, Session B and Session C remain unauthorized."
+_WO008_A_LIVE_PREREQ_HEAD = "The separately adopted issuance/session-enforcement plan r2 supported the\nclosed issuance and Session A offline preparation, and a separate transition\ninstalls the pinned Session A live baseline only. Recording the result,\nproduct corrections and live acceptance still need separately reviewed\nenforcement transitions and explicit owner decisions. No later phase is\ninstalled here."
+_WO008_A_LIVE_SECTION = "## Session A live baseline record\n\nSession A live baseline basis commit: `075ba2948444e40da9fb975f1cda4c29006b0169`\nSession A live baseline CI workflow: `37698808630`\nSession A live baseline CI job: `113057020206` — Lint, types, tests\nAccepted preparation package SHA256SUMS: `8df8abdb4d70882f4ee0d1129907b166fa44f1ffbf87361ca3586d565d261ed1`\nAccepted preparation review SHA256SUMS: `517b9c15744ee26e4c5967ff00eb9a4476330b723e878eb11902fc9d84e0351a`\nAccepted A_LIVE plan SHA256SUMS: `8e2d7481e4b245ed5e5afb132b9545d3754108907b1c16beb8c64fe3ad8a9add`\nOwner Session A live baseline instruction SHA-256: `671d1dfe2c84922709366cf189c2576c8fc3ea96ddd2bc45e1346b9ce22925a9`\n\nThe owner authorized Session A for the pinned live baseline only: one run\nof the accepted call plan, as amended by the accepted execution addendum,\nthrough Claude Code against an owner-approved disposable project, with the\nowner decisions that instruction records. CI succeeded on the preparation\ncommit, not on this transition or any live result; it demonstrates neither\nan MCP host nor a live UEFN build.\n\nWithin that one run, Session A uses as its deploy source the clean,\nsynchronized commit that carries this record, after that commit's own CI\nhas succeeded and its runtime and deployment sources are shown unchanged\nfrom the basis commit. For Session A the owner performs the deploy, editor\nstart, fixture preparation and local bridge start, and stops the bridge only\nas the cleanup decision that instruction records allows; Session A's client\nissues only the nine planned tool calls, each approved individually, with no\nretry. Any stop after live-run setup begins ends the attempt. Session A\nrecovery, a repeat run, installations or configuration changes that\ninstruction does not name, product corrections, Session B, Session C,\ncommits and pushes remain unauthorized. Results are recorded only by a\nseparate transition.\n\nIndependent review, the commit, the push and successful CI are\npreconditions only; none of them authorizes or starts the run. A choice\nor setup item that instruction omits follows the accepted addendum's\nmissing-choice rule.\n\nThe owner accepted a narrow offline-verification exemption for this\ntransition's five governance paths only. The live run is Session A\nevidence, not verification of this transition."
+_WO008_A_LIVE_NEXT = "NEXT GATE: separate owner decisions on an independent review of the redacted\nSession A live evidence, and then on a transition recording its result.\nProduct corrections, Session B, Session C, recovery, a repeat run, exact\ncommits and pushes remain separate decisions. This mandate grants no review,\nimplementation, commit or push authority."
+_WO008_A_LIVE_ROADMAP = "cleanup remain separately gated. WO-008 is issued outside the frozen train; Session A is authorized for the pinned live baseline only, and product corrections are not authorized."
+_WO008_A_LIVE_ROADMAP_BLOCK = "> cleanup remain separately gated. WO-008 is issued outside the frozen train;\n> Session A is authorized for the pinned live baseline only, and product\n> corrections are not authorized.\n"
+_WO008_A_PREP_ROADMAP_BLOCK = "> cleanup remain separately gated. WO-008 is issued outside the frozen train;\n> Session A is authorized for offline preparation only, and live start is not\n> authorized.\n"
+# The A_PREP pointer record and section recast as history (A_LIVE plan r3 T2, T7).
+_WO008_A_PREP_HISTORY_PAIRS = (
+    ("Preparation produces only a redacted exact call plan and a fixture/setup\nchecklist, outside the checkout, for independent review, and changes no\nrepository file. Client launch,",
+     "Preparation produced only a redacted exact call plan and a fixture/setup\nchecklist, outside the checkout, for independent review, and changed no\nrepository file. At that gate, client launch,"),
+    ("fixture mutation, product changes, recovery, commits and pushes remain\nunauthorized. Live start needs an accepted call plan and a separate owner\nlive-start instruction recorded here.",
+     "fixture mutation, product changes, recovery, commits and pushes remained\nunauthorized. Live start needed an accepted call plan and a separate owner\nlive-start instruction recorded here."),
+)
+_WO008_A_PREP_SECTION_HISTORY_PAIRS = (
+    ("Preparation produces, outside the checkout, a redacted exact call plan and a\nfixture/setup checklist for independent review. It reads no owner\n`.mcp.json`, credential, session handoff or private editor log, and changes\nno repository file. Client launch,",
+     "Preparation produced, outside the checkout, a redacted exact call plan and a\nfixture/setup checklist for independent review. It read no owner\n`.mcp.json`, credential, session handoff or private editor log, and changed\nno repository file. At that gate, client launch,"),
+    ("fixture mutation, product changes, recovery, commits and pushes remain\nunauthorized. Planned values are not recorded as observed results.",
+     "fixture mutation, product changes, recovery, commits and pushes remained\nunauthorized. Planned values were not recorded as observed results."),
+    ("Runtime or live need stops the work.",
+     "Runtime or live need stopped that work."),
+)
+
+
 def _before_wo008_issuance(findings):
     """Set aside only the new issuance lock after historical reconstruction."""
     return [f for f in findings if f["type"] != _WO008_ISSUANCE_FINDING]
@@ -4208,24 +4244,135 @@ def _before_wo008_session_a_prep(findings):
     return [f for f in findings if f["type"] != _WO008_A_PREP_FINDING]
 
 
+def _before_wo008_session_a_live(findings):
+    """Set aside only the one-way A_LIVE lock after reconstructing A_PREP."""
+    return [f for f in findings if f["type"] != _WO008_A_LIVE_FINDING]
+
+
 def _historical_contract_findings(drift_check):
     """Historical routes set aside only the later WO-008 locks.
 
-    New A_PREP tests use the raw production contract. Closed-issuance routes
-    set aside only the A_PREP lock; older routes reconstruct admission first
-    and retain every other historical finding.
+    New A_LIVE tests use the raw production contract. A_PREP-state routes set
+    aside only the A_LIVE lock and closed-issuance routes also the A_PREP lock;
+    older routes reconstruct admission first and retain every other historical
+    finding.
     """
     return _before_wo008_issuance(_before_wo008_session_a_prep(
-        drift_check.check_work_order_contract()))
+        _before_wo008_session_a_live(drift_check.check_work_order_contract())))
 
 
-def _make_wo008_a_prep_case(repo_root, tmp_path, name):
-    """An untouched copy of the live A_PREP pointer and Work Order documents."""
+def _make_wo008_a_live_case(repo_root, tmp_path, name):
+    """An untouched copy of the live A_LIVE pointer, Work Order documents and ROADMAP."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
     shutil.copytree(repo_root / "docs" / "work-orders",
                     case / "docs" / "work-orders")
+    shutil.copy2(repo_root / "ROADMAP.md", case / "ROADMAP.md")
+    return case
+
+
+def _wo008_a_live_reverse_marker(case):
+    path = case / _WO008_ISSUED_REL
+    path.write_text(_replace_once(
+        path.read_text(encoding="utf-8"), _WO008_A_LIVE_MARKER, _WO008_A_PREP_MARKER,
+        "WO-008 A_LIVE marker reversal"), encoding="utf-8")
+
+
+def _wo008_a_live_reverse_mandate_records(case):
+    path = case / _WO008_ISSUED_REL
+    text = path.read_text(encoding="utf-8")
+    for old, new in (
+        (_WO008_A_LIVE_OPENING, _WO008_A_PREP_OPENING),
+        (_WO008_A_LIVE_PREREQ_HEAD, _WO008_A_PREP_PREREQ_HEAD),
+        (_WO008_A_LIVE_SECTION + _NL + _NL, ""),
+        (_WO008_A_LIVE_NEXT, _WO008_A_PREP_NEXT),
+    ):
+        text = _replace_once(text, old, new, "WO-008 A_LIVE mandate reversal")
+    for old, new in _WO008_A_PREP_SECTION_HISTORY_PAIRS:
+        text = _replace_once(text, new, old, "WO-008 A_PREP section tense reversal")
+    path.write_text(text, encoding="utf-8")
+
+
+def _wo008_a_live_reverse_header(case):
+    path = case / "WORKORDER.md"
+    path.write_text(_replace_once(
+        path.read_text(encoding="utf-8"), _WO008_A_LIVE_HEADER,
+        _WO008_A_PREP_HEADER, "WO-008 A_LIVE header reversal"), encoding="utf-8")
+
+
+def _wo008_a_live_reverse_pointer_records(case):
+    path = case / "WORKORDER.md"
+    text = _replace_once(path.read_text(encoding="utf-8"),
+                         _NL + _NL + _WO008_A_LIVE_POINTER_RECORD, "",
+                         "WO-008 A_LIVE record reversal")
+    for old, new in _WO008_A_PREP_HISTORY_PAIRS:
+        text = _replace_once(text, new, old, "WO-008 A_PREP record tense reversal")
+    path.write_text(text, encoding="utf-8")
+
+
+_WO008_A_LIVE_REVERSAL = (
+    ("mandate-marker", _wo008_a_live_reverse_marker),
+    ("mandate-records", _wo008_a_live_reverse_mandate_records),
+    ("pointer-header", _wo008_a_live_reverse_header),
+    ("pointer-records", _wo008_a_live_reverse_pointer_records),
+)
+
+
+def _wo008_a_live_reverse_roadmap(case):
+    """The contract never reads ROADMAP.md, so this step is kept outside the
+    contract reversal above; tests 11 and 12 pin it directly."""
+    path = case / "ROADMAP.md"
+    path.write_text(_replace_once(
+        path.read_text(encoding="utf-8"), _WO008_A_LIVE_ROADMAP_BLOCK,
+        _WO008_A_PREP_ROADMAP_BLOCK, "WO-008 A_LIVE ROADMAP reversal"), encoding="utf-8")
+
+
+def _has_wo008_a_live_trace(case):
+    pointer = (case / "WORKORDER.md").read_text(encoding="utf-8")
+    issued = case / _WO008_ISSUED_REL
+    mandate = issued.read_text(encoding="utf-8") if issued.exists() else ""
+    return any(trace in pointer or trace in mandate for trace in (
+        _WO008_A_LIVE_GATE, _WO008_A_LIVE_MARKER,
+        "WO-008 Session A live baseline record:",
+        "## Session A live baseline record",
+        "- WO-008 Session A preparation commit:",
+        "- WO-008 Session A live baseline instruction SHA-256:"))
+
+
+def _make_wo008_a_prep_case(repo_root, tmp_path, name):
+    """Exactly undo A_LIVE when present; an A_PREP or older input stays so."""
+    case = tmp_path / name
+    case.mkdir(parents=True)
+    shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
+    shutil.copytree(repo_root / "docs" / "work-orders",
+                    case / "docs" / "work-orders")
+    if (repo_root / "ROADMAP.md").exists():
+        shutil.copy2(repo_root / "ROADMAP.md", case / "ROADMAP.md")
+    if _has_wo008_a_live_trace(case):
+        for _label, undo in _WO008_A_LIVE_REVERSAL:
+            undo(case)
+        _wo008_a_live_reverse_roadmap(case)
+        # Asserted only when the reversal ran (A_LIVE plan r3 review, P2-J):
+        # an input that is already A_PREP or older passes through unchanged,
+        # as _make_wo008_closed_case does for A_PREP.
+        pointer = (case / "WORKORDER.md").read_text(encoding="utf-8")
+        mandate = (case / _WO008_ISSUED_REL).read_text(encoding="utf-8")
+        _assert_reconstructed(
+            "WO-008 Session A offline preparation", pointer + _NL + mandate,
+            (_WO008_A_PREP_HEADER, _WO008_A_PREP_POINTER_RECORD,
+             _WO008_A_PREP_OPENING, _WO008_A_PREP_PREREQ_HEAD,
+             _WO008_A_PREP_SECTION, _WO008_A_PREP_NEXT, _WO008_A_PREP_MARKER),
+            (_WO008_A_LIVE_GATE, _WO008_A_LIVE_MARKER,
+             "WO-008 Session A live baseline record:",
+             "## Session A live baseline record",
+             "- WO-008 Session A preparation commit:"))
+        roadmap = " ".join((case / "ROADMAP.md").read_text(
+            encoding="utf-8").replace(">", " ").split())
+        assert roadmap.count(_WO008_A_PREP_ROADMAP) == 1, (
+            "WO-008 A_LIVE ROADMAP reversal: the A_PREP sentence is not restored once")
+        assert _WO008_A_LIVE_ROADMAP not in roadmap, (
+            "WO-008 A_LIVE ROADMAP reversal: the A_LIVE sentence survives")
     return case
 
 
@@ -21203,9 +21350,10 @@ _WO008_A_PREP_TYPES = {
 
 
 def _wo008_a_prep_raw(repo_root, case, monkeypatch, label):
+    """A_PREP state, reconstructed: only the A_LIVE lock is set aside."""
     drift_check = _load_drift_check(repo_root, "wo008_a_prep_" + label)
     monkeypatch.setattr(drift_check, "ROOT", str(case))
-    return drift_check.check_work_order_contract()
+    return _before_wo008_session_a_live(drift_check.check_work_order_contract())
 
 
 def _wo008_a_prep_findings(repo_root, case, monkeypatch, label):
@@ -21233,9 +21381,13 @@ def test_wo008_a_prep_state_is_clean(repo_root, tmp_path, monkeypatch, newline):
     assert list((case / "docs/work-orders/proposed").glob("WO-*.md")) == []
 
 
-def test_wo008_a_prep_live_pins(repo_root):
-    pointer = (repo_root / "WORKORDER.md").read_text(encoding="utf-8")
-    mandate = (repo_root / _WO008_ISSUED_REL).read_text(encoding="utf-8")
+def test_wo008_a_prep_live_pins(repo_root, tmp_path):
+    # The A_PREP state is reconstructed from the live A_LIVE state, ROADMAP
+    # included (A_LIVE plan r3, P2-C); every assertion keeps its text and
+    # strength. The live A_LIVE state is pinned by test_wo008_a_live_live_pins.
+    case = _make_wo008_a_prep_case(repo_root, tmp_path, "a-prep-pins")
+    pointer = (case / "WORKORDER.md").read_text(encoding="utf-8")
+    mandate = (case / _WO008_ISSUED_REL).read_text(encoding="utf-8")
     history = _WO008_CLOSED_POINTER_RECORD
     for old, new in _WO008_CLOSED_HISTORY_PAIRS:
         history = _replace_once(history, old, new, "closed record history form")
@@ -21250,7 +21402,7 @@ def test_wo008_a_prep_live_pins(repo_root):
     for value in (_WO008_CLOSED_OPENING, _WO008_CLOSED_PREREQ_HEAD, _WO008_CLOSED_NEXT):
         assert mandate.count(value) == 0, value[:60]
     assert sum(line.startswith("NEXT GATE:") for line in mandate.splitlines()) == 1
-    roadmap = (repo_root / "ROADMAP.md").read_text(encoding="utf-8")
+    roadmap = (case / "ROADMAP.md").read_text(encoding="utf-8")
     assert _WO008_A_PREP_ROADMAP in " ".join(roadmap.replace(">", " ").split())
 
 
@@ -21616,7 +21768,14 @@ def test_wo008_a_prep_later_phases_are_not_installed(
         _edit(case, surface, gate_line,
               "- Current gate: WO-008 WORK STOPPED — A SEPARATE OWNER DECISION IS REQUIRED")
     found = _wo008_a_prep_findings(repo_root, case, monkeypatch, "later")
-    assert _wo008_a_prep_kinds(found, surface), repr(sorted(found))
+    kinds = _wo008_a_prep_kinds(found, surface)
+    assert kinds, repr(sorted(found))
+    if trace in ("a-live-gate", "a-live-marker"):
+        # A_LIVE is installed now: either trace selects the full A_LIVE shape,
+        # which then fails on everything this A_PREP state lacks. The A_LIVE
+        # lock shares the label prefix and is not counted.
+        assert any(kind.startswith("WO-008 Session A live baseline")
+                   and kind != _WO008_A_LIVE_FINDING for kind in kinds), repr(sorted(found))
 
 
 @pytest.mark.parametrize(("marker", "replacement", "kind"), (
@@ -21650,6 +21809,523 @@ def test_wo008_a_prep_context_is_not_a_pointer_exemption(repo_root, tmp_path, mo
 def test_wo008_a_prep_widening_damage_kills_dispatch_mutant(repo_root, tmp_path, monkeypatch):
     drift_check = _load_drift_check(repo_root, "wo008_a_prep_widening_mutant")
     case = _make_wo008_a_prep_case(repo_root, tmp_path, "a-prep-widening")
+    _wo008_append(case, "WORKORDER.md", "Session A may connect to UEFN.")
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    # A_PREP is reconstructed from A_LIVE, so only the A_LIVE lock is set
+    # aside, on both sets; the equality stays strict (A_LIVE plan r3, P2-3).
+    control = {(f["type"], f["file"]) for f in _before_wo008_session_a_live(
+        drift_check.check_work_order_contract())}
+    assert control == {("session scope widening", "WORKORDER.md")}
+    monkeypatch.setattr(drift_check, "_current_session_widening", lambda *_args: [])
+    mutant = {(f["type"], f["file"]) for f in _before_wo008_session_a_live(
+        drift_check.check_work_order_contract())}
+    # The test 13 assertion for this payload fails against the mutant.
+    with pytest.raises(AssertionError):
+        assert mutant == {("session scope widening", "WORKORDER.md")}
+
+
+# --- WO-008 Session A live baseline (A_LIVE): raw production contract
+
+def _wo008_a_live_raw(repo_root, case, monkeypatch, label):
+    drift_check = _load_drift_check(repo_root, "wo008_a_live_" + label)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return drift_check.check_work_order_contract()
+
+
+def _wo008_a_live_findings(repo_root, case, monkeypatch, label):
+    return {(f["type"], f["file"])
+            for f in _wo008_a_live_raw(repo_root, case, monkeypatch, label)}
+
+
+def _wo008_a_live_labeled(found, surface):
+    """A_LIVE-labeled kinds on one surface. The one-way lock shares the label
+    prefix, so it never counts as an A_LIVE field or record finding."""
+    return {kind for kind, rel in found
+            if rel == surface and kind.startswith("WO-008 Session A live baseline")
+            and kind != _WO008_A_LIVE_FINDING}
+
+
+def _wo008_a_prep_history_pointer_record():
+    record = _WO008_A_PREP_POINTER_RECORD
+    for old, new in _WO008_A_PREP_HISTORY_PAIRS:
+        record = _replace_once(record, old, new, "A_PREP record history form")
+    return record
+
+
+def _wo008_a_prep_history_section():
+    section = _WO008_A_PREP_SECTION
+    for old, new in _WO008_A_PREP_SECTION_HISTORY_PAIRS:
+        section = _replace_once(section, old, new, "A_PREP section history form")
+    return section
+
+
+@pytest.mark.parametrize("newline", ("\n", "\r\n"), ids=("lf", "crlf"))
+def test_wo008_a_live_state_is_clean(repo_root, tmp_path, monkeypatch, newline):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-control")
+    for rel in ("WORKORDER.md", _WO008_ISSUED_REL):
+        path = case / rel
+        path.write_bytes(path.read_text(encoding="utf-8").replace("\n", newline).encode())
+    assert _wo008_a_live_findings(repo_root, case, monkeypatch, "clean") == set()
+    assert list((case / "docs/work-orders/proposed").glob("WO-*.md")) == []
+
+
+def test_wo008_a_live_live_pins(repo_root):
+    pointer = (repo_root / "WORKORDER.md").read_text(encoding="utf-8")
+    mandate = (repo_root / _WO008_ISSUED_REL).read_text(encoding="utf-8")
+    assert pointer.count(_WO008_A_LIVE_HEADER) == 1
+    assert pointer.count(_WO008_A_LIVE_POINTER_RECORD) == 1
+    assert pointer.count(_wo008_a_prep_history_pointer_record()) == 1
+    assert pointer.count(_wo008_a_prep_history_record()) == 1
+    for value in (_WO008_A_PREP_HEADER, _WO008_A_PREP_POINTER_RECORD,
+                  _WO008_CLOSED_POINTER_RECORD):
+        assert pointer.count(value) == 0, value[:60]
+    lines = mandate.splitlines()
+    assert lines.count(_WO008_A_LIVE_MARKER) == 1
+    assert lines.count(_WO008_A_PREP_MARKER) == 0
+    assert lines.count("AUTHORIZATION: ISSUED — SESSION NOT AUTHORIZED") == 0
+    for value in (_WO008_A_LIVE_OPENING, _WO008_A_LIVE_PREREQ_HEAD, _WO008_A_LIVE_SECTION,
+                  _wo008_a_prep_history_section(), _WO008_A_LIVE_NEXT):
+        assert mandate.count(value) == 1, value[:60]
+    for value in (_WO008_A_PREP_OPENING, _WO008_A_PREP_PREREQ_HEAD, _WO008_A_PREP_SECTION,
+                  _WO008_A_PREP_NEXT, _WO008_CLOSED_OPENING, _WO008_CLOSED_PREREQ_HEAD,
+                  _WO008_CLOSED_NEXT):
+        assert mandate.count(value) == 0, value[:60]
+    assert sum(line.startswith("NEXT GATE:") for line in lines) == 1
+    roadmap = " ".join((repo_root / "ROADMAP.md").read_text(
+        encoding="utf-8").replace(">", " ").split())
+    assert roadmap.count(_WO008_A_LIVE_ROADMAP) == 1
+    assert _WO008_A_PREP_ROADMAP not in roadmap
+
+
+@pytest.mark.parametrize(("surface", "value"), [
+    ("WORKORDER.md", line) for line in _WO008_A_LIVE_HEADER.splitlines()[12:]
+] + [
+    (_WO008_ISSUED_REL, line)
+    for line in _WO008_A_LIVE_SECTION.split(_NL + _NL)[1].splitlines()
+])
+def test_wo008_a_live_evidence_is_pinned(repo_root, tmp_path, monkeypatch, surface, value):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-evidence")
+    end = value.index("`", value.index("`") + 1)
+    corrupt = value[:end - 1] + ("0" if value[end - 1] != "0" else "1") + value[end:]
+    _edit(case, surface, value, corrupt)
+    found = _wo008_a_live_findings(repo_root, case, monkeypatch, "evidence")
+    assert _wo008_a_live_labeled(found, surface), repr(sorted(found))
+
+
+@pytest.mark.parametrize("index", range(16))
+@pytest.mark.parametrize("damage", ("missing", "duplicate", "corrupt"))
+def test_wo008_a_live_fields_are_exact_and_single(
+    repo_root, tmp_path, monkeypatch, index, damage
+):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-field")
+    old = _WO008_A_LIVE_HEADER.splitlines()[index]
+    new = "" if damage == "missing" else old + _NL + old if damage == "duplicate" else (
+        old + " altered")
+    _edit(case, "WORKORDER.md", old, new)
+    found = _wo008_a_live_findings(repo_root, case, monkeypatch, "field")
+    assert _wo008_a_live_labeled(found, "WORKORDER.md"), repr(sorted(found))
+
+
+_WO008_A_LIVE_RECORD_CASES = {
+    "a-live-pointer-record": ("WORKORDER.md", _WO008_A_LIVE_POINTER_RECORD),
+    "a-prep-history-pointer-record": ("WORKORDER.md", _wo008_a_prep_history_pointer_record()),
+    "a-live-section": (_WO008_ISSUED_REL, _WO008_A_LIVE_SECTION),
+    "a-prep-history-section": (_WO008_ISSUED_REL, _wo008_a_prep_history_section()),
+    "opening": (_WO008_ISSUED_REL, _WO008_A_LIVE_OPENING),
+    "next-gate": (_WO008_ISSUED_REL, _WO008_A_LIVE_NEXT),
+}
+_WO008_A_LIVE_STRUCTURAL = ("WO-008 Session A live baseline", "WO-008 conditional context",
+                            "WO-008 next gate", "WO-008 unsupported phase")
+
+
+@pytest.mark.parametrize("record", sorted(_WO008_A_LIVE_RECORD_CASES))
+@pytest.mark.parametrize("damage", ("missing", "duplicated", "corrupted", "displaced",
+                                    "fused"))
+def test_wo008_a_live_records_are_validated_before_removal(
+    repo_root, tmp_path, monkeypatch, record, damage
+):
+    surface, old = _WO008_A_LIVE_RECORD_CASES[record]
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-record")
+    text = (case / surface).read_text(encoding="utf-8")
+    if damage == "missing":
+        text = _replace_once(text, old, "", "record damage")
+    elif damage == "duplicated":
+        text += _NL + old + _NL
+    elif damage == "corrupted":
+        text = _replace_once(text, old, old[:-1] + "!", "record damage")
+    elif damage == "fused":
+        text = _replace_once(text, old, old + " Session B may start.", "record damage")
+    else:
+        text = _replace_once(text, old, "", "record damage")
+        text += _NL + "## Decoy" + _NL + _NL + old + _NL
+    (case / surface).write_text(text, encoding="utf-8")
+    found = _wo008_a_live_findings(repo_root, case, monkeypatch, "record")
+    assert any(kind.startswith(_WO008_A_LIVE_STRUCTURAL) and kind != _WO008_A_LIVE_FINDING
+               for kind, rel in found if rel == surface), repr(sorted(found))
+    if damage == "fused":
+        drift_check = _load_drift_check(repo_root, "wo008_a_live_fused")
+        pointer = (case / "WORKORDER.md").read_text(encoding="utf-8")
+        mandate = (case / _WO008_ISSUED_REL).read_text(encoding="utf-8")
+        findings, residual = drift_check._wo008_phase_findings(
+            pointer, mandate, _WO008_ISSUED_REL,
+            "pointer" if surface == "WORKORDER.md" else "document")
+        # Failed validation removes nothing: the whole surface stays scannable.
+        assert findings and residual == (pointer if surface == "WORKORDER.md" else mandate)
+
+
+@pytest.mark.parametrize("trace", (
+    "gate", "bullet-commit", "bullet-digest", "record-opening", "marker", "heading",
+    "bullet-workflow", "bullet-job",
+))
+def test_wo008_a_live_shape_is_selected_by_any_trace(
+    repo_root, tmp_path, monkeypatch, trace
+):
+    case = _make_wo008_a_prep_case(repo_root, tmp_path, "a-live-trace")
+    bullets = dict(zip(("bullet-commit", "bullet-workflow", "bullet-job", "bullet-digest"),
+                       _WO008_A_LIVE_HEADER.splitlines()[12:], strict=True))
+    decision = _WO008_A_PREP_HEADER.splitlines()[-1]
+    if trace == "gate":
+        _edit(case, "WORKORDER.md", "- Current gate: " + _WO008_A_PREP_GATE,
+              "- Current gate: " + _WO008_A_LIVE_GATE)
+    elif trace in bullets:
+        _edit(case, "WORKORDER.md", decision, decision + _NL + bullets[trace])
+    elif trace == "record-opening":
+        _wo008_append(case, "WORKORDER.md", "WO-008 Session A live baseline record: pending.")
+    elif trace == "marker":
+        _edit(case, _WO008_ISSUED_REL, _WO008_A_PREP_MARKER, _WO008_A_LIVE_MARKER)
+    else:
+        _wo008_append(case, _WO008_ISSUED_REL,
+                      "## Session A live baseline record" + _NL + _NL + "Pending.")
+    found = _wo008_a_live_findings(repo_root, case, monkeypatch, "trace")
+    kinds = {kind for kind, _rel in found}
+    a_live = {kind for kind in kinds
+              if kind.startswith("WO-008 Session A live baseline")
+              and kind != _WO008_A_LIVE_FINDING}
+    if trace in ("bullet-workflow", "bullet-job"):
+        # Not A_LIVE traces in the accepted design (plan section 5.1). The
+        # A_PREP shape still rejects them, and A_LIVE is not selected.
+        assert ("WO-008 Session A preparation (WORKORDER.md)", "WORKORDER.md") in found, (
+            repr(sorted(found)))
+        assert not a_live, repr(sorted(found))
+        return
+    # The full A_LIVE shape is demanded and fails. The lock is excluded from
+    # that assertion and asserted absent (A_LIVE plan r3, P2-2), so selecting
+    # A_PREP first cannot pass on the lock alone.
+    assert a_live, repr(sorted(found))
+    assert _WO008_A_LIVE_FINDING not in kinds, repr(sorted(found))
+    assert not any(kind.startswith("WO-008 Session A preparation") for kind in kinds), (
+        repr(sorted(found)))
+
+
+def _wo008_a_prep_prereq_paragraph():
+    return _replace_once(_WO008_CLOSED_PREREQ_PARAGRAPH, _WO008_CLOSED_PREREQ_HEAD,
+                         _WO008_A_PREP_PREREQ_HEAD, "A_PREP prerequisites paragraph")
+
+
+def _wo008_a_live_mixed(case, name):
+    a_live_gate = "- Current gate: " + _WO008_A_LIVE_GATE
+    if name == "a-prep-gate-a-live-records":
+        _wo008_a_live_reverse_header(case)
+    elif name == "a-live-gate-a-prep-records":
+        _edit(case, "WORKORDER.md", "- Current gate: " + _WO008_A_PREP_GATE, a_live_gate)
+    elif name == "a-live-marker-a-prep-pointer":
+        _wo008_a_live_reverse_header(case)
+        _wo008_a_live_reverse_pointer_records(case)
+    elif name == "a-prep-marker-a-live-pointer":
+        _edit(case, _WO008_ISSUED_REL, _WO008_A_LIVE_MARKER, _WO008_A_PREP_MARKER)
+    elif name == "a-prep-record-beside":
+        _edit(case, "WORKORDER.md", _WO008_A_LIVE_POINTER_RECORD,
+              _WO008_A_LIVE_POINTER_RECORD + _NL + _NL + _WO008_A_PREP_POINTER_RECORD)
+    elif name == "a-prep-opening-beside":
+        _edit(case, _WO008_ISSUED_REL, _WO008_A_LIVE_OPENING,
+              _WO008_A_LIVE_OPENING + _NL + _NL + _WO008_A_PREP_OPENING)
+    elif name == "a-prep-next-beside":
+        _edit(case, _WO008_ISSUED_REL, _WO008_A_LIVE_NEXT,
+              _WO008_A_LIVE_NEXT + _NL + _NL + _WO008_A_PREP_NEXT)
+    elif name == "a-prep-prerequisites-beside":
+        # Its own paragraph after the A_LIVE paragraph ends, so every accepted
+        # context still validates once.
+        tail = "remain invalid; there is no blanket scanner exemption."
+        _edit(case, _WO008_ISSUED_REL, tail + _NL + _NL + "## Issuance basis",
+              tail + _NL + _NL + _wo008_a_prep_prereq_paragraph() + _NL + _NL
+              + "## Issuance basis")
+    else:
+        raise AssertionError(name)
+
+
+@pytest.mark.parametrize("name", (
+    "a-prep-gate-a-live-records", "a-live-gate-a-prep-records",
+    "a-live-marker-a-prep-pointer", "a-prep-marker-a-live-pointer",
+    "a-prep-record-beside", "a-prep-opening-beside", "a-prep-next-beside",
+    "a-prep-prerequisites-beside",
+))
+def test_wo008_a_live_mixed_states_are_rejected(repo_root, tmp_path, monkeypatch, name):
+    build = (_make_wo008_a_prep_case if name == "a-live-gate-a-prep-records"
+             else _make_wo008_a_live_case)
+    case = build(repo_root, tmp_path, "a-live-mixed")
+    _wo008_a_live_mixed(case, name)
+    raw = _wo008_a_live_raw(repo_root, case, monkeypatch, "mixed")
+    found = {(f["type"], f["file"]) for f in raw}
+    assert found - {(_WO008_A_LIVE_FINDING, "WORKORDER.md")}, name
+    if name == "a-live-marker-a-prep-pointer":
+        assert _wo008_a_live_labeled(found, "WORKORDER.md"), repr(sorted(found))
+    if name == "a-prep-marker-a-live-pointer":
+        assert ("WO-008 issued state", "docs/work-orders") in found
+    restored = {
+        "a-prep-record-beside": ("WORKORDER.md", _WO008_A_PREP_POINTER_RECORD),
+        "a-prep-opening-beside": (_WO008_ISSUED_REL, _WO008_A_PREP_OPENING),
+        "a-prep-next-beside": (_WO008_ISSUED_REL, _WO008_A_PREP_NEXT),
+        "a-prep-prerequisites-beside": (_WO008_ISSUED_REL, _WO008_A_PREP_PREREQ_HEAD),
+    }
+    if name in restored:
+        surface, text = restored[name]
+        hits = [f for f in raw if f["file"] == surface
+                and f["type"] == _WO008_A_LIVE_RECORD_KIND]
+        assert [f["found"] for f in hits if f["found"] == text] == [text], repr(hits)
+    if name == "a-prep-prerequisites-beside":
+        # Only the prior-state hit may name the mandate with a record or
+        # context type; no A_LIVE context is reported as found. Any other
+        # finding comes from the fail-closed fallback and is recorded, not
+        # asserted away.
+        structural = [f for f in raw if f["file"] == _WO008_ISSUED_REL
+                      and f["type"] in (_WO008_A_LIVE_RECORD_KIND,
+                                        "WO-008 conditional context")]
+        assert [f["found"] for f in structural] == [_WO008_A_PREP_PREREQ_HEAD], (
+            repr(structural))
+
+
+def test_wo008_a_live_reverted_gate_alone_is_rejected(repo_root, tmp_path, monkeypatch):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-gate")
+    _edit(case, "WORKORDER.md", "- Current gate: " + _WO008_A_LIVE_GATE,
+          "- Current gate: " + _WO008_A_PREP_GATE)
+    raw = _wo008_a_live_raw(repo_root, case, monkeypatch, "gate")
+    assert any(f["type"].startswith("WO-008 Session A live baseline (")
+               and f["file"] == "WORKORDER.md" for f in raw), repr(raw)
+    assert any(f["type"] == _WO008_A_LIVE_RECORD_KIND and f["found"] == _WO008_A_PREP_GATE
+               for f in raw), repr(raw)
+
+
+@pytest.mark.parametrize("subset", [
+    combo for size in range(1, 5)
+    for combo in itertools.combinations(range(4), size)
+], ids=lambda combo: "+".join(_WO008_A_LIVE_REVERSAL[i][0] for i in combo))
+def test_wo008_a_live_each_partial_reversal_is_detected(
+    repo_root, tmp_path, monkeypatch, subset
+):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-partial")
+    for index in subset:
+        _WO008_A_LIVE_REVERSAL[index][1](case)
+    found = _wo008_a_live_findings(repo_root, case, monkeypatch, "partial")
+    lock = (_WO008_A_LIVE_FINDING, "WORKORDER.md")
+    if len(subset) == 4:
+        assert found == {lock}
+    else:
+        assert found - {lock}, repr(sorted(found))
+
+
+def test_wo008_a_live_coherent_reversal_trips_only_its_new_lock(
+    repo_root, tmp_path, monkeypatch
+):
+    case = _make_wo008_a_prep_case(repo_root, tmp_path, "a-live-rollback")
+    drift_check = _load_drift_check(repo_root, "wo008_a_live_rollback")
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    assert {(f["type"], f["file"]) for f in drift_check.check_work_order_contract()} == {
+        (_WO008_A_LIVE_FINDING, "WORKORDER.md")}
+    assert _before_wo008_session_a_live(drift_check.check_work_order_contract()) == []
+    # The filter keeps an unrelated historical finding...
+    superseded = case / _WO006_SUP_REL
+    saved = superseded.read_bytes()
+    superseded.unlink()
+    assert any(f["type"] == "superseded WO-006 state" for f in
+               _before_wo008_session_a_live(drift_check.check_work_order_contract()))
+    superseded.write_bytes(saved)
+    # ...and a corrupted A_PREP-state field, a WO-008 kind, so a filter
+    # broadened to every WO-008 type fails.
+    _edit(case, "WORKORDER.md", "- WO-008 closed issuance CI workflow: `37359992194`",
+          "- WO-008 closed issuance CI workflow: `37359992195`")
+    assert any(f["type"].startswith("WO-008 Session A preparation")
+               and f["file"] == "WORKORDER.md"
+               for f in _before_wo008_session_a_live(drift_check.check_work_order_contract()))
+
+
+def test_wo008_a_live_reversal_reproduces_a_prep_bytes(repo_root, tmp_path):
+    case = _make_wo008_a_prep_case(repo_root, tmp_path, "a-live-exact")
+    for rel, digest in (
+        ("WORKORDER.md",
+         "0c920087cc90f898bc1a6d515b31be072976a106380d3154615077375eed9ecc"),
+        (_WO008_ISSUED_REL,
+         "fa048bb5939f33cae8c7dd156ea426ba942cfa4af27d94ea68d0c91fdbf7699b"),
+        # The ROADMAP is reconstructed outside the contract reversal and pinned
+        # here (A_LIVE plan r3, P2-C).
+        ("ROADMAP.md",
+         "f52cdd28fdd82dd2294609be8298913b902c95ef812338509ec87abddae3d0fb"),
+    ):
+        text = (case / rel).read_text(encoding="utf-8")
+        assert hashlib.sha256(text.encode()).hexdigest() == digest, rel
+
+
+@pytest.mark.parametrize("damage", (
+    "record-missing", "record-duplicated", "roadmap-missing", "roadmap-duplicated",
+))
+def test_wo008_a_live_reconstruction_rejects_bad_anchors(repo_root, tmp_path, damage):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-bad")
+    if damage.startswith("record"):
+        replacement = "" if damage.endswith("missing") else (
+            _WO008_A_LIVE_POINTER_RECORD + _NL + _NL + _WO008_A_LIVE_POINTER_RECORD)
+        _edit(case, "WORKORDER.md", _WO008_A_LIVE_POINTER_RECORD, replacement)
+        where = "WO-008 A_LIVE record reversal"
+    else:
+        replacement = "" if damage.endswith("missing") else (
+            _WO008_A_LIVE_ROADMAP_BLOCK + _WO008_A_LIVE_ROADMAP_BLOCK)
+        _edit(case, "ROADMAP.md", _WO008_A_LIVE_ROADMAP_BLOCK, replacement)
+        where = "WO-008 A_LIVE ROADMAP reversal"
+    # The exact anchor check must fire, not a later end-state assertion that
+    # shares the prefix: a str.replace reversal would still fail, but here.
+    with pytest.raises(AssertionError, match=where + ": expected exactly 1 occurrence"):
+        _make_wo008_a_prep_case(case, tmp_path, "a-live-bad-result")
+
+
+# Pre-stated in the accepted plan r3 (section 6.3, test 13) from the existing
+# scanners; confirmed here on the implemented checker.
+_WO008_A_LIVE_GRANTS = {
+    "You may now start.": (("implicit",), ("implicit",)),
+    "Session A may connect to UEFN.": (("widening",), ("widening",)),
+    "This session may deploy.": (("widening",), ("widening",)),
+    "Session A is also authorized to launch Claude Code.": (
+        ("implicit", "widening"), ("implicit", "widening")),
+    "Session B may start.": (("implicit", "later", "reopening"), ("implicit", "later")),
+    "Session C is approved.": (("implicit", "later", "reopening"), ("implicit", "later")),
+    "Session AA may proceed.": (("implicit", "later", "reopening"), ("implicit", "later")),
+    "A GitHub Release is authorized.": (("release",), ("release",)),
+    "Social publication is authorized.": (("external", "wo003-external"), ("external",)),
+    "Session A may repeat the run.": (("widening",), ("widening",)),
+    "Session A may apply product corrections.": (("widening",), ("widening",)),
+}
+
+
+@pytest.mark.parametrize("surface", ("WORKORDER.md", _WO008_ISSUED_REL))
+@pytest.mark.parametrize("payload", sorted(_WO008_A_LIVE_GRANTS))
+def test_wo008_a_live_rejects_grants(repo_root, tmp_path, monkeypatch, surface, payload):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-grant")
+    _wo008_append(case, surface, payload)
+    found = _wo008_a_live_findings(repo_root, case, monkeypatch, "grant")
+    on_pointer, on_mandate = _WO008_A_LIVE_GRANTS[payload]
+    names = on_pointer if surface == "WORKORDER.md" else on_mandate
+    assert found == {(_WO008_A_PREP_TYPES[name], surface) for name in names}, (
+        repr(sorted(found)))
+
+
+def test_wo008_a_live_completed_wo003_caller_still_scans(repo_root, tmp_path, monkeypatch):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-wo003")
+    assert _wo008_a_live_findings(repo_root, case, monkeypatch, "wo003-control") == set()
+    _wo008_append(case, "WORKORDER.md", "Session B may start.")
+    found = _wo008_a_live_findings(repo_root, case, monkeypatch, "wo003")
+    assert ("session authorization reopening", "WORKORDER.md") in found
+
+
+@pytest.mark.parametrize("surface", ("WORKORDER.md", _WO008_ISSUED_REL))
+@pytest.mark.parametrize("payload", (
+    "Product corrections are not authorized.", "A repeat run is not authorized.",
+    "Session B is not authorized.", "You may not start.",
+    "No implementation authority is given here.",
+))
+def test_wo008_a_live_denials_stay_clean(repo_root, tmp_path, monkeypatch, surface, payload):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-denial")
+    _wo008_append(case, surface, payload)
+    assert _wo008_a_live_findings(repo_root, case, monkeypatch, "denial") == set()
+
+
+@pytest.mark.parametrize("trace", (
+    "a-recorded-gate", "a-recorded-marker", "b-corrections-gate", "session-b", "session-c",
+    "stopped-gate", "result-heading",
+))
+def test_wo008_a_live_later_phases_are_not_installed(
+    repo_root, tmp_path, monkeypatch, trace
+):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-later")
+    gate_line = "- Current gate: " + _WO008_A_LIVE_GATE
+    surface = "WORKORDER.md"
+    if trace == "a-recorded-gate":
+        _edit(case, surface, gate_line,
+              "- Current gate: WO-008 SESSION A RECORDED — SESSION B NOT AUTHORIZED")
+    elif trace == "a-recorded-marker":
+        surface = _WO008_ISSUED_REL
+        _edit(case, surface, _WO008_A_LIVE_MARKER,
+              "AUTHORIZATION: ISSUED — SESSION A RECORDED; NO SESSION AUTHORIZED")
+    elif trace == "b-corrections-gate":
+        _edit(case, surface, gate_line, "- Current gate: WO-008 SESSION B PINNED CORRECTIONS "
+              "ONLY — SESSION C LIVE START NOT AUTHORIZED")
+    elif trace in ("session-b", "session-c"):
+        _edit(case, surface, "- Authorized session: A",
+              "- Authorized session: " + trace[-1].upper())
+    elif trace == "stopped-gate":
+        _edit(case, surface, gate_line,
+              "- Current gate: WO-008 WORK STOPPED — A SEPARATE OWNER DECISION IS REQUIRED")
+    else:
+        surface = _WO008_ISSUED_REL
+        _wo008_append(case, surface, "## Session A result record" + _NL + _NL + "Open.")
+    found = _wo008_a_live_findings(repo_root, case, monkeypatch, "later")
+    assert {kind for kind, rel in found if rel == surface}, repr(sorted(found))
+
+
+@pytest.mark.parametrize(("marker", "replacement", "kind"), (
+    ("- Issuance CI workflow: `37050236355`", "", "frozen publication history"),
+    ("- Release train: WO-001 through WO-007", "- Release train: WO-001 through WO-008",
+     "release train"),
+    ("was issued outside the frozen train", "was issued beyond the frozen train",
+     _WO008_A_LIVE_RECORD_KIND),
+    ("Preparation produced only a redacted exact call plan",
+     "Preparation produced just a redacted exact call plan", _WO008_A_LIVE_RECORD_KIND),
+))
+def test_wo008_a_live_keeps_history_checks(
+    repo_root, tmp_path, monkeypatch, marker, replacement, kind
+):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-history")
+    _edit(case, "WORKORDER.md", marker, replacement)
+    found = _wo008_a_live_findings(repo_root, case, monkeypatch, "history")
+    assert any(actual.startswith(kind) and rel == "WORKORDER.md" for actual, rel in found), (
+        repr(sorted(found)))
+
+
+_WO008_A_LIVE_PARTS = {
+    # Section paragraphs: [0] heading, [1] keyed lines, then the grant, the
+    # operative paragraph, the preconditions and the exemption.
+    "grant": (2, "The owner authorized Session A for the pinned live baseline only",
+              "WORKORDER.md", ("implicit", "widening")),
+    "operative": (3, "Within that one run, Session A uses as its deploy source",
+                  "WORKORDER.md", ("implicit", "widening")),
+    "preconditions": (4, "Independent review, the commit, the push and successful CI",
+                      "WORKORDER.md", ()),
+    "exemption": (5, "The owner accepted a narrow offline-verification exemption",
+                  "WORKORDER.md", ()),
+}
+
+
+@pytest.mark.parametrize("part", (*sorted(_WO008_A_LIVE_PARTS), "t3-operative"))
+def test_wo008_a_live_context_is_not_a_pointer_exemption(
+    repo_root, tmp_path, monkeypatch, part
+):
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-wrong-surface")
+    if part == "t3-operative":
+        # T3's operative part, copied into the mandate outside its section.
+        start = _WO008_A_LIVE_POINTER_RECORD.index("Session A may run at most once")
+        text, surface, names = (_WO008_A_LIVE_POINTER_RECORD[start:], _WO008_ISSUED_REL,
+                                ("widening",))
+    else:
+        index, opening, surface, names = _WO008_A_LIVE_PARTS[part]
+        text = _WO008_A_LIVE_SECTION.split(_NL + _NL)[index]
+        assert text.startswith(opening), text[:60]
+    _wo008_append(case, surface, text)
+    found = _wo008_a_live_findings(repo_root, case, monkeypatch, "wrong-surface")
+    # The preconditions and exemption paragraphs are restrictive, so their
+    # empty sets document inert behavior rather than hide it (plan r3, P2-1).
+    assert found == {(_WO008_A_PREP_TYPES[name], surface) for name in names}, (
+        repr(sorted(found)))
+
+
+def test_wo008_a_live_widening_damage_kills_dispatch_mutant(repo_root, tmp_path, monkeypatch):
+    drift_check = _load_drift_check(repo_root, "wo008_a_live_widening_mutant")
+    case = _make_wo008_a_live_case(repo_root, tmp_path, "a-live-widening")
     _wo008_append(case, "WORKORDER.md", "Session A may connect to UEFN.")
     monkeypatch.setattr(drift_check, "ROOT", str(case))
     control = {(f["type"], f["file"]) for f in drift_check.check_work_order_contract()}
