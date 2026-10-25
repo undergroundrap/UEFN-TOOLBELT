@@ -1,7 +1,7 @@
 # WO-008 User reliability and MCP client acceptance
 
 STATUS: ISSUED
-AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR THE OVERSIZED-REPLY AMENDMENT ONLY; SESSION A NOT ACCEPTED
+AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR THE PINNED OVERSIZED-REPLY LIVE PROOF ONLY
 Owner: Ocean Bennett
 Priority: user-facing reliability and missing integration evidence
 Draft date: 2026-10-04
@@ -10,9 +10,9 @@ Planning baseline: `9879d39fbdb58083a0f7229a9c9c90c7d6fb375f`
 
 This is an issued following-train Work Order, outside the frozen
 WO-001 through WO-007 train. The root pointer identifies WO-008 with
-session B for the oversized-reply amendment only. The Session A result stays
-recorded as diagnostic only, Session A acceptance is not met, and Session C
-remains unauthorized.
+session B for the pinned oversized-reply live proof only. The Session A
+result stays recorded as diagnostic only, Session A acceptance is not met,
+and Session C remains unauthorized.
 
 ## Purpose and evidence
 
@@ -52,11 +52,12 @@ The separately adopted issuance/session-enforcement plan r2 supported the
 closed issuance and Session A offline preparation. Separate transitions
 installed the pinned Session A live baseline and its replacement attempt and
 recorded that attempt's result as diagnostic only. Owner amendment OR-1 adds
-three literal oversized-reply phases beside plan r2's phase table, and a
-separate transition installs the first of them, OR_CORRECTION. Session A
-acceptance, other product corrections, the oversized-reply live proof and live
-acceptance still need separately reviewed enforcement transitions and explicit
-owner decisions. No later phase is installed here.
+three literal oversized-reply phases beside plan r2's phase table; separate
+transitions installed the first, OR_CORRECTION, and install the second,
+OR_PROOF. Session A acceptance, other product corrections, recording the
+proof's result and live acceptance still need separately reviewed
+enforcement transitions and explicit owner decisions. No later phase is
+installed here.
 Frozen-train missing, duplicate and misplaced-order protections, publication
 history and earlier terminal records remain in force. Unknown issued orders
 remain invalid; there is no blanket scanner exemption.
@@ -304,6 +305,53 @@ The owner accepted a narrow offline-verification exemption for this
 transition's five governance paths only. This transition records authority; it
 is not live verification.
 
+## Session B oversized-reply live proof record
+
+Oversized-reply amendment commit: `255edf273d181d3ab8f89d204c4369ebfb6a4b8a`
+Oversized-reply amendment CI workflow: `39191040408`
+Oversized-reply amendment CI job: `117863696942` — Lint, types, tests
+Oversized-reply implementation SHA256SUMS: `56cff017a7f186490dd7dfa18b6cd09b3807bc95ae0148f3d77f27393d809bf5`
+Oversized-reply implementation review SHA256SUMS: `f90445552e3e21fc8f2914251bea7f1075885cd9e3328ba56e6f5d976bdbfffd`
+Oversized-reply implementation review verdict: `ACCEPT`
+Oversized-reply live-proof plan SHA256SUMS: `c03bfffc2d99bb477ee2d4a81943ac6f35bd2eb1de07c1f96c413c6ff09adc38`
+Deploy-source manifest SHA-256: `a9269b73da0a14c7166e1fe115b9bc9e236addacf6763d1d2d1a28b2018ab014`
+Owner live-proof instruction SHA-256: `ba22e4543f4613942788436f45e28bcb009efa66297c32d16651c78aa833b370`
+
+The owner allowed one read-only live proof of the reviewed oversized-reply
+correction, through Claude Code in the Claude desktop app only, under the
+accepted proof plan identified above, with the calls, caps and stop rules that
+plan records and no restart, retry or recovery. The proof has at most 24 calls
+in its one client run, counting only calls of the server's tools, each
+approved individually, and any stop ends the entire proof. That plan records
+the Codex route as not verified, so no Codex client run is authorized. This
+record carries no Session A, Session C or compatibility acceptance, and it
+grants no commit or push.
+
+The oversized-reply live proof tests exactly this reviewed correction,
+identified by its files in the reviewed snapshot `wo008-or-product-implementation-2026-10-19`:
+
+- `.claude/mcp_reference.md`: Git blob `be786fa04c7b5db008ad7bc320dbe19f816e1ec5`, SHA-256 `bf65e59aea783330d5f68a8f160736d0b7d19f3786f22d02fd6f05857baed7aa`
+- `docs/CHANGELOG.md`: Git blob `6395dfe0dd34455e5088c40d27bf20351340d4cc`, SHA-256 `2f5cb90fea5b018483df6d532c2c378eb4f50ba9e86303de532c9b97a3affd80`
+- `mcp_server.py`: Git blob `c3a4a8a0326ffb95a5a48c344f2473cbb4a08ae2`, SHA-256 `7a167a20d88e49e6ec31784a0869287038e17664a36d7d6bf5dad07d72498824`
+- `tests/test_mcp_security.py`: Git blob `7b18d7d3abc6b529bc3cf54e5080f89acd393a69`, SHA-256 `6743e5879dca4b5e42eeb951e7f5829a1dcb55f78d91d2b3b1f97436a5cd7862`
+
+Each Git blob is the line-ending-normalized identity Git would commit; each
+SHA-256 is of the reviewed worktree bytes.
+
+The proof uses only the commit that carries this record, after that commit's
+own CI has succeeded, with exactly those four files present, uncommitted and
+unchanged, and with the deployed runtime and the listed project files
+matching the pinned deploy-source manifest and the plan's file classes.
+Any stop, error, timeout, unknown outcome, rejected offset or keys_digest
+change ends the proof as recorded. The correction stays uncommitted until a
+separate transition records the proof's reviewed result.
+
+This transition's independent review, commit, push and successful CI are
+preconditions only and are not permission for the proof's first call, which
+needs the owner's individual approval. The owner accepted a narrow
+offline-verification exemption for this transition's five governance paths
+only. This transition records authority; it is not live verification.
+
 ## Session A Real client baseline
 
 The owner selected **Claude Code** as the first MCP client. This selects a test
@@ -473,9 +521,10 @@ the client/project/fixture/target choices, live start, any unexpected repair,
 recovery, exact commits, pushes, completion, and any later release decision.
 Review acceptance never substitutes for these decisions.
 
-NEXT GATE: a separate owner implementation instruction for the oversized-reply
-correction only, under which Session B implements it uncommitted for
-independent review. The oversized-reply live proof, Session C, Session A
-acceptance, other product corrections, recovery, cleanup, exact commits and
-pushes remain separate decisions. By itself, this mandate grants no
-implementation, review, live, commit or push authority.
+NEXT GATE: the owner's individual approval of each call of the pinned
+oversized-reply live proof, then an independent review of its redacted
+evidence and a separate transition recording its result. The correction's own
+commit and push, Session C, Session A acceptance, other product corrections,
+recovery, cleanup, exact commits and pushes remain separate decisions. By
+itself, this mandate grants no implementation, review, commit or push
+authority.

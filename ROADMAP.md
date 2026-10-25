@@ -15,7 +15,7 @@
 > GitHub Release. Social publication, private-draft publication, and scratch
 > cleanup remain separately gated. WO-008 is issued outside the frozen train;
 > the Session A result is recorded as diagnostic only, and Session B is
-> authorized for the oversized-reply amendment only.
+> authorized for the pinned oversized-reply live proof only.
 > This roadmap grants no implementation authority — root
 > [`WORKORDER.md`](WORKORDER.md) is the sole current gate.
 

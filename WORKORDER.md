@@ -6,8 +6,8 @@ never authorizes implementation.
 
 - Current issued Work Order: WO-008
 - Authorized session: B
-- Base commit: `f551b7fa161464ecca0aa0a0ea959d873430fc4e`
-- Current gate: WO-008 SESSION B OVERSIZED-REPLY AMENDMENT ONLY — SESSION A NOT ACCEPTED; LIVE PROOF NOT AUTHORIZED
+- Base commit: `255edf273d181d3ab8f89d204c4369ebfb6a4b8a`
+- Current gate: WO-008 SESSION B OVERSIZED-REPLY LIVE PROOF ONLY — COMMIT AND PUSH NOT AUTHORIZED
 - WO-008 admission basis commit: `4ff86e8d1c9c89ebda597570ad4f757605ccd81e`
 - WO-008 admission CI workflow: `37246398757`
 - WO-008 admission CI job: `111565059168` — Lint, types, tests
@@ -32,6 +32,10 @@ never authorizes implementation.
 - WO-008 Session A diagnostic result CI workflow: `38521809934`
 - WO-008 Session A diagnostic result CI job: `115712995226` — Lint, types, tests
 - WO-008 oversized-reply amendment instruction SHA-256: `198897bb226ca5ed290dfd073e41ca2bc43892d667a8089216553420975d7b11`
+- WO-008 oversized-reply amendment commit: `255edf273d181d3ab8f89d204c4369ebfb6a4b8a`
+- WO-008 oversized-reply amendment CI workflow: `39191040408`
+- WO-008 oversized-reply amendment CI job: `117863696942` — Lint, types, tests
+- WO-008 oversized-reply live proof instruction SHA-256: `ba22e4543f4613942788436f45e28bcb009efa66297c32d16651c78aa833b370`
 - Issuance commit: `c04e4a794f1e7d0c607c7ad712cbd28e86a55914`
 - Issuance CI workflow: `37050236355`
 - Issuance CI job: `110981533635` — Lint, types, tests
@@ -665,3 +669,38 @@ installations, configuration changes and deployment each need a separate
 reviewed transition recorded here; recovery and cleanup need a separately
 bounded owner instruction; and commits and pushes remain separate owner
 decisions. This record grants no other authority.
+
+WO-008 Session B oversized-reply live proof record: the oversized-reply
+amendment transition was committed as `255edf273d181d3ab8f89d204c4369ebfb6a4b8a`;
+[CI workflow `39191040408`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/39191040408)
+completed successfully on that commit, including required job
+[`117863696942` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/39191040408/job/117863696942).
+That CI tested the amendment enforcement, not the uncommitted correction, a
+live result, an MCP host or a live build. The Session A result stays recorded
+as diagnostic only, and Session A acceptance is not met; this record does not
+treat it as met. The correction implemented under the amendment record is
+identified by SHA256SUMS `56cff017a7f186490dd7dfa18b6cd09b3807bc95ae0148f3d77f27393d809bf5`, and
+its independent review by SHA256SUMS
+`f90445552e3e21fc8f2914251bea7f1075885cd9e3328ba56e6f5d976bdbfffd`, with the
+verdict ACCEPT. The accepted live-proof plan is identified by SHA256SUMS
+`c03bfffc2d99bb477ee2d4a81943ac6f35bd2eb1de07c1f96c413c6ff09adc38`, the deploy-source manifest by
+SHA-256 `a9269b73da0a14c7166e1fe115b9bc9e236addacf6763d1d2d1a28b2018ab014`, and the
+owner's live-proof instruction by SHA-256
+`ba22e4543f4613942788436f45e28bcb009efa66297c32d16651c78aa833b370`. Session B is
+limited to one read-only live proof of exactly that reviewed correction,
+through Claude Code in the Claude desktop app only, with the calls, caps and stop
+rules that plan records; each call is approved individually by the owner, and
+none is repeated, restarted or recovered; any stop ends the proof. That plan
+records the Codex route as not verified, so no Codex client run is
+authorized. This transition's independent review, commit, push and
+successful CI are preconditions only and are not permission for the proof's
+first call, which needs the owner's individual approval. This record is the
+separate reviewed transition that the oversized-reply amendment record
+requires for the live proof; it governs over that record's statement that
+the live proof needs a separate reviewed transition, and over nothing else. The
+correction's own commit and push, Session C, Session A acceptance, a further
+Session A attempt, other product corrections, installations and
+configuration changes the instruction does not name, recovery and cleanup
+each need a separate decision recorded here or a separately bounded owner
+instruction, and commits and pushes remain separate owner decisions. This
+record grants no other authority.

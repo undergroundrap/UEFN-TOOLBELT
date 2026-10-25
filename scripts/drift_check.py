@@ -5773,7 +5773,195 @@ _WO008_OR_CORRECTION_TRACES = (
     "WO-008 Session B oversized-reply amendment record:",
     _WO008_OR_CORRECTION_HEADING,
 )
-# Six literal entries, not a policy engine. Each phase names its own current
+# WO-008 Session B oversized-reply live proof (OR_PROOF): the second of owner
+# amendment OR-1's three literal phases. Session B is authorized for one
+# read-only live proof of the reviewed, uncommitted correction only, through
+# Claude Code in the Claude desktop app; Session A acceptance is not met. Every
+# earlier record stays exactly as committed and required; one record is added
+# on each surface, with four pointer bullets. OR_RECORDED is not installed here.
+_WO008_OR_PROOF_BASE = "255edf273d181d3ab8f89d204c4369ebfb6a4b8a"
+_WO008_OR_PROOF_WORKFLOW = "39191040408"
+_WO008_OR_PROOF_JOB = "117863696942"
+_WO008_OR_IMPLEMENTATION_SHA256SUMS = (
+    "56cff017a7f186490dd7dfa18b6cd09b3807bc95ae0148f3d77f27393d809bf5"
+)
+_WO008_OR_REVIEW_SHA256SUMS = (
+    "f90445552e3e21fc8f2914251bea7f1075885cd9e3328ba56e6f5d976bdbfffd"
+)
+_WO008_OR_PROOF_PLAN_SHA256SUMS = "c03bfffc2d99bb477ee2d4a81943ac6f35bd2eb1de07c1f96c413c6ff09adc38"
+_WO008_OR_DEPLOY_MANIFEST_SHA256 = "a9269b73da0a14c7166e1fe115b9bc9e236addacf6763d1d2d1a28b2018ab014"
+_WO008_OR_PROOF_INSTRUCTION_SHA256 = "ba22e4543f4613942788436f45e28bcb009efa66297c32d16651c78aa833b370"
+# The reviewed, uncommitted correction the proof tests: path, the Git blob Git
+# would commit (line-ending normalized), and the SHA-256 of the reviewed
+# worktree bytes, from the accepted implementation's alignment record.
+_WO008_OR_SNAPSHOT = "wo008-or-product-implementation-2026-10-19"
+_WO008_OR_IMPLEMENTATION = (
+    (".claude/mcp_reference.md",
+     "be786fa04c7b5db008ad7bc320dbe19f816e1ec5",
+     "bf65e59aea783330d5f68a8f160736d0b7d19f3786f22d02fd6f05857baed7aa"),
+    ("docs/CHANGELOG.md",
+     "6395dfe0dd34455e5088c40d27bf20351340d4cc",
+     "2f5cb90fea5b018483df6d532c2c378eb4f50ba9e86303de532c9b97a3affd80"),
+    ("mcp_server.py",
+     "c3a4a8a0326ffb95a5a48c344f2473cbb4a08ae2",
+     "7a167a20d88e49e6ec31784a0869287038e17664a36d7d6bf5dad07d72498824"),
+    ("tests/test_mcp_security.py",
+     "7b18d7d3abc6b529bc3cf54e5080f89acd393a69",
+     "6743e5879dca4b5e42eeb951e7f5829a1dcb55f78d91d2b3b1f97436a5cd7862"),
+)
+# Owner amendment OR-1's phase table, OR_PROOF row, exactly.
+_WO008_OR_PROOF_GATE = (
+    "WO-008 SESSION B OVERSIZED-REPLY LIVE PROOF ONLY — COMMIT AND PUSH NOT AUTHORIZED"
+)
+_ISSUED_SESSION_B_OR_PROOF_AUTH = (
+    "AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR THE PINNED OVERSIZED-REPLY "
+    "LIVE PROOF ONLY"
+)
+_WO008_OR_PROOF_POINTER_SEQUENCE = (
+    "- Current issued Work Order: WO-008",
+    "- Authorized session: B",
+    "- Base commit: `" + _WO008_OR_PROOF_BASE + "`",
+    "- Current gate: " + _WO008_OR_PROOF_GATE,
+) + _WO008_OR_CORRECTION_POINTER_SEQUENCE[4:] + (
+    "- WO-008 oversized-reply amendment commit: `" + _WO008_OR_PROOF_BASE + "`",
+    "- WO-008 oversized-reply amendment CI workflow: `" + _WO008_OR_PROOF_WORKFLOW + "`",
+    "- WO-008 oversized-reply amendment CI job: `" + _WO008_OR_PROOF_JOB
+    + "` — Lint, types, tests",
+    "- WO-008 oversized-reply live proof instruction SHA-256: `"
+    + _WO008_OR_PROOF_INSTRUCTION_SHA256 + "`",
+)
+_WO008_OR_PROOF_POINTER_RECORD = (
+    "WO-008 Session B oversized-reply live proof record: the oversized-reply\n"
+    "amendment transition was committed as `" + _WO008_OR_PROOF_BASE + "`;\n"
+    "[CI workflow `" + _WO008_OR_PROOF_WORKFLOW + "`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/" + _WO008_OR_PROOF_WORKFLOW + ")\n"
+    "completed successfully on that commit, including required job\n"
+    "[`" + _WO008_OR_PROOF_JOB + "` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/" + _WO008_OR_PROOF_WORKFLOW + "/job/" + _WO008_OR_PROOF_JOB + ").\n"
+    "That CI tested the amendment enforcement, not the uncommitted correction, a\n"
+    "live result, an MCP host or a live build. The Session A result stays recorded\n"
+    "as diagnostic only, and Session A acceptance is not met; this record does not\n"
+    "treat it as met. The correction implemented under the amendment record is\n"
+    "identified by SHA256SUMS `" + _WO008_OR_IMPLEMENTATION_SHA256SUMS + "`, and\n"
+    "its independent review by SHA256SUMS\n"
+    "`" + _WO008_OR_REVIEW_SHA256SUMS + "`, with the\n"
+    "verdict ACCEPT. The accepted live-proof plan is identified by SHA256SUMS\n"
+    "`" + _WO008_OR_PROOF_PLAN_SHA256SUMS + "`, the deploy-source manifest by\n"
+    "SHA-256 `" + _WO008_OR_DEPLOY_MANIFEST_SHA256 + "`, and the\n"
+    "owner's live-proof instruction by SHA-256\n"
+    "`" + _WO008_OR_PROOF_INSTRUCTION_SHA256 + "`. Session B is\n"
+    "limited to one read-only live proof of exactly that reviewed correction,\n"
+    "through Claude Code in the Claude desktop app only, with the calls, caps and stop\n"
+    "rules that plan records; each call is approved individually by the owner, and\n"
+    "none is repeated, restarted or recovered; any stop ends the proof. That plan\n"
+    "records the Codex route as not verified, so no Codex client run is\n"
+    "authorized. This transition's independent review, commit, push and\n"
+    "successful CI are preconditions only and are not permission for the proof's\n"
+    "first call, which needs the owner's individual approval. This record is the\n"
+    "separate reviewed transition that the oversized-reply amendment record\n"
+    "requires for the live proof; it governs over that record's statement that\n"
+    "the live proof needs a separate reviewed transition, and over nothing else. The\n"
+    "correction's own commit and push, Session C, Session A acceptance, a further\n"
+    "Session A attempt, other product corrections, installations and\n"
+    "configuration changes the instruction does not name, recovery and cleanup\n"
+    "each need a separate decision recorded here or a separately bounded owner\n"
+    "instruction, and commits and pushes remain separate owner decisions. This\n"
+    "record grants no other authority."
+)
+_WO008_OR_PROOF_OPENING = (
+    "This is an issued following-train Work Order, outside the frozen\n"
+    "WO-001 through WO-007 train. The root pointer identifies WO-008 with\n"
+    "session B for the pinned oversized-reply live proof only. The Session A\n"
+    "result stays recorded as diagnostic only, Session A acceptance is not met,\n"
+    "and Session C remains unauthorized."
+)
+# The replacement for the OR_CORRECTION head only; the admission paragraph and
+# the frozen-train tail sentence stay.
+_WO008_OR_PROOF_PREREQUISITES_HEAD = (
+    "The separately adopted issuance/session-enforcement plan r2 supported the\n"
+    "closed issuance and Session A offline preparation. Separate transitions\n"
+    "installed the pinned Session A live baseline and its replacement attempt and\n"
+    "recorded that attempt's result as diagnostic only. Owner amendment OR-1 adds\n"
+    "three literal oversized-reply phases beside plan r2's phase table; separate\n"
+    "transitions installed the first, OR_CORRECTION, and install the second,\n"
+    "OR_PROOF. Session A acceptance, other product corrections, recording the\n"
+    "proof's result and live acceptance still need separately reviewed\n"
+    "enforcement transitions and explicit owner decisions. No later phase is\n"
+    "installed here."
+)
+_WO008_OR_PROOF_PREREQUISITES = _replaced_once(_WO008_OR_CORRECTION_PREREQUISITES, ((
+    _WO008_OR_CORRECTION_PREREQUISITES_HEAD, _WO008_OR_PROOF_PREREQUISITES_HEAD,
+),))
+_WO008_OR_PROOF_HEADING = "## Session B oversized-reply live proof record"
+_WO008_OR_PROOF_RECORD = (
+    "Oversized-reply amendment commit: `" + _WO008_OR_PROOF_BASE + "`\n"
+    "Oversized-reply amendment CI workflow: `" + _WO008_OR_PROOF_WORKFLOW + "`\n"
+    "Oversized-reply amendment CI job: `" + _WO008_OR_PROOF_JOB + "` — Lint, types, tests\n"
+    "Oversized-reply implementation SHA256SUMS: `" + _WO008_OR_IMPLEMENTATION_SHA256SUMS + "`\n"
+    "Oversized-reply implementation review SHA256SUMS: `" + _WO008_OR_REVIEW_SHA256SUMS + "`\n"
+    "Oversized-reply implementation review verdict: `ACCEPT`\n"
+    "Oversized-reply live-proof plan SHA256SUMS: `" + _WO008_OR_PROOF_PLAN_SHA256SUMS + "`\n"
+    "Deploy-source manifest SHA-256: `" + _WO008_OR_DEPLOY_MANIFEST_SHA256 + "`\n"
+    "Owner live-proof instruction SHA-256: `" + _WO008_OR_PROOF_INSTRUCTION_SHA256 + "`\n"
+    "\n"
+    "The owner allowed one read-only live proof of the reviewed oversized-reply\n"
+    "correction, through Claude Code in the Claude desktop app only, under the\n"
+    "accepted proof plan identified above, with the calls, caps and stop rules that\n"
+    "plan records and no restart, retry or recovery. The proof has at most 24 calls\n"
+    "in its one client run, counting only calls of the server's tools, each\n"
+    "approved individually, and any stop ends the entire proof. That plan records\n"
+    "the Codex route as not verified, so no Codex client run is authorized. This\n"
+    "record carries no Session A, Session C or compatibility acceptance, and it\n"
+    "grants no commit or push.\n"
+    "\n"
+    "The oversized-reply live proof tests exactly this reviewed correction,\n"
+    "identified by its files in the reviewed snapshot `" + _WO008_OR_SNAPSHOT + "`:\n"
+    "\n"
+    + "\n".join("- `" + path + "`: Git blob `" + blob + "`, SHA-256 `" + sha + "`"
+                for path, blob, sha in _WO008_OR_IMPLEMENTATION) + "\n"
+    "\n"
+    "Each Git blob is the line-ending-normalized identity Git would commit; each\n"
+    "SHA-256 is of the reviewed worktree bytes.\n"
+    "\n"
+    "The proof uses only the commit that carries this record, after that commit's\n"
+    "own CI has succeeded, with exactly those four files present, uncommitted and\n"
+    "unchanged, and with the deployed runtime and the listed project files\n"
+    "matching the pinned deploy-source manifest and the plan's file classes.\n"
+    "Any stop, error, timeout, unknown outcome, rejected offset or keys_digest\n"
+    "change ends the proof as recorded. The correction stays uncommitted until a\n"
+    "separate transition records the proof's reviewed result.\n"
+    "\n"
+    "This transition's independent review, commit, push and successful CI are\n"
+    "preconditions only and are not permission for the proof's first call, which\n"
+    "needs the owner's individual approval. The owner accepted a narrow\n"
+    "offline-verification exemption for this transition's five governance paths\n"
+    "only. This transition records authority; it is not live verification."
+)
+_WO008_OR_PROOF_NEXT_GATE = (
+    "NEXT GATE: the owner's individual approval of each call of the pinned\n"
+    "oversized-reply live proof, then an independent review of its redacted\n"
+    "evidence and a separate transition recording its result. The correction's own\n"
+    "commit and push, Session C, Session A acceptance, other product corrections,\n"
+    "recovery, cleanup, exact commits and pushes remain separate decisions. By\n"
+    "itself, this mandate grants no implementation, review, commit or push\n"
+    "authority."
+)
+_WO008_OR_PROOF_ISSUED_SEQUENCE = tuple(
+    _ISSUED_SESSION_B_OR_PROOF_AUTH if line == _ISSUED_SESSION_B_OR_CORRECTION_AUTH else line
+    for line in _WO008_OR_CORRECTION_ISSUED_SEQUENCE)
+_WO008_OR_PROOF_SECTION_HEADINGS = tuple(
+    heading for old in _WO008_OR_CORRECTION_SECTION_HEADINGS
+    for heading in ((old, _WO008_OR_PROOF_HEADING)
+                    if old == _WO008_OR_CORRECTION_HEADING else (old,)))
+# None of these occurs in any committed state through the OR_CORRECTION commit.
+# OR_PROOF states keep the OR_CORRECTION records as history, so these come first.
+_WO008_OR_PROOF_TRACES = (
+    _WO008_OR_PROOF_GATE,
+    _ISSUED_SESSION_B_OR_PROOF_AUTH,
+    "- WO-008 oversized-reply amendment commit:",
+    "- WO-008 oversized-reply live proof instruction SHA-256:",
+    "WO-008 Session B oversized-reply live proof record:",
+    _WO008_OR_PROOF_HEADING,
+)
+# Seven literal entries, not a policy engine. Each phase names its own current
 # texts and the prior-state texts that must not survive the change.
 _WO008_PHASES: dict[str, dict] = {
     "ISSUED_CLOSED": {
@@ -5962,19 +6150,76 @@ _WO008_PHASES: dict[str, dict] = {
         # any Session B grant beyond these pinned records.
         "session": "B",
     },
+    "OR_PROOF": {
+        "pointer_sequence": _WO008_OR_PROOF_POINTER_SEQUENCE,
+        "issued_sequence": _WO008_OR_PROOF_ISSUED_SEQUENCE,
+        "marker": _ISSUED_SESSION_B_OR_PROOF_AUTH,
+        "gate": _WO008_OR_PROOF_GATE,
+        "pointer_records": (_WO008_CLOSED_HISTORY_RECORD,
+                            _WO008_A_PREP_HISTORY_POINTER_RECORD,
+                            _WO008_A_LIVE_POINTER_RECORD,
+                            _WO008_A_LIVE_2_POINTER_RECORD,
+                            _WO008_A_RECORDED_POINTER_RECORD,
+                            _WO008_OR_CORRECTION_POINTER_RECORD,
+                            _WO008_OR_PROOF_POINTER_RECORD),
+        "opening": _WO008_OR_PROOF_OPENING,
+        "prerequisites": _WO008_OR_PROOF_PREREQUISITES,
+        "sections": (("## Issuance basis", _WO008_ISSUANCE_RECORD),
+                     (_WO008_A_PREP_HEADING, _WO008_A_PREP_HISTORY_RECORD),
+                     (_WO008_A_LIVE_HEADING, _WO008_A_LIVE_RECORD),
+                     (_WO008_A_LIVE_2_HEADING, _WO008_A_LIVE_2_RECORD),
+                     (_WO008_A_RECORDED_HEADING, _WO008_A_RECORDED_RECORD),
+                     (_WO008_OR_CORRECTION_HEADING, _WO008_OR_CORRECTION_RECORD),
+                     (_WO008_OR_PROOF_HEADING, _WO008_OR_PROOF_RECORD)),
+        "next_gate": _WO008_OR_PROOF_NEXT_GATE,
+        "headings": _WO008_OR_PROOF_SECTION_HEADINGS,
+        # Cumulative (owner amendment OR-1, proposal r5 section 9.3): everything
+        # OR_CORRECTION forbids, on the same surface and in the same order, then
+        # OR_CORRECTION's own replaced gate, opening, NEXT GATE, source-exact
+        # prerequisites head and marker.
+        "forbidden_pointer": (_WO008_POINTER_RECORD, _WO008_GATE,
+                              _WO008_A_PREP_POINTER_RECORD, _WO008_A_PREP_GATE,
+                              _WO008_A_LIVE_GATE,
+                              _WO008_A_RECORDED_GATE,
+                              _WO008_OR_CORRECTION_GATE),
+        "forbidden_document": (_WO008_OPENING, _WO008_NEXT_GATE,
+                               _WO008_CLOSED_PREREQUISITES_HEAD,
+                               _ISSUED_NO_SESSION_AUTH,
+                               _WO008_A_PREP_OPENING, _WO008_A_PREP_NEXT_GATE,
+                               _WO008_A_PREP_PREREQUISITES_HEAD,
+                               _ISSUED_SESSION_A_PREP_AUTH,
+                               _WO008_A_PREP_RECORD,
+                               _WO008_A_LIVE_OPENING, _WO008_A_LIVE_NEXT_GATE,
+                               _WO008_A_LIVE_PREREQUISITES_HEAD,
+                               _ISSUED_SESSION_A_LIVE_AUTH,
+                               _WO008_A_RECORDED_OPENING, _WO008_A_RECORDED_NEXT_GATE,
+                               _WO008_A_RECORDED_PREREQUISITES_HEAD,
+                               _ISSUED_SESSION_A_RECORDED_AUTH,
+                               _WO008_OR_CORRECTION_OPENING, _WO008_OR_CORRECTION_NEXT_GATE,
+                               _WO008_OR_CORRECTION_PREREQUISITES_HEAD,
+                               _ISSUED_SESSION_B_OR_CORRECTION_AUTH),
+        "label": "WO-008 Session B oversized-reply live proof",
+        "record": "WO-008 Session B oversized-reply live proof record",
+        # Session B stays the current session: the other-session scan exempts
+        # only Session B statements, and the own-session widening scan rejects
+        # any Session B grant beyond these pinned records.
+        "session": "B",
+    },
 }
 
 
 def _wo008_phase(pointer: str, text: str) -> str:
     """Any trace on either surface selects that phase's full shape.
 
-    OR_CORRECTION is checked first, then A_RECORDED, A_LIVE_2 and A_LIVE, because these states
+    OR_PROOF is checked first, then OR_CORRECTION, A_RECORDED, A_LIVE_2 and A_LIVE, because these states
     legitimately keeps the earlier states' traces in its history. A partial
     install is then validated against the selected shape and fails on what is
     missing; it can never fall back to an earlier clean shape. The session line
     counts only while the pointer names WO-008: an earlier order's Session A,
     such as WO-007's in its historical states, is not a trace.
     """
+    if any(trace in pointer or trace in text for trace in _WO008_OR_PROOF_TRACES):
+        return "OR_PROOF"
     if any(trace in pointer or trace in text for trace in _WO008_OR_CORRECTION_TRACES):
         return "OR_CORRECTION"
     if any(trace in pointer or trace in text for trace in _WO008_A_RECORDED_TRACES):
@@ -6100,7 +6345,7 @@ def _wo008_issuance_findings(
 def _wo008_phase_findings(
     pointer: str, text: str, rel: str, surface: str, phase: str | None = None,
 ) -> tuple[list[tuple[str, str, str, str]], str]:
-    """ISSUED_CLOSED, A_PREP, A_LIVE, A_LIVE_2, A_RECORDED or OR_CORRECTION only; later phases need separate
+    """ISSUED_CLOSED, A_PREP, A_LIVE, A_LIVE_2, A_RECORDED, OR_CORRECTION or OR_PROOF only; later phases need separate
     transitions."""
     spec = _WO008_PHASES[phase or _wo008_phase(pointer, text)]
     source = pointer if surface == "pointer" else text
@@ -7082,7 +7327,8 @@ def check_work_order_contract() -> list[dict]:
         current == _WO008_ID or bool(wo008_text)
         or "WO-008 closed issuance record:" in pointer
         or "- WO-008 admission basis commit:" in pointer
-        or wo008_phase in ("A_PREP", "A_LIVE", "A_LIVE_2", "A_RECORDED", "OR_CORRECTION"))
+        or wo008_phase in ("A_PREP", "A_LIVE", "A_LIVE_2", "A_RECORDED", "OR_CORRECTION",
+                          "OR_PROOF"))
     wo008_pointer_residual = pointer
     wo008_history_findings = []
     if wo008_trace:
@@ -7117,6 +7363,13 @@ def check_work_order_contract() -> list[dict]:
             add("WORKORDER.md", "WO-008 Session B oversized-reply amendment state",
                 "the oversized-reply amendment records were removed",
                 "WO-008 oversized-reply amendment records")
+        # One-way: once the oversized-reply live proof is installed, a
+        # coherent rollback to the oversized-reply amendment trips
+        # exactly this lock.
+        if wo008_phase == "OR_CORRECTION":
+            add("WORKORDER.md", "WO-008 Session B oversized-reply live proof state",
+                "the oversized-reply live proof records were removed",
+                "WO-008 oversized-reply live proof records")
         # Old NONE fields retire, not their canonical history or terminal locks.
         wo008_history_findings = _wo007_completed_findings(
             pointer, wo007_completed_text,
@@ -7570,8 +7823,9 @@ def check_work_order_contract() -> list[dict]:
                         "issuance record missing or malformed",
                         "canonical issued WO-008 with validated closed records")
                 # In A_PREP, A_LIVE and A_LIVE_2 the other-session scan exempts only
-                # Session A; in A_RECORDED it exempts no session; in OR_CORRECTION it
-                # exempts only Session B, whose grants beyond the records are widening.
+                # Session A; in A_RECORDED it exempts no session; in OR_CORRECTION and
+                # OR_PROOF it exempts only Session B, whose grants beyond the records
+                # are widening.
                 # Any Session A grant beyond the records is widening below.
                 for where, residual in (
                     ("WORKORDER.md", wo008_pointer_residual),

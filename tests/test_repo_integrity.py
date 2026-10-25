@@ -224,7 +224,8 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert [path.name for path in issued] == [_WO008_PROPOSAL_NAME]
     issued_text = issued[0].read_text(encoding="utf-8")
     assert issued_text.splitlines().count("STATUS: ISSUED") == 1
-    assert issued_text.splitlines().count(_WO008_OR_CORRECTION_MARKER) == 1
+    assert issued_text.splitlines().count(_WO008_OR_PROOF_MARKER) == 1
+    assert issued_text.splitlines().count(_WO008_OR_CORRECTION_MARKER) == 0
     assert issued_text.splitlines().count(_WO008_A_RECORDED_MARKER) == 0
     assert issued_text.splitlines().count(_WO008_A_LIVE_MARKER) == 0
     assert issued_text.splitlines().count(_WO008_A_PREP_MARKER) == 0
@@ -262,16 +263,15 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     ).exists()
     assert current == "WO-008"
     # The Session A result stays recorded as diagnostic only, and Session B is
-    # authorized for the oversized-reply amendment only. The base is the
-    # diagnostic result commit, and the gate is owner amendment OR-1's
-    # OR_CORRECTION gate.
+    # authorized for the pinned live proof only. The base is the
+    # oversized-reply amendment commit, and the gate is owner amendment OR-1's
+    # OR_PROOF gate.
     assert session == "B"
     assert base_lines == [
-        "- Base commit: `f551b7fa161464ecca0aa0a0ea959d873430fc4e`"
+        "- Base commit: `255edf273d181d3ab8f89d204c4369ebfb6a4b8a`"
     ]
     assert gate_lines == [
-        "- Current gate: WO-008 SESSION B OVERSIZED-REPLY AMENDMENT ONLY — SESSION A NOT "
-        "ACCEPTED; LIVE PROOF NOT AUTHORIZED"
+        "- Current gate: " + _WO008_OR_PROOF_GATE
     ]
     for line in (
         "- WO-008 closed issuance commit: `0d1de9e6a1f49ea422cd7911d1c40d67787ddde4`",
@@ -291,6 +291,7 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "`420d59ff3fb1f4bcbd1169ef5a3fce3c63187aa7ab99bc4faa628864274f44e2`",
         *_WO008_A_RECORDED_BULLETS.splitlines(),
         *_WO008_OR_CORRECTION_BULLETS.splitlines(),
+        *_WO008_OR_PROOF_BULLETS.splitlines(),
     ):
         assert pointer_lines.count(line) == 1, line
     for line in (
@@ -416,8 +417,8 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
         "train; the Session A result is recorded as diagnostic only, "
     )
     assert normalized_roadmap.count(
-        roadmap_status + "and Session B is authorized for the oversized-reply "
-        "amendment only.") == 1
+        roadmap_status + "and Session B is authorized for the pinned oversized-reply "
+        "live proof only.") == 1
     assert (roadmap_status + "the replacement attempt is consumed, and no "
             "session is authorized.") not in normalized_roadmap
     assert _WO008_A_RECORDED_ROADMAP_TAIL not in normalized_roadmap
@@ -426,7 +427,8 @@ def test_work_order_repository_memory_cannot_self_authorize(repo_root):
     assert "Current version: **v2.5.0**" in roadmap
     assert "the final integration/repository-truth audit is not authorized" \
         not in normalized_roadmap
-    assert _wo008_or_correction_roadmap_guard(normalized_roadmap) == []
+    assert _WO008_OR_CORRECTION_ROADMAP not in normalized_roadmap
+    assert _wo008_or_proof_roadmap_guard(normalized_roadmap) == []
     assert "WO-006 is issued" not in normalized_roadmap
     assert "WO-006 is issued with no session authorized." not in (
         normalized_roadmap)
@@ -4300,8 +4302,8 @@ def _historical_contract_findings(drift_check):
         _before_wo008_session_a_live(drift_check.check_work_order_contract())))
 
 
-def _make_wo008_or_correction_case(repo_root, tmp_path, name):
-    """An untouched copy of the live OR_CORRECTION pointer, Work Order documents and ROADMAP."""
+def _make_wo008_or_proof_case(repo_root, tmp_path, name):
+    """An untouched copy of the live OR_PROOF pointer, Work Order documents and ROADMAP."""
     case = tmp_path / name
     case.mkdir(parents=True)
     shutil.copy2(repo_root / "WORKORDER.md", case / "WORKORDER.md")
@@ -4311,7 +4313,120 @@ def _make_wo008_or_correction_case(repo_root, tmp_path, name):
     return case
 
 
-# --- WO-008 Session B oversized-reply amendment (OR_CORRECTION): exact live texts
+
+
+# --- WO-008 OR_PROOF: literal adopted texts and exact guarded reversal ---
+_WO008_OR_PROOF_FINDING = 'WO-008 Session B oversized-reply live proof state'
+_WO008_OR_PROOF_GATE = 'WO-008 SESSION B OVERSIZED-REPLY LIVE PROOF ONLY — COMMIT AND PUSH NOT AUTHORIZED'
+_WO008_OR_PROOF_MARKER = 'AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR THE PINNED OVERSIZED-REPLY LIVE PROOF ONLY'
+_WO008_OR_PROOF_HEAD = '- Current issued Work Order: WO-008\n- Authorized session: B\n- Base commit: `255edf273d181d3ab8f89d204c4369ebfb6a4b8a`\n- Current gate: WO-008 SESSION B OVERSIZED-REPLY LIVE PROOF ONLY — COMMIT AND PUSH NOT AUTHORIZED'
+_WO008_OR_PROOF_BULLETS = '- WO-008 oversized-reply amendment commit: `255edf273d181d3ab8f89d204c4369ebfb6a4b8a`\n- WO-008 oversized-reply amendment CI workflow: `39191040408`\n- WO-008 oversized-reply amendment CI job: `117863696942` — Lint, types, tests\n- WO-008 oversized-reply live proof instruction SHA-256: `ba22e4543f4613942788436f45e28bcb009efa66297c32d16651c78aa833b370`'
+_WO008_OR_PROOF_POINTER_RECORD = "WO-008 Session B oversized-reply live proof record: the oversized-reply\namendment transition was committed as `255edf273d181d3ab8f89d204c4369ebfb6a4b8a`;\n[CI workflow `39191040408`](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/39191040408)\ncompleted successfully on that commit, including required job\n[`117863696942` — Lint, types, tests](https://github.com/undergroundrap/UEFN-TOOLBELT/actions/runs/39191040408/job/117863696942).\nThat CI tested the amendment enforcement, not the uncommitted correction, a\nlive result, an MCP host or a live build. The Session A result stays recorded\nas diagnostic only, and Session A acceptance is not met; this record does not\ntreat it as met. The correction implemented under the amendment record is\nidentified by SHA256SUMS `56cff017a7f186490dd7dfa18b6cd09b3807bc95ae0148f3d77f27393d809bf5`, and\nits independent review by SHA256SUMS\n`f90445552e3e21fc8f2914251bea7f1075885cd9e3328ba56e6f5d976bdbfffd`, with the\nverdict ACCEPT. The accepted live-proof plan is identified by SHA256SUMS\n`c03bfffc2d99bb477ee2d4a81943ac6f35bd2eb1de07c1f96c413c6ff09adc38`, the deploy-source manifest by\nSHA-256 `a9269b73da0a14c7166e1fe115b9bc9e236addacf6763d1d2d1a28b2018ab014`, and the\nowner's live-proof instruction by SHA-256\n`ba22e4543f4613942788436f45e28bcb009efa66297c32d16651c78aa833b370`. Session B is\nlimited to one read-only live proof of exactly that reviewed correction,\nthrough Claude Code in the Claude desktop app only, with the calls, caps and stop\nrules that plan records; each call is approved individually by the owner, and\nnone is repeated, restarted or recovered; any stop ends the proof. That plan\nrecords the Codex route as not verified, so no Codex client run is\nauthorized. This transition's independent review, commit, push and\nsuccessful CI are preconditions only and are not permission for the proof's\nfirst call, which needs the owner's individual approval. This record is the\nseparate reviewed transition that the oversized-reply amendment record\nrequires for the live proof; it governs over that record's statement that\nthe live proof needs a separate reviewed transition, and over nothing else. The\ncorrection's own commit and push, Session C, Session A acceptance, a further\nSession A attempt, other product corrections, installations and\nconfiguration changes the instruction does not name, recovery and cleanup\neach need a separate decision recorded here or a separately bounded owner\ninstruction, and commits and pushes remain separate owner decisions. This\nrecord grants no other authority."
+_WO008_OR_PROOF_HEADING = '## Session B oversized-reply live proof record'
+_WO008_OR_PROOF_SECTION = "## Session B oversized-reply live proof record\n\nOversized-reply amendment commit: `255edf273d181d3ab8f89d204c4369ebfb6a4b8a`\nOversized-reply amendment CI workflow: `39191040408`\nOversized-reply amendment CI job: `117863696942` — Lint, types, tests\nOversized-reply implementation SHA256SUMS: `56cff017a7f186490dd7dfa18b6cd09b3807bc95ae0148f3d77f27393d809bf5`\nOversized-reply implementation review SHA256SUMS: `f90445552e3e21fc8f2914251bea7f1075885cd9e3328ba56e6f5d976bdbfffd`\nOversized-reply implementation review verdict: `ACCEPT`\nOversized-reply live-proof plan SHA256SUMS: `c03bfffc2d99bb477ee2d4a81943ac6f35bd2eb1de07c1f96c413c6ff09adc38`\nDeploy-source manifest SHA-256: `a9269b73da0a14c7166e1fe115b9bc9e236addacf6763d1d2d1a28b2018ab014`\nOwner live-proof instruction SHA-256: `ba22e4543f4613942788436f45e28bcb009efa66297c32d16651c78aa833b370`\n\nThe owner allowed one read-only live proof of the reviewed oversized-reply\ncorrection, through Claude Code in the Claude desktop app only, under the\naccepted proof plan identified above, with the calls, caps and stop rules that\nplan records and no restart, retry or recovery. The proof has at most 24 calls\nin its one client run, counting only calls of the server's tools, each\napproved individually, and any stop ends the entire proof. That plan records\nthe Codex route as not verified, so no Codex client run is authorized. This\nrecord carries no Session A, Session C or compatibility acceptance, and it\ngrants no commit or push.\n\nThe oversized-reply live proof tests exactly this reviewed correction,\nidentified by its files in the reviewed snapshot `wo008-or-product-implementation-2026-10-19`:\n\n- `.claude/mcp_reference.md`: Git blob `be786fa04c7b5db008ad7bc320dbe19f816e1ec5`, SHA-256 `bf65e59aea783330d5f68a8f160736d0b7d19f3786f22d02fd6f05857baed7aa`\n- `docs/CHANGELOG.md`: Git blob `6395dfe0dd34455e5088c40d27bf20351340d4cc`, SHA-256 `2f5cb90fea5b018483df6d532c2c378eb4f50ba9e86303de532c9b97a3affd80`\n- `mcp_server.py`: Git blob `c3a4a8a0326ffb95a5a48c344f2473cbb4a08ae2`, SHA-256 `7a167a20d88e49e6ec31784a0869287038e17664a36d7d6bf5dad07d72498824`\n- `tests/test_mcp_security.py`: Git blob `7b18d7d3abc6b529bc3cf54e5080f89acd393a69`, SHA-256 `6743e5879dca4b5e42eeb951e7f5829a1dcb55f78d91d2b3b1f97436a5cd7862`\n\nEach Git blob is the line-ending-normalized identity Git would commit; each\nSHA-256 is of the reviewed worktree bytes.\n\nThe proof uses only the commit that carries this record, after that commit's\nown CI has succeeded, with exactly those four files present, uncommitted and\nunchanged, and with the deployed runtime and the listed project files\nmatching the pinned deploy-source manifest and the plan's file classes.\nAny stop, error, timeout, unknown outcome, rejected offset or keys_digest\nchange ends the proof as recorded. The correction stays uncommitted until a\nseparate transition records the proof's reviewed result.\n\nThis transition's independent review, commit, push and successful CI are\npreconditions only and are not permission for the proof's first call, which\nneeds the owner's individual approval. The owner accepted a narrow\noffline-verification exemption for this transition's five governance paths\nonly. This transition records authority; it is not live verification."
+_WO008_OR_PROOF_OPENING = 'This is an issued following-train Work Order, outside the frozen\nWO-001 through WO-007 train. The root pointer identifies WO-008 with\nsession B for the pinned oversized-reply live proof only. The Session A\nresult stays recorded as diagnostic only, Session A acceptance is not met,\nand Session C remains unauthorized.'
+_WO008_OR_PROOF_PREREQ_HEAD = "The separately adopted issuance/session-enforcement plan r2 supported the\nclosed issuance and Session A offline preparation. Separate transitions\ninstalled the pinned Session A live baseline and its replacement attempt and\nrecorded that attempt's result as diagnostic only. Owner amendment OR-1 adds\nthree literal oversized-reply phases beside plan r2's phase table; separate\ntransitions installed the first, OR_CORRECTION, and install the second,\nOR_PROOF. Session A acceptance, other product corrections, recording the\nproof's result and live acceptance still need separately reviewed\nenforcement transitions and explicit owner decisions. No later phase is\ninstalled here."
+_WO008_OR_PROOF_NEXT = "NEXT GATE: the owner's individual approval of each call of the pinned\noversized-reply live proof, then an independent review of its redacted\nevidence and a separate transition recording its result. The correction's own\ncommit and push, Session C, Session A acceptance, other product corrections,\nrecovery, cleanup, exact commits and pushes remain separate decisions. By\nitself, this mandate grants no implementation, review, commit or push\nauthority."
+_WO008_OR_PROOF_ROADMAP_BLOCK = '> cleanup remain separately gated. WO-008 is issued outside the frozen train;\n> the Session A result is recorded as diagnostic only, and Session B is\n> authorized for the pinned oversized-reply live proof only.\n'
+_WO008_OR_PROOF_TRACES = ('WO-008 SESSION B OVERSIZED-REPLY LIVE PROOF ONLY — COMMIT AND PUSH NOT AUTHORIZED', 'AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR THE PINNED OVERSIZED-REPLY LIVE PROOF ONLY', '- WO-008 oversized-reply amendment commit:', '- WO-008 oversized-reply live proof instruction SHA-256:', 'WO-008 Session B oversized-reply live proof record:', '## Session B oversized-reply live proof record')
+_WO008_OR_PROOF_IMPLEMENTATION = (('.claude/mcp_reference.md', 'be786fa04c7b5db008ad7bc320dbe19f816e1ec5', 'bf65e59aea783330d5f68a8f160736d0b7d19f3786f22d02fd6f05857baed7aa'), ('docs/CHANGELOG.md', '6395dfe0dd34455e5088c40d27bf20351340d4cc', '2f5cb90fea5b018483df6d532c2c378eb4f50ba9e86303de532c9b97a3affd80'), ('mcp_server.py', 'c3a4a8a0326ffb95a5a48c344f2473cbb4a08ae2', '7a167a20d88e49e6ec31784a0869287038e17664a36d7d6bf5dad07d72498824'), ('tests/test_mcp_security.py', '7b18d7d3abc6b529bc3cf54e5080f89acd393a69', '6743e5879dca4b5e42eeb951e7f5829a1dcb55f78d91d2b3b1f97436a5cd7862'))
+_WO008_OR_PROOF_ROADMAP = 'cleanup remain separately gated. WO-008 is issued outside the frozen train; the Session A result is recorded as diagnostic only, and Session B is authorized for the pinned oversized-reply live proof only.'
+
+
+def _wo008_or_proof_reverse_contract(case):
+    """Undo the OR_PROOF contract texts on both surfaces, exact-once only."""
+    path = case / "WORKORDER.md"
+    text = path.read_text(encoding="utf-8")
+    text = _replace_once(text, _NL + _NL + _WO008_OR_PROOF_POINTER_RECORD, "",
+                         "WO-008 OR_PROOF record reversal")
+    text = _replace_once(text, _NL + _WO008_OR_PROOF_BULLETS, "",
+                         "WO-008 OR_PROOF bullet reversal")
+    text = _replace_once(text, _WO008_OR_PROOF_HEAD, _WO008_OR_CORRECTION_HEAD,
+                         "WO-008 OR_PROOF header reversal")
+    path.write_text(text, encoding="utf-8")
+    path = case / _WO008_ISSUED_REL
+    text = path.read_text(encoding="utf-8")
+    text = _replace_once(text, _NL + _NL + _WO008_OR_PROOF_SECTION, "",
+                         "WO-008 OR_PROOF mandate section reversal")
+    for old, new in (
+        (_WO008_OR_PROOF_MARKER, _WO008_OR_CORRECTION_MARKER),
+        (_WO008_OR_PROOF_OPENING, _WO008_OR_CORRECTION_OPENING),
+        (_WO008_OR_PROOF_PREREQ_HEAD, _WO008_OR_CORRECTION_PREREQ_HEAD),
+        (_WO008_OR_PROOF_NEXT, _WO008_OR_CORRECTION_NEXT),
+    ):
+        text = _replace_once(text, old, new, "WO-008 OR_PROOF mandate reversal")
+    path.write_text(text, encoding="utf-8")
+
+
+def _wo008_or_proof_reverse_roadmap(case):
+    """The contract never reads ROADMAP.md, but every reconstruction below
+    OR_PROOF needs the OR_CORRECTION sentence, so a missing file fails here."""
+    path = case / "ROADMAP.md"
+    assert path.exists(), (
+        "WO-008 OR_PROOF reversal: ROADMAP.md is required and missing")
+    path.write_text(_replace_once(
+        path.read_text(encoding="utf-8"), _WO008_OR_PROOF_ROADMAP_BLOCK,
+        _WO008_OR_CORRECTION_ROADMAP_BLOCK, "WO-008 OR_PROOF ROADMAP reversal"),
+        encoding="utf-8")
+
+
+_WO008_OR_PROOF_REVERSAL = (
+    ("contract", _wo008_or_proof_reverse_contract),
+    ("roadmap", _wo008_or_proof_reverse_roadmap),
+)
+
+
+def _has_wo008_or_proof_trace(case):
+    pointer = (case / "WORKORDER.md").read_text(encoding="utf-8")
+    issued = case / _WO008_ISSUED_REL
+    mandate = issued.read_text(encoding="utf-8") if issued.exists() else ""
+    return any(trace in pointer or trace in mandate
+               for trace in _WO008_OR_PROOF_TRACES)
+
+
+def _wo008_reverse_or_proof(case):
+    """Exactly undo OR_PROOF, ROADMAP included, when present; an OR_CORRECTION
+    or older input, including an already reconstructed one, stays so."""
+    if not _has_wo008_or_proof_trace(case):
+        return
+    for _label, undo in _WO008_OR_PROOF_REVERSAL:
+        undo(case)
+    # Asserted only when the reversal ran (the P2-J guard pattern).
+    pointer = (case / "WORKORDER.md").read_text(encoding="utf-8")
+    mandate = (case / _WO008_ISSUED_REL).read_text(encoding="utf-8")
+    roadmap = (case / "ROADMAP.md").read_text(encoding="utf-8")
+    _assert_reconstructed(
+        "WO-008 Session B oversized-reply amendment", pointer + _NL + mandate,
+        (_WO008_OR_CORRECTION_HEAD, _WO008_OR_CORRECTION_POINTER_RECORD, _WO008_OR_CORRECTION_SECTION,
+         _WO008_OR_CORRECTION_MARKER, _WO008_OR_CORRECTION_OPENING, _WO008_OR_CORRECTION_PREREQ_HEAD,
+         _WO008_OR_CORRECTION_NEXT),
+        (*_WO008_OR_PROOF_TRACES, _WO008_OR_PROOF_POINTER_RECORD,
+         _WO008_OR_PROOF_SECTION))
+    for rel, text, digest in (
+        ("WORKORDER.md", pointer,
+         "2682b7f7e651f1175aec73b1aaa3768aae3fc195ac52bc7baa85b3627457f364"),
+        (_WO008_ISSUED_REL, mandate,
+         "59eabf3c92471c6a65a4bbc65f4c7fffdff8e51dfd69e4c2eacd159708b2ca3b"),
+        ("ROADMAP.md", roadmap,
+         "eebbddc58ef839c7e45af3abf97a7a7d88c82d66b2803e1b343490d37f4b1e03"),
+    ):
+        assert hashlib.sha256(text.encode()).hexdigest() == digest, (
+            "WO-008 OR_PROOF reversal: " + rel + " is not the OR_CORRECTION commit's LF text")
+
+
+def _make_wo008_or_correction_case(repo_root, tmp_path, name):
+    """Reconstruct OR_CORRECTION exactly, including ROADMAP, when OR_PROOF is present."""
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, name)
+    _wo008_reverse_or_proof(case)
+    return case
+
+
+def _before_wo008_or_proof(findings):
+    """Set aside only the new one-way lock on a reconstructed OR_CORRECTION case."""
+    return [f for f in findings if f["type"] != _WO008_OR_PROOF_FINDING]
+
+
+# --- WO-008 Session B oversized-reply amendment (OR_CORRECTION): preserved texts
 # Generated from the implemented checker constants (the transition plan's
 # appendix, with the two digests substituted) and checked against the live
 # worktree. The A_RECORDED state is reconstructed by undoing exactly these.
@@ -4684,6 +4799,7 @@ def _make_wo008_a_prep_case(repo_root, tmp_path, name):
                     case / "docs" / "work-orders")
     if (repo_root / "ROADMAP.md").exists():
         shutil.copy2(repo_root / "ROADMAP.md", case / "ROADMAP.md")
+    _wo008_reverse_or_proof(case)
     _wo008_reverse_or_correction(case)
     _wo008_reverse_a_recorded(case)
     _wo008_reverse_a_live_2(case)
@@ -23792,7 +23908,7 @@ def test_wo008_a_recorded_drift_scan_has_no_count_phrase(repo_root, tmp_path, mo
 def _wo008_or_correction_raw(repo_root, case, monkeypatch, label):
     drift_check = _load_drift_check(repo_root, "wo008_or_correction_" + label)
     monkeypatch.setattr(drift_check, "ROOT", str(case))
-    return drift_check.check_work_order_contract()
+    return _before_wo008_or_proof(drift_check.check_work_order_contract())
 
 
 def _wo008_or_correction_findings(repo_root, case, monkeypatch, label):
@@ -24041,7 +24157,8 @@ def test_wo008_or_correction_state_is_clean(repo_root, tmp_path, monkeypatch, ne
     assert _wo008_or_correction_raw(repo_root, case, monkeypatch, "clean") == []
 
 
-def test_wo008_or_correction_live_pins(repo_root):
+def test_wo008_or_correction_live_pins(repo_root, tmp_path):
+    repo_root = _make_wo008_or_correction_case(repo_root, tmp_path, 'or-correction-live-pins')
     pointer = (repo_root / "WORKORDER.md").read_text(encoding="utf-8")
     mandate = (repo_root / _WO008_ISSUED_REL).read_text(encoding="utf-8")
     header = (_WO008_OR_CORRECTION_HEAD.splitlines() + _WO008_A_LIVE_2_HEADER.splitlines()[4:]
@@ -24183,7 +24300,7 @@ def test_wo008_or_correction_partial_installs_are_rejected(
     case = _make_wo008_a_recorded_case(repo_root, tmp_path, "or-correction-install")
     if part in ("pointer-only", "mandate-only"):
         surface = "WORKORDER.md" if part == "pointer-only" else _WO008_ISSUED_REL
-        (case / surface).write_bytes((repo_root / surface).read_bytes())
+        (case / surface).write_bytes((_make_wo008_or_correction_case(repo_root, tmp_path, 'or-correction-install-source') / surface).read_bytes())
     elif part == "header-only":
         _edit(case, "WORKORDER.md", _WO008_A_RECORDED_HEAD, _WO008_OR_CORRECTION_HEAD)
         old = _WO008_A_RECORDED_BULLETS.splitlines()[-1]
@@ -24217,7 +24334,7 @@ def test_wo008_or_correction_each_partial_reversal_is_detected(
         assert found == ({(_WO008_OR_CORRECTION_FINDING, "WORKORDER.md")}
                          if subset == (0,) else set())
         with pytest.raises(AssertionError):
-            test_wo008_or_correction_live_pins(case)
+            test_wo008_or_correction_live_pins(case, tmp_path)
 
 
 def test_wo008_or_correction_coherent_reversal_trips_only_its_new_lock(
@@ -24396,7 +24513,7 @@ def test_wo008_or_correction_forbidden_lists_are_cumulative(repo_root):
     assert drift_check._WO008_A_RECORDED_PREREQUISITES_HEAD == _WO008_A_RECORDED_PREREQ_HEAD
     for key in ("ISSUED_CLOSED", "A_PREP", "A_LIVE", "A_LIVE_2"):
         assert key in phases
-    assert list(phases)[-1] == "OR_CORRECTION"
+    assert list(phases)[-2:] == ["OR_CORRECTION", "OR_PROOF"]
 
 
 @pytest.mark.parametrize("placement", ("before", "after", "elsewhere"))
@@ -24501,7 +24618,41 @@ def test_wo008_or_correction_later_phases_are_not_installed(
               "- Current gate: " + gate)
     found = _wo008_or_correction_findings(repo_root, case, monkeypatch, "later")
     assert {kind for kind, rel in found if rel == surface}, repr(sorted(found))
-    _wo008_or_correction_assert_exact(found, ("later", trace))
+    if trace in {"or-proof-gate", "or-proof-marker", "proof-heading"}:
+        # These traces now select the installed OR_PROOF shape. Retain the
+        # damaged-surface rejection above and pin every finding explicitly;
+        # all older frozen damage sets remain unchanged.
+        drift_check = _load_drift_check(repo_root, "or_correction_installed_proof")
+        assert drift_check._wo008_phase(
+            (case / "WORKORDER.md").read_text(encoding="utf-8"),
+            (case / _WO008_ISSUED_REL).read_text(encoding="utf-8")) == "OR_PROOF"
+        expected = {
+            ("WO-008 Session B oversized-reply live proof", "WORKORDER.md"),
+            ("WO-008 Session B oversized-reply live proof (WORKORDER.md)", "WORKORDER.md"),
+            ("WO-008 Session B oversized-reply live proof record", "WORKORDER.md"),
+            ("WO-008 Session B oversized-reply live proof record", _WO008_ISSUED_REL),
+            ("WO-008 conditional context", "WORKORDER.md"),
+            ("WO-008 conditional context", _WO008_ISSUED_REL),
+            ("WO-008 unsupported phase", _WO008_ISSUED_REL),
+            ("implicit session authorization", "WORKORDER.md"),
+            ("implicit session authorization", _WO008_ISSUED_REL),
+            ("later session authorization", "WORKORDER.md"),
+            ("later session authorization", _WO008_ISSUED_REL),
+            ("planning-only proposal placement", _WO008_ISSUED_REL),
+            ("session authorization reopening", "WORKORDER.md"),
+            ("session scope widening", "WORKORDER.md"),
+            ("session scope widening", _WO008_ISSUED_REL),
+        }
+        if trace != "or-proof-marker":
+            expected |= {
+                ("WO-008 Session B oversized-reply live proof", _WO008_ISSUED_REL),
+                ("WO-008 Session B oversized-reply live proof (" + _WO008_ISSUED_REL + ")",
+                 _WO008_ISSUED_REL),
+                ("WO-008 issued state", "docs/work-orders"),
+            }
+        assert found == expected, repr(sorted(found))
+    else:
+        _wo008_or_correction_assert_exact(found, ("later", trace))
 
 
 @pytest.mark.parametrize("session", ("NONE", "A"))
@@ -24526,13 +24677,13 @@ def test_wo008_or_correction_own_session_widening_is_scanned(
     monkeypatch.setattr(drift_check, "ROOT", str(case))
     _wo008_append(case, surface, payload)
     want = {("session scope widening", surface)}
-    assert {(f["type"], f["file"]) for f in drift_check.check_work_order_contract()} == want
+    assert {(f["type"], f["file"]) for f in _before_wo008_or_proof(drift_check.check_work_order_contract())} == want
     # Without the phase's own-session widening scan, these grants are missed.
     scan = drift_check._current_session_widening
     monkeypatch.setattr(drift_check, "_current_session_widening",
                         lambda residual, session, allowed:
                         False if session == "B" else scan(residual, session, allowed))
-    assert {(f["type"], f["file"]) for f in drift_check.check_work_order_contract()} == set()
+    assert {(f["type"], f["file"]) for f in _before_wo008_or_proof(drift_check.check_work_order_contract())} == set()
 
 
 def test_wo008_or_correction_widening_damage_kills_dispatch_mutant(
@@ -24543,11 +24694,11 @@ def test_wo008_or_correction_widening_damage_kills_dispatch_mutant(
     monkeypatch.setattr(drift_check, "ROOT", str(case))
     _wo008_append(case, "WORKORDER.md", "Session B may deploy the correction.")
     want = {("session scope widening", "WORKORDER.md")}
-    assert {(f["type"], f["file"]) for f in drift_check.check_work_order_contract()} == want
+    assert {(f["type"], f["file"]) for f in _before_wo008_or_proof(drift_check.check_work_order_contract())} == want
     phases = dict(drift_check._WO008_PHASES)
     phases["OR_CORRECTION"] = dict(phases["OR_CORRECTION"], session="")
     monkeypatch.setattr(drift_check, "_WO008_PHASES", phases)
-    mutant = {(f["type"], f["file"]) for f in drift_check.check_work_order_contract()}
+    mutant = {(f["type"], f["file"]) for f in _before_wo008_or_proof(drift_check.check_work_order_contract())}
     with pytest.raises(AssertionError):
         assert mutant == want
 
@@ -24661,7 +24812,8 @@ _WO008_OR_CORRECTION_ROADMAP_DAMAGE = (
 
 @pytest.mark.parametrize(("label", "planted"), _WO008_OR_CORRECTION_ROADMAP_DAMAGE,
                          ids=[label for label, _ in _WO008_OR_CORRECTION_ROADMAP_DAMAGE])
-def test_wo008_or_correction_roadmap_guard_rejects_extra_grants(repo_root, label, planted):
+def test_wo008_or_correction_roadmap_guard_rejects_extra_grants(repo_root, tmp_path, label, planted):
+    repo_root = _make_wo008_or_correction_case(repo_root, tmp_path, 'or-correction-guard-control')
     roadmap = (repo_root / "ROADMAP.md").read_text(encoding="utf-8")
     normalized = " ".join(roadmap.replace(">", " ").split())
     # Valid-state control: the live OR_CORRECTION ROADMAP passes the guard.
@@ -24669,6 +24821,1184 @@ def test_wo008_or_correction_roadmap_guard_rejects_extra_grants(repo_root, label
     damaged = " ".join((roadmap + _NL + "> " + planted + _NL).replace(">", " ").split())
     assert _wo008_or_correction_roadmap_guard(damaged), label
 
+
+
+# --- WO-008 Session B oversized-reply live proof (OR_PROOF): raw contract
+
+def _wo008_or_proof_raw(repo_root, case, monkeypatch, label):
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_" + label)
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    return drift_check.check_work_order_contract()
+
+
+def _wo008_or_proof_findings(repo_root, case, monkeypatch, label):
+    return {(f["type"], f["file"])
+            for f in _wo008_or_proof_raw(repo_root, case, monkeypatch, label)}
+
+
+def _wo008_or_proof_labeled(found, surface):
+    return {kind for kind, rel in found if rel == surface
+            and kind.startswith("WO-008 Session B oversized-reply live proof")
+            and kind != _WO008_OR_PROOF_FINDING}
+
+
+# Literal damage sets are captured in scratch, then frozen before verification.
+_WO008_OR_PROOF_DAMAGE_GROUPS = ((('WO-008 Session B oversized-reply live proof', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md')),
+ (('WO-008 Session B oversized-reply live proof record',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')),
+ (('WO-008 Session B oversized-reply live proof', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('current work order gate', 'WORKORDER.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session authorization reopening', 'WORKORDER.md')),
+ (('WO-008 Session B oversized-reply live proof', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('authorized session gate', 'WORKORDER.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md')),
+ (('WO-008 Session B oversized-reply live proof', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('base commit', 'WORKORDER.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md')),
+ (('WO-008 Session B oversized-reply live proof', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('current gate', 'WORKORDER.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md')),
+ (('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('authorized session gate', 'WORKORDER.md'),
+  ('current issued work order mismatch', 'WORKORDER.md'),
+  ('issued session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('issued work order identity', 'docs/work-orders/issued'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session authorization reopening', 'WORKORDER.md')),
+ (('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md')),
+ (('WO-008 Session B oversized-reply live proof record', 'WORKORDER.md'),
+  ('WO-008 conditional context', 'WORKORDER.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md')),
+ (('WO-008 Session B oversized-reply live proof record',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 unsupported phase',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')),
+ (('WO-008 unsupported phase',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')),
+ (('WO-008 Session B oversized-reply live proof', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof '
+   '(docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md)',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 Session B oversized-reply live proof record', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof record',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 conditional context', 'WORKORDER.md'),
+  ('WO-008 conditional context',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 issued state', 'docs/work-orders'),
+  ('WO-008 unsupported phase',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')),
+ (('WO-008 Session B oversized-reply live proof', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof '
+   '(docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md)',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 Session B oversized-reply live proof record', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof record',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 conditional context', 'WORKORDER.md'),
+  ('WO-008 conditional context',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 issued state', 'docs/work-orders'),
+  ('WO-008 unsupported phase',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('issued authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')),
+ (('WO-008 Session B oversized-reply live proof',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 Session B oversized-reply live proof '
+   '(docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md)',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 Session B oversized-reply live proof record',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 conditional context',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 issued state', 'docs/work-orders'),
+  ('WO-008 unsupported phase',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')),
+ (('WO-008 Session B oversized-reply live proof', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof record', 'WORKORDER.md'),
+  ('WO-008 conditional context', 'WORKORDER.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md')),
+ (('WO-008 Session B oversized-reply live proof',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 Session B oversized-reply live proof '
+   '(docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md)',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 Session B oversized-reply live proof record', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof record',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 conditional context', 'WORKORDER.md'),
+  ('WO-008 conditional context',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 issued state', 'docs/work-orders'),
+  ('WO-008 unsupported phase',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')),
+ (('WO-008 Session B oversized-reply live proof', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof '
+   '(docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md)',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 Session B oversized-reply live proof record', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof record',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 conditional context',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 issued state', 'docs/work-orders'),
+  ('WO-008 unsupported phase',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')),
+ (('WO-008 Session B oversized-reply live proof', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof (WORKORDER.md)', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof record', 'WORKORDER.md'),
+  ('WO-008 Session B oversized-reply live proof record',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 conditional context', 'WORKORDER.md'),
+  ('WO-008 conditional context',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 unsupported phase',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')),
+ (('WO-008 Session B oversized-reply live proof record', 'WORKORDER.md'),
+  ('implicit session authorization', 'WORKORDER.md'),
+  ('later session authorization', 'WORKORDER.md'),
+  ('session authorization reopening', 'WORKORDER.md'),
+  ('session scope widening', 'WORKORDER.md')),
+ (('WO-008 Session B oversized-reply live proof record',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 next gate',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')),
+ (('WO-008 Session B oversized-reply live proof record',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 issued state', 'docs/work-orders'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('issued authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')),
+ (('WO-008 Session B oversized-reply live proof record',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('WO-008 conditional context',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('implicit session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('later session authorization',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('planning-only proposal placement',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'),
+  ('session scope widening',
+   'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md')))
+_WO008_OR_PROOF_DAMAGE_INDEX = {('authority',): 8,
+ ('evidence', 'WORKORDER.md', '- WO-008 oversized-reply amendment CI job: `117863696942` — Lint, types, tests'): 0,
+ ('evidence', 'WORKORDER.md', '- WO-008 oversized-reply amendment CI workflow: `39191040408`'): 0,
+ ('evidence', 'WORKORDER.md', '- WO-008 oversized-reply amendment commit: `255edf273d181d3ab8f89d204c4369ebfb6a4b8a`'): 0,
+ ('evidence', 'WORKORDER.md', '- WO-008 oversized-reply live proof instruction SHA-256: `ba22e4543f4613942788436f45e28bcb009efa66297c32d16651c78aa833b370`'): 0,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', '- `.claude/mcp_reference.md`: Git blob `be786fa04c7b5db008ad7bc320dbe19f816e1ec5`, SHA-256 `bf65e59aea783330d5f68a8f160736d0b7d19f3786f22d02fd6f05857baed7aa`'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', '- `docs/CHANGELOG.md`: Git blob `6395dfe0dd34455e5088c40d27bf20351340d4cc`, SHA-256 `2f5cb90fea5b018483df6d532c2c378eb4f50ba9e86303de532c9b97a3affd80`'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', '- `mcp_server.py`: Git blob `c3a4a8a0326ffb95a5a48c344f2473cbb4a08ae2`, SHA-256 `7a167a20d88e49e6ec31784a0869287038e17664a36d7d6bf5dad07d72498824`'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', '- `tests/test_mcp_security.py`: Git blob `7b18d7d3abc6b529bc3cf54e5080f89acd393a69`, SHA-256 `6743e5879dca4b5e42eeb951e7f5829a1dcb55f78d91d2b3b1f97436a5cd7862`'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 'Deploy-source manifest SHA-256: `a9269b73da0a14c7166e1fe115b9bc9e236addacf6763d1d2d1a28b2018ab014`'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 'Oversized-reply amendment CI job: `117863696942` — Lint, types, tests'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 'Oversized-reply amendment CI workflow: `39191040408`'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 'Oversized-reply amendment commit: `255edf273d181d3ab8f89d204c4369ebfb6a4b8a`'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 'Oversized-reply implementation SHA256SUMS: `56cff017a7f186490dd7dfa18b6cd09b3807bc95ae0148f3d77f27393d809bf5`'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 'Oversized-reply implementation review SHA256SUMS: `f90445552e3e21fc8f2914251bea7f1075885cd9e3328ba56e6f5d976bdbfffd`'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 'Oversized-reply implementation review verdict: `ACCEPT`'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 'Oversized-reply live-proof plan SHA256SUMS: `c03bfffc2d99bb477ee2d4a81943ac6f35bd2eb1de07c1f96c413c6ff09adc38`'): 1,
+ ('evidence', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 'Owner live-proof instruction SHA-256: `ba22e4543f4613942788436f45e28bcb009efa66297c32d16651c78aa833b370`'): 1,
+ ('field', 0, 'corrupt'): 6,
+ ('field', 0, 'duplicate'): 2,
+ ('field', 0, 'missing'): 2,
+ ('field', 1, 'corrupt'): 7,
+ ('field', 1, 'duplicate'): 3,
+ ('field', 1, 'missing'): 3,
+ ('field', 2, 'corrupt'): 7,
+ ('field', 2, 'duplicate'): 4,
+ ('field', 2, 'missing'): 4,
+ ('field', 3, 'corrupt'): 7,
+ ('field', 3, 'duplicate'): 5,
+ ('field', 3, 'missing'): 5,
+ ('field', 4, 'corrupt'): 7,
+ ('field', 4, 'duplicate'): 0,
+ ('field', 4, 'missing'): 0,
+ ('field', 5, 'corrupt'): 7,
+ ('field', 5, 'duplicate'): 0,
+ ('field', 5, 'missing'): 0,
+ ('field', 6, 'corrupt'): 7,
+ ('field', 6, 'duplicate'): 0,
+ ('field', 6, 'missing'): 0,
+ ('field', 7, 'corrupt'): 7,
+ ('field', 7, 'duplicate'): 0,
+ ('field', 7, 'missing'): 0,
+ ('field', 8, 'corrupt'): 7,
+ ('field', 8, 'duplicate'): 0,
+ ('field', 8, 'missing'): 0,
+ ('field', 9, 'corrupt'): 7,
+ ('field', 9, 'duplicate'): 0,
+ ('field', 9, 'missing'): 0,
+ ('field', 10, 'corrupt'): 7,
+ ('field', 10, 'duplicate'): 0,
+ ('field', 10, 'missing'): 0,
+ ('field', 11, 'corrupt'): 7,
+ ('field', 11, 'duplicate'): 0,
+ ('field', 11, 'missing'): 0,
+ ('field', 12, 'corrupt'): 7,
+ ('field', 12, 'duplicate'): 0,
+ ('field', 12, 'missing'): 0,
+ ('field', 13, 'corrupt'): 7,
+ ('field', 13, 'duplicate'): 0,
+ ('field', 13, 'missing'): 0,
+ ('field', 14, 'corrupt'): 7,
+ ('field', 14, 'duplicate'): 0,
+ ('field', 14, 'missing'): 0,
+ ('field', 15, 'corrupt'): 7,
+ ('field', 15, 'duplicate'): 0,
+ ('field', 15, 'missing'): 0,
+ ('field', 16, 'corrupt'): 7,
+ ('field', 16, 'duplicate'): 0,
+ ('field', 16, 'missing'): 0,
+ ('field', 17, 'corrupt'): 7,
+ ('field', 17, 'duplicate'): 0,
+ ('field', 17, 'missing'): 0,
+ ('field', 18, 'corrupt'): 7,
+ ('field', 18, 'duplicate'): 0,
+ ('field', 18, 'missing'): 0,
+ ('field', 19, 'corrupt'): 7,
+ ('field', 19, 'duplicate'): 0,
+ ('field', 19, 'missing'): 0,
+ ('field', 20, 'corrupt'): 7,
+ ('field', 20, 'duplicate'): 0,
+ ('field', 20, 'missing'): 0,
+ ('field', 21, 'corrupt'): 7,
+ ('field', 21, 'duplicate'): 0,
+ ('field', 21, 'missing'): 0,
+ ('field', 22, 'corrupt'): 7,
+ ('field', 22, 'duplicate'): 0,
+ ('field', 22, 'missing'): 0,
+ ('field', 23, 'corrupt'): 7,
+ ('field', 23, 'duplicate'): 0,
+ ('field', 23, 'missing'): 0,
+ ('field', 24, 'corrupt'): 7,
+ ('field', 24, 'duplicate'): 0,
+ ('field', 24, 'missing'): 0,
+ ('field', 25, 'corrupt'): 7,
+ ('field', 25, 'duplicate'): 0,
+ ('field', 25, 'missing'): 0,
+ ('field', 26, 'corrupt'): 7,
+ ('field', 26, 'duplicate'): 0,
+ ('field', 26, 'missing'): 0,
+ ('field', 27, 'corrupt'): 7,
+ ('field', 27, 'duplicate'): 0,
+ ('field', 27, 'missing'): 0,
+ ('field', 28, 'corrupt'): 7,
+ ('field', 28, 'duplicate'): 0,
+ ('field', 28, 'missing'): 0,
+ ('field', 29, 'corrupt'): 7,
+ ('field', 29, 'duplicate'): 0,
+ ('field', 29, 'missing'): 0,
+ ('field', 30, 'corrupt'): 7,
+ ('field', 30, 'duplicate'): 0,
+ ('field', 30, 'missing'): 0,
+ ('field', 31, 'corrupt'): 7,
+ ('field', 31, 'duplicate'): 0,
+ ('field', 31, 'missing'): 0,
+ ('history', 'a-recorded-pointer', 'corrupt'): 8,
+ ('history', 'a-recorded-pointer', 'missing'): 8,
+ ('history', 'a-recorded-section', 'corrupt'): 1,
+ ('history', 'a-recorded-section', 'missing'): 9,
+ ('history', 'closed-pointer', 'corrupt'): 8,
+ ('history', 'closed-pointer', 'missing'): 8,
+ ('history', 'live-2-pointer', 'corrupt'): 8,
+ ('history', 'live-2-pointer', 'missing'): 8,
+ ('history', 'live-2-section', 'corrupt'): 1,
+ ('history', 'live-2-section', 'missing'): 9,
+ ('history', 'live-pointer', 'corrupt'): 8,
+ ('history', 'live-pointer', 'missing'): 8,
+ ('history', 'live-section', 'corrupt'): 1,
+ ('history', 'live-section', 'missing'): 9,
+ ('history', 'or-correction-pointer', 'corrupt'): 8,
+ ('history', 'or-correction-pointer', 'missing'): 8,
+ ('history', 'or-correction-section', 'corrupt'): 1,
+ ('history', 'or-correction-section', 'missing'): 9,
+ ('history', 'prep-pointer', 'corrupt'): 8,
+ ('history', 'prep-pointer', 'missing'): 8,
+ ('install', 'header-only'): 15,
+ ('install', 'mandate-only'): 14,
+ ('install', 'marker-only'): 17,
+ ('install', 'pointer-only'): 13,
+ ('install', 'record-only'): 16,
+ ('install', 'section-only'): 11,
+ ('later', 'b-corrections-gate'): 0,
+ ('later', 'or-recorded-gate'): 0,
+ ('later', 'proof-result-heading'): 10,
+ ('later', 'session-c'): 0,
+ ('later', 'stopped-gate'): 0,
+ ('old-current', 'WORKORDER.md', 0): 18,
+ ('old-current', 'WORKORDER.md', 1): 18,
+ ('old-current', 'WORKORDER.md', 2): 18,
+ ('old-current', 'WORKORDER.md', 3): 18,
+ ('old-current', 'WORKORDER.md', 4): 18,
+ ('old-current', 'WORKORDER.md', 5): 18,
+ ('old-current', 'WORKORDER.md', 6): 18,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 0): 1,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 1): 19,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 2): 1,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 3): 20,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 4): 1,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 5): 19,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 6): 1,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 7): 20,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 8): 1,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 9): 1,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 10): 19,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 11): 1,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 12): 20,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 13): 1,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 14): 19,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 15): 1,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 16): 20,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 17): 1,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 18): 19,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 19): 1,
+ ('old-current', 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md', 20): 20,
+ ('record', 'or-correction-pointer', 'corrupted'): 8,
+ ('record', 'or-correction-pointer', 'displaced'): 8,
+ ('record', 'or-correction-pointer', 'duplicated'): 8,
+ ('record', 'or-correction-pointer', 'fused'): 8,
+ ('record', 'or-correction-pointer', 'missing'): 8,
+ ('record', 'or-correction-section', 'corrupted'): 1,
+ ('record', 'or-correction-section', 'displaced'): 10,
+ ('record', 'or-correction-section', 'duplicated'): 9,
+ ('record', 'or-correction-section', 'fused'): 1,
+ ('record', 'or-correction-section', 'missing'): 9,
+ ('record', 'or-proof-pointer', 'corrupted'): 8,
+ ('record', 'or-proof-pointer', 'displaced'): 8,
+ ('record', 'or-proof-pointer', 'duplicated'): 8,
+ ('record', 'or-proof-pointer', 'fused'): 8,
+ ('record', 'or-proof-pointer', 'missing'): 8,
+ ('record', 'or-proof-section', 'corrupted'): 1,
+ ('record', 'or-proof-section', 'displaced'): 10,
+ ('record', 'or-proof-section', 'duplicated'): 9,
+ ('record', 'or-proof-section', 'fused'): 1,
+ ('record', 'or-proof-section', 'missing'): 9,
+ ('restore', 'A'): 0,
+ ('restore', 'NONE'): 0,
+ ('stale-head', 'after'): 21,
+ ('stale-head', 'before'): 1,
+ ('stale-head', 'elsewhere'): 1,
+ ('trace', 0, 'WORKORDER.md'): 11,
+ ('trace', 0, 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'): 11,
+ ('trace', 1, 'WORKORDER.md'): 11,
+ ('trace', 1, 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'): 12,
+ ('trace', 2, 'WORKORDER.md'): 11,
+ ('trace', 2, 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'): 11,
+ ('trace', 3, 'WORKORDER.md'): 11,
+ ('trace', 3, 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'): 11,
+ ('trace', 4, 'WORKORDER.md'): 11,
+ ('trace', 4, 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'): 11,
+ ('trace', 5, 'WORKORDER.md'): 11,
+ ('trace', 5, 'docs/work-orders/issued/WO-008-user-reliability-and-mcp-client-acceptance.md'): 11}
+_WO008_OR_PROOF_DAMAGE_SETS = {
+    key: _WO008_OR_PROOF_DAMAGE_GROUPS[value]
+    for key, value in _WO008_OR_PROOF_DAMAGE_INDEX.items()
+}
+
+
+
+def _wo008_or_proof_assert_exact(found, key):
+    assert found == set(_WO008_OR_PROOF_DAMAGE_SETS[key]), repr(sorted(found))
+
+
+@pytest.mark.parametrize("newline", ("\n", "\r\n"), ids=("lf", "crlf"))
+def test_wo008_or_proof_state_is_clean(repo_root, tmp_path, monkeypatch, newline):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-control")
+    for rel in ("WORKORDER.md", _WO008_ISSUED_REL):
+        path = case / rel
+        path.write_bytes(path.read_text(encoding="utf-8").replace("\n", newline).encode())
+    assert _wo008_or_proof_raw(repo_root, case, monkeypatch, "clean") == []
+
+
+def test_wo008_or_proof_live_pins(repo_root):
+    pointer = (repo_root / "WORKORDER.md").read_text(encoding="utf-8")
+    mandate = (repo_root / _WO008_ISSUED_REL).read_text(encoding="utf-8")
+    header = (_WO008_OR_PROOF_HEAD.splitlines() + _WO008_A_LIVE_2_HEADER.splitlines()[4:]
+              + _WO008_A_RECORDED_BULLETS.splitlines() + _WO008_OR_CORRECTION_BULLETS.splitlines()
+              + _WO008_OR_PROOF_BULLETS.splitlines())
+    assert len(header) == 32
+    assert len(_WO008_OR_PROOF_BULLETS.splitlines()) == 4
+    assert len(_WO008_OR_PROOF_SECTION.split(_NL + _NL)[1].splitlines()) == 9
+    assert "- Authorized session: B" in header
+    assert "- Current gate: " + _WO008_OR_PROOF_GATE in header
+    lines = pointer.splitlines()
+    start = lines.index(header[0])
+    assert lines[start:start + 32] == header
+    assert lines[start + 32].startswith("- Issuance commit:")
+    assert pointer.count(_NL.join(header)) == 1
+    assert pointer.endswith(_WO008_OR_CORRECTION_POINTER_RECORD + _NL + _NL
+                            + _WO008_OR_PROOF_POINTER_RECORD + _NL)
+    assert pointer.count(_WO008_OR_PROOF_POINTER_RECORD) == 1
+    assert mandate.count(_WO008_OR_CORRECTION_SECTION + _NL + _NL
+                         + _WO008_OR_PROOF_SECTION + _NL + _NL
+                         + "## Session A Real client baseline" + _NL) == 1
+    assert mandate.splitlines().count(_WO008_OR_PROOF_MARKER) == 1
+    assert mandate.splitlines().count(_WO008_OR_CORRECTION_MARKER) == 0
+    for value in (_WO008_OR_PROOF_OPENING, _WO008_OR_PROOF_PREREQ_HEAD,
+                  _WO008_OR_PROOF_NEXT, _WO008_OR_PROOF_SECTION):
+        assert mandate.count(value) == 1, value[:60]
+    assert sum(line.startswith("NEXT GATE:") for line in mandate.splitlines()) == 1
+    roadmap = " ".join((repo_root / "ROADMAP.md").read_text(
+        encoding="utf-8").replace(">", " ").split())
+    assert roadmap.count(_WO008_OR_PROOF_ROADMAP) == 1
+    assert _WO008_OR_CORRECTION_ROADMAP not in roadmap
+
+
+@pytest.mark.parametrize(("surface", "value"), [
+    ("WORKORDER.md", line) for line in _WO008_OR_PROOF_BULLETS.splitlines()
+] + [
+    (_WO008_ISSUED_REL, line)
+    for line in _WO008_OR_PROOF_SECTION.split(_NL + _NL)[1].splitlines()
+] + [(_WO008_ISSUED_REL, "- `" + path + "`: Git blob `" + blob + "`, SHA-256 `" + digest + "`")
+     for path, blob, digest in _WO008_OR_PROOF_IMPLEMENTATION])
+def test_wo008_or_proof_evidence_is_pinned(repo_root, tmp_path, monkeypatch, surface, value):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-evidence")
+    end = value.index("`", value.index("`") + 1)
+    corrupt = value[:end - 1] + ("0" if value[end - 1] != "0" else "1") + value[end:]
+    _edit(case, surface, value, corrupt)
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "evidence")
+    assert _wo008_or_proof_labeled(found, surface), repr(sorted(found))
+    assert {rel for _kind, rel in found} <= {surface, "docs/work-orders"}
+    _wo008_or_proof_assert_exact(found, ("evidence", surface, value))
+
+
+@pytest.mark.parametrize("index", range(32))
+@pytest.mark.parametrize("damage", ("missing", "duplicate", "corrupt"))
+def test_wo008_or_proof_fields_are_exact_and_single(
+    repo_root, tmp_path, monkeypatch, index, damage
+):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-field")
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_field_values")
+    assert len(drift_check._WO008_OR_PROOF_POINTER_SEQUENCE) == 32
+    old = drift_check._WO008_OR_PROOF_POINTER_SEQUENCE[index]
+    new = "" if damage == "missing" else old + _NL + old if damage == "duplicate" else (
+        old + " altered")
+    _edit(case, "WORKORDER.md", old, new)
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "field")
+    # Identity corruption can select the unknown-order path, never clean input.
+    if index:
+        assert _wo008_or_proof_labeled(found, "WORKORDER.md"), repr(sorted(found))
+    assert found
+    _wo008_or_proof_assert_exact(found, ("field", index, damage))
+
+
+_WO008_OR_PROOF_RECORD_CASES = {
+    "or-proof-pointer": ("WORKORDER.md", _WO008_OR_PROOF_POINTER_RECORD),
+    "or-correction-pointer": ("WORKORDER.md", _WO008_OR_CORRECTION_POINTER_RECORD),
+    "or-proof-section": (_WO008_ISSUED_REL, _WO008_OR_PROOF_SECTION),
+    "or-correction-section": (_WO008_ISSUED_REL, _WO008_OR_CORRECTION_SECTION),
+}
+
+
+@pytest.mark.parametrize("record", sorted(_WO008_OR_PROOF_RECORD_CASES))
+@pytest.mark.parametrize("damage", ("missing", "duplicated", "corrupted", "displaced", "fused"))
+def test_wo008_or_proof_records_are_validated_before_removal(
+    repo_root, tmp_path, monkeypatch, record, damage
+):
+    surface, old = _WO008_OR_PROOF_RECORD_CASES[record]
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-record")
+    text = (case / surface).read_text(encoding="utf-8")
+    if damage == "missing":
+        text = _replace_once(text, old, "", "record damage")
+    elif damage == "duplicated":
+        text += _NL + old + _NL
+    elif damage == "corrupted":
+        text = _replace_once(text, old, old[:-1] + "!", "record damage")
+    elif damage == "fused":
+        # Session B is the current session, so the fused grant names Session C.
+        text = _replace_once(text, old, old + " Session C may start.", "record damage")
+    else:
+        text = _replace_once(text, old, "", "record damage")
+        text += _NL + "## Decoy" + _NL + _NL + old + _NL
+    (case / surface).write_text(text, encoding="utf-8")
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "record")
+    assert any(kind.startswith(("WO-008 Session B oversized-reply live proof",
+                                "WO-008 conditional context", "WO-008 next gate",
+                                "WO-008 unsupported phase"))
+               and kind != _WO008_OR_PROOF_FINDING
+               for kind, rel in found if rel == surface), repr(sorted(found))
+    _wo008_or_proof_assert_exact(found, ("record", record, damage))
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_failed_removal")
+    pointer = (case / "WORKORDER.md").read_text(encoding="utf-8")
+    mandate = (case / _WO008_ISSUED_REL).read_text(encoding="utf-8")
+    findings, residual = drift_check._wo008_phase_findings(
+        pointer, mandate, _WO008_ISSUED_REL,
+        "pointer" if surface == "WORKORDER.md" else "document")
+    assert findings and residual == (pointer if surface == "WORKORDER.md" else mandate)
+    if damage == "fused":
+        assert ("later session authorization", surface) in found
+
+
+@pytest.mark.parametrize("trace", range(6))
+@pytest.mark.parametrize("surface", ("WORKORDER.md", _WO008_ISSUED_REL))
+def test_wo008_or_proof_shape_is_selected_by_any_trace(
+    repo_root, tmp_path, monkeypatch, trace, surface
+):
+    case = _make_wo008_or_correction_case(repo_root, tmp_path, "or-proof-trace")
+    _wo008_append(case, surface, _WO008_OR_PROOF_TRACES[trace] + " pending")
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "trace")
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_selected_phase")
+    assert drift_check._wo008_phase(
+        (case / "WORKORDER.md").read_text(encoding="utf-8"),
+        (case / _WO008_ISSUED_REL).read_text(encoding="utf-8")) == "OR_PROOF"
+    assert _wo008_or_proof_labeled(found, surface), repr(sorted(found))
+    assert not any(kind == _WO008_OR_PROOF_FINDING for kind, _rel in found)
+    _wo008_or_proof_assert_exact(found, ("trace", trace, surface))
+
+
+@pytest.mark.parametrize("part", ("pointer-only", "mandate-only", "header-only",
+                                  "record-only", "section-only", "marker-only"))
+def test_wo008_or_proof_partial_installs_are_rejected(
+    repo_root, tmp_path, monkeypatch, part
+):
+    case = _make_wo008_or_correction_case(repo_root, tmp_path, "or-proof-install")
+    if part in ("pointer-only", "mandate-only"):
+        surface = "WORKORDER.md" if part == "pointer-only" else _WO008_ISSUED_REL
+        (case / surface).write_bytes((repo_root / surface).read_bytes())
+    elif part == "header-only":
+        _edit(case, "WORKORDER.md", _WO008_OR_CORRECTION_HEAD, _WO008_OR_PROOF_HEAD)
+        old = _WO008_OR_CORRECTION_BULLETS.splitlines()[-1]
+        _edit(case, "WORKORDER.md", old, old + _NL + _WO008_OR_PROOF_BULLETS)
+    elif part == "record-only":
+        _wo008_append(case, "WORKORDER.md", _WO008_OR_PROOF_POINTER_RECORD)
+    elif part == "section-only":
+        _wo008_append(case, _WO008_ISSUED_REL, _WO008_OR_PROOF_SECTION)
+    else:
+        _edit(case, _WO008_ISSUED_REL, _WO008_OR_CORRECTION_MARKER, _WO008_OR_PROOF_MARKER)
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "install")
+    assert any(_wo008_or_proof_labeled(found, rel)
+               for rel in ("WORKORDER.md", _WO008_ISSUED_REL))
+    assert (_WO008_OR_PROOF_FINDING, "WORKORDER.md") not in found
+    _wo008_or_proof_assert_exact(found, ("install", part))
+
+
+@pytest.mark.parametrize("subset", ((0,), (1,), (0, 1)), ids=("contract", "roadmap", "full"))
+def test_wo008_or_proof_each_partial_reversal_is_detected(
+    repo_root, tmp_path, monkeypatch, subset
+):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-partial")
+    for index in subset:
+        _WO008_OR_PROOF_REVERSAL[index][1](case)
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "partial")
+    if subset == (0, 1):
+        assert found == {(_WO008_OR_PROOF_FINDING, "WORKORDER.md")}
+    else:
+        # ROADMAP is deliberately outside the contract; the live pin supplies
+        # its detection. A contract-only rollback is already caught by the lock.
+        assert found == ({(_WO008_OR_PROOF_FINDING, "WORKORDER.md")}
+                         if subset == (0,) else set())
+        with pytest.raises(AssertionError):
+            test_wo008_or_proof_live_pins(case)
+
+
+def test_wo008_or_proof_coherent_reversal_trips_only_its_new_lock(
+    repo_root, tmp_path, monkeypatch
+):
+    case = _make_wo008_or_correction_case(repo_root, tmp_path, "or-proof-rollback")
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_rollback")
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    assert {(f["type"], f["file"]) for f in drift_check.check_work_order_contract()} == {
+        (_WO008_OR_PROOF_FINDING, "WORKORDER.md")}
+    assert _before_wo008_or_proof(drift_check.check_work_order_contract()) == []
+    superseded = case / _WO006_SUP_REL
+    saved = superseded.read_bytes()
+    superseded.unlink()
+    assert any(f["type"] == "superseded WO-006 state" for f in
+               _before_wo008_or_proof(drift_check.check_work_order_contract()))
+    superseded.write_bytes(saved)
+    _edit(case, "WORKORDER.md", _WO008_OR_CORRECTION_BULLETS.splitlines()[-1],
+          _WO008_OR_CORRECTION_BULLETS.splitlines()[-1] + " altered")
+    assert any(f["type"].startswith("WO-008 Session B oversized-reply amendment")
+               and f["type"] != _WO008_OR_CORRECTION_FINDING and f["file"] == "WORKORDER.md"
+               for f in _before_wo008_or_proof(drift_check.check_work_order_contract()))
+
+
+def test_wo008_or_proof_reversal_reproduces_or_correction_bytes(repo_root, tmp_path):
+    case = _make_wo008_or_correction_case(repo_root, tmp_path, "or-proof-exact")
+    for rel, digest in (
+        ("WORKORDER.md", "2682b7f7e651f1175aec73b1aaa3768aae3fc195ac52bc7baa85b3627457f364"),
+        (_WO008_ISSUED_REL, "59eabf3c92471c6a65a4bbc65f4c7fffdff8e51dfd69e4c2eacd159708b2ca3b"),
+        ("ROADMAP.md", "eebbddc58ef839c7e45af3abf97a7a7d88c82d66b2803e1b343490d37f4b1e03"),
+    ):
+        text = (case / rel).read_text(encoding="utf-8")
+        assert hashlib.sha256(text.encode()).hexdigest() == digest, rel
+        assert text != (repo_root / rel).read_text(encoding="utf-8")
+
+
+_WO008_OR_PROOF_ANCHORS = {
+    "pointer-record": ("WORKORDER.md", _NL + _NL + _WO008_OR_PROOF_POINTER_RECORD,
+                       "WO-008 OR_PROOF record reversal"),
+    "pointer-bullets": ("WORKORDER.md", _NL + _WO008_OR_PROOF_BULLETS,
+                        "WO-008 OR_PROOF bullet reversal"),
+    "pointer-head": ("WORKORDER.md", _WO008_OR_PROOF_HEAD,
+                     "WO-008 OR_PROOF header reversal"),
+    "section": (_WO008_ISSUED_REL, _NL + _NL + _WO008_OR_PROOF_SECTION,
+                "WO-008 OR_PROOF mandate section reversal"),
+    "marker": (_WO008_ISSUED_REL, _WO008_OR_PROOF_MARKER,
+               "WO-008 OR_PROOF mandate reversal"),
+    "opening": (_WO008_ISSUED_REL, _WO008_OR_PROOF_OPENING,
+                "WO-008 OR_PROOF mandate reversal"),
+    "prerequisites": (_WO008_ISSUED_REL, _WO008_OR_PROOF_PREREQ_HEAD,
+                      "WO-008 OR_PROOF mandate reversal"),
+    "next": (_WO008_ISSUED_REL, _WO008_OR_PROOF_NEXT, "WO-008 OR_PROOF mandate reversal"),
+    "roadmap": ("ROADMAP.md", _WO008_OR_PROOF_ROADMAP_BLOCK,
+                "WO-008 OR_PROOF ROADMAP reversal"),
+}
+
+
+@pytest.mark.parametrize("step", tuple(_WO008_OR_PROOF_ANCHORS))
+@pytest.mark.parametrize("damage", ("missing", "duplicated"))
+def test_wo008_or_proof_reconstruction_rejects_bad_anchors(
+    repo_root, tmp_path, step, damage
+):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-anchor")
+    surface, anchor, where = _WO008_OR_PROOF_ANCHORS[step]
+    _edit(case, surface, anchor, "" if damage == "missing" else anchor + anchor)
+    with pytest.raises(AssertionError, match=re.escape(where + ": expected exactly 1 occurrence")):
+        _wo008_reverse_or_proof(case)
+
+
+def test_wo008_or_proof_reconstruction_requires_roadmap(repo_root, tmp_path):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-no-roadmap")
+    (case / "ROADMAP.md").unlink()
+    with pytest.raises(AssertionError, match="ROADMAP.md is required and missing"):
+        _wo008_reverse_or_proof(case)
+    # The untouched copy builder still fails closed at its earlier copy step.
+    with pytest.raises(FileNotFoundError):
+        _make_wo008_or_correction_case(case, tmp_path, "or-proof-copy-no-roadmap")
+    older = _make_wo008_or_correction_case(repo_root, tmp_path, "or-proof-older-no-roadmap")
+    (older / "ROADMAP.md").unlink()
+    before = {p.relative_to(older): p.read_bytes() for p in older.rglob("*.md")}
+    _wo008_reverse_or_proof(older)
+    assert before == {p.relative_to(older): p.read_bytes() for p in older.rglob("*.md")}
+
+
+# The transition plan's D7 grants and their exact kinds under S1 (pointer, mandate).
+_WO008_OR_PROOF_GRANTS = {
+    "Session B may also correct disconnect handling.": (("widening",), ("widening",)),
+    "Session B is authorized for the live proof.":
+        (("implicit", "widening"), ("implicit", "widening")),
+    "Session B may deploy the correction.": (("widening",), ("widening",)),
+    "Session A may make another replacement attempt.": (("widening",), ("widening",)),
+    "Session A is authorized for a further attempt.":
+        (("implicit", "later", "reopening", "widening"), ("implicit", "later", "widening")),
+    "The owner has authorized Session C.":
+        (("implicit", "later", "reopening"), ("implicit", "later")),
+    "Work may now begin on the remaining Session B items.":
+        (("implicit", "widening"), ("implicit", "widening")),
+    "After CI, Session B may begin the correction.":
+        (("implicit", "widening"), ("implicit", "widening")),
+    "This session may also edit the bridge.": (("widening",), ("widening",)),
+}
+
+
+@pytest.mark.parametrize("surface", ("WORKORDER.md", _WO008_ISSUED_REL))
+@pytest.mark.parametrize("payload", sorted(_WO008_OR_PROOF_GRANTS))
+def test_wo008_or_proof_rejects_grants(repo_root, tmp_path, monkeypatch, surface, payload):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-grant")
+    _wo008_append(case, surface, payload)
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "grant")
+    on_pointer, on_mandate = _WO008_OR_PROOF_GRANTS[payload]
+    names = on_pointer if surface == "WORKORDER.md" else on_mandate
+    assert found == {(_WO008_A_PREP_TYPES[name], surface) for name in names}, repr(sorted(found))
+
+
+@pytest.mark.parametrize("surface", ("WORKORDER.md", _WO008_ISSUED_REL))
+@pytest.mark.parametrize("payload", ("Session C remains unauthorized.",
+                                     "A further Session A attempt is not authorized.",
+                                     "Session B is not authorized for the live proof.",
+                                     "The live proof is not authorized."))
+def test_wo008_or_proof_denials_stay_clean(repo_root, tmp_path, monkeypatch, surface, payload):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-denial")
+    _wo008_append(case, surface, payload)
+    assert _wo008_or_proof_findings(repo_root, case, monkeypatch, "denial") == set()
+
+
+@pytest.mark.parametrize(("surface", "paragraph"), [
+    (_WO008_ISSUED_REL, _WO008_OR_PROOF_POINTER_RECORD),
+] + [
+    ("WORKORDER.md", paragraph)
+    for paragraph in _WO008_OR_PROOF_SECTION.split(_NL + _NL)[2:]
+] + [("WORKORDER.md", _WO008_OR_PROOF_OPENING),
+     ("WORKORDER.md", _WO008_OR_PROOF_NEXT),
+     ("WORKORDER.md", _WO008_OR_PROOF_PREREQ_HEAD)])
+def test_wo008_or_proof_context_is_not_a_pointer_exemption(
+    repo_root, tmp_path, monkeypatch, surface, paragraph
+):
+    assert len(_WO008_OR_PROOF_SECTION.split(_NL + _NL)[2:]) == 6
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-offsurface")
+    _wo008_append(case, surface, paragraph)
+    assert _wo008_or_proof_findings(repo_root, case, monkeypatch, "offsurface") == set()
+
+
+@pytest.mark.parametrize(("surface", "index"), [
+    ("WORKORDER.md", index) for index in range(7)
+] + [(_WO008_ISSUED_REL, index) for index in range(21)])
+def test_wo008_or_proof_prior_current_texts_are_forbidden(
+    repo_root, tmp_path, monkeypatch, surface, index
+):
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_forbidden_values")
+    spec = drift_check._WO008_PHASES["OR_PROOF"]
+    texts = spec["forbidden_pointer" if surface == "WORKORDER.md" else "forbidden_document"]
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-old-current")
+    _wo008_append(case, surface, texts[index])
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "old-current")
+    assert ("WO-008 Session B oversized-reply live proof record", surface) in found, (
+        repr(sorted(found)))
+    _wo008_or_proof_assert_exact(found, ("old-current", surface, index))
+
+
+def test_wo008_or_proof_forbidden_lists_are_cumulative(repo_root):
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_cumulative")
+    phases = drift_check._WO008_PHASES
+    current, prior = phases["OR_PROOF"], phases["OR_CORRECTION"]
+    assert current["forbidden_pointer"] == prior["forbidden_pointer"] + (
+        drift_check._WO008_OR_CORRECTION_GATE,)
+    assert current["forbidden_document"] == prior["forbidden_document"] + (
+        drift_check._WO008_OR_CORRECTION_OPENING, drift_check._WO008_OR_CORRECTION_NEXT_GATE,
+        drift_check._WO008_OR_CORRECTION_PREREQUISITES_HEAD,
+        drift_check._ISSUED_SESSION_B_OR_CORRECTION_AUTH)
+    assert (len(current["forbidden_pointer"]), len(current["forbidden_document"])) == (7, 21)
+    # The replaced OR_CORRECTION texts are exactly the live texts this transition replaced.
+    assert drift_check._WO008_OR_CORRECTION_GATE == _WO008_OR_CORRECTION_GATE
+    assert drift_check._ISSUED_SESSION_B_OR_CORRECTION_AUTH == _WO008_OR_CORRECTION_MARKER
+    assert drift_check._WO008_OR_CORRECTION_OPENING == _WO008_OR_CORRECTION_OPENING
+    assert drift_check._WO008_OR_CORRECTION_NEXT_GATE == _WO008_OR_CORRECTION_NEXT
+    assert drift_check._WO008_OR_CORRECTION_PREREQUISITES_HEAD == _WO008_OR_CORRECTION_PREREQ_HEAD
+    for key in ("ISSUED_CLOSED", "A_PREP", "A_LIVE", "A_LIVE_2", "A_RECORDED"):
+        assert key in phases
+    assert list(phases)[-1] == "OR_PROOF"
+
+
+@pytest.mark.parametrize("placement", ("before", "after", "elsewhere"))
+def test_wo008_or_proof_prerequisites_head_is_source_exact(
+    repo_root, tmp_path, monkeypatch, placement
+):
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_head")
+    head = drift_check._WO008_OR_CORRECTION_PREREQUISITES_HEAD
+    whole = drift_check._WO008_OR_CORRECTION_PREREQUISITES
+    # The named head is the literal source text that OR_CORRECTION substituted.
+    tree = ast.parse((repo_root / "scripts" / "drift_check.py").read_text(encoding="utf-8"))
+    assigned = {target.id: node.value for node in tree.body if isinstance(node, ast.Assign)
+                for target in node.targets if isinstance(target, ast.Name)}
+    assert ast.literal_eval(assigned["_WO008_OR_CORRECTION_PREREQUISITES_HEAD"]) == head
+    assert head == _WO008_OR_CORRECTION_PREREQ_HEAD
+    # The whole OR_CORRECTION constant is unchanged: the A_LIVE text with exactly
+    # that head replaced, and present once in the reconstructed OR_CORRECTION mandate.
+    live_whole = drift_check._WO008_A_RECORDED_PREREQUISITES
+    assert live_whole.count(drift_check._WO008_A_RECORDED_PREREQUISITES_HEAD) == 1
+    assert whole == live_whole.replace(drift_check._WO008_A_RECORDED_PREREQUISITES_HEAD, head, 1)
+    older = _make_wo008_or_correction_case(repo_root, tmp_path, "or-proof-head-source")
+    assert (older / _WO008_ISSUED_REL).read_text(encoding="utf-8").count(whole) == 1
+    # The head is neither the whole constant nor a whole paragraph of it.
+    assert head != whole and whole.count(head) == 1
+    assert whole.count(head) == 1
+    combined = drift_check._WO008_OR_PROOF_PREREQUISITES
+    assert combined == whole.replace(head, _WO008_OR_PROOF_PREREQ_HEAD, 1)
+    # A stale OR_CORRECTION head is rejected wherever it is restored, on the mandate.
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-stale-head")
+    current = _WO008_OR_PROOF_PREREQ_HEAD
+    if placement == "before":
+        _edit(case, _WO008_ISSUED_REL, current, head + _NL + _NL + current)
+    elif placement == "after":
+        _edit(case, _WO008_ISSUED_REL, current, current + _NL + _NL + head)
+    else:
+        _wo008_append(case, _WO008_ISSUED_REL, head)
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "stale-head")
+    assert ("WO-008 Session B oversized-reply live proof record", _WO008_ISSUED_REL) in found, (
+        repr(sorted(found)))
+    assert not {rel for _kind, rel in found} - {_WO008_ISSUED_REL, "docs/work-orders"}
+    _wo008_or_proof_assert_exact(found, ("stale-head", placement))
+
+
+@pytest.mark.parametrize("history", ("or-correction-pointer", "or-correction-section",
+                                     "a-recorded-pointer", "a-recorded-section",
+                                     "live-2-pointer", "live-2-section", "live-pointer",
+                                     "live-section", "prep-pointer", "closed-pointer"))
+@pytest.mark.parametrize("damage", ("missing", "corrupt"))
+def test_wo008_or_proof_history_is_required(
+    repo_root, tmp_path, monkeypatch, history, damage
+):
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_history_values")
+    records = {
+        "a-recorded-pointer": ("WORKORDER.md", _WO008_A_RECORDED_POINTER_RECORD),
+        "a-recorded-section": (_WO008_ISSUED_REL, _WO008_A_RECORDED_SECTION),
+        "or-correction-pointer": ("WORKORDER.md", _WO008_OR_CORRECTION_POINTER_RECORD),
+        "or-correction-section": (_WO008_ISSUED_REL, _WO008_OR_CORRECTION_SECTION),
+        "live-2-pointer": ("WORKORDER.md", _WO008_A_LIVE_2_POINTER_RECORD),
+        "live-2-section": (_WO008_ISSUED_REL, _WO008_A_LIVE_2_SECTION),
+        "live-pointer": ("WORKORDER.md", _WO008_A_LIVE_POINTER_RECORD),
+        "live-section": (_WO008_ISSUED_REL, _WO008_A_LIVE_SECTION),
+        "prep-pointer": ("WORKORDER.md", drift_check._WO008_A_PREP_HISTORY_POINTER_RECORD),
+        "closed-pointer": ("WORKORDER.md", drift_check._WO008_CLOSED_HISTORY_RECORD),
+    }
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-history")
+    surface, old = records[history]
+    _edit(case, surface, old, "" if damage == "missing" else old[:-1] + "!")
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "history")
+    assert _wo008_or_proof_labeled(found, surface), repr(sorted(found))
+    _wo008_or_proof_assert_exact(found, ("history", history, damage))
+
+
+@pytest.mark.parametrize("trace", ("or-recorded-gate",
+                                   "b-corrections-gate", "session-c", "stopped-gate",
+                                   "proof-result-heading"))
+def test_wo008_or_proof_later_phases_are_not_installed(
+    repo_root, tmp_path, monkeypatch, trace
+):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-later")
+    surface = "WORKORDER.md"
+    if trace == "session-c":
+        _edit(case, surface, "- Authorized session: B", "- Authorized session: C")
+    elif trace == "or-proof-marker":
+        surface = _WO008_ISSUED_REL
+        _edit(case, surface, _WO008_OR_PROOF_MARKER,
+              "AUTHORIZATION: ISSUED — SESSION B AUTHORIZED FOR THE PINNED OVERSIZED-REPLY "
+              "LIVE PROOF ONLY")
+    elif trace == "proof-result-heading":
+        surface = _WO008_ISSUED_REL
+        _wo008_append(case, surface,
+                      "## Session B oversized-reply proof result" + _NL + _NL + "Pending.")
+    else:
+        gate = {
+            "or-proof-gate": "WO-008 SESSION B OVERSIZED-REPLY LIVE PROOF ONLY — COMMIT AND "
+                             "PUSH NOT AUTHORIZED",
+            "or-recorded-gate": "WO-008 OVERSIZED-REPLY PROOF RECORDED — SESSION B NOT AUTHORIZED",
+            "b-corrections-gate": "WO-008 SESSION B PINNED CORRECTIONS ONLY — SESSION C LIVE "
+                                  "START NOT AUTHORIZED",
+            "stopped-gate": "WO-008 WORK STOPPED — A SEPARATE OWNER DECISION IS REQUIRED",
+        }[trace]
+        _edit(case, surface, "- Current gate: " + _WO008_OR_PROOF_GATE,
+              "- Current gate: " + gate)
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "later")
+    assert {kind for kind, rel in found if rel == surface}, repr(sorted(found))
+    _wo008_or_proof_assert_exact(found, ("later", trace))
+
+
+@pytest.mark.parametrize("session", ("NONE", "A"))
+def test_wo008_or_proof_session_restore_is_rejected(
+    repo_root, tmp_path, monkeypatch, session
+):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-restore")
+    _edit(case, "WORKORDER.md", "- Authorized session: B", "- Authorized session: " + session)
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "restore")
+    assert _wo008_or_proof_labeled(found, "WORKORDER.md"), repr(sorted(found))
+    _wo008_or_proof_assert_exact(found, ("restore", session))
+
+
+@pytest.mark.parametrize("surface", ("WORKORDER.md", _WO008_ISSUED_REL))
+@pytest.mark.parametrize("payload", ("Session B may also correct disconnect handling.",
+                                     "Session B may deploy the correction."))
+def test_wo008_or_proof_own_session_widening_is_scanned(
+    repo_root, tmp_path, monkeypatch, surface, payload
+):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-own-widening")
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_own_widening")
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    _wo008_append(case, surface, payload)
+    want = {("session scope widening", surface)}
+    assert {(f["type"], f["file"]) for f in drift_check.check_work_order_contract()} == want
+    # Without the phase's own-session widening scan, these grants are missed.
+    scan = drift_check._current_session_widening
+    monkeypatch.setattr(drift_check, "_current_session_widening",
+                        lambda residual, session, allowed:
+                        False if session == "B" else scan(residual, session, allowed))
+    assert {(f["type"], f["file"]) for f in drift_check.check_work_order_contract()} == set()
+
+
+def test_wo008_or_proof_widening_damage_kills_dispatch_mutant(
+    repo_root, tmp_path, monkeypatch
+):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-widening")
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_widening_mutant")
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    _wo008_append(case, "WORKORDER.md", "Session B may deploy the correction.")
+    want = {("session scope widening", "WORKORDER.md")}
+    assert {(f["type"], f["file"]) for f in drift_check.check_work_order_contract()} == want
+    phases = dict(drift_check._WO008_PHASES)
+    phases["OR_PROOF"] = dict(phases["OR_PROOF"], session="")
+    monkeypatch.setattr(drift_check, "_WO008_PHASES", phases)
+    mutant = {(f["type"], f["file"]) for f in drift_check.check_work_order_contract()}
+    with pytest.raises(AssertionError):
+        assert mutant == want
+
+
+def test_wo008_or_proof_completed_wo003_caller_still_scans(repo_root, tmp_path, monkeypatch):
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-wo003")
+    assert (case / _WO003_COMPLETED_REL).exists()
+    surface = "WORKORDER.md"
+    _wo008_append(case, surface, "Social publication is authorized.")
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "wo003")
+    assert found == {("external-action boundary", surface),
+                     ("WO-003 external-action boundary", surface)}
+
+
+def test_wo008_or_proof_drift_scan_has_no_count_phrase(repo_root, tmp_path, monkeypatch):
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_count")
+    # Actual live registry identity, not a pinned number in permanent prose.
+    version, count, categories = drift_check.VERSION, drift_check.TOOL_COUNT, drift_check.CATEGORY_COUNT
+    for surface in ("WORKORDER.md", _WO008_ISSUED_REL):
+        assert drift_check.scan_file(surface, version, count, categories) == []
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-count")
+    _wo008_append(case, _WO008_ISSUED_REL, "The client listed " + str(34) + " " + "tools.")
+    monkeypatch.setattr(drift_check, "ROOT", str(case))
+    found = drift_check.scan_file(_WO008_ISSUED_REL, version, count, categories)
+    assert any(f["type"] == "tool count" and f["file"] == _WO008_ISSUED_REL for f in found)
+
+
+_WO008_OR_PROOF_PRECONDITIONS = (
+    "This transition's independent review, commit, push and successful CI are "
+    "preconditions only and are not permission for the proof's first call, which "
+    "needs the owner's individual approval.")
+_WO008_OR_PROOF_PRECEDENCE = "This record is the separate reviewed transition that the oversized-reply amendment record requires for the live proof; it governs over that record's statement that the live proof needs a separate reviewed transition, and over nothing else."
+
+
+def test_wo008_or_proof_authority_texts_require_a_separate_implementation_instruction(
+    repo_root, tmp_path, monkeypatch
+):
+    record = " ".join(_WO008_OR_PROOF_POINTER_RECORD.split())
+    section = " ".join(_WO008_OR_PROOF_SECTION.split())
+    gate = " ".join(_WO008_OR_PROOF_NEXT.split())
+    assert record.count(_WO008_OR_PROOF_PRECONDITIONS) == 1
+    assert section.count(_WO008_OR_PROOF_PRECONDITIONS) == 1
+    assert record.count(_WO008_OR_PROOF_PRECEDENCE) == 1
+    assert "the owner's individual approval of each call" in gate
+    assert gate.endswith("By itself, this mandate grants no implementation, review, "
+                         "commit or push authority.")
+    # The record cannot silently lose the rule: exact-record validation fails.
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-authority")
+    sentence = re.compile(r"\s+".join(map(re.escape, _WO008_OR_PROOF_PRECONDITIONS.split())))
+    pointer = (case / "WORKORDER.md").read_text(encoding="utf-8")
+    damaged, count = sentence.subn("", pointer)
+    assert count == 1
+    (case / "WORKORDER.md").write_text(damaged, encoding="utf-8")
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "authority")
+    assert _wo008_or_proof_labeled(found, "WORKORDER.md"), repr(sorted(found))
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_authority_removal")
+    mandate = (case / _WO008_ISSUED_REL).read_text(encoding="utf-8")
+    findings, residual = drift_check._wo008_phase_findings(
+        damaged, mandate, _WO008_ISSUED_REL, "pointer")
+    assert findings and residual == damaged
+    _wo008_or_proof_assert_exact(found, ("authority",))
+
+
+# --- E9's ROADMAP guard, shared by the memory test and test 27 (plan r3, F-1) ---
+# It covers the demonstrated cases only (plan section 5.2, E9 (c)): the one O4
+# grant exactly once, no further "Session B is authorized", no labelled
+# "Session X is/are (now) authorized/permitted/approved/cleared" grant, and no
+# restored OR_CORRECTION tail. It does not catch every rewording.
+_WO008_OR_PROOF_ROADMAP_GRANT = (
+    "Session B is authorized for the pinned oversized-reply live proof only.")
+_WO008_OR_PROOF_PRIOR_ROADMAP_TAIL = (
+    "the Session A result is recorded as diagnostic only, and Session B is "
+    "authorized for the oversized-reply amendment only.")
+
+
+def _wo008_or_proof_roadmap_guard(normalized_roadmap):
+    """Return the guard's problems for a normalized ROADMAP; [] means it holds."""
+    problems = []
+    if normalized_roadmap.count(_WO008_OR_PROOF_ROADMAP_GRANT) != 1:
+        problems.append("the O4 grant does not occur exactly once")
+    residual = normalized_roadmap.replace(_WO008_OR_PROOF_ROADMAP_GRANT, "", 1)
+    if "Session B is authorized" in residual:
+        problems.append("a further 'Session B is authorized' grant")
+    match = _WO008_ROADMAP_LABELLED_GRANT.search(residual)
+    if match:
+        problems.append("a labelled grant: " + match.group(0))
+    if _WO008_OR_PROOF_PRIOR_ROADMAP_TAIL in normalized_roadmap:
+        problems.append("the OR_CORRECTION ROADMAP sentence was restored")
+    return problems
+
+
+# D17's six planted variants, each appended to the live ROADMAP's status block.
+_WO008_OR_PROOF_ROADMAP_DAMAGE = (
+    ("further-grant", "Session B is authorized for the live proof."),
+    ("repeated-grant", _WO008_OR_PROOF_ROADMAP_GRANT),
+    ("now-authorized", "Session B is now authorized to deploy the correction."),
+    ("other-session", "Session C is permitted to begin."),
+    ("extended-grant", "Session B is authorized for the pinned oversized-reply live proof "
+                       "only and product corrections."),
+    ("old-sentence", "WO-008 is issued outside the frozen train; "
+                     + _WO008_OR_PROOF_PRIOR_ROADMAP_TAIL),
+)
+
+
+@pytest.mark.parametrize(("label", "planted"), _WO008_OR_PROOF_ROADMAP_DAMAGE,
+                         ids=[label for label, _ in _WO008_OR_PROOF_ROADMAP_DAMAGE])
+def test_wo008_or_proof_roadmap_guard_rejects_extra_grants(repo_root, label, planted):
+    roadmap = (repo_root / "ROADMAP.md").read_text(encoding="utf-8")
+    normalized = " ".join(roadmap.replace(">", " ").split())
+    # Valid-state control: the live OR_PROOF ROADMAP passes the guard.
+    assert _wo008_or_proof_roadmap_guard(normalized) == []
+    damaged = " ".join((roadmap + _NL + "> " + planted + _NL).replace(">", " ").split())
+    assert _wo008_or_proof_roadmap_guard(damaged), label
+
+
+
+
+def test_wo008_or_proof_identity_list_matches_reviewed_snapshot(repo_root, tmp_path, monkeypatch):
+    drift_check = _load_drift_check(repo_root, "wo008_or_proof_identities")
+    expected = (('.claude/mcp_reference.md', 'be786fa04c7b5db008ad7bc320dbe19f816e1ec5', 'bf65e59aea783330d5f68a8f160736d0b7d19f3786f22d02fd6f05857baed7aa'), ('docs/CHANGELOG.md', '6395dfe0dd34455e5088c40d27bf20351340d4cc', '2f5cb90fea5b018483df6d532c2c378eb4f50ba9e86303de532c9b97a3affd80'), ('mcp_server.py', 'c3a4a8a0326ffb95a5a48c344f2473cbb4a08ae2', '7a167a20d88e49e6ec31784a0869287038e17664a36d7d6bf5dad07d72498824'), ('tests/test_mcp_security.py', '7b18d7d3abc6b529bc3cf54e5080f89acd393a69', '6743e5879dca4b5e42eeb951e7f5829a1dcb55f78d91d2b3b1f97436a5cd7862'))
+    assert expected == drift_check._WO008_OR_IMPLEMENTATION
+    case = _make_wo008_or_proof_case(repo_root, tmp_path, "or-proof-identity-digit")
+    lines = ["- `" + path + "`: Git blob `" + blob + "`, SHA-256 `" + digest + "`"
+             for path, blob, digest in expected]
+    mandate = (case / _WO008_ISSUED_REL).read_text(encoding="utf-8")
+    assert [line for line in mandate.splitlines() if line.startswith("- `")
+            and ": Git blob `" in line] == lines
+    _edit(case, _WO008_ISSUED_REL, lines[0], lines[0][:-2] + "0`")
+    found = _wo008_or_proof_findings(repo_root, case, monkeypatch, "identity-digit")
+    assert ("WO-008 Session B oversized-reply live proof record", _WO008_ISSUED_REL) in found
 
 
 # --- Release publication record: the live state --------------------------
