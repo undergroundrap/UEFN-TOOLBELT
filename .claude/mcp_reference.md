@@ -45,6 +45,67 @@ When the listener is running, an authenticated client can call these directly:
 
 ---
 
+## Paged MCP tool listings (`mcp_server.py`)
+
+Through `mcp_server.py`, the MCP tools `list_toolbelt_tools` and `get_all_actors`
+return one bounded page per call. The bridge commands `list_tools` and
+`get_all_actors` in the table above, and `client.py`, still return complete lists.
+
+- **Size.** Each reply is at most 24,000 characters, counted as code points of the
+  returned text. Replies are ASCII-only JSON, so that is also their UTF-8 byte
+  count. It is not a token count, and the MCP transport adds its own framing, so
+  no particular client output limit is promised.
+- **Paging.** Pass `offset` (0 or more) and `limit` (1–500, default 50) and follow
+  `next_offset` until `complete` is true. A page ends before `limit` when the size
+  budget ends it (`budget_limited`).
+- **Order.** Tools are ordered by name and actors by path, compared by code point.
+  Keys must be unique: a bridge listing with a duplicate tool name or actor path
+  is rejected as malformed, and no page is returned.
+- **Oversized entries.** An entry over 20,000 characters is replaced by a
+  placeholder with `omitted: true`, its key (or `key_sha256` when the key itself is
+  very long), `omitted_chars` and `item_sha256`. It is still enumerated and
+  counted, and `omitted_count` reports the placeholders on each page. `complete`
+  means every matching entry was enumerated, not that every entry was delivered
+  in full. The full entry is available through `client.py` or the bridge command,
+  not through these MCP tools.
+- **Hashes.** Every hash is written `sha256:` followed by 64 lowercase hex digits,
+  over ASCII text produced by Python's `json.dumps` with `ensure_ascii=True`:
+  - `key_sha256` hashes the key's JSON string literal, quotes included
+    (`json.dumps(key, ensure_ascii=True)`);
+  - `item_sha256` hashes the entry's canonical form
+    (`json.dumps(entry, separators=(",", ":"), ensure_ascii=True, sort_keys=True)`),
+    for the entry as received at the requested `detail`;
+  - `listing_digest` hashes the canonical form of the complete ordered listing;
+  - `keys_digest` hashes the canonical form of the ordered list of keys.
+
+  Other JSON libraries may format numbers differently, so recomputing a hash
+  outside Python's `json` may not match.
+- **Non-finite numbers.** As before this change, a NaN or infinite value, for
+  example in an actor coordinate, is written as `NaN`, `Infinity` or
+  `-Infinity`. That is Python's `json` default. Strict JSON parsers may reject
+  such a reply.
+- **Changes during a walk.** `keys_digest` covers the ordered keys, and
+  `listing_digest` the delivered entries, at the requested `detail` and filters.
+  In normal use, if `keys_digest` changes, or an offset is rejected as beyond the
+  listing, restart from offset 0, at most twice, then report that the listing was
+  not stable. A `listing_digest` change alone means values changed between page
+  calls; because keys are unique, every entry is still enumerated exactly once,
+  but pages are separate reads, not one snapshot.
+- **Arguments.** `list_toolbelt_tools` takes `category` (exact) and `detail`
+  (`"summary"`: name, category, description and tags; or `"full"`).
+  `get_all_actors` takes `class_filter` (exact class), `label_contains`
+  (case-insensitive) and `actor_path` (exact). Filters are applied before paging
+  and are not echoed. The server rejects invalid values before any bridge
+  request. An MCP SDK validates arguments first and may convert some values: the
+  Python SDK releases checked (1.27.1 and 1.27.2) turned `true` into 1 and `"5"`
+  into 5.
+- **Cost.** Every page call reads the complete listing from the editor again. On a
+  very large level, each page costs editor main-thread time, and a level whose
+  complete listing cannot be produced within the request timeout is not helped
+  by paging.
+
+---
+
 ## External HTTP Client (no MCP required)
 
 `client.py` at the project root gives trusted same-user Python automation

@@ -5,6 +5,43 @@ Format: `## [version] — date` · Types: `feat` · `fix` · `refactor` · `docs
 
 ---
 
+## [Unreleased]
+
+### ⚠️ Read before upgrading
+
+- **Paged MCP listings.** The MCP tools `list_toolbelt_tools` and
+  `get_all_actors` in `mcp_server.py` now return one bounded page per call
+  instead of the whole listing. A call with no new arguments returns the first
+  page only, at most 50 entries; follow `next_offset` until `complete` is true
+  (see `.claude/mcp_reference.md`). (WO-008)
+  - `list_toolbelt_tools` still starts with its `// <total> tools registered`
+    line, followed by a JSON object with a `tools` field instead of a bare array.
+    Entries default to `detail="summary"` (name, category, description and tags);
+    `detail="full"` restores icon, shortcut, source, author, version, url and
+    last_updated.
+  - `get_all_actors` returns actors ordered by path, not in level order. `count`
+    is still the number of matching actors; `actors` holds one page.
+  - Both replies are compact JSON without indentation and carry paging fields.
+    Entry fields keep their order, and non-ASCII text stays escaped as before.
+  - An entry over 20,000 characters is replaced by a placeholder marked
+    `omitted: true`. `complete` therefore means every entry was enumerated, not
+    that every entry was delivered in full.
+  - Invalid `offset`, `limit` or `detail` values, an `offset` beyond the listing,
+    and a bridge listing with a duplicate tool name or actor path raise errors.
+    An MCP SDK may convert some argument values before the server checks them.
+  - The two tools' input schemas gain parameters: `offset`, `limit` and `detail`,
+    and `offset`, `limit`, `label_contains` and `actor_path`.
+  - The bridge commands, `client.py` and the dashboard are unchanged and still
+    return complete lists.
+
+### Why
+
+Whole-listing replies can exceed an MCP client's tool-output limit and be
+replaced by a notice. In one recorded client session, the full tool catalogue
+and each actor listing of a 176-actor level were replaced that way. Each paged
+reply is at most 24,000 characters of ASCII text; that bound is not a promise
+about any particular client's limit.
+
 ## [2.5.0] — 2026-10-03
 
 The WO-001 through WO-007 release train. The custom bridge is authenticated

@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import ast
 import builtins
+import copy
+import hashlib
 import http.client
 import http.server
 import importlib.util
+import inspect
 import io
 import json
 import os
 import queue
+import random
 import socket
 import sys
 import threading
@@ -1473,3 +1477,764 @@ def test_unknown_outcomes_suppress_the_transport_exception_context(
     assert error.__cause__ is None
     assert error.__suppress_context__ is True, (
         name + ": the transport exception's context is not suppressed")
+
+
+# --- WO-008 oversized-reply correction: paged MCP listings --------------------
+#
+# list_toolbelt_tools and get_all_actors return one bounded page per call
+# (proposal r5, tests 1-12). Every test loads mcp_server.py through
+# _FakeFastMCP, which registers the raw function with no argument model, and
+# stubs _send. They show what the functions do with the values they receive,
+# not how an MCP SDK coerces arguments first, and they prove nothing about any
+# client's output limit.
+
+_PAGED_OTHER_TOOLS = frozenset({
+    "ping", "mcp_get_log", "run_toolbelt_tool", "describe_toolbelt_tool",
+    "get_selected_actors", "spawn_actor", "delete_actors", "set_actor_transform",
+    "set_actor_property", "get_actor_properties", "list_assets", "get_asset_info",
+    "get_selected_assets", "rename_asset", "delete_asset", "duplicate_asset",
+    "does_asset_exist", "save_asset", "import_asset", "search_assets",
+    "create_material_instance", "batch_exec", "undo", "redo", "get_history",
+    "save_current_level", "get_level_info", "get_viewport_camera",
+    "set_viewport_camera", "verse_book_search", "verse_book_chapter",
+    "verse_book_update",
+})
+_SUMMARY_KEYS = ["name", "category", "description", "tags"]
+
+
+def _paged_tool(i: int, **override) -> dict:
+    """One registry entry, in the field order registry.list_tools() writes."""
+    entry = {
+        "name": f"tool_{i:03d}", "category": f"Category {i % 55:02d}",
+        "description": f"Description of tool {i}. " * 3, "icon": "*",
+        "shortcut": "", "tags": [f"tag{i % 7}"], "source": "core",
+        "author": "Ocean Bennett", "version": "1.0", "url": "",
+        "last_updated": "2026-10-01",
+    }
+    entry.update(override)
+    return entry
+
+
+def _paged_actor(i: int, **override) -> dict:
+    """One actor, in the field order the bridge's _serialize_actor writes."""
+    entry = {
+        "name": f"A_{i:05d}", "label": f"Label_{i:05d}", "class": "StaticMeshActor",
+        "path": f"/P/P.P:PersistentLevel.Actor_UAX_{i:05d}",
+        "location": {"x": float(i), "y": 2.5 * i, "z": 10.0},
+        "rotation": {"pitch": 0.0, "yaw": float(i % 360), "roll": 0.0},
+        "scale": {"x": 1.0, "y": 1.0, "z": 1.0},
+    }
+    entry.update(override)
+    return entry
+
+
+def _shuffled(entries: list, seed: int) -> list:
+    out = list(entries)
+    random.Random(seed).shuffle(out)
+    return out
+
+
+_PAGED_TOOLS = _shuffled([_paged_tool(i) for i in range(362)], 362)
+_PAGED_ACTORS = {n: _shuffled([_paged_actor(i) for i in range(n)], n) for n in (0, 1, 176, 2000)}
+
+
+def _paged(repo_root, tmp_path, monkeypatch, *, tools=None, actors=None, script=None):
+    """(module, calls): mcp_server.py with _send replaced by a recording stub.
+
+    `script(command, params, call_number)` overrides the fixed listings, so a
+    test can change the bridge's answer between page calls.
+    """
+    module, _handoff = _load_external_client(repo_root, tmp_path, monkeypatch, _DUMMY_TOKEN)
+    calls: list = []
+
+    def send(command, params=None, timeout=None):
+        calls.append((command, copy.deepcopy(params)))
+        if script is not None:
+            return script(command, params, len(calls))
+        if command == "list_tools":
+            return {"tools": tools, "count": len(tools)}
+        if command == "get_all_actors":
+            return {"actors": actors, "count": len(actors)}
+        raise AssertionError("unexpected bridge command " + command)
+
+    monkeypatch.setattr(module, "_send", send)
+    return module, calls
+
+
+def _page(reply: str) -> tuple[str | None, dict]:
+    """(first line or None, the parsed page object)."""
+    if reply.startswith("// "):
+        first, rest = reply.split("\n", 1)
+        return first, json.loads(rest)
+    return None, json.loads(reply)
+
+
+def _walk(tool, step_bound: int = 5000, **kwargs) -> list[str]:
+    """Follow next_offset from 0; fail the test if the walk does not end."""
+    replies, offset = [], 0
+    for _ in range(step_bound):
+        reply = tool(offset=offset, **kwargs)
+        replies.append(reply)
+        body = _page(reply)[1]
+        if body["next_offset"] is None:
+            return replies
+        offset = body["next_offset"]
+    raise AssertionError(f"the walk did not reach complete within {step_bound} pages")
+
+
+def _expected_sha(text: str) -> str:
+    """The §3.5 hash form, computed here independently of mcp_server.py."""
+    return "sha256:" + hashlib.sha256(text.encode("ascii")).hexdigest()
+
+
+def _canonical(value) -> str:
+    return json.dumps(value, separators=(",", ":"), ensure_ascii=True, sort_keys=True)
+
+
+def _bounded(module, reply: str) -> None:
+    assert len(reply) <= module.REPLY_CHAR_BUDGET, len(reply)
+    assert reply.isascii()
+
+
+# Test 1. Every reply is bounded, with no exception.
+
+@pytest.mark.parametrize("detail", ("summary", "full"))
+@pytest.mark.parametrize("limit", (1, 50, 500))
+def test_paged_tool_catalogue_replies_are_bounded(
+    repo_root, tmp_path, monkeypatch, detail, limit
+):
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, tools=_PAGED_TOOLS)
+    replies = _walk(module.mcp.tools["list_toolbelt_tools"], limit=limit, detail=detail)
+    assert len(replies) >= -(-362 // limit)
+    for reply in replies:
+        _bounded(module, reply)
+
+
+@pytest.mark.parametrize("size", (0, 1, 176, 2000))
+@pytest.mark.parametrize("limit", (1, 50, 500))
+def test_paged_actor_replies_are_bounded(repo_root, tmp_path, monkeypatch, size, limit):
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, actors=_PAGED_ACTORS[size])
+    tool = module.mcp.tools["get_all_actors"]
+    if size * (size // limit) > 200_000:
+        # A complete walk of 2,000 actors one per page re-reads the listing
+        # 2,000 times; its first, middle and last pages stand in for it.
+        replies = [tool(offset=offset, limit=limit) for offset in (0, 1, 999, 1998, 1999, 2000)]
+    else:
+        replies = _walk(tool, limit=limit)
+    for reply in replies:
+        _bounded(module, reply)
+
+
+def test_paged_actor_single_large_level_page_is_bounded(repo_root, tmp_path, monkeypatch):
+    actors = [_paged_actor(i) for i in range(20_000)]
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, actors=actors)
+    reply = module.mcp.tools["get_all_actors"](limit=500)
+    _bounded(module, reply)
+    body = _page(reply)[1]
+    assert body["count"] == 20_000 and body["budget_limited"] is True
+    assert 0 < body["returned"] < 500
+
+
+_ATTACK = "é中\U0001f600\"\\\n\t" * 3_000   # 30,000 code points; CJK, emoji, escapes
+
+
+@pytest.mark.parametrize("case", (
+    "category", "class_filter", "label_contains", "actor_path", "empty-tools",
+    "empty-actors", "offset-equals-total", "oversized-summary", "oversized-full",
+    "oversized-key", "escape-heavy",
+))
+def test_paged_attack_inputs_stay_bounded(repo_root, tmp_path, monkeypatch, case):
+    actors = list(_PAGED_ACTORS[176])
+    tools = list(_PAGED_TOOLS)
+    if case == "empty-tools":
+        tools = []
+    elif case == "empty-actors":
+        actors = []
+    elif case in ("oversized-summary", "oversized-full"):
+        tools.append(_paged_tool(900, name="tool_huge", description="d" * 30_000))
+    elif case == "oversized-key":
+        actors.append(_paged_actor(900, path="/P/" + "k" * 30_000, label="x" * 30_000))
+    elif case == "escape-heavy":
+        actors.append(_paged_actor(901, label=_ATTACK[:15_000]))
+        tools.append(_paged_tool(901, name="tool_é中", description=_ATTACK[:9_000]))
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, tools=tools, actors=actors)
+    list_tools = module.mcp.tools["list_toolbelt_tools"]
+    get_actors = module.mcp.tools["get_all_actors"]
+    if case in ("category", "class_filter", "label_contains", "actor_path"):
+        replies = [list_tools(category=_ATTACK)] if case == "category" else [
+            get_actors(**{case: _ATTACK})]
+    elif case == "offset-equals-total":
+        replies = [list_tools(offset=362), get_actors(offset=176)]
+    else:
+        replies = (_walk(list_tools, detail="full" if case == "oversized-full" else "summary")
+                   + _walk(get_actors))
+    for reply in replies:
+        _bounded(module, reply)
+
+
+# Test 2. Complete enumeration.
+
+@pytest.mark.parametrize(("listing", "limit"), (
+    ("tools-summary", 50), ("tools-full", 7), ("actors-176", 50), ("actors-2000", 500),
+    ("actors-2000", 7), ("actors-placeholders", 3),
+))
+def test_paged_walk_enumerates_every_key_exactly_once(
+    repo_root, tmp_path, monkeypatch, listing, limit
+):
+    actors = list(_PAGED_ACTORS[2000 if listing == "actors-2000" else 176])
+    if listing == "actors-placeholders":
+        for i in (3, 4, 90):
+            actors[i] = dict(actors[i], label="x" * 25_000)
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, tools=_PAGED_TOOLS, actors=actors)
+    if listing.startswith("tools"):
+        replies = _walk(module.mcp.tools["list_toolbelt_tools"], limit=limit,
+                        detail=listing.split("-")[1])
+        source, key, items, count = _PAGED_TOOLS, "name", "tools", "total"
+    else:
+        replies = _walk(module.mcp.tools["get_all_actors"], limit=limit)
+        source, key, items, count = actors, "path", "actors", "count"
+    seen, expected_offset, omitted = [], 0, 0
+    for index, reply in enumerate(replies):
+        body = _page(reply)[1]
+        assert body["offset"] == expected_offset
+        assert body[count] == len(source)
+        assert body["returned"] == len(body[items]) >= 1
+        last = index == len(replies) - 1
+        assert body["complete"] is last
+        assert body["next_offset"] == (None if last else body["offset"] + body["returned"])
+        assert body["omitted_count"] == sum(1 for e in body[items] if e.get("omitted"))
+        omitted += body["omitted_count"]
+        seen += [e[key] for e in body[items]]
+        expected_offset += body["returned"]
+    assert seen == sorted(e[key] for e in source)
+    assert len(seen) == len(set(seen)) == len(source)
+    assert omitted == (3 if listing == "actors-placeholders" else 0)
+
+
+# Test 3. Order and unique keys.
+
+def test_paged_pages_do_not_depend_on_bridge_order(repo_root, tmp_path, monkeypatch):
+    ordered = sorted(_PAGED_ACTORS[176], key=lambda a: a["path"])
+    walks = []
+    for actors in (ordered, list(reversed(ordered)), _shuffled(ordered, 7)):
+        module, _calls = _paged(repo_root, tmp_path, monkeypatch, actors=actors,
+                                tools=list(reversed(_PAGED_TOOLS)) if walks else _PAGED_TOOLS)
+        walks.append(_walk(module.mcp.tools["get_all_actors"], limit=30)
+                     + _walk(module.mcp.tools["list_toolbelt_tools"], limit=30))
+    assert walks[0] == walks[1] == walks[2]
+
+
+_LONG_DUPLICATE = "/P/" + "d" * 50_000
+
+
+@pytest.mark.parametrize("case", (
+    "tools-identical", "tools-differing", "actors-identical", "actors-differing",
+    "actors-outside-label-filter", "actors-outside-path-filter", "actors-long-key",
+))
+def test_paged_duplicate_keys_reject_the_whole_listing(repo_root, tmp_path, monkeypatch, case):
+    tools, actors = list(_PAGED_TOOLS), list(_PAGED_ACTORS[176])
+    kwargs: dict = {}
+    if case == "tools-identical":
+        tools.append(dict(tools[5]))
+    elif case == "tools-differing":
+        tools.append(dict(tools[5], description="another"))
+    elif case == "actors-identical":
+        actors.append(dict(actors[5]))
+    elif case == "actors-differing":
+        actors.append(dict(actors[5], label="another"))
+    elif case.startswith("actors-outside"):
+        actors.append(dict(actors[5], label="another"))
+        # The filter selects a different actor, so the duplicate lies outside it.
+        kwargs = ({"label_contains": actors[9]["label"]} if case.endswith("label-filter")
+                  else {"actor_path": actors[9]["path"]})
+    else:
+        actors += [_paged_actor(1000, path=_LONG_DUPLICATE), _paged_actor(1001, path=_LONG_DUPLICATE)]
+    module, calls = _paged(repo_root, tmp_path, monkeypatch, tools=tools, actors=actors)
+    tool = module.mcp.tools["list_toolbelt_tools" if case.startswith("tools") else "get_all_actors"]
+    with pytest.raises(ValueError, match="^malformed bridge reply: ") as error:
+        tool(**kwargs)
+    assert len(calls) == 1
+    message = str(error.value)
+    assert "share one" in message
+    if case == "actors-long-key":
+        assert len(message) < 300
+        assert _expected_sha(json.dumps(_LONG_DUPLICATE, ensure_ascii=True)) in message
+        assert "d" * 300 not in message
+
+
+def test_paged_changing_duplicate_is_refused_on_the_first_call(repo_root, tmp_path, monkeypatch):
+    """The r2 counterexample: a duplicate whose value changes between page calls."""
+    base = [_paged_actor(i) for i in range(4)]
+
+    def listing(command, params, call):
+        labels = ("a", "b") if call == 1 else ("c", "b")
+        dup = [_paged_actor(10, path="/P/dup", label=label) for label in labels]
+        return {"actors": base + dup, "count": 6}
+
+    module, calls = _paged(repo_root, tmp_path, monkeypatch, script=listing)
+    tool = module.mcp.tools["get_all_actors"]
+    with pytest.raises(ValueError, match="^malformed bridge reply: "):
+        tool(limit=5)
+    assert len(calls) == 1
+    with pytest.raises(ValueError, match="^malformed bridge reply: "):
+        tool(offset=5, limit=5)
+
+
+def test_paged_unique_keys_enumerate_exactly_once_while_values_change(
+    repo_root, tmp_path, monkeypatch
+):
+    """The unique-key twin: a value changes between page calls; keys arrive once."""
+    def listing(command, params, call):
+        actors = [_paged_actor(i) for i in range(6)]
+        actors[5] = dict(actors[5], label="a" if call == 1 else "c")
+        return {"actors": actors, "count": 6}
+
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, script=listing)
+    pages = [_page(reply)[1] for reply in _walk(module.mcp.tools["get_all_actors"], limit=5)]
+    assert [a["path"] for p in pages for a in p["actors"]] == sorted(
+        _paged_actor(i)["path"] for i in range(6))
+    assert len({p["keys_digest"] for p in pages}) == 1
+    assert len({p["listing_digest"] for p in pages}) == 2
+
+
+# Test 4. Digests.
+
+def test_paged_digests_follow_their_definitions(repo_root, tmp_path, monkeypatch):
+    actors = list(_PAGED_ACTORS[176])
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, tools=_PAGED_TOOLS, actors=actors)
+    get_actors = module.mcp.tools["get_all_actors"]
+    first, again = _page(get_actors())[1], _page(get_actors(offset=50))[1]
+    ordered = sorted(actors, key=lambda a: a["path"])
+    assert first["listing_digest"] == again["listing_digest"] == _expected_sha(_canonical(ordered))
+    assert first["keys_digest"] == again["keys_digest"] == _expected_sha(
+        _canonical([a["path"] for a in ordered]))
+    assert first["listing_digest"] != first["keys_digest"]
+
+    actors[0] = dict(actors[0], location={"x": -1.0, "y": 0.0, "z": 0.0})
+    moved = _page(get_actors())[1]
+    assert moved["keys_digest"] == first["keys_digest"]
+    assert moved["listing_digest"] != first["listing_digest"]
+
+    actors.append(_paged_actor(5000))
+    added = _page(get_actors())[1]
+    assert added["keys_digest"] != first["keys_digest"]
+    assert added["listing_digest"] != moved["listing_digest"]
+
+    list_tools = module.mcp.tools["list_toolbelt_tools"]
+    summary, full = (_page(list_tools(detail=d))[1] for d in ("summary", "full"))
+    module_tools = [dict(t) for t in _PAGED_TOOLS]
+    module_tools[0]["icon"] = "changed"
+    monkeypatch.setattr(module, "_send", lambda command, params=None, timeout=None: {
+        "tools": module_tools, "count": 362})
+    summary2, full2 = (_page(list_tools(detail=d))[1] for d in ("summary", "full"))
+    assert summary2["listing_digest"] == summary["listing_digest"]
+    assert full2["listing_digest"] != full["listing_digest"]
+    assert full2["keys_digest"] == full["keys_digest"] == summary["keys_digest"]
+    projected = [{k: t[k] for k in _SUMMARY_KEYS} for t in sorted(_PAGED_TOOLS,
+                                                                  key=lambda t: t["name"])]
+    assert summary["listing_digest"] == _expected_sha(_canonical(projected))
+
+
+def test_paged_placeholder_hashes_follow_their_definitions(repo_root, tmp_path, monkeypatch):
+    key = "/P/é\"\\\U0001f600" + "q" * 300
+    big = _paged_actor(1, path=key, label="x" * 25_000)
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, actors=[big])
+    holder = _page(module.mcp.tools["get_all_actors"]())[1]["actors"][0]
+    assert holder["key_omitted"] is True and holder["omitted"] is True
+    literal = json.dumps(key, ensure_ascii=True)
+    assert literal.startswith('"') and "\\u00e9" in literal and "\\ud83d\\ude00" in literal
+    assert holder["key_sha256"] == _expected_sha(literal)
+    assert holder["key_sha256"] != _expected_sha(literal[1:-1])   # control: quotes count
+    assert holder["item_sha256"] == _expected_sha(_canonical(big))
+    assert holder["omitted_chars"] == len(json.dumps(big, separators=(",", ":"), ensure_ascii=True))
+
+
+# Test 5a. Direct-call validation, before any bridge request.
+
+@pytest.mark.parametrize(("tool", "kwargs"), [
+    (tool, kwargs)
+    for tool in ("list_toolbelt_tools", "get_all_actors")
+    for kwargs in ({"offset": -1}, {"limit": 0}, {"limit": 501}, {"offset": True},
+                   {"limit": False}, {"offset": "0"}, {"limit": 1.5}, {"limit": 2.0},
+                   {"offset": None})
+] + [
+    ("list_toolbelt_tools", {"detail": "tiny"}), ("list_toolbelt_tools", {"detail": None}),
+    ("list_toolbelt_tools", {"category": 5}), ("get_all_actors", {"class_filter": None}),
+    ("get_all_actors", {"label_contains": ["x"]}), ("get_all_actors", {"actor_path": 7}),
+], ids=lambda value: value if isinstance(value, str) else repr(value))
+def test_paged_invalid_arguments_are_rejected_before_any_bridge_request(
+    repo_root, tmp_path, monkeypatch, tool, kwargs
+):
+    module, calls = _paged(repo_root, tmp_path, monkeypatch, tools=_PAGED_TOOLS,
+                           actors=_PAGED_ACTORS[176])
+    with pytest.raises(ValueError):
+        module.mcp.tools[tool](**kwargs)
+    assert calls == []
+
+
+@pytest.mark.parametrize("tool", ("list_toolbelt_tools", "get_all_actors"))
+def test_paged_offset_boundaries(repo_root, tmp_path, monkeypatch, tool):
+    module, calls = _paged(repo_root, tmp_path, monkeypatch, tools=_PAGED_TOOLS,
+                           actors=_PAGED_ACTORS[176])
+    total = 362 if tool == "list_toolbelt_tools" else 176
+    with pytest.raises(ValueError, match="restart from offset 0"):
+        module.mcp.tools[tool](offset=total + 1)
+    assert len(calls) == 1
+    body = _page(module.mcp.tools[tool](offset=total))[1]
+    assert (body["returned"], body["complete"], body["next_offset"]) == (0, True, None)
+
+
+# Test 5b. Schema shape: the annotations and defaults an SDK derives its schema from.
+
+def test_paged_tool_signatures_carry_integer_and_string_parameters(
+    repo_root, tmp_path, monkeypatch
+):
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, tools=[], actors=[])
+    expected = {
+        "list_toolbelt_tools": [("category", str, ""), ("offset", int, 0), ("limit", int, 50),
+                                ("detail", str, "summary")],
+        "get_all_actors": [("class_filter", str, ""), ("offset", int, 0), ("limit", int, 50),
+                           ("label_contains", str, ""), ("actor_path", str, "")],
+    }
+    for name, params in expected.items():
+        signature = inspect.signature(module.mcp.tools[name], eval_str=True)
+        assert [(p.name, p.annotation, p.default) for p in signature.parameters.values()] == params
+        assert signature.return_annotation is str
+
+
+# Test 6. Filtering.
+
+def test_paged_filters_apply_before_paging_and_are_never_echoed(
+    repo_root, tmp_path, monkeypatch
+):
+    actors = [_paged_actor(i) for i in range(40)]
+    actors[3] = dict(actors[3], label="STRASSE crossing")
+    actors[4] = dict(actors[4], label="straße crossing")
+    actors[5] = dict(actors[5], label=None)
+    actors[6] = dict(actors[6], label=5)
+    module, calls = _paged(repo_root, tmp_path, monkeypatch, tools=_PAGED_TOOLS, actors=actors)
+    get_actors = module.mcp.tools["get_all_actors"]
+    category, class_filter = "Exact Category é #1", "Exact_Class_Filter_Value"
+    module.mcp.tools["list_toolbelt_tools"](category=category)
+    get_actors(class_filter=class_filter)
+    assert calls == [("list_tools", {"category": category}),
+                     ("get_all_actors", {"class_filter": class_filter})]
+
+    body = _page(get_actors(label_contains="Straße"))[1]
+    assert sorted(a["name"] for a in body["actors"]) == ["A_00003", "A_00004"]
+    assert body["count"] == body["returned"] == 2
+    labels = _page(get_actors(label_contains="label_000"))[1]
+    assert {a["name"] for a in labels["actors"]} == {f"A_{i:05d}" for i in range(40)} - {
+        "A_00003", "A_00004", "A_00005", "A_00006"}
+    one = _page(get_actors(actor_path=actors[7]["path"]))[1]
+    assert one["count"] == 1 and one["actors"] == [actors[7]]
+    none = _page(get_actors(actor_path=actors[7]["path"][:-1]))[1]
+    assert (none["count"], none["actors"], none["complete"]) == (0, [], True)
+    both = _page(get_actors(actor_path=actors[7]["path"], label_contains="nomatch"))[1]
+    assert both["count"] == 0
+    both = _page(get_actors(actor_path=actors[7]["path"], label_contains="00007"))[1]
+    assert both["count"] == 1
+
+    needle, path = "Needle-Not-Echoed-é", "/Path/Not/Echoed/Anywhere"
+    for reply in (get_actors(label_contains=needle), get_actors(actor_path=path),
+                  get_actors(class_filter=class_filter),
+                  module.mcp.tools["list_toolbelt_tools"](category=category)):
+        for text in (needle, path, class_filter, category,
+                     json.dumps(needle, ensure_ascii=True)[1:-1],
+                     json.dumps(category, ensure_ascii=True)[1:-1]):
+            assert text not in reply
+
+
+# Test 7. Compatibility.
+
+def test_paged_replies_keep_compatible_fields_and_entry_text(repo_root, tmp_path, monkeypatch):
+    tools = list(_PAGED_TOOLS) + [_paged_tool(950, name="tool_é", description="café")]
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, tools=tools,
+                            actors=_PAGED_ACTORS[176])
+    assert set(module.mcp.tools) - {"list_toolbelt_tools", "get_all_actors"} == _PAGED_OTHER_TOOLS
+    assert {"list_toolbelt_tools", "get_all_actors"} <= set(module.mcp.tools)
+    list_tools = module.mcp.tools["list_toolbelt_tools"]
+    summaries = _walk(list_tools, limit=500)
+    for summary in summaries:
+        first, body = _page(summary)
+        assert first == "// 363 tools registered"
+        assert list(body) == ["total", "offset", "limit", "returned", "next_offset", "complete",
+                              "budget_limited", "omitted_count", "listing_digest",
+                              "keys_digest", "detail", "tools"]
+        assert body["total"] == 363 and body["detail"] == "summary"
+        for entry in body["tools"]:
+            assert list(entry) == _SUMMARY_KEYS
+    assert "tool_\\u00e9" in summaries[-1] and "caf\\u00e9" in summaries[-1]
+    by_name = {t["name"]: t for t in tools}
+    for reply in _walk(list_tools, limit=500, detail="full"):
+        for entry in _page(reply)[1]["tools"]:
+            source = by_name[entry["name"]]
+            assert list(entry.items()) == list(source.items())
+            assert json.dumps(source, separators=(",", ":"), ensure_ascii=True) in reply
+
+    actors = _page(module.mcp.tools["get_all_actors"]())[1]
+    assert list(actors) == ["count", "offset", "limit", "returned", "next_offset", "complete",
+                            "budget_limited", "omitted_count", "listing_digest", "keys_digest",
+                            "actors"]
+    assert actors["count"] == 176
+
+    instructions = module.mcp.instructions
+    for phrase in ("list_toolbelt_tools — list registered tools, one bounded page per call",
+                   "get_all_actors      — list level actors, one bounded page per call",
+                   "Paged listings: list_toolbelt_tools and get_all_actors return one page "
+                   "per call, at most 24,000 characters of ASCII JSON.",
+                   "rejected as malformed",
+                   "restart from offset 0, at most twice"):
+        assert phrase in instructions, phrase
+    for retired in ("see every tool available", "snapshot the level"):
+        assert retired not in instructions
+
+
+# Test 8. Placeholders.
+
+def _sized_actor(i: int, chars: int) -> dict:
+    """An actor whose serialized form is exactly `chars` characters."""
+    entry = _paged_actor(i, label="")
+    entry["label"] = "y" * (chars - len(json.dumps(entry, separators=(",", ":"))))
+    assert len(json.dumps(entry, separators=(",", ":"), ensure_ascii=True)) == chars
+    return entry
+
+
+def test_paged_placeholders_replace_only_oversized_entries(repo_root, tmp_path, monkeypatch):
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, actors=[])
+    limit = module.ITEM_CHAR_LIMIT
+    exact, over = _sized_actor(1, limit), _sized_actor(2, limit + 1)
+    long_key = _paged_actor(3, path="/P/" + "k" * 400, label="z" * (limit + 10))
+    actors = [exact, over, long_key, _paged_actor(4)]
+    monkeypatch.setattr(module, "_send", lambda command, params=None, timeout=None: {
+        "actors": actors, "count": 4})
+    pages = [_page(r)[1] for r in _walk(module.mcp.tools["get_all_actors"], limit=1, step_bound=10)]
+    entries = {p["actors"][0].get("path", "key-omitted"): p for p in pages}
+    assert entries[exact["path"]]["actors"] == [exact]
+    assert entries[exact["path"]]["omitted_count"] == 0
+    assert entries[over["path"]]["actors"] == [{
+        "path": over["path"], "omitted": True, "omitted_chars": limit + 1,
+        "item_sha256": _expected_sha(_canonical(over))}]
+    assert entries[over["path"]]["omitted_count"] == 1
+    hidden = entries["key-omitted"]["actors"][0]
+    assert list(hidden) == ["key_omitted", "key_sha256", "omitted", "omitted_chars", "item_sha256"]
+    assert hidden["key_sha256"] == _expected_sha(json.dumps(long_key["path"], ensure_ascii=True))
+    assert sum(p["returned"] for p in pages) == 4
+    walk = _walk(module.mcp.tools["get_all_actors"], step_bound=4)
+    assert sum(_page(r)[1]["omitted_count"] for r in walk) == 2
+
+
+# Test 9. Malformed bridge replies.
+
+@pytest.mark.parametrize("kind", (
+    "not-an-object", "missing-field", "field-not-a-list", "entry-not-an-object",
+    "missing-key", "null-key", "non-string-key", "duplicate-key",
+))
+@pytest.mark.parametrize("tool", ("list_toolbelt_tools", "get_all_actors"))
+def test_paged_malformed_bridge_replies_fail_closed(repo_root, tmp_path, monkeypatch, kind, tool):
+    field, key = ("tools", "name") if tool == "list_toolbelt_tools" else ("actors", "path")
+    good = [_paged_tool(i) if field == "tools" else _paged_actor(i) for i in range(3)]
+    result: object = {field: good}
+    if kind == "not-an-object":
+        result = [good]
+    elif kind == "missing-field":
+        result = {"count": 3}
+    elif kind == "field-not-a-list":
+        result = {field: {"0": good[0]}}
+    elif kind == "entry-not-an-object":
+        result = {field: good + ["not an entry"]}
+    elif kind == "missing-key":
+        result = {field: good + [{k: v for k, v in good[0].items() if k != key}]}
+    elif kind == "null-key":
+        result = {field: good + [dict(good[0], **{key: None})]}
+    elif kind == "non-string-key":
+        result = {field: good + [dict(good[0], **{key: 12})]}
+    else:
+        result = {field: good + [dict(good[0])]}
+    module, calls = _paged(repo_root, tmp_path, monkeypatch,
+                           script=lambda command, params, call: result)
+    returned = []
+    with pytest.raises(ValueError, match="^malformed bridge reply: "):
+        returned.append(module.mcp.tools[tool]())
+    assert returned == [] and len(calls) == 1
+
+
+# Test 10. Protected metadata.
+
+def test_paged_extra_fields_cannot_overwrite_paging_fields(repo_root, tmp_path, monkeypatch):
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, actors=[])
+    items = [_paged_actor(i) for i in range(3)]
+    protected = ("count", "actors", "offset", "limit", "returned", "next_offset", "complete",
+                 "budget_limited", "omitted_count", "listing_digest", "keys_digest")
+    for name in protected:
+        with pytest.raises(ValueError, match="would overwrite a paging field"):
+            module._page_listing(items, key_field="path", items_field="actors",
+                                 count_field="count", offset=0, limit=50,
+                                 extra=((name, "x"),))
+    with pytest.raises(ValueError, match="would overwrite a paging field"):
+        module._page_listing(items, key_field="path", items_field="actors", count_field="count",
+                             offset=0, limit=50, extra=(("detail", "a"), ("detail", "b")))
+    body = json.loads(module._page_listing(items, key_field="path", items_field="actors",
+                                           count_field="count", offset=0, limit=50,
+                                           extra=(("detail", "full"),)))
+    assert body["detail"] == "full" and body["returned"] == 3 and body["next_offset"] is None
+
+
+def _exact_landing(module, target: int) -> tuple[list, dict]:
+    """A 102-actor listing whose last page, offset 100 and limit 2, has a reply of
+    exactly `target` characters when both of its actors are delivered.
+
+    With three digits in the total and one in the entry count, the worst-case
+    metadata bound equals that page's actual metadata, so the sizing decides
+    at the exact character.
+    """
+    small = [_paged_actor(i) for i in range(100)]
+    first = _paged_actor(200, path="/Z/Big_1", label="f" * 11_000)
+    second = _paged_actor(201, path="/Z/Big_2", label="")
+    digests = ("sha256:" + "0" * 64, "sha256:" + "1" * 64)
+    skeleton = len(module._skeleton("", "count", "actors", 102, 100, 2, 2, None, False, 0,
+                                    digests, ()))
+    fixed = skeleton + len(json.dumps(first, separators=(",", ":"))) + 1
+    second["label"] = "s" * (target - fixed - len(json.dumps(second, separators=(",", ":"))))
+    return small + [first, second], {"offset": 100, "limit": 2}
+
+
+def test_paged_exact_budget_reply_is_delivered_unflagged(repo_root, tmp_path, monkeypatch):
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, actors=[])
+    actors, kwargs = _exact_landing(module, module.REPLY_CHAR_BUDGET)
+    monkeypatch.setattr(module, "_send", lambda command, params=None, timeout=None: {
+        "actors": actors, "count": 102})
+    reply = module.mcp.tools["get_all_actors"](**kwargs)
+    body = _page(reply)[1]
+    assert len(reply) == module.REPLY_CHAR_BUDGET
+    assert (body["returned"], body["budget_limited"], body["omitted_count"]) == (2, False, 0)
+    assert body["complete"] is True
+
+
+# Test 11. Incremental sizing, by independent instrumentation.
+
+class _CountingJson:
+    """Stands in for mcp_server's `json`. It records each dumps() of an entry
+    object by identity, telling canonical serializations (sort_keys) from reply
+    ones. It never reads a helper counter."""
+
+    def __init__(self, entry_ids: set):
+        self.entry_ids, self.reply, self.canonical = entry_ids, [], []
+
+    def dumps(self, obj, **kwargs):
+        if id(obj) in self.entry_ids:
+            (self.canonical if kwargs.get("sort_keys") else self.reply).append(id(obj))
+        return json.dumps(obj, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(json, name)
+
+
+def _counted_walk(module, monkeypatch, actors, limit):
+    tool, rows, replies, offset = module.mcp.tools["get_all_actors"], [], [], 0
+    ids = {id(a) for a in actors}
+    while True:
+        spy = _CountingJson(ids)
+        with monkeypatch.context() as patch:
+            patch.setattr(module, "json", spy)
+            reply = tool(offset=offset, limit=limit)
+        body = _page(reply)[1]
+        replies.append(reply)
+        rows.append((body["returned"], len(spy.reply), len(set(spy.reply)), sorted(spy.canonical)))
+        if body["next_offset"] is None:
+            return rows, replies
+        offset = body["next_offset"]
+
+
+def test_paged_sizing_serializes_each_entry_once(repo_root, tmp_path, monkeypatch):
+    actors = _PAGED_ACTORS[2000]
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, actors=actors)
+    rows, replies = _counted_walk(module, monkeypatch, actors, 500)
+    every = sorted(id(a) for a in actors)
+    assert len(rows) > 1
+    for returned, reply_dumps, distinct, canonical in rows:
+        assert returned <= reply_dumps <= returned + 1
+        assert distinct == reply_dumps
+        assert canonical == every
+
+    # Failing control: a reply serializer that bypasses the module's json binding
+    # gives byte-identical pages, and only the lower bound notices it.
+    monkeypatch.setattr(module, "_ser", lambda obj: json.dumps(
+        obj, separators=(",", ":"), ensure_ascii=True))
+    bypass_rows, bypass_replies = _counted_walk(module, monkeypatch, actors, 500)
+    assert bypass_replies == replies
+    assert all(reply_dumps == 0 for _r, reply_dumps, _d, _c in bypass_rows)
+    assert not all(r <= dumps <= r + 1 for r, dumps, _d, _c in bypass_rows)
+
+
+# Test 12. The worst-case bound, the configuration guard and the final check.
+
+_PAGED_DIGESTS = ("sha256:" + "0" * 64, "sha256:" + "1" * 64)
+
+
+def _bound_cases():
+    cases = []
+    for total in (0, 1, 9, 10, 11, 99, 100, 999, 1000, 1001, 9999, 10000, 123456):
+        for limit in (1, 7, 50, 500):
+            offsets = sorted({0, max(0, total - 1), max(0, total - limit), total // 2, total})
+            for offset in offsets:
+                want = min(limit, total - offset)
+                for n in sorted({0, 1, 9, 10, 11, want - 1, want} & set(range(want + 1))):
+                    for prefix, count, items, extra in (
+                        ("", "count", "actors", ()),
+                        (f"// {total} tools registered\n", "total", "tools",
+                         (("detail", "summary"),)),
+                        (f"// {'9' * 200} tools registered\n", "total", "tools",
+                         (("detail", "full"),)),
+                    ):
+                        cases.append((prefix, count, items, total, offset, limit, n, extra))
+    return cases
+
+
+def test_paged_metadata_bound_covers_every_realizable_shape(repo_root, tmp_path, monkeypatch):
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, actors=[])
+    cases = _bound_cases()
+    assert len(cases) == 2004
+    tight = 0
+    for prefix, count, items, total, offset, limit, n, extra in cases:
+        bound = module._metadata_bound(prefix, count, items, total, offset, limit, n,
+                                       _PAGED_DIGESTS, extra)
+        nxt = offset + n if offset + n < total else None
+        for by_budget in (False, True):
+            for omitted in range(n + 1):
+                actual = len(module._skeleton(prefix, count, items, total, offset, limit, n,
+                                              nxt, by_budget, omitted, _PAGED_DIGESTS, extra))
+                assert actual <= bound, (total, offset, limit, n, nxt, by_budget, omitted)
+                tight += actual == bound
+    assert tight > 0
+
+
+def test_paged_configuration_guard_rejects_an_unfittable_item_limit(
+    repo_root, tmp_path, monkeypatch
+):
+    module, calls = _paged(repo_root, tmp_path, monkeypatch, actors=_PAGED_ACTORS[176])
+    assert _page(module.mcp.tools["get_all_actors"]())[1]["returned"] == 50
+    monkeypatch.setattr(module, "ITEM_CHAR_LIMIT", module.REPLY_CHAR_BUDGET)
+    with pytest.raises(ValueError, match="budget too small"):
+        module.mcp.tools["get_all_actors"]()
+
+
+def test_paged_final_check_fails_closed_when_sizing_under_reports(
+    repo_root, tmp_path, monkeypatch
+):
+    module, _calls = _paged(repo_root, tmp_path, monkeypatch, actors=[])
+    actors, kwargs = _exact_landing(module, module.REPLY_CHAR_BUDGET + 1)
+    monkeypatch.setattr(module, "_send", lambda command, params=None, timeout=None: {
+        "actors": actors, "count": 102})
+    tool = module.mcp.tools["get_all_actors"]
+    try:
+        control = _page(tool(**kwargs))[1]
+    except RuntimeError as error:
+        raise AssertionError("the true bound admitted an over-budget page: " + str(error)) from None
+    assert (control["returned"], control["budget_limited"]) == (1, True)
+    true_bound = module._metadata_bound
+    monkeypatch.setattr(module, "_metadata_bound", lambda *args: true_bound(*args) - 1)
+    returned = []
+    with pytest.raises(RuntimeError, match="exceeds its budget"):
+        returned.append(tool(**kwargs))
+    assert returned == []

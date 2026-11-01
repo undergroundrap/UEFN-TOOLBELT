@@ -38,7 +38,7 @@ data, viewport control, and more. Arbitrary remote Python is not exposed.
 
 What this exposes (beyond Kirch's original 22 tools):
     run_toolbelt_tool   — call any of the 362 registered toolbelt tools by name
-    list_toolbelt_tools — list every available tool with category and description
+    list_toolbelt_tools — list registered tools with category and description, one bounded page per call
     mcp_get_log         — read the last N lines of the MCP listener log ring
 
 Author: Ocean Bennett
@@ -47,6 +47,7 @@ License: AGPL-3.0 with visible attribution requirement (see LICENSE)
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -55,6 +56,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -418,6 +420,258 @@ def _j(obj: Any) -> str:
     return json.dumps(obj, indent=2)
 
 
+# ─── Paged listings ───────────────────────────────────────────────────────────
+#
+# WO-008 oversized-reply correction. list_toolbelt_tools and get_all_actors
+# return one bounded page per call; every other tool keeps _j.
+#
+# REPLY_CHAR_BUDGET bounds len(reply): code points of the complete returned
+# str, including the prefix line and every metadata field. Every reply is
+# serialized with ensure_ascii=True, so it is pure ASCII, and its code points,
+# UTF-8 bytes and UTF-16 code units are one number. Tokens and transport
+# framing are not measured, and no client output limit is promised. The bound
+# holds through four parts: no caller string is echoed, metadata is sized at
+# its worst case, a configuration guard makes a one-entry page always fit, and
+# the finished reply is checked and fails closed.
+
+REPLY_CHAR_BUDGET     = 24_000  # hard ceiling on len(reply) for every page
+ITEM_CHAR_LIMIT       = 20_000  # a larger entry is replaced by a placeholder
+PLACEHOLDER_KEY_CHARS = 256     # a placeholder echoes a key only up to this serialized size
+MAX_PAGE_LIMIT        = 500
+DEFAULT_PAGE_LIMIT    = 50
+_SUMMARY_FIELDS = ("name", "category", "description", "tags")
+_DETAILS = ("summary", "full")
+# The paging fields every page carries, in this order. Extra fields may not reuse them.
+_CORE_FIELDS = ("offset", "limit", "returned", "next_offset", "complete",
+                "budget_limited", "omitted_count", "listing_digest", "keys_digest")
+
+
+def _ser(obj: Any) -> str:
+    """Reply form: compact, ASCII-only. Entry key order is kept as the bridge sent it."""
+    return json.dumps(obj, separators=(",", ":"), ensure_ascii=True)
+
+
+def _canon(obj: Any) -> str:
+    """Canonical form: compact, ASCII-only, sorted keys. Used for digests only."""
+    return json.dumps(obj, separators=(",", ":"), ensure_ascii=True, sort_keys=True)
+
+
+def _sha(text: str) -> str:
+    """'sha256:' and the lowercase hex SHA-256 of the text's bytes (the text is ASCII)."""
+    return "sha256:" + hashlib.sha256(text.encode("ascii")).hexdigest()
+
+
+def _key_sha256(key: str) -> str:
+    """key_sha256: the SHA-256 of the key's JSON string literal, quotes included,
+    as json.dumps(key, ensure_ascii=True) writes it."""
+    return _sha(json.dumps(key, ensure_ascii=True))
+
+
+def _item_sha256(entry: dict) -> str:
+    """item_sha256: the SHA-256 of the entry's canonical form, for the entry as
+    projected at the requested detail, before any placeholder."""
+    return _sha(_canon(entry))
+
+
+def _validate_page_args(offset: Any, limit: Any) -> tuple[int, int]:
+    """Direct-call validation, before any bridge request.
+
+    Through an MCP SDK this sees values after the SDK's own argument
+    coercion: booleans, integral floats and numeric strings may already have
+    become integers there.
+    """
+    for name, value in (("offset", offset), ("limit", limit)):
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(f"{name} must be an integer, not {type(value).__name__}")
+    if offset < 0:
+        raise ValueError("offset must be 0 or greater")
+    if not 1 <= limit <= MAX_PAGE_LIMIT:
+        raise ValueError(f"limit must be between 1 and {MAX_PAGE_LIMIT}")
+    return offset, limit
+
+
+def _validate_detail(detail: Any) -> str:
+    if not isinstance(detail, str) or detail not in _DETAILS:
+        raise ValueError("detail must be 'summary' or 'full'")
+    return detail
+
+
+def _validate_text(name: str, value: Any) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be a string, not {type(value).__name__}")
+    return value
+
+
+def _validate_listing(result: Any, field: str, key_field: str) -> list[dict]:
+    """Fail closed on a malformed bridge listing: an error, never a partial page.
+
+    The whole listing is checked, before any filter. A duplicate key is
+    malformed too: paging, both digests and the placeholders rely on one
+    entry per key, so a duplicate is neither dropped nor merged. The error
+    names the two positions and the key's key_sha256, never the key, so its
+    length stays bounded.
+    """
+    if not isinstance(result, dict) or not isinstance(result.get(field), list):
+        raise ValueError(f"malformed bridge reply: no {field!r} list")
+    items = result[field]
+    seen: dict[str, int] = {}
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise ValueError(f"malformed bridge reply: {field}[{index}] is not an object")
+        key = item.get(key_field)
+        if not isinstance(key, str):
+            raise ValueError(
+                f"malformed bridge reply: {field}[{index}] has no string {key_field!r}")
+        if key in seen:
+            raise ValueError(f"malformed bridge reply: {field}[{seen[key]}] and {field}[{index}] "
+                             f"share one {key_field} ({_key_sha256(key)})")
+        seen[key] = index
+    return items
+
+
+def _project_tools(tools: list[dict], detail: str) -> list[dict]:
+    if detail == "full":
+        return list(tools)
+    return [{k: t[k] for k in _SUMMARY_FIELDS if k in t} for t in tools]
+
+
+def _filter_actors(actors: list[dict], label_contains: str, actor_path: str) -> list[dict]:
+    """Applied before paging. A non-string label never matches a label filter."""
+    out = actors
+    if actor_path:
+        out = [a for a in out if a["path"] == actor_path]
+    if label_contains:
+        needle = label_contains.casefold()
+        out = [a for a in out if isinstance(a.get("label"), str)
+               and needle in a["label"].casefold()]
+    return out
+
+
+def _skeleton(prefix: str, count_field: str, items_field: str, total: int, offset: int,
+              limit: int, n: int, nxt: int | None, by_budget: bool, omitted: int,
+              digests: tuple[str, str], extra: tuple[tuple[str, str], ...]) -> str:
+    """The page with no entries: everything except the entries themselves."""
+    body: dict[str, Any] = {count_field: total, "offset": offset, "limit": limit,
+                            "returned": n, "next_offset": nxt, "complete": nxt is None,
+                            "budget_limited": by_budget, "omitted_count": omitted,
+                            "listing_digest": digests[0], "keys_digest": digests[1]}
+    body.update(extra)
+    body[items_field] = []
+    text = prefix + _ser(body)
+    if not text.endswith("[]}"):
+        raise RuntimeError("internal error: unexpected skeleton shape")
+    return text
+
+
+def _metadata_bound(prefix: str, count_field: str, items_field: str, total: int,
+                    offset: int, limit: int, n: int, digests: tuple[str, str],
+                    extra: tuple[tuple[str, str], ...]) -> int:
+    """An upper bound on len(_skeleton(...)) for any page holding n entries.
+
+    The final page has next_offset null and complete true. Any other page has a
+    next_offset of at most `total`'s digits and complete false. budget_limited
+    false is the longer boolean, and omitted_count has no more digits than n.
+    """
+    def length(nxt: int | None) -> int:
+        return len(_skeleton(prefix, count_field, items_field, total, offset, limit, n,
+                             nxt, False, n, digests, extra))
+    return max(length(total), length(None))
+
+
+def _placeholder(key_field: str, key: str, entry_chars: int, entry: dict) -> dict:
+    holder: dict[str, Any] = {}
+    if len(json.dumps(key, ensure_ascii=True)) <= PLACEHOLDER_KEY_CHARS:
+        holder[key_field] = key
+    else:
+        holder["key_omitted"] = True
+        holder["key_sha256"] = _key_sha256(key)
+    holder["omitted"] = True
+    holder["omitted_chars"] = entry_chars
+    holder["item_sha256"] = _item_sha256(entry)
+    return holder
+
+
+def _page_listing(
+    items: list[dict], *, key_field: str, items_field: str, count_field: str,
+    offset: int, limit: int, extra: tuple[tuple[str, str], ...] = (),
+    prefix_for: Callable[[int], str] | None = None,
+) -> str:
+    """One deterministic page of a validated listing, never longer than REPLY_CHAR_BUDGET.
+
+    - `items` must already have passed _validate_listing: one entry per key.
+    - Order: by key alone, compared by code point.
+    - listing_digest covers the complete ordered listing as delivered at this
+      detail, before any placeholder is substituted; keys_digest covers the
+      ordered keys only.
+    - An entry whose serialized size exceeds ITEM_CHAR_LIMIT is replaced by a
+      bounded placeholder. It is still enumerated and counted, and
+      omitted_count says how many entries on the page are placeholders.
+    - Each entry is serialized for the reply at most once, and the page holds
+      at least one entry whenever any remain, so paging always advances. The
+      finished reply is checked against the budget before it is returned.
+    """
+    budget, item_limit = REPLY_CHAR_BUDGET, ITEM_CHAR_LIMIT
+    names = {count_field, items_field, *_CORE_FIELDS}
+    for name, _ in extra:
+        if name in names:
+            raise ValueError(f"extra field {name!r} would overwrite a paging field")
+        names.add(name)
+
+    order = sorted(range(len(items)), key=lambda i: items[i][key_field])
+    for a, b in zip(order, order[1:], strict=False):  # defence in depth behind _validate_listing
+        if items[a][key_field] == items[b][key_field]:
+            raise ValueError(
+                f"duplicate {key_field} in the listing ({_key_sha256(items[a][key_field])})")
+    total = len(order)
+    if offset > total:
+        raise ValueError(f"offset {offset} is beyond the {total} matching items; "
+                         "the listing changed, so restart from offset 0")
+    canon = {i: _canon(items[i]) for i in order}  # the whole listing, once per call
+    digests = (_sha("[" + ",".join(canon[i] for i in order) + "]"),
+               _sha(_canon([items[i][key_field] for i in order])))
+    prefix = prefix_for(total) if prefix_for is not None else ""
+
+    def bound(n: int) -> int:
+        return _metadata_bound(prefix, count_field, items_field, total, offset, limit,
+                               n, digests, extra)
+
+    # Configuration guard: a one-entry page always fits, so an empty page fits
+    # too, and every page advances. The longest placeholder echoes a key whose
+    # serialized form is exactly PLACEHOLDER_KEY_CHARS long, quotes included.
+    placeholder_max = len(_ser(_placeholder(key_field, "k" * (PLACEHOLDER_KEY_CHARS - 2),
+                                            10 ** 12, {})))
+    if bound(1) + max(item_limit, placeholder_max) > budget:
+        raise ValueError("budget too small for the item limit and metadata")
+
+    want = min(limit, total - offset)
+    entries: list[str] = []
+    used = 0          # characters of the entries, plus their separating commas
+    omitted = 0
+    by_budget = False
+    for position in range(offset, offset + want):
+        i = order[position]
+        text = _ser(items[i])                     # each entry is serialized once
+        is_placeholder = len(text) > item_limit
+        if is_placeholder:
+            text = _ser(_placeholder(key_field, items[i][key_field], len(text), items[i]))
+        extra_chars = len(text) + (1 if entries else 0)
+        if entries and bound(len(entries) + 1) + used + extra_chars > budget:
+            by_budget = True
+            break
+        entries.append(text)
+        used += extra_chars
+        omitted += is_placeholder
+
+    n = len(entries)
+    nxt = offset + n if offset + n < total else None
+    head = _skeleton(prefix, count_field, items_field, total, offset, limit, n, nxt,
+                     by_budget, omitted, digests, extra)
+    reply = head[:-2] + ",".join(entries) + "]}"
+    if len(reply) > budget:                       # unreachable by construction
+        raise RuntimeError("internal error: reply exceeds its budget")
+    return reply
+
+
 # ─── FastMCP server ───────────────────────────────────────────────────────────
 
 mcp = FastMCP(
@@ -431,8 +685,8 @@ mcp = FastMCP(
         "dispatch. Browser-originated requests are rejected.\n\n"
         "Key tools:\n"
         "  run_toolbelt_tool   — run registered tools except local-only MCP lifecycle\n"
-        "  list_toolbelt_tools — see every tool available\n"
-        "  get_all_actors      — snapshot the level\n"
+        "  list_toolbelt_tools — list registered tools, one bounded page per call\n"
+        "  get_all_actors      — list level actors, one bounded page per call\n"
         "  get_selected_actors — what the user has selected right now\n\n"
         "Verse code generation (spec-accurate):\n"
         "  verse_book_search   — search the authoritative Verse spec by keyword\n"
@@ -448,6 +702,15 @@ mcp = FastMCP(
         "an elapsed time, and a success flag, but no request identifier, "
         "parameters, time, or caller, so they cannot identify a specific call or "
         "show how many times it ran."
+        "\n\nPaged listings: list_toolbelt_tools and get_all_actors return one page "
+        "per call, at most 24,000 characters of ASCII JSON. Follow next_offset until "
+        "complete is true. An entry marked omitted: true was enumerated but is too "
+        "large to deliver. A listing with a duplicate tool name or actor path is "
+        "rejected as malformed. If keys_digest changes between pages, or an offset is "
+        "rejected as beyond the listing, the set of entries changed: restart from "
+        "offset 0, at most twice, then stop and report that the listing was not "
+        "stable. A listing_digest change alone means values changed between page "
+        "calls; re-read any actor you rely on with get_all_actors(actor_path=...)."
     ),
 )
 
@@ -503,20 +766,35 @@ def run_toolbelt_tool(tool_name: str, kwargs: dict | None = None) -> str:
 
 
 @mcp.tool()
-def list_toolbelt_tools(category: str = "") -> str:
-    """List all registered UEFN Toolbelt tools.
+def list_toolbelt_tools(category: str = "", offset: int = 0, limit: int = 50,
+                        detail: str = "summary") -> str:
+    """List registered UEFN Toolbelt tools, one bounded page per call.
 
     Args:
-        category: Optional filter (e.g. 'Materials', 'Procedural', 'MCP Bridge').
-                  Leave empty to list everything.
+        category: Optional exact category (e.g. 'Materials', 'Procedural',
+                  'MCP Bridge'). Leave empty for every category.
+        offset:   Index of the first tool on this page, 0 or more. Pass the
+                  previous page's next_offset.
+        limit:    Most tools on this page, 1-500 (default 50). A page holds
+                  fewer when the size budget ends it.
+        detail:   'summary' (name, category, description, tags) or 'full'
+                  (every registry field).
 
-    Returns JSON with tool name, category, description, and tags for every tool.
-    Pass a name to run_toolbelt_tool() to execute it.
+    Returns '// <total> tools registered', then one JSON object with total,
+    offset, limit, returned, next_offset (null on the last page), complete,
+    budget_limited, omitted_count, listing_digest, keys_digest, detail and
+    tools. Tools are ordered by name. Pass a name to describe_toolbelt_tool()
+    or run_toolbelt_tool().
     """
-    result = _send("list_tools", {"category": category})
-    tools = result.get("tools", [])
-    count = result.get("count", len(tools))
-    return f"// {count} tools registered\n{_j(tools)}"
+    _validate_text("category", category)
+    offset, limit = _validate_page_args(offset, limit)
+    detail = _validate_detail(detail)
+    tools = _validate_listing(_send("list_tools", {"category": category}),
+                              "tools", "name")
+    return _page_listing(_project_tools(tools, detail), key_field="name",
+                         items_field="tools", count_field="total", offset=offset,
+                         limit=limit, extra=(("detail", detail),),
+                         prefix_for=lambda total: f"// {total} tools registered\n")
 
 
 @mcp.tool()
@@ -546,13 +824,33 @@ def describe_toolbelt_tool(tool_name: str) -> str:
 
 
 @mcp.tool()
-def get_all_actors(class_filter: str = "") -> str:
-    """List all actors in the current UEFN level.
+def get_all_actors(class_filter: str = "", offset: int = 0, limit: int = 50,
+                   label_contains: str = "", actor_path: str = "") -> str:
+    """List actors in the current UEFN level, one bounded page per call.
 
     Args:
-        class_filter: Optional class name to filter by (e.g. 'StaticMeshActor').
+        class_filter:   Optional exact class name (e.g. 'StaticMeshActor').
+        offset:         Index of the first actor on this page, 0 or more. Pass
+                        the previous page's next_offset.
+        limit:          Most actors on this page, 1-500 (default 50). A page
+                        holds fewer when the size budget ends it.
+        label_contains: Optional case-insensitive substring of the actor label.
+        actor_path:     Optional exact actor path.
+
+    Returns one JSON object with count (matching actors), offset, limit,
+    returned, next_offset (null on the last page), complete, budget_limited,
+    omitted_count, listing_digest, keys_digest and actors. Actors are ordered
+    by path. Every page call reads the whole level again.
     """
-    return _j(_send("get_all_actors", {"class_filter": class_filter}))
+    _validate_text("class_filter", class_filter)
+    _validate_text("label_contains", label_contains)
+    _validate_text("actor_path", actor_path)
+    offset, limit = _validate_page_args(offset, limit)
+    actors = _validate_listing(_send("get_all_actors", {"class_filter": class_filter}),
+                               "actors", "path")
+    return _page_listing(_filter_actors(actors, label_contains, actor_path),
+                         key_field="path", items_field="actors", count_field="count",
+                         offset=offset, limit=limit)
 
 
 @mcp.tool()
