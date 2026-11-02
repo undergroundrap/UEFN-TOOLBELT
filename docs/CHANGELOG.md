@@ -42,6 +42,10 @@ and each actor listing of a 176-actor level were replaced that way. Each paged
 reply is at most 24,000 characters of ASCII text; that bound is not a promise
 about any particular client's limit.
 
+### Fixed
+
+- Prevent overlapping perimeter walls and duplicate spawn pads in generated arenas.
+
 ### Docs
 
 - **Connect once per client.** New `docs/MCP_CLIENT_SETUP.md`: register

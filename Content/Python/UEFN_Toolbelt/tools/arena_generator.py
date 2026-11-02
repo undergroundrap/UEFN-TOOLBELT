@@ -210,12 +210,15 @@ def _place_walls(
                     else:
                         blue_walls.append(actor)
 
+    # Center each row on its floor edge, one half-tile outside the floor.
+    # Perpendicular rows then meet at corners without overlapping tile volumes.
+    half_ts = ts / 2
     # North / South walls (along X axis)
-    place_wall_row(-half_x, -half_y, cfg.floor_tiles_x, ts, 0, 0, "S")
-    place_wall_row(-half_x,  half_y, cfg.floor_tiles_x, ts, 0, 0, "N")
+    place_wall_row(-half_x + half_ts, -half_y - half_ts, cfg.floor_tiles_x, ts, 0, 0, "S")
+    place_wall_row(-half_x + half_ts,  half_y + half_ts, cfg.floor_tiles_x, ts, 0, 0, "N")
     # East / West walls (along Y axis)
-    place_wall_row(-half_x, -half_y, cfg.floor_tiles_y, 0, ts, 90, "W")
-    place_wall_row( half_x, -half_y, cfg.floor_tiles_y, 0, ts, 90, "E")
+    place_wall_row(-half_x - half_ts, -half_y + half_ts, cfg.floor_tiles_y, 0, ts, 90, "W")
+    place_wall_row( half_x + half_ts, -half_y + half_ts, cfg.floor_tiles_y, 0, ts, 90, "E")
 
     return red_walls, blue_walls
 
@@ -266,7 +269,7 @@ def _place_spawns(
             sx = math.cos(angle) * cfg.spawn_spread * 0.4
             sy = math.sin(angle) * cfg.spawn_spread
             loc = unreal.Vector(
-                origin.x + sign * (half_x * 0.6 + abs(sx)),
+                origin.x + sign * (half_x * 0.6 + sx),
                 origin.y + sy,
                 origin.z + 5.0,  # slightly above floor
             )
