@@ -224,6 +224,16 @@ and the [WO-004 completion record](work-orders/completed/WO-004-modal-observabil
 - Exactly-once execution is not claimed.
 - The bridge's unhandled `ConnectionAbortedError` was observed and not fixed.
 
+**MCP-client check (2026-11-01).** After WO-004, a read-only check ran
+`mcp_server.py` through two MCP clients, each registered once at user level
+(see [MCP_CLIENT_SETUP.md](MCP_CLIENT_SETUP.md)): the Claude desktop app's Code
+tab and the Codex desktop app, on Windows 11 with UEFN
+`Release-43.00-CL-59596594`. In each, `ping`, the first page of
+`list_toolbelt_tools` (50 of 362 tools) and the first page of `get_all_actors`
+(50 of 176 actors) returned inline. Tools that change the level, later pages,
+maximum-size replies and other clients were not exercised. The check was an
+owner-run practical check; the WO-008 formal live proof was not performed.
+
 **Coverage categories are not live verification.** Of 362 registered tools,
 80 are `defined-outcome`, 73 `defined-execution`, and 209
 `registration-only`. These source categories describe what the test code is

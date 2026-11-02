@@ -7,8 +7,10 @@
 Python automation framework for Unreal Editor for Fortnite (UEFN).
 362 tools, 55 categories, PySide6 dashboard, and Toolbelt's own custom bridge.
 An MCP client can reach that bridge through `mcp_server.py`, configured in a
-local, gitignored `.mcp.json` copied from `.mcp.json.template`. MCP-host
-integration is untested since the WO-001/WO-004 hardening.
+local, gitignored `.mcp.json` copied from `.mcp.json.template`, or registered
+once per client at user level (`docs/MCP_CLIENT_SETUP.md`). Through MCP clients,
+only a read-only check has passed (2026-11-01, Claude Code desktop and Codex
+desktop); tools that change the level are not yet checked that way.
 The bridge is Toolbelt's own authenticated, same-user loopback HTTP listener — not
 Epic's official UEFN MCP server, which Toolbelt is not reachable through.
 

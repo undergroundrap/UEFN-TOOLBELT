@@ -1509,9 +1509,23 @@ This gives Claude access to the full live Verse language spec for spec-accurate 
 
 ---
 
-### Step 8 — (Optional) Connect Claude Code via MCP
+### Step 8 — (Optional) Connect Claude Code or Codex via MCP
 
-This lets Claude Code directly control UEFN — spawn actors, run any tool, generate Verse code — without you typing anything in the console.
+This lets an AI client directly control UEFN — spawn actors, run any tool, generate Verse code — without you typing anything in the console.
+
+**Recommended: connect once per client.** Register `mcp_server.py` at user
+level and every ordinary chat in that client can reach UEFN, in any folder:
+```bat
+claude mcp add --scope user uefn-toolbelt -- C:\path\to\python.exe -B C:\path\to\UEFN-TOOLBELT\mcp_server.py
+```
+```bat
+codex mcp add uefn-toolbelt -- C:\path\to\python.exe -B C:\path\to\UEFN-TOOLBELT\mcp_server.py
+```
+The interpreter needs the `mcp` package (`python -m pip install mcp`). Then
+start the listener (step 4 below) and open a new chat. The full guide, with
+checks and troubleshooting, is [docs/MCP_CLIENT_SETUP.md](docs/MCP_CLIENT_SETUP.md).
+
+**Per-project alternative (Claude Code):**
 
 **1. Install the MCP Python package** (regular terminal, not UEFN):
 ```bat
@@ -1557,9 +1571,12 @@ run the toolbelt smoke test
 ```
 If the client connects, it calls `run_toolbelt_tool("toolbelt_smoke_test")` through the bridge.
 
-> **Untested path:** No accepted record has run `mcp_server.py` through any MCP host, stdio, or FastMCP since the WO-001 authentication and WO-004 transport changes. `client.py`
-> direct calls are the path with recorded live evidence, on one UEFN 42.20 boot.
-> See the [evidence gaps](docs/OFFICIAL_MCP_AND_TOOLBELT.md#evidence-gaps).
+> **What has been checked:** on 2026-11-01 (UEFN 43.00), a read-only check
+> passed through `mcp_server.py` registered at user level in the Claude desktop
+> app's Code tab and in the Codex desktop app: `ping` and the first page of
+> `list_toolbelt_tools` and `get_all_actors`, each reply delivered inline. Tools
+> that change the level have not yet been checked through an MCP client. See the
+> [evidence gaps](docs/OFFICIAL_MCP_AND_TOOLBELT.md#evidence-gaps).
 
 > **Note:** The listener must be started in UEFN each session. You can also click **Dashboard → MCP → Start Listener** instead of pasting the command.
 

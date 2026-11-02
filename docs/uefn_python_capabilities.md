@@ -426,7 +426,7 @@ Things that would take hours manually, now one click:
 - **Localization** — bulk-export/import level text manifest for global map support
 - **Level snapshots** — save/restore/diff actor transforms as JSON checkpoints
 - **Asset tagging** — searchable metadata on any Content Browser asset
-- **MCP bridge** — authenticated same-user control of UEFN from `client.py`, or from an MCP client through `mcp_server.py` (MCP-host integration untested since the WO-001/WO-004 hardening): spawn, move, and run registered tools other than the local-only controls
+- **MCP bridge** — authenticated same-user control of UEFN from `client.py`, or from an MCP client through `mcp_server.py` (through MCP clients, only a read-only check has passed, on 2026-11-01): spawn, move, and run registered tools other than the local-only controls
 
 ---
 

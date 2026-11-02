@@ -272,7 +272,7 @@ tb.run("scatter_props", ...)   # N actors
 | `Content/Python/UEFN_Toolbelt/core/config.py` | Persistent config system. `get_config().get/set/reset()`. Reads/writes `Saved/UEFN_Toolbelt/config.json` — survives `install.py` updates. |
 | `Content/Python/UEFN_Toolbelt/tools/` | All tool modules |
 | `Content/Python/UEFN_Toolbelt/tools/mcp_bridge.py` | HTTP listener (runs inside UEFN) |
-| `mcp_server.py` | External FastMCP stdio server for MCP clients such as Claude Code; host integration is untested since the WO-001/WO-004 hardening |
+| `mcp_server.py` | External FastMCP stdio server for MCP clients such as Claude Code and Codex; connect once per client with `docs/MCP_CLIENT_SETUP.md`. Only a read-only host check has passed (2026-11-01) |
 | `client.py` | Stdlib-only HTTP client for non-MCP external scripts |
 | `install.py` | One-command community installer — copies Toolbelt into any UEFN project, handles `init_unreal.py` safely |
 | `deploy.bat` | Dev workflow tool — deploy + PySide6 check + prints hot-reload command. Use this for active development. |

@@ -44,9 +44,10 @@ The custom bridge uses authenticated same-user loopback. `mcp_server.py` and
 # 1. Start listener in UEFN
 tb.run("mcp_start")   # → http://127.0.0.1:8765
 
-# 2. Copy .mcp.json.template to the gitignored .mcp.json and set the
-#    absolute path to mcp_server.py. MCP-host integration is untested
-#    since the WO-001/WO-004 hardening.
+# 2. Register mcp_server.py once per client at user level
+#    (docs/MCP_CLIENT_SETUP.md), or copy .mcp.json.template to the
+#    gitignored .mcp.json and set the absolute path to mcp_server.py.
+#    Through MCP clients, only a read-only check has passed (2026-11-01).
 ```
 
 Unauthenticated, browser-originated, and remote-host requests are rejected.

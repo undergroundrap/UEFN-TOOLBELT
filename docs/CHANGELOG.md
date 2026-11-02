@@ -42,6 +42,18 @@ and each actor listing of a 176-actor level were replaced that way. Each paged
 reply is at most 24,000 characters of ASCII text; that bound is not a promise
 about any particular client's limit.
 
+### Docs
+
+- **Connect once per client.** New `docs/MCP_CLIENT_SETUP.md`: register
+  `mcp_server.py` at user level with `claude mcp add --scope user` or
+  `codex mcp add`, check it, and use it from any ordinary chat. README Step 8
+  now leads with this; the per-project `.mcp.json` remains an alternative.
+- **Host evidence updated.** The "untested since the hardening" notes now say
+  what was checked: on 2026-11-01 a read-only check (`ping` and the first page
+  of each listing, delivered inline) passed in the Claude desktop app's Code tab
+  and the Codex desktop app. Tools that change the level are not yet checked
+  through an MCP client.
+
 ## [2.5.0] — 2026-10-03
 
 The WO-001 through WO-007 release train. The custom bridge is authenticated

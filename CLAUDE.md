@@ -225,8 +225,8 @@ It runs inside the editor and exposes 362 tools through:
 - A 26-tab PySide6 dark-themed dashboard (`tb.launch_qt()`) — the entry point
 - **Toolbelt's custom bridge** (`tb.run("mcp_start")`) — an authenticated,
   same-user loopback HTTP listener, intended for an MCP client such as Claude Code to
-  drive these tools; MCP-host integration is untested since the WO-001/WO-004
-  hardening. This is Toolbelt's own surface. Toolbelt is **not** reachable through Epic's
+  drive these tools; through MCP clients only a read-only check has passed
+  (2026-11-01, Claude Code desktop and Codex desktop). This is Toolbelt's own surface. Toolbelt is **not** reachable through Epic's
   official MCP server:
   WO-002 recorded that external result as `failed`, bounded by `UE::ValkyrieToolset::ToolsetPolicy`
 - A Python client library (`client.py`) for non-MCP scripts
@@ -468,8 +468,12 @@ import UEFN_Toolbelt as tb; tb.register(); tb.run("mcp_start")
 ```
 
 Then restart Claude Code so it loads the server from your `.mcp.json`.
-MCP-host integration is untested since the WO-001 authentication and WO-004
-transport changes; see the evidence gaps in `docs/OFFICIAL_MCP_AND_TOOLBELT.md`.
+To connect once for every project instead, register it at user level
+(`claude mcp add --scope user …` or `codex mcp add …`); see
+`docs/MCP_CLIENT_SETUP.md`. Through MCP clients, only a read-only check has
+passed (2026-11-01: `ping` and first listing pages, in the Claude desktop Code
+tab and the Codex desktop app); tools that change the level are not yet checked
+that way. See the evidence gaps in `docs/OFFICIAL_MCP_AND_TOOLBELT.md`.
 
 The listener accepts only authenticated same-user loopback POSTs. It rotates a
 session secret on every restart, hands it to `mcp_server.py` through the local
